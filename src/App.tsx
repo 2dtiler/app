@@ -4,12 +4,25 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { initEditorStore } from "@/lib/store";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { saveProject } from "@/lib/db";
-import { exportProject, downloadFile } from "@/lib/format";
+import {
+  exportProject,
+  exportMap,
+  importMap,
+  exportTileset,
+  importTileset,
+  downloadFile,
+  readFileAsUint8Array,
+} from "@/lib/format";
+import { generateMapId, generateLayerId } from "@/lib/ids";
+import type { TilesetGroupId, MapGroupId, TileLayer } from "@/types";
 
 import { Toolbar } from "@/components/layout/Toolbar";
 import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
 import { ProjectModal } from "@/components/dialogs/ProjectModal";
+import { AboutDialog } from "@/components/dialogs/AboutDialog";
+import { KeyboardShortcutsDialog } from "@/components/dialogs/KeyboardShortcutsDialog";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
@@ -18,12 +31,15 @@ function App() {
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(true);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
     initEditorStore().then(() => setReady(true));
   }, []);
 
   useAutoSave();
+  useKeyboardShortcuts();
 
   if (!ready) {
     return (
@@ -42,6 +58,10 @@ function App() {
         setSettingsOpen={setSettingsOpen}
         projectModalOpen={projectModalOpen}
         setProjectModalOpen={setProjectModalOpen}
+        aboutOpen={aboutOpen}
+        setAboutOpen={setAboutOpen}
+        shortcutsOpen={shortcutsOpen}
+        setShortcutsOpen={setShortcutsOpen}
       />
     </TooltipProvider>
   );
@@ -53,18 +73,25 @@ function AppShell({
   setSettingsOpen,
   projectModalOpen,
   setProjectModalOpen,
+  aboutOpen,
+  setAboutOpen,
+  shortcutsOpen,
+  setShortcutsOpen,
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
   projectModalOpen: boolean;
   setProjectModalOpen: (v: boolean) => void;
+  aboutOpen: boolean;
+  setAboutOpen: (v: boolean) => void;
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (v: boolean) => void;
 }) {
-  const { state } = useEditorStore();
+  const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
 
   const handleExportProject = useCallback(async () => {
     if (!state.project) return;
-    // Save first
     await saveProject(state.project);
     const data = await exportProject(state.project);
     downloadFile(data, `${state.project.name}.2dp`);
@@ -74,38 +101,160 @@ function AppShell({
     setProjectModalOpen(true);
   }, [setProjectModalOpen]);
 
+  // --- Map Import/Export ---
+
+  const handleExportMap = useCallback(async () => {
+    if (!state.project || !state.activeMapId) return;
+    const map = state.project.maps.find((m) => m.id === state.activeMapId);
+    if (!map) return;
+    const layers = state.project.layers.filter((l) =>
+      map.layerOrder.includes(l.id),
+    );
+    const data = await exportMap(map, layers, state.project.tilesets);
+    downloadFile(data, `${map.name}.2dm`);
+  }, [state.project, state.activeMapId]);
+
+  const handleImportMap = useCallback(() => {
+    if (!state.project) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".2dm";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const raw = await readFileAsUint8Array(file);
+        const { map, layers, tilesets } = await importMap(raw);
+
+        // Assign new IDs to avoid collisions with existing project data
+        const newMapId = generateMapId();
+        const layerIdMap = new Map<string, string>();
+        const newLayers: TileLayer[] = layers.map((l) => {
+          const newLayerId = generateLayerId();
+          layerIdMap.set(l.id, newLayerId);
+          return { ...l, id: newLayerId, mapId: newMapId } as TileLayer;
+        });
+
+        // Ensure the target map group exists
+        const targetGroupId =
+          state.activeMapGroupId ?? state.project!.mapGroups[0]?.id;
+        if (!targetGroupId) return;
+
+        // Merge tilesets that don't already exist in the project
+        const existingTilesetIds = new Set(
+          state.project!.tilesets.map((t) => t.id),
+        );
+        const newTilesets = tilesets.filter(
+          (t) => !existingTilesetIds.has(t.id),
+        );
+
+        setState((draft) => {
+          if (!draft.project) return;
+
+          // Add tilesets that aren't already present
+          for (const ts of newTilesets) {
+            // Assign to the first tileset group
+            const groupId =
+              draft.project.tilesetGroups[0]?.id ??
+              (null as unknown as TilesetGroupId);
+            if (groupId) {
+              draft.project.tilesets.push({ ...ts, groupId });
+            }
+          }
+
+          // Add the map
+          const newMap = {
+            ...map,
+            id: newMapId,
+            groupId: targetGroupId as MapGroupId,
+            layerOrder: map.layerOrder.map(
+              (lid) => (layerIdMap.get(lid) ?? lid) as any,
+            ),
+            createdAt: Date.now(),
+          };
+          draft.project.maps.push(newMap);
+
+          // Add layers
+          for (const layer of newLayers) {
+            draft.project.layers.push(layer);
+          }
+
+          draft.activeMapId = newMapId;
+          draft.activeLayerId = newLayers[newLayers.length - 1]?.id ?? null;
+          draft.activeMapGroupId = targetGroupId as MapGroupId;
+        });
+      } catch (err) {
+        console.error("[Import Map] Failed:", err);
+        alert("Failed to import map. The file may be corrupted.");
+      }
+    };
+    input.click();
+  }, [state.project, state.activeMapGroupId, setState]);
+
+  // --- Tileset Import/Export ---
+
+  const handleExportTileset = useCallback(async () => {
+    if (!state.project || !state.activeTilesetId) return;
+    const tileset = state.project.tilesets.find(
+      (t) => t.id === state.activeTilesetId,
+    );
+    if (!tileset) return;
+    const data = await exportTileset(tileset);
+    downloadFile(data, `${tileset.name}.2dt`);
+  }, [state.project, state.activeTilesetId]);
+
+  const handleImportTileset = useCallback(() => {
+    if (!state.project) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".2dt";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const raw = await readFileAsUint8Array(file);
+        const tileset = await importTileset(raw);
+
+        // Assign to current or first tileset group
+        const targetGroupId =
+          state.activeTilesetGroupId ?? state.project!.tilesetGroups[0]?.id;
+        if (!targetGroupId) return;
+
+        // Check if tileset already exists (by ID)
+        const exists = state.project!.tilesets.some((t) => t.id === tileset.id);
+
+        setState((draft) => {
+          if (!draft.project) return;
+          if (!exists) {
+            draft.project.tilesets.push({
+              ...tileset,
+              groupId: targetGroupId as TilesetGroupId,
+            });
+          }
+          draft.activeTilesetId = tileset.id;
+          draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+        });
+      } catch (err) {
+        console.error("[Import Tileset] Failed:", err);
+        alert("Failed to import tileset. The file may be corrupted.");
+      }
+    };
+    input.click();
+  }, [state.project, state.activeTilesetGroupId, setState]);
+
   return (
     <div className="flex h-full flex-col">
       <Toolbar
         onNewProject={handleNewProject}
         onImportProject={() => setProjectModalOpen(true)}
-        onImportMap={() => {
-          /* TODO Phase 4 */
-        }}
-        onImportTileset={() => {
-          /* TODO Phase 4 */
-        }}
+        onImportMap={handleImportMap}
+        onImportTileset={handleImportTileset}
         onExportProject={handleExportProject}
-        onExportMap={() => {
-          /* TODO Phase 4 */
-        }}
-        onExportTileset={() => {
-          /* TODO Phase 4 */
-        }}
+        onExportMap={handleExportMap}
+        onExportTileset={handleExportTileset}
         onOpenSettings={() => setSettingsOpen(true)}
-        onAbout={() =>
-          alert("2D Tiler v0.1.0\nA tile map editor built with React & PixiJS.")
-        }
-        onKeyboardShortcuts={() =>
-          alert(
-            "Keyboard Shortcuts:\n\n" +
-              "Ctrl+Z — Undo\n" +
-              "Ctrl+Shift+Z — Redo\n" +
-              "B — Paint tool\n" +
-              "E — Erase tool\n" +
-              "G — Fill tool",
-          )
-        }
+        onAbout={() => setAboutOpen(true)}
+        onKeyboardShortcuts={() => setShortcutsOpen(true)}
         onSubmitBug={() => window.open("https://github.com", "_blank")}
       />
 
@@ -148,6 +297,11 @@ function AppShell({
         open={projectModalOpen}
         onOpenChange={setProjectModalOpen}
         onProjectLoaded={() => setProjectModalOpen(false)}
+      />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <KeyboardShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
       />
     </div>
   );

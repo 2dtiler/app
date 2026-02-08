@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import {
   Plus,
   ZoomIn,
@@ -9,6 +9,7 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
+import { MapCanvas } from "./MapCanvas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -49,7 +50,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { getAssetUrl } from "@/lib/db";
 import { generateMapId, generateMapGroupId, generateLayerId } from "@/lib/ids";
 import {
   BRUSH_SIZES,
@@ -65,7 +65,6 @@ export function MapPanel() {
   const { state, setState } = useEditorStore();
   const project = state.project;
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -84,13 +83,6 @@ export function MapPanel() {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Painting state (not in store — local ephemeral state)
-  const [isPainting, setIsPainting] = useState(false);
-
-  // Tileset image cache: tilesetId -> HTMLImageElement
-  const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
-  const [, forceRender] = useState(0);
-
   if (!project) return null;
 
   const activeGroup = project.mapGroups.find(
@@ -102,154 +94,108 @@ export function MapPanel() {
   const activeMap = project.maps.find((m) => m.id === state.activeMapId);
   const activeLayer = project.layers.find((l) => l.id === state.activeLayerId);
 
-  // Load tileset images into cache
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const needed = new Set<string>();
-    if (activeMap) {
-      const mapLayers = project.layers.filter((l) =>
-        activeMap.layerOrder.includes(l.id),
-      );
-      for (const layer of mapLayers) {
-        for (const ref of Object.values(layer.tiles)) {
-          needed.add(ref.tilesetId);
+  // Get layers belonging to the active map
+  const mapLayers = activeMap
+    ? project.layers.filter((l) => activeMap.layerOrder.includes(l.id))
+    : [];
+
+  // Paint tile handler — called by MapCanvas on pointer events
+  const handlePaintTile = useCallback(
+    (gx: number, gy: number) => {
+      if (!activeMap || !activeLayer || activeLayer.locked) return;
+
+      if (state.currentTool === "paint") {
+        if (!state.selectedTile) return;
+        const brushNum = parseInt(state.brushSize);
+        const ref = state.selectedTile;
+
+        setState((draft) => {
+          const layer = draft.project?.layers.find(
+            (l) => l.id === state.activeLayerId,
+          );
+          if (!layer) return;
+          for (let dy = 0; dy < brushNum; dy++) {
+            for (let dx = 0; dx < brushNum; dx++) {
+              const tx = gx + dx;
+              const ty = gy + dy;
+              if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
+                continue;
+              layer.tiles[`${tx},${ty}`] = {
+                tilesetId: ref.tilesetId,
+                sx: ref.sx,
+                sy: ref.sy,
+                sw: ref.sw,
+                sh: ref.sh,
+              };
+            }
+          }
+        });
+      } else if (state.currentTool === "erase") {
+        const brushNum = parseInt(state.brushSize);
+        setState((draft) => {
+          const layer = draft.project?.layers.find(
+            (l) => l.id === state.activeLayerId,
+          );
+          if (!layer) return;
+          for (let dy = 0; dy < brushNum; dy++) {
+            for (let dx = 0; dx < brushNum; dx++) {
+              delete layer.tiles[`${gx + dx},${gy + dy}`];
+            }
+          }
+        });
+      } else if (state.currentTool === "fill") {
+        if (!state.selectedTile || !activeLayer) return;
+        const ref = state.selectedTile;
+        const w = activeMap.widthInTiles;
+        const h = activeMap.heightInTiles;
+
+        const targetKey = `${gx},${gy}`;
+        const targetTile = activeLayer.tiles[targetKey] ?? null;
+
+        if (
+          targetTile &&
+          targetTile.tilesetId === ref.tilesetId &&
+          targetTile.sx === ref.sx &&
+          targetTile.sy === ref.sy
+        ) {
+          return;
         }
-      }
-    }
 
-    for (const tilesetId of needed) {
-      if (imageCache.current.has(tilesetId)) continue;
-      const tileset = project.tilesets.find((t) => t.id === tilesetId);
-      if (!tileset) continue;
-      getAssetUrl(tileset.assetId).then((url) => {
-        if (!url) return;
-        const img = new Image();
-        img.onload = () => {
-          imageCache.current.set(tilesetId, img);
-          forceRender((n) => n + 1);
-        };
-        img.src = url;
-      });
-    }
-  }, [activeMap, project.layers, project.tilesets]);
+        // BFS flood fill
+        const visited = new Set<string>();
+        const queue: [number, number][] = [[gx, gy]];
+        const toFill: [number, number][] = [];
 
-  // Render map on canvas
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !activeMap) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+        while (queue.length > 0) {
+          const [x, y] = queue.shift()!;
+          const key = `${x},${y}`;
+          if (visited.has(key)) continue;
+          if (x < 0 || y < 0 || x >= w || y >= h) continue;
+          visited.add(key);
 
-    const zoom = state.mapZoom;
-    const tileSize = activeMap.tileSize;
-    const w = activeMap.widthInTiles * tileSize * zoom;
-    const h = activeMap.heightInTiles * tileSize * zoom;
-    canvas.width = w;
-    canvas.height = h;
+          const current = activeLayer.tiles[key] ?? null;
+          const matches =
+            (current === null && targetTile === null) ||
+            (current !== null &&
+              targetTile !== null &&
+              current.tilesetId === targetTile.tilesetId &&
+              current.sx === targetTile.sx &&
+              current.sy === targetTile.sy);
 
-    ctx.imageSmoothingEnabled = false;
+          if (!matches) continue;
+          toFill.push([x, y]);
+          queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        }
 
-    // Clear with checkerboard pattern for transparency
-    const checkSize = 8 * zoom;
-    for (let cy = 0; cy < h; cy += checkSize) {
-      for (let cx = 0; cx < w; cx += checkSize) {
-        const isLight =
-          (Math.floor(cx / checkSize) + Math.floor(cy / checkSize)) % 2 === 0;
-        ctx.fillStyle = isLight ? "rgba(40, 40, 40, 1)" : "rgba(30, 30, 30, 1)";
-        ctx.fillRect(cx, cy, checkSize, checkSize);
-      }
-    }
+        if (toFill.length === 0) return;
 
-    // Draw all visible layers in order
-    const mapLayers = activeMap.layerOrder
-      .map((lid) => project.layers.find((l) => l.id === lid))
-      .filter((l): l is TileLayer => l !== undefined);
-
-    for (const layer of mapLayers) {
-      if (!layer.visible) continue;
-
-      for (const [key, ref] of Object.entries(layer.tiles)) {
-        const [gx, gy] = key.split(",").map(Number);
-        const img = imageCache.current.get(ref.tilesetId);
-        if (!img) continue;
-
-        ctx.drawImage(
-          img,
-          ref.sx,
-          ref.sy,
-          ref.sw,
-          ref.sh,
-          gx * tileSize * zoom,
-          gy * tileSize * zoom,
-          tileSize * zoom,
-          tileSize * zoom,
-        );
-      }
-    }
-
-    // Draw grid
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.15)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= w; x += tileSize * zoom) {
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= h; y += tileSize * zoom) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(w, y + 0.5);
-      ctx.stroke();
-    }
-
-    // Highlight active layer boundary (subtle border)
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, w - 2, h - 2);
-  }, [activeMap, project.layers, state.mapZoom, imageCache.current.size]);
-
-  // Get grid coordinates from mouse event
-  function getGridPos(e: React.MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas || !activeMap) return null;
-    const rect = canvas.getBoundingClientRect();
-    const zoom = state.mapZoom;
-    const tileSize = activeMap.tileSize;
-    const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
-    const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
-    if (
-      x < 0 ||
-      y < 0 ||
-      x >= activeMap.widthInTiles ||
-      y >= activeMap.heightInTiles
-    ) {
-      return null;
-    }
-    return { x, y };
-  }
-
-  function paintTile(gx: number, gy: number) {
-    if (!activeMap || !activeLayer || activeLayer.locked) return;
-
-    if (state.currentTool === "paint") {
-      if (!state.selectedTile) return;
-      const brushNum = parseInt(state.brushSize);
-      const ref = state.selectedTile;
-
-      setState((draft) => {
-        const layer = draft.project?.layers.find(
-          (l) => l.id === state.activeLayerId,
-        );
-        if (!layer) return;
-        for (let dy = 0; dy < brushNum; dy++) {
-          for (let dx = 0; dx < brushNum; dx++) {
-            const tx = gx + dx;
-            const ty = gy + dy;
-            if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
-              continue;
-            layer.tiles[`${tx},${ty}`] = {
+        setState((draft) => {
+          const layer = draft.project?.layers.find(
+            (l) => l.id === state.activeLayerId,
+          );
+          if (!layer) return;
+          for (const [x, y] of toFill) {
+            layer.tiles[`${x},${y}`] = {
               tilesetId: ref.tilesetId,
               sx: ref.sx,
               sy: ref.sy,
@@ -257,114 +203,22 @@ export function MapPanel() {
               sh: ref.sh,
             };
           }
-        }
-      });
-    } else if (state.currentTool === "erase") {
-      const brushNum = parseInt(state.brushSize);
-      setState((draft) => {
-        const layer = draft.project?.layers.find(
-          (l) => l.id === state.activeLayerId,
-        );
-        if (!layer) return;
-        for (let dy = 0; dy < brushNum; dy++) {
-          for (let dx = 0; dx < brushNum; dx++) {
-            delete layer.tiles[`${gx + dx},${gy + dy}`];
-          }
-        }
-      });
-    } else if (state.currentTool === "fill") {
-      if (!state.selectedTile) return;
-      performFloodFill(gx, gy);
-    }
-  }
-
-  function performFloodFill(startX: number, startY: number) {
-    if (!activeMap || !activeLayer || !state.selectedTile) return;
-    const ref = state.selectedTile;
-    const w = activeMap.widthInTiles;
-    const h = activeMap.heightInTiles;
-
-    // Get the tile at the starting position
-    const targetKey = `${startX},${startY}`;
-    const targetTile = activeLayer.tiles[targetKey] ?? null;
-
-    // Don't fill if clicking on a tile that matches the selected brush
-    if (
-      targetTile &&
-      targetTile.tilesetId === ref.tilesetId &&
-      targetTile.sx === ref.sx &&
-      targetTile.sy === ref.sy
-    ) {
-      return;
-    }
-
-    // BFS flood fill
-    const visited = new Set<string>();
-    const queue: [number, number][] = [[startX, startY]];
-    const toFill: [number, number][] = [];
-
-    while (queue.length > 0) {
-      const [x, y] = queue.shift()!;
-      const key = `${x},${y}`;
-      if (visited.has(key)) continue;
-      if (x < 0 || y < 0 || x >= w || y >= h) continue;
-      visited.add(key);
-
-      const current = activeLayer.tiles[key] ?? null;
-
-      // Match condition: same as target (both empty, or same tile ref)
-      const matches =
-        (current === null && targetTile === null) ||
-        (current !== null &&
-          targetTile !== null &&
-          current.tilesetId === targetTile.tilesetId &&
-          current.sx === targetTile.sx &&
-          current.sy === targetTile.sy);
-
-      if (!matches) continue;
-
-      toFill.push([x, y]);
-      queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    }
-
-    if (toFill.length === 0) return;
-
-    setState((draft) => {
-      const layer = draft.project?.layers.find(
-        (l) => l.id === state.activeLayerId,
-      );
-      if (!layer) return;
-      for (const [x, y] of toFill) {
-        layer.tiles[`${x},${y}`] = {
-          tilesetId: ref.tilesetId,
-          sx: ref.sx,
-          sy: ref.sy,
-          sw: ref.sw,
-          sh: ref.sh,
-        };
+        });
       }
-    });
-  }
+    },
+    [
+      activeMap,
+      activeLayer,
+      state.currentTool,
+      state.selectedTile,
+      state.brushSize,
+      state.activeLayerId,
+      setState,
+    ],
+  );
 
-  function handleCanvasMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (e.button !== 0) return;
-    const pos = getGridPos(e);
-    if (!pos) return;
-    setIsPainting(true);
-    paintTile(pos.x, pos.y);
-  }
-
-  function handleCanvasMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!isPainting) return;
-    if (state.currentTool === "fill") return; // fill is single-click only
-    const pos = getGridPos(e);
-    if (!pos) return;
-    paintTile(pos.x, pos.y);
-  }
-
-  function handleCanvasMouseUp() {
-    setIsPainting(false);
-  }
+  // No-op paint end callback (undo batching handled by travels)
+  const handlePaintEnd = useCallback(() => {}, []);
 
   function handleZoom(direction: 1 | -1) {
     setState((draft) => {
@@ -797,20 +651,20 @@ export function MapPanel() {
         </div>
       )}
 
-      {/* Map canvas area */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-auto min-h-0"
-        onMouseUp={handleCanvasMouseUp}
-        onMouseLeave={handleCanvasMouseUp}
-      >
+      {/* Map canvas area — PixiJS renderer */}
+      <div ref={containerRef} className="flex-1 overflow-auto min-h-0">
         {activeMap ? (
-          <canvas
-            ref={canvasRef}
-            className="cursor-crosshair"
-            onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
+          <MapCanvas
+            map={activeMap}
+            layers={mapLayers}
+            tilesets={project.tilesets}
+            zoom={state.mapZoom}
+            activeLayerId={state.activeLayerId}
+            currentTool={state.currentTool}
+            brushSize={state.brushSize}
+            selectedTile={state.selectedTile}
+            onPaintTile={handlePaintTile}
+            onPaintEnd={handlePaintEnd}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

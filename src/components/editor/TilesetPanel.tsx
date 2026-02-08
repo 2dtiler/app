@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { saveAsset, getAssetUrl } from "@/lib/db";
+import { saveAsset, getAssetUrl, deleteAsset } from "@/lib/db";
 import {
   generateTilesetId,
   generateTilesetGroupId,
@@ -300,6 +300,11 @@ export function TilesetPanel() {
   function handleDeleteConfirm() {
     if (!deleteTarget) return;
     if (deleteTarget.type === "tileset") {
+      // Find asset to clean up
+      const tileset = project?.tilesets.find((t) => t.id === deleteTarget.id);
+      if (tileset) {
+        void deleteAsset(tileset.assetId);
+      }
       setState((draft) => {
         if (!draft.project) return;
         draft.project.tilesets = draft.project.tilesets.filter(
@@ -311,6 +316,12 @@ export function TilesetPanel() {
         }
       });
     } else {
+      // Clean up assets for all tilesets in the group
+      const tilesetsInGroup =
+        project?.tilesets.filter((t) => t.groupId === deleteTarget.id) ?? [];
+      for (const ts of tilesetsInGroup) {
+        void deleteAsset(ts.assetId);
+      }
       setState((draft) => {
         if (!draft.project) return;
         draft.project.tilesetGroups = draft.project.tilesetGroups.filter(

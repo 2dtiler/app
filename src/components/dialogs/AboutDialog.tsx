@@ -1,0 +1,47 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface AboutDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[360px]">
+        <DialogHeader>
+          <DialogTitle className="text-primary">About 2D Tiler</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p className="text-xs tracking-widest uppercase text-primary font-medium">
+            Version 0.1.0
+          </p>
+          <p>
+            A tile map editor built with React & PixiJS for creating 2D game
+            maps. Upload tileset images, paint maps with brushes, manage layers,
+            and export your work.
+          </p>
+          <div className="border-t border-border pt-3 text-xs space-y-1">
+            <p>
+              <span className="text-foreground">Engine:</span> PixiJS 8 + React
+              19
+            </p>
+            <p>
+              <span className="text-foreground">Persistence:</span> IndexedDB
+              (local-first)
+            </p>
+            <p>
+              <span className="text-foreground">Format:</span> .2dp (MsgPack +
+              zlib)
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

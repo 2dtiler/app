@@ -67,6 +67,55 @@ export async function deleteAsset(id: AssetId): Promise<void> {
 }
 
 /**
+ * Delete multiple assets that are no longer referenced by any project.
+ * Accepts AssetIds to remove from the store.
+ */
+export async function deleteAssets(ids: AssetId[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.assets.bulkDelete(ids);
+}
+
+/**
+ * Clean up orphaned assets: delete any assets in IndexedDB that are not
+ * referenced by any tileset in any saved project or the given live project.
+ */
+export async function cleanOrphanedAssets(
+  liveProject?: Project | null,
+): Promise<void> {
+  const referencedIds = new Set<AssetId>();
+
+  // Gather asset IDs from all saved projects
+  const allProjectRecords = await db.projects.toArray();
+  for (const record of allProjectRecords) {
+    try {
+      const project = JSON.parse(record.data) as Project;
+      for (const tileset of project.tilesets) {
+        referencedIds.add(tileset.assetId);
+      }
+    } catch {
+      // Skip corrupt project records
+    }
+  }
+
+  // Also include asset IDs from the live in-memory project
+  if (liveProject) {
+    for (const tileset of liveProject.tilesets) {
+      referencedIds.add(tileset.assetId);
+    }
+  }
+
+  // Get all stored asset IDs
+  const allAssetIds = (await db.assets
+    .toCollection()
+    .primaryKeys()) as AssetId[];
+  const orphaned = allAssetIds.filter((id) => !referencedIds.has(id));
+
+  if (orphaned.length > 0) {
+    await db.assets.bulkDelete(orphaned);
+  }
+}
+
+/**
  * Create an object URL for an asset. Caller is responsible for
  * revoking it via URL.revokeObjectURL when done.
  */

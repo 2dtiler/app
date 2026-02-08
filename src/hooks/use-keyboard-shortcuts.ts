@@ -1,0 +1,132 @@
+/**
+ * Global keyboard shortcuts for the editor.
+ *
+ * Shortcuts:
+ *   B — Paint tool
+ *   E — Erase tool
+ *   G — Fill tool
+ *   1–5 — Brush sizes 1×1 through 5×5
+ *   Ctrl+Z / Cmd+Z — Undo
+ *   Ctrl+Shift+Z / Cmd+Shift+Z — Redo
+ *   Ctrl+S / Cmd+S — Manual save
+ *   + / = — Zoom in (map)
+ *   - — Zoom out (map)
+ */
+
+import { useEffect } from "react";
+import { getEditorStore } from "@/lib/store";
+import { saveProject } from "@/lib/db";
+import type { BrushSize } from "@/types";
+
+const BRUSH_SIZE_MAP: Record<string, BrushSize> = {
+  "1": "1x1",
+  "2": "2x2",
+  "3": "3x3",
+  "4": "4x4",
+  "5": "5x5",
+};
+
+export function useKeyboardShortcuts() {
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't intercept when typing in an input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Undo / Redo
+      if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const store = getEditorStore();
+        const controls = store.getControls();
+        if (controls.canBack()) controls.back();
+        return;
+      }
+      if (isCtrlOrCmd && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        const store = getEditorStore();
+        const controls = store.getControls();
+        if (controls.canForward()) controls.forward();
+        return;
+      }
+      // Also support Ctrl+Y for redo
+      if (isCtrlOrCmd && e.key === "y") {
+        e.preventDefault();
+        const store = getEditorStore();
+        const controls = store.getControls();
+        if (controls.canForward()) controls.forward();
+        return;
+      }
+
+      // Manual save
+      if (isCtrlOrCmd && e.key === "s") {
+        e.preventDefault();
+        const store = getEditorStore();
+        const project = store.getState().project;
+        if (project) {
+          void saveProject({ ...project, updatedAt: Date.now() });
+        }
+        return;
+      }
+
+      // Don't process tool shortcuts if modifier keys are held
+      if (isCtrlOrCmd || e.altKey) return;
+
+      const store = getEditorStore();
+
+      switch (e.key.toLowerCase()) {
+        case "b":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "paint";
+          });
+          break;
+        case "e":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "erase";
+          });
+          break;
+        case "g":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "fill";
+          });
+          break;
+        case "=":
+        case "+":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.mapZoom = Math.min(4, draft.mapZoom + 0.5);
+          });
+          break;
+        case "-":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.mapZoom = Math.max(0.5, draft.mapZoom - 0.5);
+          });
+          break;
+        default:
+          // Brush sizes 1-5
+          if (e.key in BRUSH_SIZE_MAP) {
+            e.preventDefault();
+            const size = BRUSH_SIZE_MAP[e.key];
+            store.setState((draft) => {
+              draft.brushSize = size;
+            });
+          }
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+}
