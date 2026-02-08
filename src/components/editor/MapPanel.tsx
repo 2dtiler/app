@@ -527,13 +527,13 @@ export function MapPanel() {
         </span>
       </div>
 
-      {/* Group selector + Tabs */}
+      {/* Group selector + Map tabs + Add */}
       <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0">
         <Select
           value={state.activeMapGroupId ?? ""}
           onValueChange={handleGroupChange}
         >
-          <SelectTrigger className="h-6 w-[100px] text-xs">
+          <SelectTrigger className="h-6 w-[100px] text-xs shrink-0">
             <SelectValue placeholder="Group" />
           </SelectTrigger>
           <SelectContent>
@@ -552,7 +552,7 @@ export function MapPanel() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-destructive"
+                className="h-6 w-6 shrink-0 text-destructive"
                 onClick={() =>
                   setDeleteTarget({
                     type: "group",
@@ -568,14 +568,79 @@ export function MapPanel() {
           </Tooltip>
         )}
 
-        <div className="flex-1" />
+        {groupMaps.length > 0 && (
+          <div className="flex-1 min-w-0 overflow-x-auto">
+            <Tabs
+              value={state.activeMapId ?? ""}
+              onValueChange={(v) =>
+                setState((draft) => {
+                  draft.activeMapId = v as MapId;
+                  const map = draft.project?.maps.find((m) => m.id === v);
+                  if (map) {
+                    draft.activeLayerId =
+                      map.layerOrder[map.layerOrder.length - 1] ?? null;
+                  }
+                })
+              }
+            >
+              <TabsList className="h-7 bg-transparent rounded-none p-0">
+                {groupMaps.map((m) => (
+                  <div key={m.id} className="flex items-center group">
+                    {renamingTabId === m.id ? (
+                      <input
+                        ref={renameInputRef}
+                        className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename();
+                          if (e.key === "Escape") setRenamingTabId(null);
+                        }}
+                      />
+                    ) : (
+                      <TabsTrigger
+                        value={m.id}
+                        className="h-6 px-2 text-xs rounded-none"
+                        onDoubleClick={() => handleTabDoubleClick(m)}
+                      >
+                        {m.name}
+                      </TabsTrigger>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              type: "map",
+                              id: m.id,
+                              name: m.name,
+                            })
+                          }
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Map</TooltipContent>
+                    </Tooltip>
+                  </div>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
+        {!groupMaps.length && <div className="flex-1" />}
 
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-6 w-6 shrink-0"
               onClick={handleAddMap}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -584,72 +649,6 @@ export function MapPanel() {
           <TooltipContent>Add Map</TooltipContent>
         </Tooltip>
       </div>
-
-      {/* Map tabs */}
-      {groupMaps.length > 0 && (
-        <div className="flex items-center border-b border-border bg-card shrink-0 overflow-x-auto">
-          <Tabs
-            value={state.activeMapId ?? ""}
-            onValueChange={(v) =>
-              setState((draft) => {
-                draft.activeMapId = v as MapId;
-                const map = draft.project?.maps.find((m) => m.id === v);
-                if (map) {
-                  draft.activeLayerId =
-                    map.layerOrder[map.layerOrder.length - 1] ?? null;
-                }
-              })
-            }
-          >
-            <TabsList className="h-7 bg-transparent rounded-none p-0">
-              {groupMaps.map((m) => (
-                <div key={m.id} className="flex items-center group">
-                  {renamingTabId === m.id ? (
-                    <input
-                      ref={renameInputRef}
-                      className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename();
-                        if (e.key === "Escape") setRenamingTabId(null);
-                      }}
-                    />
-                  ) : (
-                    <TabsTrigger
-                      value={m.id}
-                      className="h-6 px-2 text-xs rounded-none"
-                      onDoubleClick={() => handleTabDoubleClick(m)}
-                    >
-                      {m.name}
-                    </TabsTrigger>
-                  )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                        onClick={() =>
-                          setDeleteTarget({
-                            type: "map",
-                            id: m.id,
-                            name: m.name,
-                          })
-                        }
-                      >
-                        <Trash2 className="h-2.5 w-2.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete Map</TooltipContent>
-                  </Tooltip>
-                </div>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
 
       {/* Map canvas area — PixiJS renderer */}
       <div ref={containerRef} className="flex-1 overflow-auto min-h-0">

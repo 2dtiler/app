@@ -428,13 +428,13 @@ export function TilesetPanel() {
         </div>
       </div>
 
-      {/* Group selector + Tabs */}
+      {/* Group selector + Tileset tabs + Add */}
       <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0">
         <Select
           value={state.activeTilesetGroupId ?? ""}
           onValueChange={handleGroupChange}
         >
-          <SelectTrigger className="h-6 w-[100px] text-xs">
+          <SelectTrigger className="h-6 w-[100px] text-xs shrink-0">
             <SelectValue placeholder="Group" />
           </SelectTrigger>
           <SelectContent>
@@ -453,7 +453,7 @@ export function TilesetPanel() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-destructive"
+                className="h-6 w-6 shrink-0 text-destructive"
                 onClick={() =>
                   setDeleteTarget({
                     type: "group",
@@ -469,14 +469,74 @@ export function TilesetPanel() {
           </Tooltip>
         )}
 
-        <div className="flex-1" />
+        {groupTilesets.length > 0 && (
+          <div className="flex-1 min-w-0 overflow-x-auto">
+            <Tabs
+              value={state.activeTilesetId ?? ""}
+              onValueChange={(v) =>
+                setState((draft) => {
+                  draft.activeTilesetId = v as TilesetId;
+                })
+              }
+            >
+              <TabsList className="h-7 bg-transparent rounded-none p-0">
+                {groupTilesets.map((t) => (
+                  <div key={t.id} className="flex items-center group">
+                    {renamingTabId === t.id ? (
+                      <input
+                        ref={renameInputRef}
+                        className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename();
+                          if (e.key === "Escape") setRenamingTabId(null);
+                        }}
+                      />
+                    ) : (
+                      <TabsTrigger
+                        value={t.id}
+                        className="h-6 px-2 text-xs rounded-none"
+                        onDoubleClick={() => handleTabDoubleClick(t)}
+                      >
+                        {t.name}
+                      </TabsTrigger>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              type: "tileset",
+                              id: t.id,
+                              name: t.name,
+                            })
+                          }
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Tileset</TooltipContent>
+                    </Tooltip>
+                  </div>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
+        {!groupTilesets.length && <div className="flex-1" />}
 
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-6 w-6 shrink-0"
               onClick={handleAddTileset}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -485,67 +545,6 @@ export function TilesetPanel() {
           <TooltipContent>Add Tileset</TooltipContent>
         </Tooltip>
       </div>
-
-      {/* Tileset tabs */}
-      {groupTilesets.length > 0 && (
-        <div className="flex items-center border-b border-border bg-card shrink-0 overflow-x-auto">
-          <Tabs
-            value={state.activeTilesetId ?? ""}
-            onValueChange={(v) =>
-              setState((draft) => {
-                draft.activeTilesetId = v as TilesetId;
-              })
-            }
-          >
-            <TabsList className="h-7 bg-transparent rounded-none p-0">
-              {groupTilesets.map((t) => (
-                <div key={t.id} className="flex items-center group">
-                  {renamingTabId === t.id ? (
-                    <input
-                      ref={renameInputRef}
-                      className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename();
-                        if (e.key === "Escape") setRenamingTabId(null);
-                      }}
-                    />
-                  ) : (
-                    <TabsTrigger
-                      value={t.id}
-                      className="h-6 px-2 text-xs rounded-none"
-                      onDoubleClick={() => handleTabDoubleClick(t)}
-                    >
-                      {t.name}
-                    </TabsTrigger>
-                  )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                        onClick={() =>
-                          setDeleteTarget({
-                            type: "tileset",
-                            id: t.id,
-                            name: t.name,
-                          })
-                        }
-                      >
-                        <Trash2 className="h-2.5 w-2.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete Tileset</TooltipContent>
-                  </Tooltip>
-                </div>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
 
       {/* Tileset canvas area */}
       <div

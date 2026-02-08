@@ -262,24 +262,24 @@ function AppShell({
         <main className="flex-1 min-h-0">
           <Group orientation="horizontal" id="main-layout">
             {/* Left: Tileset Panel */}
-            <Panel defaultSize={25} minSize={15} maxSize={50}>
+            <Panel defaultSize="50%" minSize="15%" maxSize="60%">
               <TilesetPanel />
             </Panel>
 
             <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
             {/* Right: Map + Layers */}
-            <Panel defaultSize={75} minSize={40}>
+            <Panel defaultSize="50%" minSize="25%">
               <Group orientation="horizontal" id="right-layout">
                 {/* Center: Map Canvas */}
-                <Panel defaultSize={80} minSize={40}>
+                <Panel defaultSize="75%" minSize="30%">
                   <MapPanel />
                 </Panel>
 
                 <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
                 {/* Right: Layers */}
-                <Panel defaultSize={20} minSize={12} maxSize={40}>
+                <Panel defaultSize="25%" minSize="10%" maxSize="50%">
                   <LayersPanel />
                 </Panel>
               </Group>

@@ -1,0 +1,3 @@
+Tabs are not visible
+Tooltip on tabs should be: "Double Click to Rename"
+Arrows on tabs
