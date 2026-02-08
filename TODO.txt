@@ -1,3 +1,4 @@
-Tabs are not visible
-Tooltip on tabs should be: "Double Click to Rename"
+Tooltips on tabs: Double Click to Rename
 Arrows on tabs
+
+Allow painting
