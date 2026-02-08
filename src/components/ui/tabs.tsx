@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Tabs as TabsPrimitive } from "radix-ui";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -43,16 +44,108 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  scrollable = false,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List> &
-  VariantProps<typeof tabsListVariants>) {
+  VariantProps<typeof tabsListVariants> & {
+    /** When true, shows left/right arrow buttons on overflow instead of a scrollbar */
+    scrollable?: boolean;
+  }) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const checkOverflow = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+  }, []);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !scrollable) return;
+
+    checkOverflow();
+    el.addEventListener("scroll", checkOverflow, { passive: true });
+    const ro = new ResizeObserver(checkOverflow);
+    ro.observe(el);
+
+    // Also observe mutations so new tabs trigger a recheck
+    const mo = new MutationObserver(checkOverflow);
+    mo.observe(el, { childList: true, subtree: true });
+
+    return () => {
+      el.removeEventListener("scroll", checkOverflow);
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [scrollable, checkOverflow]);
+
+  const scroll = (direction: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.6;
+    el.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  };
+
+  if (!scrollable) {
+    return (
+      <TabsPrimitive.List
+        data-slot="tabs-list"
+        data-variant={variant}
+        className={cn(tabsListVariants({ variant }), className)}
+        {...props}
+      />
+    );
+  }
+
   return (
-    <TabsPrimitive.List
-      data-slot="tabs-list"
-      data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
-      {...props}
-    />
+    <div className="flex items-center w-full max-w-full min-w-0">
+      <button
+        type="button"
+        aria-label="Scroll tabs left"
+        tabIndex={-1}
+        className={cn(
+          "flex-none flex items-center justify-center h-6 w-5 text-muted-foreground hover:text-foreground transition-opacity",
+          canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none",
+        )}
+        onClick={() => scroll("left")}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" />
+      </button>
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto scrollbar-none min-w-0 flex-1"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        <TabsPrimitive.List
+          data-slot="tabs-list"
+          data-variant={variant}
+          className={cn(
+            tabsListVariants({ variant }),
+            "w-max flex-nowrap",
+            className,
+          )}
+          {...props}
+        />
+      </div>
+      <button
+        type="button"
+        aria-label="Scroll tabs right"
+        tabIndex={-1}
+        className={cn(
+          "flex-none flex items-center justify-center h-6 w-5 text-muted-foreground hover:text-foreground transition-opacity",
+          canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none",
+        )}
+        onClick={() => scroll("right")}
+      >
+        <ChevronRight className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 

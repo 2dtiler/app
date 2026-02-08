@@ -1,1 +1,44 @@
 Arrows on tabs
+
+Layers
+  - Tile Layer
+  - Layer Groups
+  - Image Layer
+  - Object Layer
+
+Ability to duplicate a map/tileset byt Right Clicking
+
+Fill: Terrain
+
+Edit:
+  Find and replace
+
+Tools:
+  Image Editor
+  AI Asset Generation
+  Sprite Generator
+
+Help -> About
+Help -> Show Keyboard Shortcuts
+Allow multiple select (for eraser and moving)
+
+Palettes
+Export Options
+Import Options
+Get some ideas from: Keep Notes
+Autotile. Like Spritefusion
+Allow PNG or WebP or gif
+
+Bugs:
+  Fill Tool a bit broken, it sometimes leaves one pixel unedited
+
+=======================================
+Add sentry for errors
+Allow logging bugs (From users)
+Add Google Ads
+Add a website
+Deploy to internet
+Add tutorial video
+Add google site analytics
+Drive some traffic to it: 2dtiler.com
+Windows/Mac Apps
