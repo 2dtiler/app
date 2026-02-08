@@ -1,4 +1,1 @@
-Tooltips on tabs: Double Click to Rename
-
-Left and right toolbox sizes are different
 Arrows on tabs

@@ -454,7 +454,7 @@ export function MapPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Map toolbar */}
-      <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0 flex-wrap">
+      <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0 flex-wrap min-h-10">
         {/* Tool selector with brush size */}
         {(["paint", "erase"] as EditorTool[]).map((tool) => {
           const Icon = toolIcons[tool];
