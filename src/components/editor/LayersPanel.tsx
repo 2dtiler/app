@@ -25,16 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AddLayerDialog } from "@/components/dialogs/AddLayerDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateLayerId } from "@/lib/ids";
 import type { LayerId, TileLayer } from "@/types";
@@ -45,7 +37,6 @@ export function LayersPanel() {
   const project = state.project;
 
   const [addLayerOpen, setAddLayerOpen] = useState(false);
-  const [newLayerName, setNewLayerName] = useState("New Layer");
   const [deleteTarget, setDeleteTarget] = useState<{
     id: LayerId;
     name: string;
@@ -79,11 +70,9 @@ export function LayersPanel() {
 
   function handleAddLayer() {
     setAddLayerOpen(true);
-    setNewLayerName(`Layer ${activeMap!.layerOrder.length + 1}`);
   }
 
-  function handleCreateLayer() {
-    const name = newLayerName.trim() || "New Layer";
+  function handleCreateLayer(name: string) {
     const layerId = generateLayerId();
 
     setState((draft) => {
@@ -103,8 +92,6 @@ export function LayersPanel() {
       map.layerOrder.push(layerId);
       draft.activeLayerId = layerId;
     });
-
-    setAddLayerOpen(false);
   }
 
   function handleDeleteLayer() {
@@ -346,37 +333,12 @@ export function LayersPanel() {
       </ScrollArea>
 
       {/* Add layer dialog */}
-      <Dialog open={addLayerOpen} onOpenChange={setAddLayerOpen}>
-        <DialogContent className="sm:max-w-[320px]">
-          <DialogHeader>
-            <DialogTitle>New Layer</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label className="text-xs">Name</Label>
-            <Input
-              value={newLayerName}
-              onChange={(e) => setNewLayerName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateLayer()}
-              autoFocus
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Type: Tile Layer
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setAddLayerOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleCreateLayer}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddLayerDialog
+        open={addLayerOpen}
+        onOpenChange={setAddLayerOpen}
+        defaultName={`Layer ${activeMap.layerOrder.length + 1}`}
+        onCreateLayer={(name) => handleCreateLayer(name)}
+      />
 
       {/* Delete confirmation */}
       <AlertDialog

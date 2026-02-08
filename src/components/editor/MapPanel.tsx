@@ -633,7 +633,10 @@ export function MapPanel() {
                 })
               }
             >
-              <TabsList className="h-7 bg-transparent rounded-none p-0" scrollable>
+              <TabsList
+                className="h-7 bg-transparent rounded-none p-0"
+                scrollable
+              >
                 {groupMaps.map((m) => (
                   <div key={m.id} className="flex items-center group">
                     {renamingTabId === m.id ? (

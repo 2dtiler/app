@@ -479,7 +479,10 @@ export function TilesetPanel() {
                 })
               }
             >
-              <TabsList className="h-7 bg-transparent rounded-none p-0" scrollable>
+              <TabsList
+                className="h-7 bg-transparent rounded-none p-0"
+                scrollable
+              >
                 {groupTilesets.map((t) => (
                   <div key={t.id} className="flex items-center group">
                     {renamingTabId === t.id ? (
