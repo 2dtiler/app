@@ -158,9 +158,7 @@ export function AddLayerDialog({
                 {LAYER_TYPES.find((t) => t.type === selectedType)?.label ??
                   "Layer"}
               </DialogTitle>
-              <DialogDescription>
-                Give your layer a name.
-              </DialogDescription>
+              <DialogDescription>Give your layer a name.</DialogDescription>
             </DialogHeader>
             <div className="space-y-2 py-2">
               <Label className="text-xs">Name</Label>
