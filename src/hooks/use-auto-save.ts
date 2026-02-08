@@ -1,0 +1,51 @@
+/**
+ * Auto-save hook: periodically persists the current project to IndexedDB.
+ * Respects the "Save every minute" toggle from Settings.
+ */
+
+import { useEffect, useRef } from "react";
+import { getEditorStore } from "@/lib/store";
+import { saveProject, getSettings } from "@/lib/db";
+
+const AUTO_SAVE_INTERVAL_MS = 60_000; // 1 minute
+
+export function useAutoSave() {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function startAutoSave() {
+      const settings = await getSettings();
+      if (cancelled) return;
+
+      if (!settings.autoSaveEnabled) {
+        return;
+      }
+
+      timerRef.current = setInterval(async () => {
+        try {
+          const store = getEditorStore();
+          const state = store.getState();
+          if (state.project) {
+            await saveProject({
+              ...state.project,
+              updatedAt: Date.now(),
+            });
+          }
+        } catch (err) {
+          console.error("[AutoSave] Failed to save project:", err);
+        }
+      }, AUTO_SAVE_INTERVAL_MS);
+    }
+
+    void startAutoSave();
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+}
