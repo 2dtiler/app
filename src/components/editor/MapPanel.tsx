@@ -651,13 +651,15 @@ export function MapPanel() {
                     ) : (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <TabsTrigger
-                            value={m.id}
-                            className="h-6 px-2 text-xs rounded-none"
-                            onDoubleClick={() => handleTabDoubleClick(m)}
-                          >
-                            {m.name}
-                          </TabsTrigger>
+                          <div>
+                            <TabsTrigger
+                              value={m.id}
+                              className="h-6 px-2 text-xs rounded-none"
+                              onDoubleClick={() => handleTabDoubleClick(m)}
+                            >
+                              {m.name}
+                            </TabsTrigger>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent>Double Click to Rename</TooltipContent>
                       </Tooltip>

@@ -1,5 +1,4 @@
-Left and right toolbox sizes are different
 Tooltips on tabs: Double Click to Rename
-Arrows on tabs
 
-Allow painting
+Left and right toolbox sizes are different
+Arrows on tabs

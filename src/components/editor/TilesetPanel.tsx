@@ -495,13 +495,20 @@ export function TilesetPanel() {
                         }}
                       />
                     ) : (
-                      <TabsTrigger
-                        value={t.id}
-                        className="h-6 px-2 text-xs rounded-none"
-                        onDoubleClick={() => handleTabDoubleClick(t)}
-                      >
-                        {t.name}
-                      </TabsTrigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <TabsTrigger
+                              value={t.id}
+                              className="h-6 px-2 text-xs rounded-none"
+                              onDoubleClick={() => handleTabDoubleClick(t)}
+                            >
+                              {t.name}
+                            </TabsTrigger>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>Double Click to Rename</TooltipContent>
+                      </Tooltip>
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>
