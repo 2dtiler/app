@@ -37,8 +37,8 @@ const LAYER_TYPES: LayerTypeOption[] = [
     label: "Layer Group",
     icon: <FolderOpen className="h-6 w-6" />,
     description:
-      "A container that groups multiple layers together for organization. Useful for managing complex maps with many layers.",
-    disabled: true,
+      "A container that groups multiple layers together for organization. Groups can be hidden, locked, and moved as a unit.",
+    disabled: false,
   },
   {
     type: "image",
@@ -86,7 +86,7 @@ export function AddLayerDialog({
 
   function handleSelectType(type: LayerType) {
     setSelectedType(type);
-    setLayerName(defaultName);
+    setLayerName(type === "group" ? "Group" : defaultName);
     setStep("name");
   }
 

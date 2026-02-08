@@ -51,6 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateMapId, generateMapGroupId, generateLayerId } from "@/lib/ids";
+import { flattenLayerTree, isLayerEffectivelyLocked, findLastLayerId } from "@/lib/layers";
 import {
   BRUSH_SIZES,
   type EditorTool,
@@ -118,17 +119,30 @@ export function MapPanel() {
   const activeMap = project.maps.find((m) => m.id === state.activeMapId);
   const activeLayer = project.layers.find((l) => l.id === state.activeLayerId);
 
-  // Get layers belonging to the active map
-  const mapLayers = activeMap
-    ? project.layers.filter((l) => activeMap.layerOrder.includes(l.id))
+  // Flatten layer tree for rendering — applies group visibility/lock
+  const layerGroups = project.layerGroups ?? [];
+  const flatLayers = activeMap
+    ? flattenLayerTree(activeMap.layerOrder, project.layers, layerGroups)
     : [];
+  // Create a virtual map with a flat layerOrder for the canvas
+  const flatMap = activeMap
+    ? { ...activeMap, layerOrder: flatLayers.map((l) => l.id) }
+    : null;
 
   // Paint tile handler — called by MapCanvas on pointer events.
   // Paint/erase write to a lightweight buffer for instant rendering;
   // the buffer is flushed to the store on pointer-up (handlePaintEnd).
   const handlePaintTile = useCallback(
     (gx: number, gy: number) => {
-      if (!activeMap || !activeLayer || activeLayer.locked) return;
+      if (!activeMap || !activeLayer) return;
+    // Check effective lock state (including group inheritance)
+    const effectivelyLocked = isLayerEffectivelyLocked(
+      activeLayer.id,
+      activeMap.layerOrder,
+      project?.layers ?? [],
+      project?.layerGroups ?? [],
+    );
+    if (effectivelyLocked) return;
 
       if (state.currentTool === "paint") {
         if (!state.selectedTile) return;
@@ -333,7 +347,7 @@ export function MapPanel() {
         draft.activeLayerId = null;
         if (firstInGroup) {
           draft.activeLayerId =
-            firstInGroup.layerOrder[firstInGroup.layerOrder.length - 1] ?? null;
+            findLastLayerId(firstInGroup.layerOrder, draft.project?.layers ?? [], draft.project?.layerGroups ?? []) ?? null;
         }
       });
     }
@@ -628,7 +642,7 @@ export function MapPanel() {
                   const map = draft.project?.maps.find((m) => m.id === v);
                   if (map) {
                     draft.activeLayerId =
-                      map.layerOrder[map.layerOrder.length - 1] ?? null;
+                      findLastLayerId(map.layerOrder, draft.project?.layers ?? [], draft.project?.layerGroups ?? []) ?? null;
                   }
                 })
               }
@@ -712,10 +726,10 @@ export function MapPanel() {
 
       {/* Map canvas area — PixiJS renderer */}
       <div ref={containerRef} className="flex-1 overflow-auto min-h-0">
-        {activeMap ? (
+        {activeMap && flatMap ? (
           <MapCanvas
-            map={activeMap}
-            layers={mapLayers}
+            map={flatMap as TileMapData}
+            layers={flatLayers}
             tilesets={project.tilesets}
             zoom={state.mapZoom}
             activeLayerId={state.activeLayerId}

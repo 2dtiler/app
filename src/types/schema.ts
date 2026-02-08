@@ -16,6 +16,7 @@ export type TilesetGroupId = string & { readonly __brand: "TilesetGroupId" };
 export type MapId = string & { readonly __brand: "MapId" };
 export type MapGroupId = string & { readonly __brand: "MapGroupId" };
 export type LayerId = string & { readonly __brand: "LayerId" };
+export type LayerGroupId = string & { readonly __brand: "LayerGroupId" };
 export type AssetId = string & { readonly __brand: "AssetId" };
 
 // ---------------------------------------------------------------------------
@@ -63,8 +64,8 @@ export interface TileMapData {
   heightInTiles: number;
   /** The tile size used by this map (px) */
   tileSize: TileSize;
-  /** Ordered layer IDs from bottom to top */
-  layerOrder: LayerId[];
+  /** Ordered layer/group IDs from bottom to top (top-level items) */
+  layerOrder: (LayerId | LayerGroupId)[];
   createdAt: number;
 }
 
@@ -89,6 +90,22 @@ export interface TileLayer {
    * Using a Record instead of a 2D array for memory efficiency with sparse maps.
    */
   tiles: Record<string, TileRef>;
+}
+
+/**
+ * A group of layers that can be collapsed, hidden, locked, and moved as a unit.
+ * Functions like layer groups in Photoshop.
+ */
+export interface LayerGroup {
+  id: LayerGroupId;
+  mapId: MapId;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Whether the group is expanded in the layers panel UI */
+  expanded: boolean;
+  /** Ordered child IDs from bottom to top (can contain LayerIds or nested LayerGroupIds) */
+  childOrder: (LayerId | LayerGroupId)[];
 }
 
 /**
@@ -122,6 +139,7 @@ export interface Project {
   mapGroups: MapGroup[];
   maps: TileMapData[];
   layers: TileLayer[];
+  layerGroups: LayerGroup[];
 }
 
 // ---------------------------------------------------------------------------

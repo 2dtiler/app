@@ -16,6 +16,7 @@ import {
   readFileAsUint8Array,
 } from "@/lib/format";
 import { generateMapId, generateLayerId } from "@/lib/ids";
+import { getAllLayerIds } from "@/lib/layers";
 import type { TilesetGroupId, MapGroupId, TileLayer } from "@/types";
 
 import { Toolbar } from "@/components/layout/Toolbar";
@@ -107,8 +108,9 @@ function AppShell({
     if (!state.project || !state.activeMapId) return;
     const map = state.project.maps.find((m) => m.id === state.activeMapId);
     if (!map) return;
+    const allLayerIds = getAllLayerIds(map.layerOrder, state.project.layerGroups ?? []);
     const layers = state.project.layers.filter((l) =>
-      map.layerOrder.includes(l.id),
+      allLayerIds.includes(l.id),
     );
     const data = await exportMap(map, layers, state.project.tilesets);
     downloadFile(data, `${map.name}.2dm`);

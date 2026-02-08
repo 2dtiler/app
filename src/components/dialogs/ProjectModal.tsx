@@ -87,6 +87,7 @@ export function ProjectModal({
       mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
       maps: [],
       layers: [],
+      layerGroups: [],
     };
 
     await saveProject(project);
