@@ -58,6 +58,7 @@ import {
   type MapId,
   type TileMapData,
   type TileLayer,
+  type TileRef,
   type MapGroup,
 } from "@/types";
 
@@ -66,6 +67,29 @@ export function MapPanel() {
   const project = state.project;
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- Paint buffer for instant visual feedback ---
+  // Tile changes are written here during a stroke and rendered immediately.
+  // The buffer is flushed to the store (single undo step) on pointer-up.
+  // Using useState (not useRef) so the Map can be read safely during render.
+  const [paintBuffer] = useState(() => new Map<string, TileRef | null>());
+  const [paintBufferVersion, setPaintBufferVersion] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  const schedulePaintRender = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      setPaintBufferVersion((v) => v + 1);
+    });
+  }, []);
+
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const [deleteTarget, setDeleteTarget] = useState<{
     type: "map" | "group";
@@ -99,7 +123,9 @@ export function MapPanel() {
     ? project.layers.filter((l) => activeMap.layerOrder.includes(l.id))
     : [];
 
-  // Paint tile handler — called by MapCanvas on pointer events
+  // Paint tile handler — called by MapCanvas on pointer events.
+  // Paint/erase write to a lightweight buffer for instant rendering;
+  // the buffer is flushed to the store on pointer-up (handlePaintEnd).
   const handlePaintTile = useCallback(
     (gx: number, gy: number) => {
       if (!activeMap || !activeLayer || activeLayer.locked) return;
@@ -109,40 +135,34 @@ export function MapPanel() {
         const brushNum = parseInt(state.brushSize);
         const ref = state.selectedTile;
 
-        setState((draft) => {
-          const layer = draft.project?.layers.find(
-            (l) => l.id === state.activeLayerId,
-          );
-          if (!layer) return;
-          for (let dy = 0; dy < brushNum; dy++) {
-            for (let dx = 0; dx < brushNum; dx++) {
-              const tx = gx + dx;
-              const ty = gy + dy;
-              if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
-                continue;
-              layer.tiles[`${tx},${ty}`] = {
-                tilesetId: ref.tilesetId,
-                sx: ref.sx,
-                sy: ref.sy,
-                sw: ref.sw,
-                sh: ref.sh,
-              };
-            }
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const tx = gx + dx;
+            const ty = gy + dy;
+            if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
+              continue;
+            paintBuffer.set(`${tx},${ty}`, {
+              tilesetId: ref.tilesetId,
+              sx: ref.sx,
+              sy: ref.sy,
+              sw: ref.sw,
+              sh: ref.sh,
+            });
           }
-        });
+        }
+        schedulePaintRender();
       } else if (state.currentTool === "erase") {
         const brushNum = parseInt(state.brushSize);
-        setState((draft) => {
-          const layer = draft.project?.layers.find(
-            (l) => l.id === state.activeLayerId,
-          );
-          if (!layer) return;
-          for (let dy = 0; dy < brushNum; dy++) {
-            for (let dx = 0; dx < brushNum; dx++) {
-              delete layer.tiles[`${gx + dx},${gy + dy}`];
-            }
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const tx = gx + dx;
+            const ty = gy + dy;
+            if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
+              continue;
+            paintBuffer.set(`${tx},${ty}`, null);
           }
-        });
+        }
+        schedulePaintRender();
       } else if (state.currentTool === "fill") {
         if (!state.selectedTile || !activeLayer) return;
         const ref = state.selectedTile;
@@ -214,11 +234,41 @@ export function MapPanel() {
       state.brushSize,
       state.activeLayerId,
       setState,
+      schedulePaintRender,
+      paintBuffer,
     ],
   );
 
-  // No-op paint end callback (undo batching handled by travels)
-  const handlePaintEnd = useCallback(() => {}, []);
+  // Flush paint buffer into a single store update (one undo step per stroke)
+  const handlePaintEnd = useCallback(() => {
+    if (paintBuffer.size === 0) return;
+
+    // Cancel any pending render frame
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+
+    const entries = Array.from(paintBuffer.entries());
+    paintBuffer.clear();
+
+    setState((draft) => {
+      const layer = draft.project?.layers.find(
+        (l) => l.id === state.activeLayerId,
+      );
+      if (!layer) return;
+      for (const [key, ref] of entries) {
+        if (ref === null) {
+          delete layer.tiles[key];
+        } else {
+          layer.tiles[key] = ref;
+        }
+      }
+    });
+
+    // Trigger re-render to clear buffer visuals (now committed tiles)
+    setPaintBufferVersion((v) => v + 1);
+  }, [setState, state.activeLayerId, paintBuffer]);
 
   function handleZoom(direction: 1 | -1) {
     setState((draft) => {
@@ -669,6 +719,8 @@ export function MapPanel() {
             selectedTile={state.selectedTile}
             onPaintTile={handlePaintTile}
             onPaintEnd={handlePaintEnd}
+            paintBuffer={paintBuffer}
+            paintBufferVersion={paintBufferVersion}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

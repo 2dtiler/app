@@ -18,7 +18,7 @@ import {
   Graphics,
   Texture,
   Rectangle,
-  Assets,
+  ImageSource,
 } from "pixi.js";
 import { getAssetUrl } from "@/lib/db";
 import type {
@@ -52,6 +52,10 @@ interface MapCanvasProps {
   selectedTile: EditorState["selectedTile"];
   onPaintTile: (gx: number, gy: number) => void;
   onPaintEnd: () => void;
+  /** Uncommitted tile changes for instant visual feedback during a stroke */
+  paintBuffer: Map<string, TileRef | null>;
+  /** Incremented to trigger re-render when buffer contents change */
+  paintBufferVersion: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +78,15 @@ async function loadTilesetTexture(
     const url = await getAssetUrl(assetId);
     if (!url) return null;
     textureBlobUrls.set(tilesetId, url);
-    const texture = await Assets.load<Texture>(url);
+
+    // Load the image natively to avoid PixiJS Assets loader not being able
+    // to detect the file type from blob URLs.
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+
+    const source = new ImageSource({ resource: img });
+    const texture = new Texture({ source });
     textureCache.set(tilesetId, texture);
     return texture;
   } catch {
@@ -130,6 +142,8 @@ const MapScene = memo(function MapScene({
   selectedTile,
   onPaintTile,
   onPaintEnd,
+  paintBuffer,
+  paintBufferVersion,
   texturesReady,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
@@ -274,8 +288,9 @@ const MapScene = memo(function MapScene({
     [map.layerOrder, layers],
   );
 
-  // Force reference to texturesReady for reactivity
+  // Force reference to texturesReady / paintBufferVersion for reactivity
   void texturesReady;
+  void paintBufferVersion;
 
   return (
     <>
@@ -283,29 +298,52 @@ const MapScene = memo(function MapScene({
       <pixiGraphics draw={drawCheckerboard} />
 
       {/* Tile layers */}
-      {orderedLayers.map((layer) => (
-        <pixiContainer
-          key={layer.id}
-          visible={layer.visible}
-          alpha={layer.id === activeLayerId ? 1 : 0.7}
-        >
-          {Object.entries(layer.tiles).map(([key, ref]) => {
-            const tex = getTileTexture(ref);
-            if (!tex) return null;
-            const [gx, gy] = key.split(",").map(Number);
-            return (
-              <pixiSprite
-                key={key}
-                texture={tex}
-                x={gx * scaledTile}
-                y={gy * scaledTile}
-                width={scaledTile}
-                height={scaledTile}
-              />
-            );
-          })}
-        </pixiContainer>
-      ))}
+      {orderedLayers.map((layer) => {
+        const isActiveLayer = layer.id === activeLayerId;
+        return (
+          <pixiContainer
+            key={layer.id}
+            visible={layer.visible}
+            alpha={isActiveLayer ? 1 : 0.7}
+          >
+            {Object.entries(layer.tiles).map(([key, ref]) => {
+              // Skip tiles overridden by the paint buffer on the active layer
+              if (isActiveLayer && paintBuffer.has(key)) return null;
+              const tex = getTileTexture(ref);
+              if (!tex) return null;
+              const [gx, gy] = key.split(",").map(Number);
+              return (
+                <pixiSprite
+                  key={key}
+                  texture={tex}
+                  x={gx * scaledTile}
+                  y={gy * scaledTile}
+                  width={scaledTile}
+                  height={scaledTile}
+                />
+              );
+            })}
+            {/* Render buffered paint tiles immediately on the active layer */}
+            {isActiveLayer &&
+              Array.from(paintBuffer.entries()).map(([key, ref]) => {
+                if (ref === null) return null;
+                const tex = getTileTexture(ref);
+                if (!tex) return null;
+                const [gx, gy] = key.split(",").map(Number);
+                return (
+                  <pixiSprite
+                    key={`buf-${key}`}
+                    texture={tex}
+                    x={gx * scaledTile}
+                    y={gy * scaledTile}
+                    width={scaledTile}
+                    height={scaledTile}
+                  />
+                );
+              })}
+          </pixiContainer>
+        );
+      })}
 
       {/* Grid overlay */}
       <pixiGraphics draw={drawGrid} />

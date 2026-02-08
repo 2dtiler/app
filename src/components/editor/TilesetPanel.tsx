@@ -383,7 +383,7 @@ export function TilesetPanel() {
           value={String(state.tileSize)}
           onValueChange={handleTileSizeChange}
         >
-          <SelectTrigger className="h-6 w-[72px] text-xs">
+          <SelectTrigger className="h-6 w-18 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
