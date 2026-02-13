@@ -56,6 +56,7 @@ function createNewProject(name: string): Project {
     maps: [],
     layers: [],
     layerGroups: [],
+    terrains: [],
   };
 }
 

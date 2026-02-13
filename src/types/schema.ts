@@ -18,6 +18,7 @@ export type MapGroupId = string & { readonly __brand: "MapGroupId" };
 export type LayerId = string & { readonly __brand: "LayerId" };
 export type LayerGroupId = string & { readonly __brand: "LayerGroupId" };
 export type AssetId = string & { readonly __brand: "AssetId" };
+export type TerrainId = string & { readonly __brand: "TerrainId" };
 
 // ---------------------------------------------------------------------------
 // Brush / Tile Size
@@ -128,6 +129,32 @@ export interface TileRef {
 }
 
 // ---------------------------------------------------------------------------
+// Terrain  (weighted random tile sets for the Fill Terrain tool)
+// ---------------------------------------------------------------------------
+
+/**
+ * A single tile entry inside a Terrain definition.
+ * `probability` is a weight from 0–100. During fill, weights are normalised
+ * so they don't need to sum to 100.
+ */
+export interface TerrainTile {
+  tileRef: TileRef;
+  /** Weight used for weighted-random selection (0–100) */
+  probability: number;
+}
+
+/**
+ * A named collection of weighted tiles that can be saved and reused.
+ * All tiles in a terrain must come from the same tileset.
+ */
+export interface Terrain {
+  id: TerrainId;
+  name: string;
+  tilesetId: TilesetId;
+  tiles: TerrainTile[];
+}
+
+// ---------------------------------------------------------------------------
 // Project
 // ---------------------------------------------------------------------------
 
@@ -143,6 +170,8 @@ export interface Project {
   maps: TileMapData[];
   layers: TileLayer[];
   layerGroups: LayerGroup[];
+  /** Saved terrain definitions for the Fill Terrain tool */
+  terrains: Terrain[];
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +195,9 @@ export const BRUSH_SIZES = ["1x1", "2x2", "3x3", "4x4", "5x5"] as const;
 export type BrushSize = (typeof BRUSH_SIZES)[number];
 
 export type EditorTool = "paint" | "erase" | "fill";
+
+/** Sub-modes for the fill tool */
+export type FillMode = "fill" | "fillTerrain";
 
 export interface SelectedTile {
   tilesetId: TilesetId;
@@ -192,6 +224,11 @@ export interface EditorState {
   tileSize: TileSize;
   selectedTile: SelectedTile | null;
 
+  /** Which fill sub-mode is active: plain fill or terrain fill */
+  fillMode: FillMode;
+  /** Transient terrain tile config used by the current fill-terrain operation */
+  activeFillTerrain: TerrainTile[] | null;
+
   // -- Viewport --
   tilesetZoom: number;
   mapZoom: number;
@@ -208,6 +245,8 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   brushSize: "1x1",
   tileSize: 32,
   selectedTile: null,
+  fillMode: "fill",
+  activeFillTerrain: null,
   tilesetZoom: 1,
   mapZoom: 1,
 };

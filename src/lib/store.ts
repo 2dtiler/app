@@ -79,7 +79,16 @@ export async function initEditorStore(): Promise<EditorTravels> {
   const persisted = await loadPersistedHistory();
 
   if (persisted) {
-    travelsInstance = createTravels<EditorState>(persisted.state, {
+    // Backward-compat: ensure new EditorState fields have defaults
+    const restoredState: EditorState = {
+      ...DEFAULT_EDITOR_STATE,
+      ...persisted.state,
+    };
+    // Ensure project.terrains exists for older projects
+    if (restoredState.project && !restoredState.project.terrains) {
+      restoredState.project.terrains = [];
+    }
+    travelsInstance = createTravels<EditorState>(restoredState, {
       maxHistory: 50,
       initialPatches: persisted.patches,
       initialPosition: persisted.position,

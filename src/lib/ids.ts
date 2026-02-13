@@ -8,6 +8,7 @@ import type {
   LayerId,
   LayerGroupId,
   AssetId,
+  TerrainId,
 } from "@/types";
 
 export const generateProjectId = () => uuidv4() as ProjectId;
@@ -18,3 +19,4 @@ export const generateMapGroupId = () => uuidv4() as MapGroupId;
 export const generateLayerId = () => uuidv4() as LayerId;
 export const generateLayerGroupId = () => uuidv4() as LayerGroupId;
 export const generateAssetId = () => uuidv4() as AssetId;
+export const generateTerrainId = () => uuidv4() as TerrainId;

@@ -1,5 +1,6 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Plus, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
+import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -40,8 +41,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
-import { saveAsset, getAsset, getAssetUrl, deleteAsset } from "@/lib/db";
+import { saveAsset, getAsset, deleteAsset } from "@/lib/db";
 import {
   generateTilesetId,
   generateTilesetGroupId,
@@ -72,32 +72,6 @@ export function TilesetPanel() {
   const renameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Canvas refs for tileset display
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [, setTilesetImageUrl] = useState<string | null>(null);
-  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
-    null,
-  );
-
-  // Selection state
-  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-
-  // Ctrl+Wheel zoom and middle-mouse pan
-
-  const handleSetTilesetZoom = useCallback(
-    (newZoom: number) => {
-      setState((draft) => {
-        draft.tilesetZoom = newZoom;
-      });
-    },
-    [setState],
-  );
-
-  useCanvasNavigation(containerRef, state.tilesetZoom, handleSetTilesetZoom);
-
   if (!project) return null;
 
   const activeGroup = project.tilesetGroups.find(
@@ -110,137 +84,29 @@ export function TilesetPanel() {
     (t) => t.id === state.activeTilesetId,
   );
 
-  // Load tileset image when active tileset changes
+  // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (!activeTileset) {
-      setTilesetImageUrl(null);
-      setTilesetImage(null);
-      return;
-    }
-    let revoke: string | null = null;
-    getAssetUrl(activeTileset.assetId).then((url) => {
-      if (url) {
-        revoke = url;
-        setTilesetImageUrl(url);
-        const img = new Image();
-        img.onload = () => setTilesetImage(img);
-        img.src = url;
-      }
-    });
-    return () => {
-      if (revoke) URL.revokeObjectURL(revoke);
-    };
-  }, [activeTileset]);
-
-  // Draw tileset on canvas with grid
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !tilesetImage) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const zoom = state.tilesetZoom;
-    const w = tilesetImage.width * zoom;
-    const h = tilesetImage.height * zoom;
-    canvas.width = w;
-    canvas.height = h;
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(tilesetImage, 0, 0, w, h);
-
-    // Draw grid
-    const tileSize = state.tileSize * zoom;
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.3)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= w; x += tileSize) {
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= h; y += tileSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(w, y + 0.5);
-      ctx.stroke();
-    }
-
-    // Draw hover highlight
-    if (hoverCell) {
-      ctx.fillStyle = "rgba(255, 165, 0, 0.15)";
-      ctx.fillRect(
-        hoverCell.x * tileSize,
-        hoverCell.y * tileSize,
-        tileSize,
-        tileSize,
-      );
-    }
-
-    // Draw selected tile highlight
-    if (
-      state.selectedTile &&
-      activeTileset &&
-      state.selectedTile.tilesetId === activeTileset.id
-    ) {
-      ctx.strokeStyle = "rgba(255, 165, 0, 0.9)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        state.selectedTile.sx * zoom + 1,
-        state.selectedTile.sy * zoom + 1,
-        state.selectedTile.sw * zoom - 2,
-        state.selectedTile.sh * zoom - 2,
-      );
-    }
-  }, [
-    tilesetImage,
-    state.tilesetZoom,
-    state.tileSize,
-    hoverCell,
-    state.selectedTile,
-    activeTileset,
-  ]);
+  const canvasSelectedTile = activeTileset && state.selectedTile?.tilesetId === activeTileset.id
+    ? { sx: state.selectedTile.sx, sy: state.selectedTile.sy, sw: state.selectedTile.sw, sh: state.selectedTile.sh }
+    : null;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const handleCanvasClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!activeTileset || !tilesetImage) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const zoom = state.tilesetZoom;
-      const tileSize = state.tileSize;
-      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
-      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
-
+  const handleTileSelect = useCallback(
+    (tile: { sx: number; sy: number; sw: number; sh: number }) => {
+      if (!activeTileset) return;
       setState((draft) => {
-        draft.selectedTile = {
-          tilesetId: activeTileset.id,
-          sx: x * tileSize,
-          sy: y * tileSize,
-          sw: tileSize,
-          sh: tileSize,
-        };
+        draft.selectedTile = { tilesetId: activeTileset.id, ...tile };
       });
     },
-    [activeTileset, tilesetImage, state.tilesetZoom, state.tileSize, setState],
+    [activeTileset, setState],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const handleCanvasMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!tilesetImage) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const zoom = state.tilesetZoom;
-      const tileSize = state.tileSize;
-      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
-      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
-      setHoverCell({ x, y });
+  const handleSetTilesetZoom = useCallback(
+    (newZoom: number) => {
+      setState((draft) => { draft.tilesetZoom = newZoom; });
     },
-    [tilesetImage, state.tilesetZoom, state.tileSize],
+    [setState],
   );
 
   async function handleAddTileset() {
@@ -623,27 +489,21 @@ export function TilesetPanel() {
         </Tooltip>
       </div>
 
-      {/* Tileset canvas area */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-auto min-h-0"
-        onMouseLeave={() => setHoverCell(null)}
-      >
-        {activeTileset && tilesetImage ? (
-          <canvas
-            ref={canvasRef}
-            className="cursor-crosshair"
-            onClick={handleCanvasClick}
-            onMouseMove={handleCanvasMouseMove}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-            {groupTilesets.length === 0
-              ? "Click + to add a tileset"
-              : "Select a tileset tab"}
-          </div>
-        )}
-      </div>
+      {/* Tileset canvas area — uses the shared TilesetCanvas component */}
+      <TilesetCanvas
+        assetId={activeTileset?.assetId ?? null}
+        tileSize={state.tileSize}
+        zoom={state.tilesetZoom}
+        onZoomChange={handleSetTilesetZoom}
+        selectedTile={canvasSelectedTile}
+        onTileSelect={handleTileSelect}
+        className="flex-1 min-h-0"
+        placeholder={
+          groupTilesets.length === 0
+            ? "Click + to add a tileset"
+            : "Select a tileset tab"
+        }
+      />
 
       {/* Hidden file input */}
       <input

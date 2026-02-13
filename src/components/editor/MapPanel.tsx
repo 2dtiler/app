@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FillTerrainDialog } from "@/components/dialogs/FillTerrainDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import {
@@ -81,7 +82,9 @@ import {
   type TileRef,
   type MapGroup,
   type LayerGroup,
+  type TerrainTile,
 } from "@/types";
+import { pickWeightedTile } from "@/lib/terrain";
 
 export function MapPanel() {
   const { state, setState } = useEditorStore();
@@ -124,6 +127,7 @@ export function MapPanel() {
   const [newMapWidth, setNewMapWidth] = useState(20);
   const [newMapHeight, setNewMapHeight] = useState(15);
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
+  const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -192,24 +196,42 @@ export function MapPanel() {
         }
         schedulePaintRender();
       } else if (state.currentTool === "fill") {
-        if (!state.selectedTile || !activeLayer) return;
-        const ref = state.selectedTile;
+        // ---------------------
+        // Fill Tool — two modes:
+        //   "fill"        → flood-fill with the single selected tile
+        //   "fillTerrain" → flood-fill with weighted-random terrain tiles
+        // ---------------------
+
+        const isTerrain = state.fillMode === "fillTerrain";
+
+        // Validate that we have tile data to fill with
+        if (isTerrain) {
+          if (!state.activeFillTerrain || state.activeFillTerrain.length === 0) return;
+        } else {
+          if (!state.selectedTile) return;
+        }
+        if (!activeLayer) return;
+
         const w = activeMap.widthInTiles;
         const h = activeMap.heightInTiles;
 
         const targetKey = `${gx},${gy}`;
         const targetTile = activeLayer.tiles[targetKey] ?? null;
 
-        if (
-          targetTile &&
-          targetTile.tilesetId === ref.tilesetId &&
-          targetTile.sx === ref.sx &&
-          targetTile.sy === ref.sy
-        ) {
-          return;
+        // For plain fill, skip if clicked tile already matches selected tile
+        if (!isTerrain && state.selectedTile) {
+          const ref = state.selectedTile;
+          if (
+            targetTile &&
+            targetTile.tilesetId === ref.tilesetId &&
+            targetTile.sx === ref.sx &&
+            targetTile.sy === ref.sy
+          ) {
+            return;
+          }
         }
 
-        // BFS flood fill — use index cursor instead of shift() for O(1) dequeue
+        // BFS flood fill — collect all 4-connected tiles matching the target
         const visited = new Set<string>();
         const queue: [number, number][] = [[gx, gy]];
         const toFill: [number, number][] = [];
@@ -238,19 +260,39 @@ export function MapPanel() {
 
         if (toFill.length === 0) return;
 
+        // Apply fill — single setState call = one undo step
         setState((draft) => {
           const layer = draft.project?.layers.find(
             (l) => l.id === state.activeLayerId,
           );
           if (!layer) return;
-          for (const [x, y] of toFill) {
-            layer.tiles[`${x},${y}`] = {
-              tilesetId: ref.tilesetId,
-              sx: ref.sx,
-              sy: ref.sy,
-              sw: ref.sw,
-              sh: ref.sh,
-            };
+
+          if (isTerrain && state.activeFillTerrain) {
+            // Terrain fill: each position gets a weighted-random tile
+            for (const [x, y] of toFill) {
+              const picked = pickWeightedTile(state.activeFillTerrain);
+              if (picked) {
+                layer.tiles[`${x},${y}`] = {
+                  tilesetId: picked.tilesetId,
+                  sx: picked.sx,
+                  sy: picked.sy,
+                  sw: picked.sw,
+                  sh: picked.sh,
+                };
+              }
+            }
+          } else if (state.selectedTile) {
+            // Plain fill: every position gets the same tile
+            const ref = state.selectedTile;
+            for (const [x, y] of toFill) {
+              layer.tiles[`${x},${y}`] = {
+                tilesetId: ref.tilesetId,
+                sx: ref.sx,
+                sy: ref.sy,
+                sw: ref.sw,
+                sh: ref.sh,
+              };
+            }
           }
         });
       }
@@ -261,6 +303,8 @@ export function MapPanel() {
       state.currentTool,
       state.selectedTile,
       state.brushSize,
+      state.fillMode,
+      state.activeFillTerrain,
       state.activeLayerId,
       setState,
       schedulePaintRender,
@@ -640,23 +684,48 @@ export function MapPanel() {
           );
         })}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={state.currentTool === "fill" ? "default" : "ghost"}
-              size="icon"
-              className="h-6 w-6"
+        {/* Fill tool dropdown — "Fill" (single tile) or "Fill Terrain" (weighted random) */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={state.currentTool === "fill" ? "default" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6"
+                >
+                  <PaintBucket className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Fill Tool</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem
               onClick={() =>
                 setState((draft) => {
                   draft.currentTool = "fill";
+                  draft.fillMode = "fill";
                 })
               }
             >
-              <PaintBucket className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Fill Tool</TooltipContent>
-        </Tooltip>
+              Fill
+              {state.currentTool === "fill" && state.fillMode === "fill" && " ✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setState((draft) => {
+                  draft.currentTool = "fill";
+                  draft.fillMode = "fillTerrain";
+                });
+                setFillTerrainDialogOpen(true);
+              }}
+            >
+              Fill Terrain
+              {state.currentTool === "fill" && state.fillMode === "fillTerrain" && " ✓"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
@@ -713,7 +782,11 @@ export function MapPanel() {
         )}
 
         <span className="text-[10px] text-muted-foreground ml-auto">
-          {state.currentTool.toUpperCase()}{" "}
+          {state.currentTool === "fill"
+            ? state.fillMode === "fillTerrain"
+              ? "FILL TERRAIN"
+              : "FILL"
+            : state.currentTool.toUpperCase()}{" "}
           {state.currentTool !== "fill" && state.brushSize}
         </span>
       </div>
@@ -975,6 +1048,19 @@ export function MapPanel() {
           onResize={handleResizeMap}
         />
       )}
+
+      {/* Fill terrain dialog */}
+      <FillTerrainDialog
+        open={fillTerrainDialogOpen}
+        onOpenChange={setFillTerrainDialogOpen}
+        onApply={(tiles: TerrainTile[]) => {
+          setState((draft) => {
+            draft.currentTool = "fill";
+            draft.fillMode = "fillTerrain";
+            draft.activeFillTerrain = tiles;
+          });
+        }}
+      />
 
       {/* Add group dialog */}
       <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>

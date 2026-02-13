@@ -1,11 +1,8 @@
+Edit: Find and replace
+
 Layers
   - Image Layer
   - Object Layer
-
-Fill: Terrain
-
-Edit:
-  Find and replace
 
 Tools:
   Image Editor

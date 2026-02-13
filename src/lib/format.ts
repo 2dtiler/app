@@ -127,6 +127,10 @@ export async function exportProject(project: Project): Promise<Uint8Array> {
 export async function importProject(data: Uint8Array): Promise<Project> {
   const packed = decompressPack<PackedProject>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
+  // Backward-compat: ensure terrains array exists for older project files
+  if (!packed.project.terrains) {
+    packed.project.terrains = [];
+  }
   return packed.project;
 }
 
