@@ -27,6 +27,7 @@ interface ToolbarProps {
   onAbout: () => void;
   onKeyboardShortcuts: () => void;
   onSubmitBug: () => void;
+  onFindReplace: () => void;
 }
 
 export const Toolbar = memo(function Toolbar({
@@ -41,6 +42,7 @@ export const Toolbar = memo(function Toolbar({
   onAbout,
   onKeyboardShortcuts,
   onSubmitBug,
+  onFindReplace,
 }: ToolbarProps) {
   // Get controls without subscribing to state — avoids re-renders on every state change
   const controls = useMemo(() => getEditorStore().getControls(), []);
@@ -104,6 +106,11 @@ export const Toolbar = memo(function Toolbar({
             >
               Redo
               <MenubarShortcut>⇧⌘Z</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onClick={onFindReplace}>
+              Find and Replace
+              <MenubarShortcut>⌘H</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

@@ -30,6 +30,7 @@ import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
 import { ProjectModal } from "@/components/dialogs/ProjectModal";
 import { AboutDialog } from "@/components/dialogs/AboutDialog";
 import { KeyboardShortcutsDialog } from "@/components/dialogs/KeyboardShortcutsDialog";
+import { FindReplaceDialog } from "@/components/dialogs/FindReplaceDialog";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
@@ -58,6 +59,7 @@ function App() {
   const [projectModalOpen, setProjectModalOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
 
   useEffect(() => {
     if (storeInitStarted) return;
@@ -67,6 +69,15 @@ function App() {
 
   useAutoSave();
   useKeyboardShortcuts();
+
+  // Listen for the Find and Replace custom event from keyboard shortcuts
+  useEffect(() => {
+    function handleOpenFindReplace() {
+      setFindReplaceOpen(true);
+    }
+    window.addEventListener("open-find-replace", handleOpenFindReplace);
+    return () => window.removeEventListener("open-find-replace", handleOpenFindReplace);
+  }, [setFindReplaceOpen]);
 
   if (!ready) {
     return loadingScreen;
@@ -83,6 +94,8 @@ function App() {
         setAboutOpen={setAboutOpen}
         shortcutsOpen={shortcutsOpen}
         setShortcutsOpen={setShortcutsOpen}
+        findReplaceOpen={findReplaceOpen}
+        setFindReplaceOpen={setFindReplaceOpen}
       />
     </TooltipProvider>
   );
@@ -98,6 +111,8 @@ function AppShell({
   setAboutOpen,
   shortcutsOpen,
   setShortcutsOpen,
+  findReplaceOpen,
+  setFindReplaceOpen,
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
@@ -107,6 +122,8 @@ function AppShell({
   setAboutOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
   setShortcutsOpen: (v: boolean) => void;
+  findReplaceOpen: boolean;
+  setFindReplaceOpen: (v: boolean) => void;
 }) {
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
@@ -283,6 +300,7 @@ function AppShell({
         onAbout={() => setAboutOpen(true)}
         onKeyboardShortcuts={() => setShortcutsOpen(true)}
         onSubmitBug={() => window.open("https://github.com", "_blank")}
+        onFindReplace={() => setFindReplaceOpen(true)}
       />
 
       {hasProject ? (
@@ -327,6 +345,10 @@ function AppShell({
       <KeyboardShortcutsDialog
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
+      />
+      <FindReplaceDialog
+        open={findReplaceOpen}
+        onOpenChange={setFindReplaceOpen}
       />
     </div>
   );

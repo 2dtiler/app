@@ -76,6 +76,13 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Find and Replace
+      if (isCtrlOrCmd && e.key === "h") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("open-find-replace"));
+        return;
+      }
+
       // Don't process tool shortcuts if modifier keys are held
       if (isCtrlOrCmd || e.altKey) return;
 

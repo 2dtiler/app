@@ -1,4 +1,4 @@
-Edit: Find and replace
+Allow multiple select (for eraser and moving)
 
 Layers
   - Image Layer
@@ -9,13 +9,11 @@ Tools:
   AI Asset Generation
   Sprite Generator
 
-Allow multiple select (for eraser and moving)
-
+Autotile. Like Spritefusion
 Palettes
 Export Options
 Import Options
 Get some ideas from: Keep Notes
-Autotile. Like Spritefusion
 Allow PNG or WebP or gif
 
 =======================================

@@ -18,7 +18,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { getAssetUrl } from "@/lib/db";
-import type { AssetId, TileSize } from "@/types";
+import type { AssetId, TileSize, TilesetId } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +49,12 @@ export interface TilesetCanvasProps {
   className?: string;
   /** Placeholder text when no image is loaded */
   placeholder?: string;
+  /**
+   * When set, enables native HTML drag on tiles. The dragged data will
+   * include the tilesetId so drop targets know which tileset the tile
+   * comes from. Used by the Find & Replace dialog.
+   */
+  dragTilesetId?: TilesetId;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +70,7 @@ export function TilesetCanvas({
   onTileSelect,
   className = "",
   placeholder = "No tileset selected",
+  dragTilesetId,
 }: TilesetCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -201,6 +208,30 @@ export function TilesetCanvas({
   );
 
   // -----------------------------------------------------------------------
+  // Step 5: Handle drag start — enable native drag with tile JSON payload
+  // -----------------------------------------------------------------------
+  const handleDragStart = useCallback(
+    (e: React.DragEvent<HTMLCanvasElement>) => {
+      if (!dragTilesetId || !tilesetImage) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
+      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
+      const tileRef = {
+        tilesetId: dragTilesetId,
+        sx: x * tileSize,
+        sy: y * tileSize,
+        sw: tileSize,
+        sh: tileSize,
+      };
+      e.dataTransfer.setData("application/json", JSON.stringify(tileRef));
+      e.dataTransfer.effectAllowed = "copy";
+    },
+    [dragTilesetId, tilesetImage, zoom, tileSize],
+  );
+
+  // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
   return (
@@ -213,8 +244,10 @@ export function TilesetCanvas({
         <canvas
           ref={canvasRef}
           className="cursor-crosshair"
+          draggable={!!dragTilesetId}
           onClick={handleClick}
           onMouseMove={handleMouseMove}
+          onDragStart={dragTilesetId ? handleDragStart : undefined}
         />
       ) : (
         <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
