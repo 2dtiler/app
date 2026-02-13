@@ -89,7 +89,9 @@ export function TerrainTileSelector({
   onTilesChange,
   tilesetAssetId,
 }: TerrainTileSelectorProps) {
-  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(null);
+  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
+    null,
+  );
 
   // -----------------------------------------------------------------------
   // Load the tileset image for mini-previews

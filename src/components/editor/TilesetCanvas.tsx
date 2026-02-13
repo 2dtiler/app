@@ -67,8 +67,12 @@ export function TilesetCanvas({
 }: TilesetCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(null);
-  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
+  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
+    null,
+  );
+  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   // Ctrl+Wheel zoom and middle-mouse pan
   useCanvasNavigation(containerRef, zoom, onZoomChange);

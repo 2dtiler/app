@@ -85,10 +85,16 @@ export function TilesetPanel() {
   );
 
   // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const canvasSelectedTile = activeTileset && state.selectedTile?.tilesetId === activeTileset.id
-    ? { sx: state.selectedTile.sx, sy: state.selectedTile.sy, sw: state.selectedTile.sw, sh: state.selectedTile.sh }
-    : null;
+
+  const canvasSelectedTile =
+    activeTileset && state.selectedTile?.tilesetId === activeTileset.id
+      ? {
+          sx: state.selectedTile.sx,
+          sy: state.selectedTile.sy,
+          sw: state.selectedTile.sw,
+          sh: state.selectedTile.sh,
+        }
+      : null;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const handleTileSelect = useCallback(
@@ -104,7 +110,9 @@ export function TilesetPanel() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const handleSetTilesetZoom = useCallback(
     (newZoom: number) => {
-      setState((draft) => { draft.tilesetZoom = newZoom; });
+      setState((draft) => {
+        draft.tilesetZoom = newZoom;
+      });
     },
     [setState],
   );

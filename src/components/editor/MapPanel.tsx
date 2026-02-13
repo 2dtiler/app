@@ -206,7 +206,8 @@ export function MapPanel() {
 
         // Validate that we have tile data to fill with
         if (isTerrain) {
-          if (!state.activeFillTerrain || state.activeFillTerrain.length === 0) return;
+          if (!state.activeFillTerrain || state.activeFillTerrain.length === 0)
+            return;
         } else {
           if (!state.selectedTile) return;
         }
@@ -710,7 +711,9 @@ export function MapPanel() {
               }
             >
               Fill
-              {state.currentTool === "fill" && state.fillMode === "fill" && " ✓"}
+              {state.currentTool === "fill" &&
+                state.fillMode === "fill" &&
+                " ✓"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
@@ -722,7 +725,9 @@ export function MapPanel() {
               }}
             >
               Fill Terrain
-              {state.currentTool === "fill" && state.fillMode === "fillTerrain" && " ✓"}
+              {state.currentTool === "fill" &&
+                state.fillMode === "fillTerrain" &&
+                " ✓"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
