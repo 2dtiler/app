@@ -15,6 +15,8 @@ import {
 // subscribing to full state which would re-render on every change
 import { getEditorStore } from "@/lib/store";
 
+export type ToolName = "image-editor" | "ai-assets" | "sprite-generator";
+
 interface ToolbarProps {
   onNewProject: () => void;
   onImportProject: () => void;
@@ -28,6 +30,7 @@ interface ToolbarProps {
   onKeyboardShortcuts: () => void;
   onSubmitBug: () => void;
   onFindReplace: () => void;
+  onOpenTool: (tool: ToolName) => void;
 }
 
 export const Toolbar = memo(function Toolbar({
@@ -43,6 +46,7 @@ export const Toolbar = memo(function Toolbar({
   onKeyboardShortcuts,
   onSubmitBug,
   onFindReplace,
+  onOpenTool,
 }: ToolbarProps) {
   // Get controls without subscribing to state — avoids re-renders on every state change
   const controls = useMemo(() => getEditorStore().getControls(), []);
@@ -111,6 +115,23 @@ export const Toolbar = memo(function Toolbar({
             <MenubarItem onClick={onFindReplace}>
               Find and Replace
               <MenubarShortcut>⌘H</MenubarShortcut>
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+
+        <MenubarMenu>
+          <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
+            Tools
+          </MenubarTrigger>
+          <MenubarContent className="min-w-45">
+            <MenubarItem onClick={() => onOpenTool("image-editor")}>
+              Image Editor
+            </MenubarItem>
+            <MenubarItem onClick={() => onOpenTool("ai-assets")}>
+              AI Assets
+            </MenubarItem>
+            <MenubarItem onClick={() => onOpenTool("sprite-generator")}>
+              Sprite Generator
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

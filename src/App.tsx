@@ -25,12 +25,13 @@ import type {
   LayerGroupId,
 } from "@/types";
 
-import { Toolbar } from "@/components/layout/Toolbar";
+import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
 import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
 import { ProjectModal } from "@/components/dialogs/ProjectModal";
 import { AboutDialog } from "@/components/dialogs/AboutDialog";
 import { KeyboardShortcutsDialog } from "@/components/dialogs/KeyboardShortcutsDialog";
 import { FindReplaceDialog } from "@/components/dialogs/FindReplaceDialog";
+import { ToolDrawer } from "@/components/dialogs/ToolDrawer";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
@@ -60,6 +61,7 @@ function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<ToolName | null>(null);
 
   useEffect(() => {
     if (storeInitStarted) return;
@@ -97,6 +99,8 @@ function App() {
         setShortcutsOpen={setShortcutsOpen}
         findReplaceOpen={findReplaceOpen}
         setFindReplaceOpen={setFindReplaceOpen}
+        activeTool={activeTool}
+        setActiveTool={setActiveTool}
       />
     </TooltipProvider>
   );
@@ -114,6 +118,8 @@ function AppShell({
   setShortcutsOpen,
   findReplaceOpen,
   setFindReplaceOpen,
+  activeTool,
+  setActiveTool,
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
@@ -125,6 +131,8 @@ function AppShell({
   setShortcutsOpen: (v: boolean) => void;
   findReplaceOpen: boolean;
   setFindReplaceOpen: (v: boolean) => void;
+  activeTool: ToolName | null;
+  setActiveTool: (v: ToolName | null) => void;
 }) {
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
@@ -302,6 +310,7 @@ function AppShell({
         onKeyboardShortcuts={() => setShortcutsOpen(true)}
         onSubmitBug={() => window.open("https://github.com", "_blank")}
         onFindReplace={() => setFindReplaceOpen(true)}
+        onOpenTool={(tool) => setActiveTool(tool)}
       />
 
       {hasProject ? (
@@ -350,6 +359,10 @@ function AppShell({
       <FindReplaceDialog
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
+      />
+      <ToolDrawer
+        activeTool={activeTool}
+        onClose={() => setActiveTool(null)}
       />
     </div>
   );
