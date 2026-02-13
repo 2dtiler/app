@@ -47,11 +47,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
-import { generateMapId, generateMapGroupId, generateLayerId } from "@/lib/ids";
+import {
+  generateMapId,
+  generateMapGroupId,
+  generateLayerId,
+  generateLayerGroupId,
+} from "@/lib/ids";
 import {
   flattenLayerTree,
   isLayerEffectivelyLocked,
@@ -62,10 +73,13 @@ import {
   type EditorTool,
   type MapGroupId,
   type MapId,
+  type LayerId,
+  type LayerGroupId,
   type TileMapData,
   type TileLayer,
   type TileRef,
   type MapGroup,
+  type LayerGroup,
 } from "@/types";
 
 export function MapPanel() {
@@ -462,6 +476,91 @@ export function MapPanel() {
     setRenamingTabId(null);
   }
 
+  function handleDuplicateMap(sourceMap: TileMapData) {
+    if (!project) return;
+    const newMapId = generateMapId();
+
+    // Build an ID mapping for layers and layer groups so we can remap layerOrder / childOrder
+    const oldLayerIds = new Set<string>();
+    const oldGroupIds = new Set<string>();
+
+    // Collect all layer IDs belonging to this map
+    for (const l of project.layers) {
+      if (l.mapId === sourceMap.id) oldLayerIds.add(l.id);
+    }
+    for (const g of project.layerGroups ?? []) {
+      if (g.mapId === sourceMap.id) oldGroupIds.add(g.id);
+    }
+
+    const layerIdMap = new Map<string, LayerId>();
+    const groupIdMap = new Map<string, LayerGroupId>();
+
+    for (const id of oldLayerIds) layerIdMap.set(id, generateLayerId());
+    for (const id of oldGroupIds) groupIdMap.set(id, generateLayerGroupId());
+
+    const remapId = (id: LayerId | LayerGroupId): LayerId | LayerGroupId =>
+      (layerIdMap.get(id) ?? groupIdMap.get(id) ?? id) as
+        | LayerId
+        | LayerGroupId;
+
+    setState((draft) => {
+      if (!draft.project) return;
+
+      // Duplicate the map
+      const newMap: TileMapData = {
+        id: newMapId,
+        name: `${sourceMap.name}_copy`,
+        groupId: sourceMap.groupId,
+        widthInTiles: sourceMap.widthInTiles,
+        heightInTiles: sourceMap.heightInTiles,
+        tileSize: sourceMap.tileSize,
+        layerOrder: sourceMap.layerOrder.map(remapId),
+        createdAt: Date.now(),
+      };
+      draft.project.maps.push(newMap);
+
+      // Duplicate layers
+      for (const l of project.layers) {
+        if (l.mapId !== sourceMap.id) continue;
+        const newLayerId = layerIdMap.get(l.id)!;
+        const newLayer: TileLayer = {
+          id: newLayerId,
+          mapId: newMapId,
+          name: l.name,
+          visible: l.visible,
+          locked: l.locked,
+          tiles: { ...l.tiles },
+        };
+        draft.project.layers.push(newLayer);
+      }
+
+      // Duplicate layer groups
+      for (const g of project.layerGroups ?? []) {
+        if (g.mapId !== sourceMap.id) continue;
+        const newGroupId = groupIdMap.get(g.id)!;
+        const newGroup: LayerGroup = {
+          id: newGroupId,
+          mapId: newMapId,
+          name: g.name,
+          visible: g.visible,
+          locked: g.locked,
+          expanded: g.expanded,
+          childOrder: g.childOrder.map(remapId),
+        };
+        draft.project.layerGroups.push(newGroup);
+      }
+
+      // Switch to the new map
+      draft.activeMapId = newMapId;
+      draft.activeLayerId =
+        findLastLayerId(
+          newMap.layerOrder,
+          draft.project.layers,
+          draft.project.layerGroups,
+        ) ?? null;
+    });
+  }
+
   function handleResizeMap(width: number, height: number) {
     if (!activeMap) return;
     setState((draft) => {
@@ -695,20 +794,42 @@ export function MapPanel() {
                         }}
                       />
                     ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
                           <div>
-                            <TabsTrigger
-                              value={m.id}
-                              className="h-6 px-2 text-xs rounded-none"
-                              onDoubleClick={() => handleTabDoubleClick(m)}
-                            >
-                              {m.name}
-                            </TabsTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <TabsTrigger
+                                    value={m.id}
+                                    className="h-6 px-2 text-xs rounded-none"
+                                    onDoubleClick={() =>
+                                      handleTabDoubleClick(m)
+                                    }
+                                  >
+                                    {m.name}
+                                  </TabsTrigger>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Double Click to Rename
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent>Double Click to Rename</TooltipContent>
-                      </Tooltip>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => handleTabDoubleClick(m)}
+                          >
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleDuplicateMap(m)}
+                          >
+                            Duplicate
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>

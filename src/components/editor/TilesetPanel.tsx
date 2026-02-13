@@ -31,10 +31,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
-import { saveAsset, getAssetUrl, deleteAsset } from "@/lib/db";
+import { saveAsset, getAsset, getAssetUrl, deleteAsset } from "@/lib/db";
 import {
   generateTilesetId,
   generateTilesetGroupId,
@@ -374,6 +380,30 @@ export function TilesetPanel() {
     setRenamingTabId(null);
   }
 
+  async function handleDuplicateTileset(source: Tileset) {
+    // Duplicate the asset blob
+    const asset = await getAsset(source.assetId);
+    if (!asset) return;
+    const newAssetId = generateAssetId();
+    await saveAsset(newAssetId, asset.data, asset.mimeType);
+
+    const newTilesetId = generateTilesetId();
+    setState((draft) => {
+      if (!draft.project) return;
+      const tileset: Tileset = {
+        id: newTilesetId,
+        name: `${source.name}_copy`,
+        groupId: source.groupId,
+        assetId: newAssetId,
+        imageWidth: source.imageWidth,
+        imageHeight: source.imageHeight,
+        createdAt: Date.now(),
+      };
+      draft.project.tilesets.push(tileset);
+      draft.activeTilesetId = newTilesetId;
+    });
+  }
+
   function handleTileSizeChange(value: string) {
     setState((draft) => {
       draft.tileSize = Number(value) as TileSize;
@@ -512,20 +542,42 @@ export function TilesetPanel() {
                         }}
                       />
                     ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
                           <div>
-                            <TabsTrigger
-                              value={t.id}
-                              className="h-6 px-2 text-xs rounded-none"
-                              onDoubleClick={() => handleTabDoubleClick(t)}
-                            >
-                              {t.name}
-                            </TabsTrigger>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <TabsTrigger
+                                    value={t.id}
+                                    className="h-6 px-2 text-xs rounded-none"
+                                    onDoubleClick={() =>
+                                      handleTabDoubleClick(t)
+                                    }
+                                  >
+                                    {t.name}
+                                  </TabsTrigger>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Double Click to Rename
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent>Double Click to Rename</TooltipContent>
-                      </Tooltip>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => handleTabDoubleClick(t)}
+                          >
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleDuplicateTileset(t)}
+                          >
+                            Duplicate
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>

@@ -1,7 +1,4 @@
-Do performance skill
-Refactor into smaller components
 Laeyer groups doesnt work too lekker
-Ability to duplicate a map/tileset byt Right Clicking
 
 Layers
   - Layer Groups
