@@ -62,11 +62,7 @@ interface MapCanvasProps {
   /** Called when user creates/modifies the selection */
   onSelectionChange: (selection: MapSelection | null) => void;
   /** Called when user drops a moved selection — moves tiles from src to dest */
-  onMoveTiles: (
-    src: MapSelection,
-    destX: number,
-    destY: number,
-  ) => void;
+  onMoveTiles: (src: MapSelection, destX: number, destY: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +212,12 @@ const MapScene = memo(function MapScene({
       const sy = sel.y * scaledTile;
       const sw = sel.width * scaledTile;
       const sh = sel.height * scaledTile;
-      return globalX >= sx && globalX <= sx + sw && globalY >= sy && globalY <= sy + sh;
+      return (
+        globalX >= sx &&
+        globalX <= sx + sw &&
+        globalY >= sy &&
+        globalY <= sy + sh
+      );
     },
     [scaledTile],
   );
@@ -298,10 +299,22 @@ const MapScene = memo(function MapScene({
         const gy = Math.floor(e.global.y / scaledTile);
 
         if (action.type === "draw") {
-          const x1 = Math.min(action.startX, Math.max(0, Math.min(gx, mapW - 1)));
-          const y1 = Math.min(action.startY, Math.max(0, Math.min(gy, mapH - 1)));
-          const x2 = Math.max(action.startX, Math.max(0, Math.min(gx, mapW - 1)));
-          const y2 = Math.max(action.startY, Math.max(0, Math.min(gy, mapH - 1)));
+          const x1 = Math.min(
+            action.startX,
+            Math.max(0, Math.min(gx, mapW - 1)),
+          );
+          const y1 = Math.min(
+            action.startY,
+            Math.max(0, Math.min(gy, mapH - 1)),
+          );
+          const x2 = Math.max(
+            action.startX,
+            Math.max(0, Math.min(gx, mapW - 1)),
+          );
+          const y2 = Math.max(
+            action.startY,
+            Math.max(0, Math.min(gy, mapH - 1)),
+          );
           setLiveSelection({
             x: x1,
             y: y1,
