@@ -2,6 +2,7 @@
  * Global keyboard shortcuts for the editor.
  *
  * Shortcuts:
+ *   S — Select tool
  *   B — Paint tool
  *   E — Erase tool
  *   G — Fill tool
@@ -89,6 +90,12 @@ export function useKeyboardShortcuts() {
       const store = getEditorStore();
 
       switch (e.key.toLowerCase()) {
+        case "s":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "select";
+          });
+          break;
         case "b":
           e.preventDefault();
           store.setState((draft) => {

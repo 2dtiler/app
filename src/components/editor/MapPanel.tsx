@@ -3,6 +3,7 @@ import {
   Plus,
   ZoomIn,
   ZoomOut,
+  BoxSelect,
   Paintbrush,
   PaintBucket,
   Eraser,
@@ -83,6 +84,7 @@ import {
   type MapGroup,
   type LayerGroup,
   type TerrainTile,
+  type MapSelection,
 } from "@/types";
 import { pickWeightedTile } from "@/lib/terrain";
 
@@ -345,6 +347,52 @@ export function MapPanel() {
     // Trigger re-render to clear buffer visuals (now committed tiles)
     setPaintBufferVersion((v) => v + 1);
   }, [setState, state.activeLayerId, paintBuffer]);
+
+  const handleSelectionChange = useCallback(
+    (sel: MapSelection | null) => {
+      setState((draft) => {
+        draft.mapSelection = sel;
+      });
+    },
+    [setState],
+  );
+
+  // Move tiles from a source selection rect to a new position on the active layer.
+  // This is a single undo step.
+  const handleMoveTiles = useCallback(
+    (src: MapSelection, destX: number, destY: number) => {
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (!layer) return;
+
+        // 1. Snapshot all tiles inside the source rect
+        const snapshot: { dx: number; dy: number; ref: TileRef }[] = [];
+        for (let dy = 0; dy < src.height; dy++) {
+          for (let dx = 0; dx < src.width; dx++) {
+            const key = `${src.x + dx},${src.y + dy}`;
+            const ref = layer.tiles[key];
+            if (ref) snapshot.push({ dx, dy, ref: { ...ref } });
+          }
+        }
+
+        // 2. Clear the source rect
+        for (let dy = 0; dy < src.height; dy++) {
+          for (let dx = 0; dx < src.width; dx++) {
+            delete layer.tiles[`${src.x + dx},${src.y + dy}`];
+          }
+        }
+
+        // 3. Write tiles at the destination
+        for (const { dx, dy, ref } of snapshot) {
+          const key = `${destX + dx},${destY + dy}`;
+          layer.tiles[key] = ref;
+        }
+      });
+    },
+    [setState, state.activeLayerId],
+  );
 
   if (!project) return null;
 
@@ -632,6 +680,7 @@ export function MapPanel() {
   }
 
   const toolIcons: Record<EditorTool, typeof Paintbrush> = {
+    select: BoxSelect,
     paint: Paintbrush,
     erase: Eraser,
     fill: PaintBucket,
@@ -641,6 +690,25 @@ export function MapPanel() {
     <div className="flex flex-col h-full">
       {/* Map toolbar */}
       <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0 flex-wrap min-h-10">
+        {/* Select tool (no brush size dropdown) */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={state.currentTool === "select" ? "default" : "ghost"}
+              size="icon"
+              className="h-6 w-6"
+              onClick={() =>
+                setState((draft) => {
+                  draft.currentTool = "select";
+                })
+              }
+            >
+              <BoxSelect className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Select Tool (S)</TooltipContent>
+        </Tooltip>
+
         {/* Tool selector with brush size */}
         {(["paint", "erase"] as EditorTool[]).map((tool) => {
           const Icon = toolIcons[tool];
@@ -792,7 +860,9 @@ export function MapPanel() {
               ? "FILL TERRAIN"
               : "FILL"
             : state.currentTool.toUpperCase()}{" "}
-          {state.currentTool !== "fill" && state.brushSize}
+          {state.currentTool !== "fill" &&
+            state.currentTool !== "select" &&
+            state.brushSize}
         </span>
       </div>
 
@@ -971,6 +1041,9 @@ export function MapPanel() {
             onPaintEnd={handlePaintEnd}
             paintBuffer={paintBuffer}
             paintBufferVersion={paintBufferVersion}
+            mapSelection={state.mapSelection}
+            onSelectionChange={handleSelectionChange}
+            onMoveTiles={handleMoveTiles}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

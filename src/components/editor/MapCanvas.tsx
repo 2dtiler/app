@@ -28,6 +28,7 @@ import type {
   TileRef,
   TilesetId,
   EditorState,
+  MapSelection,
 } from "@/types";
 
 // Register Pixi components for JSX usage
@@ -56,6 +57,16 @@ interface MapCanvasProps {
   paintBuffer: Map<string, TileRef | null>;
   /** Incremented to trigger re-render when buffer contents change */
   paintBufferVersion: number;
+  /** Current selection rectangle (tile coords), null if none */
+  mapSelection: MapSelection | null;
+  /** Called when user creates/modifies the selection */
+  onSelectionChange: (selection: MapSelection | null) => void;
+  /** Called when user drops a moved selection — moves tiles from src to dest */
+  onMoveTiles: (
+    src: MapSelection,
+    destX: number,
+    destY: number,
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,12 +156,34 @@ const MapScene = memo(function MapScene({
   paintBuffer,
   paintBufferVersion,
   texturesReady,
+  mapSelection,
+  onSelectionChange,
+  onMoveTiles,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
   const [hoverTile, setHoverTile] = useState<{ x: number; y: number } | null>(
     null,
   );
+
+  // --- Selection interaction state ---
+  type SelectionAction =
+    | { type: "draw"; startX: number; startY: number }
+    | {
+        type: "move";
+        offsetX: number;
+        offsetY: number;
+        orig: MapSelection;
+        /** Snapshot of tiles in the selection at drag-start */
+        tiles: { dx: number; dy: number; ref: TileRef }[];
+      };
+  const selActionRef = useRef<SelectionAction | null>(null);
+  // Live selection for rendering during drag (avoids store round-trips)
+  const [liveSelection, setLiveSelection] = useState<MapSelection | null>(null);
+  // Whether tiles are currently being dragged (for cursor feedback)
+  const [isMoving, setIsMoving] = useState(false);
+  // The rendered selection is the live one during interaction, otherwise the prop
+  const renderedSelection = liveSelection ?? mapSelection;
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
@@ -176,17 +209,81 @@ const MapScene = memo(function MapScene({
     [scaledTile, mapW, mapH],
   );
 
+  // --- Selection hit testing (move only, no resize) ---
+  const isInsideSelection = useCallback(
+    (globalX: number, globalY: number, sel: MapSelection): boolean => {
+      const sx = sel.x * scaledTile;
+      const sy = sel.y * scaledTile;
+      const sw = sel.width * scaledTile;
+      const sh = sel.height * scaledTile;
+      return globalX >= sx && globalX <= sx + sw && globalY >= sy && globalY <= sy + sh;
+    },
+    [scaledTile],
+  );
+
   // Pointer event handlers
   const handlePointerDown = useCallback(
     (e: { global: { x: number; y: number }; button?: number }) => {
       // Ignore middle mouse button (1) — reserved for panning
       if (e.button === 1) return;
+
+      if (currentTool === "select") {
+        const gx = Math.floor(e.global.x / scaledTile);
+        const gy = Math.floor(e.global.y / scaledTile);
+
+        if (
+          renderedSelection &&
+          isInsideSelection(e.global.x, e.global.y, renderedSelection)
+        ) {
+          // Snapshot tiles in the selection from the active layer
+          const activeLayer = layers.find((l) => l.id === activeLayerId);
+          const tileSnapshot: { dx: number; dy: number; ref: TileRef }[] = [];
+          if (activeLayer) {
+            for (let dy = 0; dy < renderedSelection.height; dy++) {
+              for (let dx = 0; dx < renderedSelection.width; dx++) {
+                const key = `${renderedSelection.x + dx},${renderedSelection.y + dy}`;
+                const ref = activeLayer.tiles[key];
+                if (ref) tileSnapshot.push({ dx, dy, ref });
+              }
+            }
+          }
+          selActionRef.current = {
+            type: "move",
+            offsetX: gx - renderedSelection.x,
+            offsetY: gy - renderedSelection.y,
+            orig: { ...renderedSelection },
+            tiles: tileSnapshot,
+          };
+          setIsMoving(true);
+          return;
+        }
+
+        // Start drawing a new selection
+        if (gx >= 0 && gy >= 0 && gx < mapW && gy < mapH) {
+          selActionRef.current = { type: "draw", startX: gx, startY: gy };
+          const newSel = { x: gx, y: gy, width: 1, height: 1 };
+          setLiveSelection(newSel);
+        }
+        return;
+      }
+
       const pos = getGridPos(e.global.x, e.global.y);
       if (!pos) return;
       isPaintingRef.current = true;
       onPaintTile(pos.x, pos.y);
     },
-    [getGridPos, onPaintTile],
+    [
+      getGridPos,
+      onPaintTile,
+      currentTool,
+      scaledTile,
+      mapW,
+      mapH,
+      renderedSelection,
+      isInsideSelection,
+      layers,
+      activeLayerId,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -194,31 +291,100 @@ const MapScene = memo(function MapScene({
       const pos = getGridPos(e.global.x, e.global.y);
       setHoverTile(pos);
 
+      if (currentTool === "select") {
+        const action = selActionRef.current;
+        if (!action) return;
+        const gx = Math.floor(e.global.x / scaledTile);
+        const gy = Math.floor(e.global.y / scaledTile);
+
+        if (action.type === "draw") {
+          const x1 = Math.min(action.startX, Math.max(0, Math.min(gx, mapW - 1)));
+          const y1 = Math.min(action.startY, Math.max(0, Math.min(gy, mapH - 1)));
+          const x2 = Math.max(action.startX, Math.max(0, Math.min(gx, mapW - 1)));
+          const y2 = Math.max(action.startY, Math.max(0, Math.min(gy, mapH - 1)));
+          setLiveSelection({
+            x: x1,
+            y: y1,
+            width: x2 - x1 + 1,
+            height: y2 - y1 + 1,
+          });
+        } else if (action.type === "move") {
+          const newX = Math.max(
+            0,
+            Math.min(gx - action.offsetX, mapW - action.orig.width),
+          );
+          const newY = Math.max(
+            0,
+            Math.min(gy - action.offsetY, mapH - action.orig.height),
+          );
+          setLiveSelection({
+            ...action.orig,
+            x: newX,
+            y: newY,
+          });
+        }
+        return;
+      }
+
       if (!isPaintingRef.current) return;
       if (currentTool === "fill") return; // fill = single-click only
       if (!pos) return;
       onPaintTile(pos.x, pos.y);
     },
-    [getGridPos, currentTool, onPaintTile],
+    [getGridPos, currentTool, onPaintTile, scaledTile, mapW, mapH],
   );
 
   const handlePointerUp = useCallback(
     (e?: { button?: number }) => {
       // Ignore middle mouse button release
       if (e?.button === 1) return;
+
+      if (currentTool === "select" && selActionRef.current) {
+        const action = selActionRef.current;
+        if (action.type === "move" && liveSelection) {
+          // Actually move tiles if the position changed
+          const movedX = liveSelection.x !== action.orig.x;
+          const movedY = liveSelection.y !== action.orig.y;
+          if (movedX || movedY) {
+            onMoveTiles(action.orig, liveSelection.x, liveSelection.y);
+          }
+        }
+        // Commit the live selection to the store
+        onSelectionChange(liveSelection);
+        setLiveSelection(null);
+        setIsMoving(false);
+        selActionRef.current = null;
+        return;
+      }
+
       isPaintingRef.current = false;
       onPaintEnd();
     },
-    [onPaintEnd],
+    [onPaintEnd, currentTool, liveSelection, onSelectionChange, onMoveTiles],
   );
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
+    if (currentTool === "select" && selActionRef.current) {
+      const action = selActionRef.current;
+      if (action.type === "move" && liveSelection) {
+        const movedX = liveSelection.x !== action.orig.x;
+        const movedY = liveSelection.y !== action.orig.y;
+        if (movedX || movedY) {
+          onMoveTiles(action.orig, liveSelection.x, liveSelection.y);
+        }
+      }
+      onSelectionChange(liveSelection);
+      setLiveSelection(null);
+      setIsMoving(false);
+      selActionRef.current = null;
+      return;
+    }
     if (isPaintingRef.current) {
       isPaintingRef.current = false;
       onPaintEnd();
     }
-  }, [onPaintEnd]);
+  }, [onPaintEnd, currentTool, liveSelection, onSelectionChange, onMoveTiles]);
 
   // Draw checkerboard background
   const drawCheckerboard = useCallback(
@@ -266,7 +432,7 @@ const MapScene = memo(function MapScene({
   const drawHover = useCallback(
     (g: Graphics) => {
       g.clear();
-      if (!hoverTile) return;
+      if (!hoverTile || currentTool === "select") return;
 
       const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
       const hx = hoverTile.x * scaledTile;
@@ -285,6 +451,39 @@ const MapScene = memo(function MapScene({
     },
     [hoverTile, currentTool, brushSize, scaledTile, mapW, mapH],
   );
+
+  // Draw selection rectangle (no resize handles)
+  const drawSelection = useCallback(
+    (g: Graphics) => {
+      g.clear();
+      if (!renderedSelection) return;
+
+      const sx = renderedSelection.x * scaledTile;
+      const sy = renderedSelection.y * scaledTile;
+      const sw = renderedSelection.width * scaledTile;
+      const sh = renderedSelection.height * scaledTile;
+
+      // Selection fill
+      g.rect(sx, sy, sw, sh);
+      g.fill({ color: 0x3b82f6, alpha: 0.15 });
+
+      // Dashed-style selection border (double line for visibility)
+      g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.8 });
+      g.rect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+      g.stroke();
+
+      g.setStrokeStyle({ width: 1, color: 0x3b82f6, alpha: 1 });
+      g.rect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+      g.stroke();
+    },
+    [renderedSelection, scaledTile],
+  );
+
+  // Get the tile snapshot from the current move action (for overlay rendering)
+  const moveAction =
+    selActionRef.current?.type === "move" ? selActionRef.current : null;
+  const moveTiles = moveAction?.tiles ?? [];
+  const moveDestSel = moveAction ? liveSelection : null;
 
   // Get layers in render order (bottom to top)
   const orderedLayers = useMemo(
@@ -388,6 +587,32 @@ const MapScene = memo(function MapScene({
       {/* Hover highlight */}
       <pixiGraphics draw={drawHover} />
 
+      {/* Selection overlay */}
+      {currentTool === "select" && <pixiGraphics draw={drawSelection} />}
+
+      {/* Tile move overlay — ghost tiles at destination during drag */}
+      {currentTool === "select" &&
+        moveDestSel &&
+        moveTiles.length > 0 &&
+        moveTiles.map(({ dx, dy, ref }) => {
+          const tex = getTileTexture(ref);
+          if (!tex) return null;
+          const tx = moveDestSel.x + dx;
+          const ty = moveDestSel.y + dy;
+          if (tx >= mapW || ty >= mapH) return null;
+          return (
+            <pixiSprite
+              key={`move-${dx}-${dy}`}
+              texture={tex}
+              x={tx * scaledTile}
+              y={ty * scaledTile}
+              width={scaledTile}
+              height={scaledTile}
+              alpha={0.6}
+            />
+          );
+        })}
+
       {/* Invisible event capture overlay */}
       <pixiGraphics
         draw={useCallback(
@@ -399,7 +624,13 @@ const MapScene = memo(function MapScene({
           [canvasW, canvasH],
         )}
         eventMode="static"
-        cursor="crosshair"
+        cursor={
+          currentTool === "select"
+            ? isMoving
+              ? "grabbing"
+              : "default"
+            : "crosshair"
+        }
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

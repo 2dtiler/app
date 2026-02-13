@@ -1,4 +1,7 @@
+
 Allow multiple select (for eraser and moving)
+
+Add a drawer for tools
 
 Layers
   - Image Layer

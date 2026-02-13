@@ -194,7 +194,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export const BRUSH_SIZES = ["1x1", "2x2", "3x3", "4x4", "5x5"] as const;
 export type BrushSize = (typeof BRUSH_SIZES)[number];
 
-export type EditorTool = "paint" | "erase" | "fill";
+export type EditorTool = "select" | "paint" | "erase" | "fill";
 
 /** Sub-modes for the fill tool */
 export type FillMode = "fill" | "fillTerrain";
@@ -205,6 +205,21 @@ export interface SelectedTile {
   sy: number;
   sw: number;
   sh: number;
+}
+
+/**
+ * A grid-snapped rectangular selection on the map canvas.
+ * Coordinates are in tile units.
+ */
+export interface MapSelection {
+  /** Starting tile column */
+  x: number;
+  /** Starting tile row */
+  y: number;
+  /** Width in tiles */
+  width: number;
+  /** Height in tiles */
+  height: number;
 }
 
 export interface EditorState {
@@ -229,6 +244,9 @@ export interface EditorState {
   /** Transient terrain tile config used by the current fill-terrain operation */
   activeFillTerrain: TerrainTile[] | null;
 
+  /** Current selection rectangle on the map (tile units), null if none */
+  mapSelection: MapSelection | null;
+
   // -- Viewport --
   tilesetZoom: number;
   mapZoom: number;
@@ -247,6 +265,7 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   selectedTile: null,
   fillMode: "fill",
   activeFillTerrain: null,
+  mapSelection: null,
   tilesetZoom: 1,
   mapZoom: 1,
 };

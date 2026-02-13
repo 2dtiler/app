@@ -24,6 +24,7 @@ const shortcuts = [
   {
     category: "Tools",
     items: [
+      { keys: "S", description: "Select tool" },
       { keys: "B", description: "Paint tool" },
       { keys: "E", description: "Erase tool" },
       { keys: "G", description: "Fill tool" },
