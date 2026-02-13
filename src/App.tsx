@@ -76,7 +76,8 @@ function App() {
       setFindReplaceOpen(true);
     }
     window.addEventListener("open-find-replace", handleOpenFindReplace);
-    return () => window.removeEventListener("open-find-replace", handleOpenFindReplace);
+    return () =>
+      window.removeEventListener("open-find-replace", handleOpenFindReplace);
   }, [setFindReplaceOpen]);
 
   if (!ready) {

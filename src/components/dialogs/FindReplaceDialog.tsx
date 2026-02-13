@@ -149,16 +149,18 @@ function TileCell({
       width={32}
       height={32}
       className={`border cursor-pointer transition-colors hover:border-orange-400/60 ${
-        tileRef
-          ? "border-border"
-          : "border-dashed border-muted-foreground/30"
+        tileRef ? "border-border" : "border-dashed border-muted-foreground/30"
       }`}
       onClick={onClick}
       onContextMenu={(e) => {
         e.preventDefault();
         onClear();
       }}
-      title={tileRef ? "Click to replace, right-click to clear" : "Click to place selected tile"}
+      title={
+        tileRef
+          ? "Click to replace, right-click to clear"
+          : "Click to place selected tile"
+      }
     />
   );
 }
@@ -202,7 +204,9 @@ function TilePatternGrid({
               tileRef={cell}
               tileSize={tileSize}
               assetId={
-                cell ? (tilesetAssetMap.get(cell.tilesetId as string) ?? null) : null
+                cell
+                  ? (tilesetAssetMap.get(cell.tilesetId as string) ?? null)
+                  : null
               }
               onClick={() => onCellClick(gy, gx)}
               onClear={() => onCellClear(gy, gx)}
@@ -238,7 +242,10 @@ function LayerMultiSelect({
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -319,7 +326,9 @@ function LayerMultiSelect({
 // ---------------------------------------------------------------------------
 
 function createEmptyGrid(size: number): (TileRef | null)[][] {
-  return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+  return Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => null),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -334,12 +343,20 @@ export function FindReplaceDialog({
   const project = state.project;
 
   // -- Local state ----------------------------------------------------------
-  const [selectedTilesetId, setSelectedTilesetId] = useState<TilesetId | null>(null);
+  const [selectedTilesetId, setSelectedTilesetId] = useState<TilesetId | null>(
+    null,
+  );
   const [zoom, setZoom] = useState(1);
   const [gridSize, setGridSize] = useState<GridSize>(1);
-  const [findGrid, setFindGrid] = useState<(TileRef | null)[][]>(createEmptyGrid(1));
-  const [replaceGrid, setReplaceGrid] = useState<(TileRef | null)[][]>(createEmptyGrid(1));
-  const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set());
+  const [findGrid, setFindGrid] = useState<(TileRef | null)[][]>(
+    createEmptyGrid(1),
+  );
+  const [replaceGrid, setReplaceGrid] = useState<(TileRef | null)[][]>(
+    createEmptyGrid(1),
+  );
+  const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [canvasSelectedTile, setCanvasSelectedTile] = useState<{
     sx: number;
     sy: number;
@@ -350,7 +367,8 @@ export function FindReplaceDialog({
 
   // -- Derived values -------------------------------------------------------
   const tilesets = project?.tilesets ?? [];
-  const activeTileset = tilesets.find((t) => t.id === selectedTilesetId) ?? null;
+  const activeTileset =
+    tilesets.find((t) => t.id === selectedTilesetId) ?? null;
 
   // Build tileset ID → asset ID map for rendering tiles from any tileset
   const tilesetAssetMap = new Map<string, AssetId>();
@@ -359,7 +377,8 @@ export function FindReplaceDialog({
   }
 
   // Get layers for the active map
-  const activeMap = project?.maps.find((m) => m.id === state.activeMapId) ?? null;
+  const activeMap =
+    project?.maps.find((m) => m.id === state.activeMapId) ?? null;
   const allMapLayerIds = useMemo(
     () =>
       activeMap
@@ -550,10 +569,10 @@ export function FindReplaceDialog({
           // Check if find pattern matches at (x, y) cross-layer
           let matches = true;
           // Track which layer matched at each cell (for replacement)
-          const matchedLayers: (typeof layers[number] | null)[][] = Array.from(
-            { length: gs },
-            () => Array.from({ length: gs }, () => null),
-          );
+          const matchedLayers: ((typeof layers)[number] | null)[][] =
+            Array.from({ length: gs }, () =>
+              Array.from({ length: gs }, () => null),
+            );
 
           for (let dy = 0; dy < gs && matches; dy++) {
             for (let dx = 0; dx < gs && matches; dx++) {
