@@ -360,10 +360,7 @@ function AppShell({
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
       />
-      <ToolDrawer
-        activeTool={activeTool}
-        onClose={() => setActiveTool(null)}
-      />
+      <ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} />
     </div>
   );
 }
