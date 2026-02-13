@@ -17,7 +17,13 @@ import {
 } from "@/lib/format";
 import { generateMapId, generateLayerId } from "@/lib/ids";
 import { getAllLayerIds } from "@/lib/layers";
-import type { TilesetGroupId, MapGroupId, TileLayer } from "@/types";
+import type {
+  TilesetGroupId,
+  MapGroupId,
+  TileLayer,
+  LayerId,
+  LayerGroupId,
+} from "@/types";
 
 import { Toolbar } from "@/components/layout/Toolbar";
 import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
@@ -173,7 +179,7 @@ function AppShell({
             id: newMapId,
             groupId: targetGroupId as MapGroupId,
             layerOrder: map.layerOrder.map(
-              (lid) => (layerIdMap.get(lid) ?? lid) as any,
+              (lid) => (layerIdMap.get(lid) ?? lid) as LayerId | LayerGroupId,
             ),
             createdAt: Date.now(),
           };

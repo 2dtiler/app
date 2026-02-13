@@ -42,6 +42,23 @@ import {
 } from "@/lib/format";
 import type { Project } from "@/types";
 
+function createNewProject(name: string): Project {
+  const now = Date.now();
+  return {
+    id: generateProjectId(),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    tileSize: 32,
+    tilesetGroups: [{ id: generateTilesetGroupId(), name: "Main", order: 0 }],
+    tilesets: [],
+    mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
+    maps: [],
+    layers: [],
+    layerGroups: [],
+  };
+}
+
 interface ProjectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,12 +76,24 @@ export function ProjectModal({
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open && !prevOpen) {
+    setShowNewProject(false);
+    setNewProjectName("");
+  }
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+  }
+
   useEffect(() => {
-    if (open) {
-      loadProjects();
-      setShowNewProject(false);
-      setNewProjectName("");
-    }
+    if (!open) return;
+    let cancelled = false;
+    listProjects().then((list) => {
+      if (!cancelled) setProjects(list);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   async function loadProjects() {
@@ -76,19 +105,7 @@ export function ProjectModal({
     const name = newProjectName.trim();
     if (!name) return;
 
-    const project: Project = {
-      id: generateProjectId(),
-      name,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      tileSize: 32,
-      tilesetGroups: [{ id: generateTilesetGroupId(), name: "Main", order: 0 }],
-      tilesets: [],
-      mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
-      maps: [],
-      layers: [],
-      layerGroups: [],
-    };
+    const project = createNewProject(name);
 
     await saveProject(project);
     openProject(project);

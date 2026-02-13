@@ -68,7 +68,7 @@ export function TilesetPanel() {
   // Canvas refs for tileset display
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [_, setTilesetImageUrl] = useState<string | null>(null);
+  const [, setTilesetImageUrl] = useState<string | null>(null);
   const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
     null,
   );
@@ -124,7 +124,7 @@ export function TilesetPanel() {
     return () => {
       if (revoke) URL.revokeObjectURL(revoke);
     };
-  }, [activeTileset?.assetId]);
+  }, [activeTileset]);
 
   // Draw tileset on canvas with grid
   // eslint-disable-next-line react-hooks/rules-of-hooks

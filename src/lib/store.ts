@@ -68,7 +68,7 @@ async function persistHistory(
 // Travels instance
 // ---------------------------------------------------------------------------
 
-type EditorTravels = Travels<EditorState, false, true, {}>;
+type EditorTravels = Travels<EditorState, false, true, Record<string, never>>;
 let travelsInstance: EditorTravels | null = null;
 
 /**

@@ -170,8 +170,7 @@ export async function getSettings(): Promise<AppSettings> {
   if (!record) {
     return { autoSaveEnabled: true };
   }
-  const { id: _id, ...settings } = record;
-  return settings;
+  return { autoSaveEnabled: record.autoSaveEnabled };
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {

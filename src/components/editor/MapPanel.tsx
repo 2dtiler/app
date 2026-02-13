@@ -124,26 +124,9 @@ export function MapPanel() {
   );
   useCanvasNavigation(containerRef, state.mapZoom, handleSetMapZoom);
 
-  if (!project) return null;
-
-  const activeGroup = project.mapGroups.find(
-    (g) => g.id === state.activeMapGroupId,
-  );
-  const groupMaps = project.maps.filter(
-    (m) => m.groupId === state.activeMapGroupId,
-  );
-  const activeMap = project.maps.find((m) => m.id === state.activeMapId);
-  const activeLayer = project.layers.find((l) => l.id === state.activeLayerId);
-
-  // Flatten layer tree for rendering — applies group visibility/lock
-  const layerGroups = project.layerGroups ?? [];
-  const flatLayers = activeMap
-    ? flattenLayerTree(activeMap.layerOrder, project.layers, layerGroups)
-    : [];
-  // Create a virtual map with a flat layerOrder for the canvas
-  const flatMap = activeMap
-    ? { ...activeMap, layerOrder: flatLayers.map((l) => l.id) }
-    : null;
+  // Derived values needed by hooks (computed before early return)
+  const activeMap = project?.maps.find((m) => m.id === state.activeMapId);
+  const activeLayer = project?.layers.find((l) => l.id === state.activeLayerId);
 
   // Paint tile handler — called by MapCanvas on pointer events.
   // Paint/erase write to a lightweight buffer for instant rendering;
@@ -266,6 +249,8 @@ export function MapPanel() {
       setState,
       schedulePaintRender,
       paintBuffer,
+      project?.layers,
+      project?.layerGroups,
     ],
   );
 
@@ -299,6 +284,25 @@ export function MapPanel() {
     // Trigger re-render to clear buffer visuals (now committed tiles)
     setPaintBufferVersion((v) => v + 1);
   }, [setState, state.activeLayerId, paintBuffer]);
+
+  if (!project) return null;
+
+  const activeGroup = project.mapGroups.find(
+    (g) => g.id === state.activeMapGroupId,
+  );
+  const groupMaps = project.maps.filter(
+    (m) => m.groupId === state.activeMapGroupId,
+  );
+
+  // Flatten layer tree for rendering — applies group visibility/lock
+  const layerGroups = project.layerGroups ?? [];
+  const flatLayers = activeMap
+    ? flattenLayerTree(activeMap.layerOrder, project.layers, layerGroups)
+    : [];
+  // Create a virtual map with a flat layerOrder for the canvas
+  const flatMap = activeMap
+    ? { ...activeMap, layerOrder: flatLayers.map((l) => l.id) }
+    : null;
 
   function handleZoom(direction: 1 | -1) {
     setState((draft) => {
@@ -919,13 +923,17 @@ function MapOptionsDialog({
 }) {
   const [width, setWidth] = useState(map.widthInTiles);
   const [height, setHeight] = useState(map.heightInTiles);
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevMap, setPrevMap] = useState(map);
 
-  useEffect(() => {
+  if (open !== prevOpen || map !== prevMap) {
+    setPrevOpen(open);
+    setPrevMap(map);
     if (open) {
       setWidth(map.widthInTiles);
       setHeight(map.heightInTiles);
     }
-  }, [open, map]);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
