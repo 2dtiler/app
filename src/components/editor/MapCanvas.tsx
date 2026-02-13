@@ -178,7 +178,9 @@ const MapScene = memo(function MapScene({
 
   // Pointer event handlers
   const handlePointerDown = useCallback(
-    (e: { global: { x: number; y: number } }) => {
+    (e: { global: { x: number; y: number }; button?: number }) => {
+      // Ignore middle mouse button (1) — reserved for panning
+      if (e.button === 1) return;
       const pos = getGridPos(e.global.x, e.global.y);
       if (!pos) return;
       isPaintingRef.current = true;
@@ -200,10 +202,15 @@ const MapScene = memo(function MapScene({
     [getGridPos, currentTool, onPaintTile],
   );
 
-  const handlePointerUp = useCallback(() => {
-    isPaintingRef.current = false;
-    onPaintEnd();
-  }, [onPaintEnd]);
+  const handlePointerUp = useCallback(
+    (e?: { button?: number }) => {
+      // Ignore middle mouse button release
+      if (e?.button === 1) return;
+      isPaintingRef.current = false;
+      onPaintEnd();
+    },
+    [onPaintEnd],
+  );
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);

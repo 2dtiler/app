@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { saveAsset, getAssetUrl, deleteAsset } from "@/lib/db";
 import {
   generateTilesetId,
@@ -76,6 +77,19 @@ export function TilesetPanel() {
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(
     null,
   );
+
+  // Ctrl+Wheel zoom and middle-mouse pan
+
+  const handleSetTilesetZoom = useCallback(
+    (newZoom: number) => {
+      setState((draft) => {
+        draft.tilesetZoom = newZoom;
+      });
+    },
+    [setState],
+  );
+
+  useCanvasNavigation(containerRef, state.tilesetZoom, handleSetTilesetZoom);
 
   if (!project) return null;
 

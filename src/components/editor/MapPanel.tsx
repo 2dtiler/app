@@ -50,6 +50,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { generateMapId, generateMapGroupId, generateLayerId } from "@/lib/ids";
 import {
   flattenLayerTree,
@@ -111,6 +112,17 @@ export function MapPanel() {
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Ctrl+Wheel zoom and middle-mouse pan
+  const handleSetMapZoom = useCallback(
+    (newZoom: number) => {
+      setState((draft) => {
+        draft.mapZoom = newZoom;
+      });
+    },
+    [setState],
+  );
+  useCanvasNavigation(containerRef, state.mapZoom, handleSetMapZoom);
 
   if (!project) return null;
 
@@ -605,7 +617,7 @@ export function MapPanel() {
           value={state.activeMapGroupId ?? ""}
           onValueChange={handleGroupChange}
         >
-          <SelectTrigger className="h-6 w-[100px] text-xs shrink-0">
+          <SelectTrigger className="h-6 w-25 text-xs shrink-0">
             <SelectValue placeholder="Group" />
           </SelectTrigger>
           <SelectContent>

@@ -149,8 +149,18 @@ export function ProjectModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[480px]">
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          if (o) onOpenChange(o);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-[480px]"
+          showCloseButton={false}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Projects</DialogTitle>
             <DialogDescription>
