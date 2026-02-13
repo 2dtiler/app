@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -37,6 +38,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <DialogContent className="sm:max-w-90">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
+          <DialogDescription className="sr-only">
+            Application settings
+          </DialogDescription>
         </DialogHeader>
         <div className="flex items-center justify-between py-3">
           <Label htmlFor="autosave" className="text-sm">

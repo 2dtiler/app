@@ -79,10 +79,13 @@ export interface MapGroup {
 // Layer
 // ---------------------------------------------------------------------------
 
+export type LayerType = "tile" | "image" | "object";
+
 export interface TileLayer {
   id: LayerId;
   mapId: MapId;
   name: string;
+  type?: LayerType;
   visible: boolean;
   locked: boolean;
   /**

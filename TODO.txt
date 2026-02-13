@@ -1,7 +1,4 @@
-Laeyer groups doesnt work too lekker
-
 Layers
-  - Layer Groups
   - Image Layer
   - Object Layer
 
@@ -14,9 +11,6 @@ Tools:
   Image Editor
   AI Asset Generation
   Sprite Generator
-
-Help -> About
-Help -> Show Keyboard Shortcuts
 
 Allow multiple select (for eraser and moving)
 

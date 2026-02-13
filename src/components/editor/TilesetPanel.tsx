@@ -27,6 +27,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -658,6 +659,9 @@ export function TilesetPanel() {
         <DialogContent className="sm:max-w-[320px]">
           <DialogHeader>
             <DialogTitle>New Tileset Group</DialogTitle>
+            <DialogDescription className="sr-only">
+              Enter a name for the new tileset group
+            </DialogDescription>
           </DialogHeader>
           <Input
             placeholder="Group name"

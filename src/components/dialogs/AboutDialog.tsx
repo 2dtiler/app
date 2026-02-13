@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,6 +17,9 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
       <DialogContent className="sm:max-w-90">
         <DialogHeader>
           <DialogTitle className="text-primary">About 2D Tiler</DialogTitle>
+          <DialogDescription className="sr-only">
+            Information about the 2D Tiler application
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p className="text-xs tracking-widest uppercase text-primary font-medium">

@@ -43,6 +43,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -355,6 +356,7 @@ export function MapPanel() {
         id: layerId,
         mapId,
         name: "Layer 1",
+        type: "tile",
         visible: true,
         locked: false,
         tiles: {},
@@ -527,6 +529,7 @@ export function MapPanel() {
           id: newLayerId,
           mapId: newMapId,
           name: l.name,
+          type: l.type,
           visible: l.visible,
           locked: l.locked,
           tiles: { ...l.tiles },
@@ -905,6 +908,9 @@ export function MapPanel() {
         <DialogContent className="sm:max-w-90">
           <DialogHeader>
             <DialogTitle>New Map</DialogTitle>
+            <DialogDescription className="sr-only">
+              Configure the new map properties
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -975,6 +981,9 @@ export function MapPanel() {
         <DialogContent className="sm:max-w-[320px]">
           <DialogHeader>
             <DialogTitle>New Map Group</DialogTitle>
+            <DialogDescription className="sr-only">
+              Enter a name for the new map group
+            </DialogDescription>
           </DialogHeader>
           <Input
             placeholder="Group name"
@@ -1062,6 +1071,9 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
       <DialogContent className="sm:max-w-[320px]">
         <DialogHeader>
           <DialogTitle>Map Options — {map.name}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Edit map dimensions and tile size
+          </DialogDescription>
         </DialogHeader>
         <div className="flex gap-3">
           <div className="flex-1">

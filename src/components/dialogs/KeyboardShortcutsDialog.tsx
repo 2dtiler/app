@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -56,6 +57,9 @@ export function KeyboardShortcutsDialog({
       <DialogContent className="sm:max-w-100">
         <DialogHeader>
           <DialogTitle className="text-primary">Keyboard Shortcuts</DialogTitle>
+          <DialogDescription className="sr-only">
+            List of available keyboard shortcuts
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           {shortcuts.map((group) => (

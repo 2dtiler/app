@@ -8,11 +8,13 @@ import {
   Unlock,
   ChevronUp,
   ChevronDown,
-  ChevronRight,
   Folder,
   FolderOpen,
   GripVertical,
   TextCursorInput,
+  Grid3X3,
+  Image,
+  Shapes,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +50,13 @@ import {
   getAllGroupIds,
   isAncestorOf,
 } from "@/lib/layers";
-import type { LayerId, LayerGroupId, TileLayer, LayerGroup } from "@/types";
+import type {
+  LayerId,
+  LayerGroupId,
+  TileLayer,
+  LayerGroup,
+  LayerType,
+} from "@/types";
 import { cn } from "@/lib/utils";
 
 export function LayersPanel() {
@@ -259,6 +267,7 @@ export function LayersPanel() {
         id: layerId,
         mapId: map.id,
         name,
+        type: type as LayerType,
         visible: true,
         locked: false,
         tiles: {},
@@ -736,15 +745,6 @@ const GroupRow = memo(function GroupRow({
             <GripVertical className="h-3 w-3 text-muted-foreground" />
           </span>
 
-          {/* Expand/Collapse chevron */}
-          <span className="shrink-0 w-4 h-4 flex items-center justify-center">
-            {group.expanded ? (
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            )}
-          </span>
-
           {/* Visibility */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -829,7 +829,7 @@ const GroupRow = memo(function GroupRow({
           )}
 
           {/* Move/Delete buttons */}
-          <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
+          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0 px-0.5 rounded-r bg-secondary opacity-0 group-hover/item:opacity-100 z-20">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1081,6 +1081,17 @@ const LayerRow = memo(function LayerRow({
             <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
           </Tooltip>
 
+          {/* Layer type icon */}
+          <span className="shrink-0">
+            {layer.type === "image" ? (
+              <Image className="h-3 w-3 text-muted-foreground" />
+            ) : layer.type === "object" ? (
+              <Shapes className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <Grid3X3 className="h-3 w-3 text-muted-foreground" />
+            )}
+          </span>
+
           {/* Name */}
           {isRenaming ? (
             <input
@@ -1105,7 +1116,7 @@ const LayerRow = memo(function LayerRow({
           )}
 
           {/* Move/Delete buttons */}
-          <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
+          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0 px-0.5 rounded-r bg-secondary opacity-0 group-hover/item:opacity-100 z-20">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
