@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   Plus,
   Trash2,
@@ -40,12 +40,7 @@ import {
   getAllGroupIds,
   isAncestorOf,
 } from "@/lib/layers";
-import type {
-  LayerId,
-  LayerGroupId,
-  TileLayer,
-  LayerGroup,
-} from "@/types";
+import type { LayerId, LayerGroupId, TileLayer, LayerGroup } from "@/types";
 import { cn } from "@/lib/utils";
 
 export function LayersPanel() {
@@ -618,9 +613,7 @@ export function LayersPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -664,7 +657,7 @@ interface GroupRowProps {
   onDrop: (e: React.DragEvent) => void;
 }
 
-function GroupRow({
+const GroupRow = memo(function GroupRow({
   group,
   depth,
   parentGroupId,
@@ -691,9 +684,10 @@ function GroupRow({
   return (
     <div
       className={cn(
-        "relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer bg-muted/30 hover:bg-secondary",
+        "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer bg-muted/30 hover:bg-secondary",
         isDragging && "opacity-40",
-        dropIndicator === "inside" && "ring-2 ring-primary ring-inset bg-primary/10",
+        dropIndicator === "inside" &&
+          "ring-2 ring-primary ring-inset bg-primary/10",
       )}
       style={{ paddingLeft: `${6 + depth * 16}px` }}
       onClick={() => onToggleExpand(group.id)}
@@ -868,7 +862,7 @@ function GroupRow({
       </div>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // LayerRow component
@@ -907,7 +901,7 @@ interface LayerRowProps {
   onDrop: (e: React.DragEvent) => void;
 }
 
-function LayerRow({
+const LayerRow = memo(function LayerRow({
   layer,
   depth,
   parentGroupId,
@@ -935,10 +929,8 @@ function LayerRow({
   return (
     <div
       className={cn(
-        "relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer",
-        isActive
-          ? "bg-accent text-accent-foreground"
-          : "hover:bg-secondary",
+        "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer",
+        isActive ? "bg-accent text-accent-foreground" : "hover:bg-secondary",
         isDragging && "opacity-40",
       )}
       style={{ paddingLeft: `${6 + depth * 16}px` }}
@@ -1088,4 +1080,4 @@ function LayerRow({
       </div>
     </div>
   );
-}
+});

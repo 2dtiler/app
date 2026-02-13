@@ -136,6 +136,7 @@ export function useCanvasNavigation(
     container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("mousedown", handleMouseDown);
     // Attach move/up to window so dragging outside the container still works
+    // mousemove/mouseup need preventDefault so cannot be passive
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("blur", handleMouseLeaveWindow);

@@ -124,3 +124,9 @@ body,
   height: 100%;
   overflow: hidden;
 }
+
+/* content-visibility: defer off-screen rendering for long layer lists (rendering-content-visibility) */
+.layer-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 32px;
+}

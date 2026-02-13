@@ -34,6 +34,24 @@ import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
 
+// Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
+const loadingScreen = (
+  <div className="flex h-full items-center justify-center">
+    <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
+      Initializing…
+    </div>
+  </div>
+);
+
+const emptyProjectMessage = (
+  <main className="flex flex-1 min-h-0 items-center justify-center text-muted-foreground text-sm">
+    Open or create a project to get started
+  </main>
+);
+
+// Init-once guard: prevents double-init in React StrictMode (advanced-init-once)
+let storeInitStarted = false;
+
 function App() {
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -42,6 +60,8 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
+    if (storeInitStarted) return;
+    storeInitStarted = true;
     initEditorStore().then(() => setReady(true));
   }, []);
 
@@ -49,13 +69,7 @@ function App() {
   useKeyboardShortcuts();
 
   if (!ready) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
-          Initializing…
-        </div>
-      </div>
-    );
+    return loadingScreen;
   }
 
   return (
@@ -118,8 +132,10 @@ function AppShell({
       map.layerOrder,
       state.project.layerGroups ?? [],
     );
+    // js-set-map-lookups: O(1) membership check instead of O(n) .includes()
+    const layerIdSet = new Set<string>(allLayerIds as string[]);
     const layers = state.project.layers.filter((l) =>
-      allLayerIds.includes(l.id),
+      layerIdSet.has(l.id as string),
     );
     const data = await exportMap(map, layers, state.project.tilesets);
     downloadFile(data, `${map.name}.2dm`);
@@ -298,9 +314,7 @@ function AppShell({
           </Group>
         </main>
       ) : (
-        <main className="flex flex-1 min-h-0 items-center justify-center text-muted-foreground text-sm">
-          Open or create a project to get started
-        </main>
+        emptyProjectMessage
       )}
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

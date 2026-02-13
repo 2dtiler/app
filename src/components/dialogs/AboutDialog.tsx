@@ -13,7 +13,7 @@ interface AboutDialogProps {
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[360px]">
+      <DialogContent className="sm:max-w-90">
         <DialogHeader>
           <DialogTitle className="text-primary">About 2D Tiler</DialogTitle>
         </DialogHeader>

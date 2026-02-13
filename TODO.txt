@@ -1,4 +1,3 @@
-Fix errors
 Do performance skill
 Refactor into smaller components
 Laeyer groups doesnt work too lekker

@@ -5,12 +5,19 @@
  * and query the tree for rendering, export, and UI purposes.
  */
 
-import type {
-  LayerId,
-  LayerGroupId,
-  LayerGroup,
-  TileLayer,
-} from "@/types";
+import type { LayerId, LayerGroupId, LayerGroup, TileLayer } from "@/types";
+
+// ---------------------------------------------------------------------------
+// Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())
+// ---------------------------------------------------------------------------
+
+function buildGroupMap(groups: readonly LayerGroup[]): Map<string, LayerGroup> {
+  return new Map(groups.map((g) => [g.id as string, g]));
+}
+
+function buildLayerMap(layers: readonly TileLayer[]): Map<string, TileLayer> {
+  return new Map(layers.map((l) => [l.id as string, l]));
+}
 
 // ---------------------------------------------------------------------------
 // Tree traversal
@@ -23,11 +30,19 @@ export function getAllLayerIds(
   layerOrder: readonly (LayerId | LayerGroupId)[],
   groups: readonly LayerGroup[],
 ): LayerId[] {
+  const groupMap = buildGroupMap(groups);
+  return getAllLayerIdsImpl(layerOrder, groupMap);
+}
+
+function getAllLayerIdsImpl(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  groupMap: Map<string, LayerGroup>,
+): LayerId[] {
   const result: LayerId[] = [];
   for (const id of layerOrder) {
-    const group = groups.find((g) => g.id === id);
+    const group = groupMap.get(id as string);
     if (group) {
-      result.push(...getAllLayerIds(group.childOrder, groups));
+      result.push(...getAllLayerIdsImpl(group.childOrder, groupMap));
     } else {
       result.push(id as LayerId);
     }
@@ -42,12 +57,20 @@ export function getAllGroupIds(
   layerOrder: readonly (LayerId | LayerGroupId)[],
   groups: readonly LayerGroup[],
 ): LayerGroupId[] {
+  const groupMap = buildGroupMap(groups);
+  return getAllGroupIdsImpl(layerOrder, groupMap);
+}
+
+function getAllGroupIdsImpl(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  groupMap: Map<string, LayerGroup>,
+): LayerGroupId[] {
   const result: LayerGroupId[] = [];
   for (const id of layerOrder) {
-    const group = groups.find((g) => g.id === id);
+    const group = groupMap.get(id as string);
     if (group) {
       result.push(group.id);
-      result.push(...getAllGroupIds(group.childOrder, groups));
+      result.push(...getAllGroupIdsImpl(group.childOrder, groupMap));
     }
   }
   return result;
@@ -66,21 +89,39 @@ export function flattenLayerTree(
   parentVisible = true,
   parentLocked = false,
 ): TileLayer[] {
+  const groupMap = buildGroupMap(groups);
+  const layerMap = buildLayerMap(layers);
+  return flattenLayerTreeImpl(
+    layerOrder,
+    layerMap,
+    groupMap,
+    parentVisible,
+    parentLocked,
+  );
+}
+
+function flattenLayerTreeImpl(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  layerMap: Map<string, TileLayer>,
+  groupMap: Map<string, LayerGroup>,
+  parentVisible: boolean,
+  parentLocked: boolean,
+): TileLayer[] {
   const result: TileLayer[] = [];
   for (const id of layerOrder) {
-    const group = groups.find((g) => g.id === id);
+    const group = groupMap.get(id as string);
     if (group) {
       result.push(
-        ...flattenLayerTree(
+        ...flattenLayerTreeImpl(
           group.childOrder,
-          layers,
-          groups,
+          layerMap,
+          groupMap,
           parentVisible && group.visible,
           parentLocked || group.locked,
         ),
       );
     } else {
-      const layer = layers.find((l) => l.id === id);
+      const layer = layerMap.get(id as string);
       if (layer) {
         result.push({
           ...layer,
@@ -102,15 +143,25 @@ export function findLastLayerId(
   layers: readonly TileLayer[],
   groups: readonly LayerGroup[],
 ): LayerId | null {
+  const groupMap = buildGroupMap(groups);
+  const layerMap = buildLayerMap(layers);
+  return findLastLayerIdImpl(layerOrder, layerMap, groupMap);
+}
+
+function findLastLayerIdImpl(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  layerMap: Map<string, TileLayer>,
+  groupMap: Map<string, LayerGroup>,
+): LayerId | null {
   // Walk in reverse (top to bottom visually)
   for (let i = layerOrder.length - 1; i >= 0; i--) {
     const id = layerOrder[i];
-    const group = groups.find((g) => g.id === id);
+    const group = groupMap.get(id as string);
     if (group) {
-      const found = findLastLayerId(group.childOrder, layers, groups);
+      const found = findLastLayerIdImpl(group.childOrder, layerMap, groupMap);
       if (found) return found;
     } else {
-      const layer = layers.find((l) => l.id === id);
+      const layer = layerMap.get(id as string);
       if (layer) return layer.id;
     }
   }
@@ -126,7 +177,7 @@ export function findParentGroupId(
   layerOrder: readonly (LayerId | LayerGroupId)[],
   groups: readonly LayerGroup[],
 ): LayerGroupId | null {
-  // Check top level first
+  // Check top level first (js-early-exit)
   const itemIdStr = itemId as string;
   if (layerOrder.some((id) => (id as string) === itemIdStr)) return null;
 
@@ -151,8 +202,9 @@ export function isLayerEffectivelyLocked(
   layers: readonly TileLayer[],
   groups: readonly LayerGroup[],
 ): boolean {
-  const layer = layers.find((l) => l.id === layerId);
-  if (!layer) return true;
+  const layerMap = buildLayerMap(layers);
+  const layer = layerMap.get(layerId as string);
+  if (!layer) return true; // js-early-exit
   if (layer.locked) return true;
 
   // Walk up the group hierarchy
@@ -214,25 +266,38 @@ export function buildDisplayTree(
   depth = 0,
   parentGroupId: LayerGroupId | null = null,
 ): LayerTreeNode[] {
+  // Build index maps at top level; reuse via inner impl for recursion
+  const groupMap = buildGroupMap(groups);
+  const layerMap = buildLayerMap(layers);
+  return buildDisplayTreeImpl(order, layerMap, groupMap, depth, parentGroupId);
+}
+
+function buildDisplayTreeImpl(
+  order: readonly (LayerId | LayerGroupId)[],
+  layerMap: Map<string, TileLayer>,
+  groupMap: Map<string, LayerGroup>,
+  depth: number,
+  parentGroupId: LayerGroupId | null,
+): LayerTreeNode[] {
   const nodes: LayerTreeNode[] = [];
   // Display top-to-bottom = reverse of bottom-to-top order
   for (const id of [...order].reverse()) {
-    const group = groups.find((g) => g.id === id);
+    const group = groupMap.get(id as string);
     if (group) {
       nodes.push({ type: "group", group, depth, parentGroupId });
       if (group.expanded) {
         nodes.push(
-          ...buildDisplayTree(
+          ...buildDisplayTreeImpl(
             group.childOrder,
-            layers,
-            groups,
+            layerMap,
+            groupMap,
             depth + 1,
             group.id,
           ),
         );
       }
     } else {
-      const layer = layers.find((l) => l.id === id);
+      const layer = layerMap.get(id as string);
       if (layer) {
         nodes.push({ type: "layer", layer, depth, parentGroupId });
       }

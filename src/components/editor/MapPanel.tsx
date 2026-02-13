@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, memo } from "react";
 import {
   Plus,
   ZoomIn,
@@ -194,13 +194,14 @@ export function MapPanel() {
           return;
         }
 
-        // BFS flood fill
+        // BFS flood fill — use index cursor instead of shift() for O(1) dequeue
         const visited = new Set<string>();
         const queue: [number, number][] = [[gx, gy]];
         const toFill: [number, number][] = [];
+        let qi = 0;
 
-        while (queue.length > 0) {
-          const [x, y] = queue.shift()!;
+        while (qi < queue.length) {
+          const [x, y] = queue[qi++];
           const key = `${x},${y}`;
           if (visited.has(key)) continue;
           if (x < 0 || y < 0 || x >= w || y >= h) continue;
@@ -780,7 +781,7 @@ export function MapPanel() {
 
       {/* Add map dialog */}
       <Dialog open={addMapOpen} onOpenChange={setAddMapOpen}>
-        <DialogContent className="sm:max-w-[360px]">
+        <DialogContent className="sm:max-w-90">
           <DialogHeader>
             <DialogTitle>New Map</DialogTitle>
           </DialogHeader>
@@ -910,7 +911,7 @@ export function MapPanel() {
 // Map Options sub-dialog
 // ---------------------------------------------------------------------------
 
-function MapOptionsDialog({
+const MapOptionsDialog = memo(function MapOptionsDialog({
   open,
   onOpenChange,
   map,
@@ -979,4 +980,4 @@ function MapOptionsDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import {
   Menubar,
   MenubarContent,
@@ -10,7 +11,9 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from "@/components/ui/menubar";
-import { useEditorStore } from "@/hooks/use-editor-store";
+// rerender-defer-reads: use store directly for controls to avoid
+// subscribing to full state which would re-render on every change
+import { getEditorStore } from "@/lib/store";
 
 interface ToolbarProps {
   onNewProject: () => void;
@@ -26,7 +29,7 @@ interface ToolbarProps {
   onSubmitBug: () => void;
 }
 
-export function Toolbar({
+export const Toolbar = memo(function Toolbar({
   onNewProject,
   onImportProject,
   onImportMap,
@@ -39,7 +42,8 @@ export function Toolbar({
   onKeyboardShortcuts,
   onSubmitBug,
 }: ToolbarProps) {
-  const { controls } = useEditorStore();
+  // Get controls without subscribing to state — avoids re-renders on every state change
+  const controls = useMemo(() => getEditorStore().getControls(), []);
 
   return (
     <header className="flex h-8 shrink-0 items-center border-b border-border bg-card px-1">
@@ -48,7 +52,7 @@ export function Toolbar({
           <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
             File
           </MenubarTrigger>
-          <MenubarContent className="min-w-[180px]">
+          <MenubarContent className="min-w-45">
             <MenubarItem onClick={onNewProject}>
               New Project
               <MenubarShortcut>⌘N</MenubarShortcut>
@@ -86,7 +90,7 @@ export function Toolbar({
           <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
             Edit
           </MenubarTrigger>
-          <MenubarContent className="min-w-[180px]">
+          <MenubarContent className="min-w-45">
             <MenubarItem
               onClick={() => controls.back()}
               disabled={!controls.canBack()}
@@ -108,7 +112,7 @@ export function Toolbar({
           <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
             Help
           </MenubarTrigger>
-          <MenubarContent className="min-w-[180px]">
+          <MenubarContent className="min-w-45">
             <MenubarItem onClick={onAbout}>About</MenubarItem>
             <MenubarItem onClick={onKeyboardShortcuts}>
               Keyboard Shortcuts
@@ -125,4 +129,4 @@ export function Toolbar({
       </span>
     </header>
   );
-}
+});

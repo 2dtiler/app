@@ -173,7 +173,7 @@ export function ProjectModal({
         }}
       >
         <DialogContent
-          className="sm:max-w-[480px]"
+          className="sm:max-w-120"
           showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -234,7 +234,7 @@ export function ProjectModal({
               </div>
 
               {projects.length > 0 && (
-                <ScrollArea className="h-[240px]">
+                <ScrollArea className="h-60">
                   <div className="space-y-1">
                     {projects.map((p) => (
                       <div

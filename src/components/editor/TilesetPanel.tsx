@@ -448,7 +448,7 @@ export function TilesetPanel() {
           value={state.activeTilesetGroupId ?? ""}
           onValueChange={handleGroupChange}
         >
-          <SelectTrigger className="h-6 w-[100px] text-xs shrink-0">
+          <SelectTrigger className="h-6 w-25 text-xs shrink-0">
             <SelectValue placeholder="Group" />
           </SelectTrigger>
           <SelectContent>

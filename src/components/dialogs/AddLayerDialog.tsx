@@ -101,7 +101,7 @@ export function AddLayerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-115">
         {step === "select" ? (
           <>
             <DialogHeader>
