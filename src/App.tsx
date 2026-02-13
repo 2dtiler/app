@@ -108,7 +108,10 @@ function AppShell({
     if (!state.project || !state.activeMapId) return;
     const map = state.project.maps.find((m) => m.id === state.activeMapId);
     if (!map) return;
-    const allLayerIds = getAllLayerIds(map.layerOrder, state.project.layerGroups ?? []);
+    const allLayerIds = getAllLayerIds(
+      map.layerOrder,
+      state.project.layerGroups ?? [],
+    );
     const layers = state.project.layers.filter((l) =>
       allLayerIds.includes(l.id),
     );

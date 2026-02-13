@@ -51,7 +51,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateMapId, generateMapGroupId, generateLayerId } from "@/lib/ids";
-import { flattenLayerTree, isLayerEffectivelyLocked, findLastLayerId } from "@/lib/layers";
+import {
+  flattenLayerTree,
+  isLayerEffectivelyLocked,
+  findLastLayerId,
+} from "@/lib/layers";
 import {
   BRUSH_SIZES,
   type EditorTool,
@@ -135,14 +139,14 @@ export function MapPanel() {
   const handlePaintTile = useCallback(
     (gx: number, gy: number) => {
       if (!activeMap || !activeLayer) return;
-    // Check effective lock state (including group inheritance)
-    const effectivelyLocked = isLayerEffectivelyLocked(
-      activeLayer.id,
-      activeMap.layerOrder,
-      project?.layers ?? [],
-      project?.layerGroups ?? [],
-    );
-    if (effectivelyLocked) return;
+      // Check effective lock state (including group inheritance)
+      const effectivelyLocked = isLayerEffectivelyLocked(
+        activeLayer.id,
+        activeMap.layerOrder,
+        project?.layers ?? [],
+        project?.layerGroups ?? [],
+      );
+      if (effectivelyLocked) return;
 
       if (state.currentTool === "paint") {
         if (!state.selectedTile) return;
@@ -347,7 +351,11 @@ export function MapPanel() {
         draft.activeLayerId = null;
         if (firstInGroup) {
           draft.activeLayerId =
-            findLastLayerId(firstInGroup.layerOrder, draft.project?.layers ?? [], draft.project?.layerGroups ?? []) ?? null;
+            findLastLayerId(
+              firstInGroup.layerOrder,
+              draft.project?.layers ?? [],
+              draft.project?.layerGroups ?? [],
+            ) ?? null;
         }
       });
     }
@@ -642,7 +650,11 @@ export function MapPanel() {
                   const map = draft.project?.maps.find((m) => m.id === v);
                   if (map) {
                     draft.activeLayerId =
-                      findLastLayerId(map.layerOrder, draft.project?.layers ?? [], draft.project?.layerGroups ?? []) ?? null;
+                      findLastLayerId(
+                        map.layerOrder,
+                        draft.project?.layers ?? [],
+                        draft.project?.layerGroups ?? [],
+                      ) ?? null;
                   }
                 })
               }
