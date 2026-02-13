@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -12,6 +12,7 @@ import {
   Folder,
   FolderOpen,
   GripVertical,
+  TextCursorInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { AddLayerDialog } from "@/components/dialogs/AddLayerDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateLayerId, generateLayerGroupId } from "@/lib/ids";
@@ -681,186 +689,242 @@ const GroupRow = memo(function GroupRow({
 }: GroupRowProps) {
   const isRenaming = renamingId === group.id;
 
+  const renameInputRef = useCallback((node: HTMLInputElement | null) => {
+    if (node) {
+      requestAnimationFrame(() => {
+        node.focus();
+        node.select();
+      });
+    }
+  }, []);
+
   return (
-    <div
-      className={cn(
-        "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer bg-muted/30 hover:bg-secondary",
-        isDragging && "opacity-40",
-        dropIndicator === "inside" &&
-          "ring-2 ring-primary ring-inset bg-primary/10",
-      )}
-      style={{ paddingLeft: `${6 + depth * 16}px` }}
-      onClick={() => onToggleExpand(group.id)}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", group.id);
-        onDragStart(group.id, true);
-      }}
-      onDragEnd={onDragEnd}
-      onDragOver={(e) => onDragOver(e, group.id, true)}
-      onDrop={onDrop}
-    >
-      {/* Drop indicator lines */}
-      {dropIndicator === "above" && (
-        <div className="absolute left-1 right-1 top-0 -translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-      )}
-      {dropIndicator === "below" && (
-        <div className="absolute left-1 right-1 bottom-0 translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-      )}
-
-      {/* Drag handle */}
-      <span
-        className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-60 hover:opacity-100!"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </span>
-
-      {/* Expand/Collapse chevron */}
-      <span className="shrink-0 w-4 h-4 flex items-center justify-center">
-        {group.expanded ? (
-          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-        )}
-      </span>
-
-      {/* Visibility */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleVisibility(group.id, true);
-            }}
-          >
-            {group.visible ? (
-              <Eye className="h-3 w-3" />
-            ) : (
-              <EyeOff className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {group.visible ? "Hide Group" : "Show Group"}
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Lock */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleLock(group.id, true);
-            }}
-          >
-            {group.locked ? (
-              <Lock className="h-3 w-3 text-primary" />
-            ) : (
-              <Unlock className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {group.locked ? "Unlock Group" : "Lock Group"}
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Folder icon */}
-      <span className="shrink-0">
-        {group.expanded ? (
-          <FolderOpen className="h-3 w-3 text-muted-foreground" />
-        ) : (
-          <Folder className="h-3 w-3 text-muted-foreground" />
-        )}
-      </span>
-
-      {/* Name */}
-      {isRenaming ? (
-        <input
-          className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
-          value={renameValue}
-          onChange={(e) => onRenameValueChange(e.target.value)}
-          onBlur={onCommitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onCommitRename();
-            if (e.key === "Escape") onCancelRename();
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={cn(
+            "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer bg-muted/30 hover:bg-secondary",
+            isDragging && "opacity-40",
+            dropIndicator === "inside" &&
+              "ring-2 ring-primary ring-inset bg-primary/10",
+          )}
+          style={{ paddingLeft: `${6 + depth * 16}px` }}
+          onClick={() => onToggleExpand(group.id)}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", group.id);
+            onDragStart(group.id, true);
           }}
-          onClick={(e) => e.stopPropagation()}
-          autoFocus
-        />
-      ) : (
-        <span
-          className="flex-1 min-w-0 truncate font-medium"
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onDoubleClick(group.id, group.name);
-          }}
+          onDragEnd={onDragEnd}
+          onDragOver={(e) => onDragOver(e, group.id, true)}
+          onDrop={onDrop}
         >
-          {group.name}
-        </span>
-      )}
+          {/* Drop indicator lines */}
+          {dropIndicator === "above" && (
+            <div className="absolute left-1 right-1 top-0 -translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+          )}
+          {dropIndicator === "below" && (
+            <div className="absolute left-1 right-1 bottom-0 translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+          )}
 
-      {/* Move/Delete buttons */}
-      <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={(e) => {
+          {/* Drag handle */}
+          <span
+            className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-60 hover:opacity-100!"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </span>
+
+          {/* Expand/Collapse chevron */}
+          <span className="shrink-0 w-4 h-4 flex items-center justify-center">
+            {group.expanded ? (
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            )}
+          </span>
+
+          {/* Visibility */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(group.id, true);
+                }}
+              >
+                {group.visible ? (
+                  <Eye className="h-3 w-3" />
+                ) : (
+                  <EyeOff className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {group.visible ? "Hide Group" : "Show Group"}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Lock */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleLock(group.id, true);
+                }}
+              >
+                {group.locked ? (
+                  <Lock className="h-3 w-3 text-primary" />
+                ) : (
+                  <Unlock className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {group.locked ? "Unlock Group" : "Lock Group"}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Folder icon */}
+          <span className="shrink-0">
+            {group.expanded ? (
+              <FolderOpen className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <Folder className="h-3 w-3 text-muted-foreground" />
+            )}
+          </span>
+
+          {/* Name */}
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
+              value={renameValue}
+              onChange={(e) => onRenameValueChange(e.target.value)}
+              onBlur={onCommitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onCommitRename();
+                if (e.key === "Escape") onCancelRename();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className="flex-1 min-w-0 truncate font-medium"
+              onDoubleClick={(e) => {
                 e.stopPropagation();
-                onMove(group.id, "up", parentGroupId);
+                onDoubleClick(group.id, group.name);
               }}
             >
-              <ChevronUp className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Move Up</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(group.id, "down", parentGroupId);
-              }}
-            >
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Move Down</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(group.id, group.name);
-              }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Delete Group</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
+              {group.name}
+            </span>
+          )}
+
+          {/* Move/Delete buttons */}
+          <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(group.id, "up", parentGroupId);
+                  }}
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Move Up</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(group.id, "down", parentGroupId);
+                  }}
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Move Down</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(group.id, group.name);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete Group</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onToggleVisibility(group.id, true)}>
+          {group.visible ? (
+            <>
+              <EyeOff className="h-4 w-4 mr-2" /> Hide Group
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4 mr-2" /> Show Group
+            </>
+          )}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onToggleLock(group.id, true)}>
+          {group.locked ? (
+            <>
+              <Unlock className="h-4 w-4 mr-2" /> Unlock Group
+            </>
+          ) : (
+            <>
+              <Lock className="h-4 w-4 mr-2" /> Lock Group
+            </>
+          )}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onDoubleClick(group.id, group.name)}>
+          Rename
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => onMove(group.id, "up", parentGroupId)}>
+          <ChevronUp className="h-4 w-4 mr-2" /> Move Up
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onMove(group.id, "down", parentGroupId)}
+        >
+          <ChevronDown className="h-4 w-4 mr-2" /> Move Down
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => onDelete(group.id, group.name)}
+        >
+          <Trash2 className="h-4 w-4 mr-2" /> Delete Group
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 
@@ -926,158 +990,216 @@ const LayerRow = memo(function LayerRow({
 }: LayerRowProps) {
   const isRenaming = renamingId === layer.id;
 
+  const renameInputRef = useCallback((node: HTMLInputElement | null) => {
+    if (node) {
+      requestAnimationFrame(() => {
+        node.focus();
+        node.select();
+      });
+    }
+  }, []);
+
   return (
-    <div
-      className={cn(
-        "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer",
-        isActive ? "bg-accent text-accent-foreground" : "hover:bg-secondary",
-        isDragging && "opacity-40",
-      )}
-      style={{ paddingLeft: `${6 + depth * 16}px` }}
-      onClick={() => onSelect(layer.id)}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", layer.id);
-        onDragStart(layer.id, false);
-      }}
-      onDragEnd={onDragEnd}
-      onDragOver={(e) => onDragOver(e, layer.id, false)}
-      onDrop={onDrop}
-    >
-      {/* Drop indicator lines */}
-      {dropIndicator === "above" && (
-        <div className="absolute left-1 right-1 top-0 -translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-      )}
-      {dropIndicator === "below" && (
-        <div className="absolute left-1 right-1 bottom-0 translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-      )}
-
-      {/* Drag handle */}
-      <span
-        className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-60 hover:opacity-100!"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </span>
-      {/* Visibility */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleVisibility(layer.id, false);
-            }}
-          >
-            {layer.visible ? (
-              <Eye className="h-3 w-3" />
-            ) : (
-              <EyeOff className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{layer.visible ? "Hide" : "Show"}</TooltipContent>
-      </Tooltip>
-
-      {/* Lock */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleLock(layer.id, false);
-            }}
-          >
-            {layer.locked ? (
-              <Lock className="h-3 w-3 text-primary" />
-            ) : (
-              <Unlock className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
-      </Tooltip>
-
-      {/* Name */}
-      {isRenaming ? (
-        <input
-          className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
-          value={renameValue}
-          onChange={(e) => onRenameValueChange(e.target.value)}
-          onBlur={onCommitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onCommitRename();
-            if (e.key === "Escape") onCancelRename();
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={cn(
+            "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer",
+            isActive
+              ? "bg-accent text-accent-foreground"
+              : "hover:bg-secondary",
+            isDragging && "opacity-40",
+          )}
+          style={{ paddingLeft: `${6 + depth * 16}px` }}
+          onClick={() => onSelect(layer.id)}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", layer.id);
+            onDragStart(layer.id, false);
           }}
-          onClick={(e) => e.stopPropagation()}
-          autoFocus
-        />
-      ) : (
-        <span
-          className="flex-1 min-w-0 truncate"
-          onDoubleClick={() => onDoubleClick(layer.id, layer.name)}
+          onDragEnd={onDragEnd}
+          onDragOver={(e) => onDragOver(e, layer.id, false)}
+          onDrop={onDrop}
         >
-          {layer.name}
-        </span>
-      )}
+          {/* Drop indicator lines */}
+          {dropIndicator === "above" && (
+            <div className="absolute left-1 right-1 top-0 -translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+          )}
+          {dropIndicator === "below" && (
+            <div className="absolute left-1 right-1 bottom-0 translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+          )}
 
-      {/* Move/Delete buttons */}
-      <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(layer.id, "up", parentGroupId);
+          {/* Drag handle */}
+          <span
+            className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-60 hover:opacity-100!"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </span>
+          {/* Visibility */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(layer.id, false);
+                }}
+              >
+                {layer.visible ? (
+                  <Eye className="h-3 w-3" />
+                ) : (
+                  <EyeOff className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{layer.visible ? "Hide" : "Show"}</TooltipContent>
+          </Tooltip>
+
+          {/* Lock */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleLock(layer.id, false);
+                }}
+              >
+                {layer.locked ? (
+                  <Lock className="h-3 w-3 text-primary" />
+                ) : (
+                  <Unlock className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
+          </Tooltip>
+
+          {/* Name */}
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
+              value={renameValue}
+              onChange={(e) => onRenameValueChange(e.target.value)}
+              onBlur={onCommitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onCommitRename();
+                if (e.key === "Escape") onCancelRename();
               }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className="flex-1 min-w-0 truncate"
+              onDoubleClick={() => onDoubleClick(layer.id, layer.name)}
             >
-              <ChevronUp className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Move Up</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMove(layer.id, "down", parentGroupId);
-              }}
-            >
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Move Down</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(layer.id, layer.name);
-              }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Delete Layer</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
+              {layer.name}
+            </span>
+          )}
+
+          {/* Move/Delete buttons */}
+          <div className="flex items-center gap-0 opacity-0 group-hover/item:opacity-100">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(layer.id, "up", parentGroupId);
+                  }}
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Move Up</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMove(layer.id, "down", parentGroupId);
+                  }}
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Move Down</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(layer.id, layer.name);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete Layer</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onToggleVisibility(layer.id, false)}>
+          {layer.visible ? (
+            <>
+              <EyeOff className="h-4 w-4 mr-2" /> Hide Layer
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4 mr-2" /> Show Layer
+            </>
+          )}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onToggleLock(layer.id, false)}>
+          {layer.locked ? (
+            <>
+              <Unlock className="h-4 w-4 mr-2" /> Unlock Layer
+            </>
+          ) : (
+            <>
+              <Lock className="h-4 w-4 mr-2" /> Lock Layer
+            </>
+          )}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onDoubleClick(layer.id, layer.name)}>
+          <TextCursorInput className="h-4 w-4 mr-2" /> Rename
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => onMove(layer.id, "up", parentGroupId)}>
+          <ChevronUp className="h-4 w-4 mr-2" /> Move Up
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onMove(layer.id, "down", parentGroupId)}
+        >
+          <ChevronDown className="h-4 w-4 mr-2" /> Move Down
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => onDelete(layer.id, layer.name)}
+        >
+          <Trash2 className="h-4 w-4 mr-2" /> Delete Layer
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
