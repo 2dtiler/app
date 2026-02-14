@@ -1,4 +1,4 @@
-import { useState, memo, useCallback } from "react";
+import { useState, useRef, memo, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -42,7 +42,12 @@ import {
 } from "@/components/ui/context-menu";
 import { AddLayerDialog } from "@/components/dialogs/AddLayerDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { generateLayerId, generateLayerGroupId } from "@/lib/ids";
+import {
+  generateLayerId,
+  generateLayerGroupId,
+  generateAssetId,
+} from "@/lib/ids";
+import { saveAsset } from "@/lib/db";
 import {
   buildDisplayTree,
   findLastLayerId,
@@ -54,6 +59,7 @@ import type {
   LayerId,
   LayerGroupId,
   TileLayer,
+  ImageLayer,
   LayerGroup,
   LayerType,
 } from "@/types";
@@ -71,6 +77,9 @@ export function LayersPanel() {
   } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+
+  // ---- Hidden file input for image layer ----
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // ---- Drag & Drop state ----
   const [dragId, setDragId] = useState<string | null>(null);
@@ -101,10 +110,14 @@ export function LayersPanel() {
   }
 
   // Build display tree (top-to-bottom for rendering)
+  const imageLayers = project.imageLayers ?? [];
   const treeNodes = buildDisplayTree(
     activeMap.layerOrder,
     project.layers,
     layerGroups,
+    0,
+    null,
+    imageLayers,
   );
 
   // Count total layers (including nested) for default name
@@ -319,6 +332,87 @@ export function LayersPanel() {
     });
   }
 
+  function handleRequestImageLayer() {
+    // Trigger the hidden file input
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+      imageInputRef.current.click();
+    }
+  }
+
+  async function handleImageFileSelected(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = e.target.files?.[0];
+    if (!file || !project) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const assetId = generateAssetId();
+      await saveAsset(assetId, arrayBuffer, file.type);
+
+      // Load image to get natural dimensions
+      const blob = new Blob([arrayBuffer], { type: file.type });
+      const url = URL.createObjectURL(blob);
+      const img = new window.Image();
+      img.src = url;
+      await img.decode();
+      const imgWidth = img.naturalWidth;
+      const imgHeight = img.naturalHeight;
+      URL.revokeObjectURL(url);
+
+      const layerId = generateLayerId();
+      const layerName = file.name.replace(/\.[^.]+$/, "") || "Image Layer";
+
+      setState((draft) => {
+        if (!draft.project) return;
+        const map = draft.project.maps.find((m) => m.id === state.activeMapId);
+        if (!map) return;
+
+        if (!draft.project.imageLayers) draft.project.imageLayers = [];
+
+        const imageLayer: ImageLayer = {
+          id: layerId,
+          mapId: map.id,
+          name: layerName,
+          type: "image",
+          visible: true,
+          locked: false,
+          assetId,
+          x: 0,
+          y: 0,
+          width: imgWidth,
+          height: imgHeight,
+        };
+        draft.project.imageLayers.push(imageLayer);
+
+        // Add to layer order
+        const groups = draft.project.layerGroups ?? [];
+        if (state.activeLayerId) {
+          const parentGroup = groups.find((g) =>
+            (g.childOrder as string[]).includes(state.activeLayerId as string),
+          );
+          if (parentGroup) {
+            const idx = (parentGroup.childOrder as string[]).indexOf(
+              state.activeLayerId as string,
+            );
+            parentGroup.childOrder.splice(idx + 1, 0, layerId);
+          } else {
+            map.layerOrder.push(layerId);
+          }
+        } else {
+          map.layerOrder.push(layerId);
+        }
+
+        // Set active and switch to select tool
+        draft.activeLayerId = layerId;
+        draft.currentTool = "select";
+      });
+    } catch {
+      // Silently fail on invalid image
+    }
+  }
+
   function handleDelete() {
     if (!deleteTarget) return;
 
@@ -337,10 +431,15 @@ export function LayersPanel() {
         const childGroupIds = getAllGroupIds(group.childOrder, groups);
         childGroupIds.push(group.id as LayerGroupId);
 
-        // Remove all child layers
+        // Remove all child layers (tile and image)
         draft.project.layers = draft.project.layers.filter(
           (l) => !childLayerIds.includes(l.id),
         );
+        if (draft.project.imageLayers) {
+          draft.project.imageLayers = draft.project.imageLayers.filter(
+            (l) => !childLayerIds.includes(l.id),
+          );
+        }
 
         // Remove all child groups + the group itself
         draft.project.layerGroups = groups.filter(
@@ -384,6 +483,11 @@ export function LayersPanel() {
         draft.project.layers = draft.project.layers.filter(
           (l) => l.id !== deleteTarget.id,
         );
+        if (draft.project.imageLayers) {
+          draft.project.imageLayers = draft.project.imageLayers.filter(
+            (l) => l.id !== deleteTarget.id,
+          );
+        }
 
         if (draft.activeLayerId === deleteTarget.id) {
           draft.activeLayerId =
@@ -407,7 +511,14 @@ export function LayersPanel() {
         if (group) group.visible = !group.visible;
       } else {
         const layer = draft.project?.layers.find((l) => l.id === id);
-        if (layer) layer.visible = !layer.visible;
+        if (layer) {
+          layer.visible = !layer.visible;
+        } else {
+          const imgLayer = (draft.project?.imageLayers ?? []).find(
+            (l) => l.id === id,
+          );
+          if (imgLayer) imgLayer.visible = !imgLayer.visible;
+        }
       }
     });
   }
@@ -421,7 +532,14 @@ export function LayersPanel() {
         if (group) group.locked = !group.locked;
       } else {
         const layer = draft.project?.layers.find((l) => l.id === id);
-        if (layer) layer.locked = !layer.locked;
+        if (layer) {
+          layer.locked = !layer.locked;
+        } else {
+          const imgLayer = (draft.project?.imageLayers ?? []).find(
+            (l) => l.id === id,
+          );
+          if (imgLayer) imgLayer.locked = !imgLayer.locked;
+        }
       }
     });
   }
@@ -486,10 +604,18 @@ export function LayersPanel() {
     const name = renameValue.trim();
     if (name) {
       setState((draft) => {
-        // Try layer first
+        // Try tile layer first
         const layer = draft.project?.layers.find((l) => l.id === renamingId);
         if (layer) {
           layer.name = name;
+          return;
+        }
+        // Try image layer
+        const imgLayer = (draft.project?.imageLayers ?? []).find(
+          (l) => l.id === renamingId,
+        );
+        if (imgLayer) {
+          imgLayer.name = name;
           return;
         }
         // Try group
@@ -566,6 +692,39 @@ export function LayersPanel() {
                   onDrop={handleDrop}
                 />
               );
+            } else if (node.type === "imageLayer") {
+              return (
+                <LayerRow
+                  key={node.layer.id}
+                  layer={node.layer}
+                  depth={node.depth}
+                  parentGroupId={node.parentGroupId}
+                  isActive={node.layer.id === state.activeLayerId}
+                  renamingId={renamingId}
+                  renameValue={renameValue}
+                  onRenameValueChange={setRenameValue}
+                  onDoubleClick={handleDoubleClick}
+                  onCommitRename={commitRename}
+                  onCancelRename={() => setRenamingId(null)}
+                  onSelect={handleSelectLayer}
+                  onToggleVisibility={handleToggleVisibility}
+                  onToggleLock={handleToggleLock}
+                  onMove={handleMoveItem}
+                  onDelete={(id, name) =>
+                    setDeleteTarget({ id, name, isGroup: false })
+                  }
+                  isDragging={dragId === node.layer.id}
+                  dropIndicator={
+                    dropIndicator?.targetId === node.layer.id
+                      ? dropIndicator.position
+                      : null
+                  }
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOverRow}
+                  onDrop={handleDrop}
+                />
+              );
             } else {
               return (
                 <LayerRow
@@ -610,6 +769,16 @@ export function LayersPanel() {
         onOpenChange={setAddLayerOpen}
         defaultName={`Layer ${totalItems + 1}`}
         onCreateLayer={(name, type) => handleCreateLayer(name, type)}
+        onRequestImageLayer={handleRequestImageLayer}
+      />
+
+      {/* Hidden file input for image layer */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageFileSelected}
       />
 
       {/* Delete confirmation */}
@@ -933,7 +1102,7 @@ const GroupRow = memo(function GroupRow({
 // ---------------------------------------------------------------------------
 
 interface LayerRowProps {
-  layer: TileLayer;
+  layer: TileLayer | ImageLayer;
   depth: number;
   parentGroupId: LayerGroupId | null;
   isActive: boolean;

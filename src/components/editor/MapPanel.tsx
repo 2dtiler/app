@@ -68,6 +68,8 @@ import {
 } from "@/lib/ids";
 import {
   flattenLayerTree,
+  flattenImageLayers,
+  getAllLayerIds,
   isLayerEffectivelyLocked,
   findLastLayerId,
 } from "@/lib/layers";
@@ -85,6 +87,7 @@ import {
   type LayerGroup,
   type TerrainTile,
   type MapSelection,
+  type ImageLayer,
 } from "@/types";
 import { pickWeightedTile } from "@/lib/terrain";
 
@@ -394,6 +397,22 @@ export function MapPanel() {
     [setState, state.activeLayerId],
   );
 
+  // Move an image layer to a new pixel position
+  const handleMoveImageLayer = useCallback(
+    (layerId: string, x: number, y: number) => {
+      setState((draft) => {
+        const imgLayer = (draft.project?.imageLayers ?? []).find(
+          (l) => l.id === layerId,
+        );
+        if (imgLayer) {
+          imgLayer.x = x;
+          imgLayer.y = y;
+        }
+      });
+    },
+    [setState],
+  );
+
   if (!project) return null;
 
   const activeGroup = project.mapGroups.find(
@@ -405,13 +424,19 @@ export function MapPanel() {
 
   // Flatten layer tree for rendering — applies group visibility/lock
   const layerGroups = project.layerGroups ?? [];
+  const projectImageLayers = project.imageLayers ?? [];
   const flatLayers = activeMap
     ? flattenLayerTree(activeMap.layerOrder, project.layers, layerGroups)
     : [];
-  // Create a virtual map with a flat layerOrder for the canvas
-  const flatMap = activeMap
-    ? { ...activeMap, layerOrder: flatLayers.map((l) => l.id) }
-    : null;
+  const flatImageLayers = activeMap
+    ? flattenImageLayers(activeMap.layerOrder, projectImageLayers, layerGroups)
+    : [];
+  // Create a virtual map with all flattened layer IDs in correct tree order.
+  // getAllLayerIds walks the tree and returns all leaf IDs (tile + image) in order.
+  const flatAllIds = activeMap
+    ? getAllLayerIds(activeMap.layerOrder, layerGroups)
+    : [];
+  const flatMap = activeMap ? { ...activeMap, layerOrder: flatAllIds } : null;
 
   function handleZoom(direction: 1 | -1) {
     setState((draft) => {
@@ -516,6 +541,9 @@ export function MapPanel() {
           draft.project.layers = draft.project.layers.filter(
             (l) => l.mapId !== deleteTarget.id,
           );
+          draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
+            (l) => l.mapId !== deleteTarget.id,
+          );
         }
         draft.project.maps = draft.project.maps.filter(
           (m) => m.id !== deleteTarget.id,
@@ -533,6 +561,9 @@ export function MapPanel() {
         );
         for (const map of mapsInGroup) {
           draft.project.layers = draft.project.layers.filter(
+            (l) => l.mapId !== map.id,
+          );
+          draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
             (l) => l.mapId !== map.id,
           );
         }
@@ -583,6 +614,9 @@ export function MapPanel() {
     for (const l of project.layers) {
       if (l.mapId === sourceMap.id) oldLayerIds.add(l.id);
     }
+    for (const il of project.imageLayers ?? []) {
+      if (il.mapId === sourceMap.id) oldLayerIds.add(il.id);
+    }
     for (const g of project.layerGroups ?? []) {
       if (g.mapId === sourceMap.id) oldGroupIds.add(g.id);
     }
@@ -628,6 +662,26 @@ export function MapPanel() {
           tiles: { ...l.tiles },
         };
         draft.project.layers.push(newLayer);
+      }
+
+      // Duplicate image layers
+      for (const il of project.imageLayers ?? []) {
+        if (il.mapId !== sourceMap.id) continue;
+        const newLayerId = layerIdMap.get(il.id)!;
+        const newImageLayer: ImageLayer = {
+          id: newLayerId,
+          mapId: newMapId,
+          name: il.name,
+          type: "image",
+          visible: il.visible,
+          locked: il.locked,
+          assetId: il.assetId,
+          x: il.x,
+          y: il.y,
+          width: il.width,
+          height: il.height,
+        };
+        draft.project.imageLayers.push(newImageLayer);
       }
 
       // Duplicate layer groups
@@ -1044,6 +1098,8 @@ export function MapPanel() {
             mapSelection={state.mapSelection}
             onSelectionChange={handleSelectionChange}
             onMoveTiles={handleMoveTiles}
+            imageLayers={flatImageLayers}
+            onMoveImageLayer={handleMoveImageLayer}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

@@ -92,6 +92,9 @@ export async function cleanOrphanedAssets(
       for (const tileset of project.tilesets) {
         referencedIds.add(tileset.assetId);
       }
+      for (const imgLayer of project.imageLayers ?? []) {
+        referencedIds.add(imgLayer.assetId);
+      }
     } catch {
       // Skip corrupt project records
     }
@@ -101,6 +104,9 @@ export async function cleanOrphanedAssets(
   if (liveProject) {
     for (const tileset of liveProject.tilesets) {
       referencedIds.add(tileset.assetId);
+    }
+    for (const imgLayer of liveProject.imageLayers ?? []) {
+      referencedIds.add(imgLayer.assetId);
     }
   }
 
@@ -157,6 +163,49 @@ export async function deleteProject(id: string): Promise<void> {
     await db.assets.bulkDelete(assetIds);
   }
   await db.projects.delete(id);
+}
+
+// ---------------------------------------------------------------------------
+// Per-project UI preferences (localStorage)
+// ---------------------------------------------------------------------------
+
+export interface ProjectPrefs {
+  activeTilesetGroupId: string | null;
+  activeTilesetId: string | null;
+  activeMapGroupId: string | null;
+  activeMapId: string | null;
+  activeLayerId: string | null;
+}
+
+const PROJECT_PREFS_PREFIX = "project-prefs-";
+
+export function saveProjectPrefs(projectId: string, prefs: ProjectPrefs): void {
+  try {
+    localStorage.setItem(
+      PROJECT_PREFS_PREFIX + projectId,
+      JSON.stringify(prefs),
+    );
+  } catch {
+    // Silently fail if localStorage is full or unavailable
+  }
+}
+
+export function loadProjectPrefs(projectId: string): ProjectPrefs | null {
+  try {
+    const raw = localStorage.getItem(PROJECT_PREFS_PREFIX + projectId);
+    if (!raw) return null;
+    return JSON.parse(raw) as ProjectPrefs;
+  } catch {
+    return null;
+  }
+}
+
+export function deleteProjectPrefs(projectId: string): void {
+  try {
+    localStorage.removeItem(PROJECT_PREFS_PREFIX + projectId);
+  } catch {
+    // Silently fail
+  }
 }
 
 // ---------------------------------------------------------------------------

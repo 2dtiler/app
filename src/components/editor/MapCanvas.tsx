@@ -25,6 +25,7 @@ import type {
   AssetId,
   TileMapData,
   TileLayer,
+  ImageLayer,
   TileRef,
   TilesetId,
   EditorState,
@@ -63,6 +64,10 @@ interface MapCanvasProps {
   onSelectionChange: (selection: MapSelection | null) => void;
   /** Called when user drops a moved selection — moves tiles from src to dest */
   onMoveTiles: (src: MapSelection, destX: number, destY: number) => void;
+  /** Image layers to render (already flattened with visibility applied) */
+  imageLayers: ImageLayer[];
+  /** Called when an image layer is moved via drag */
+  onMoveImageLayer: (layerId: string, x: number, y: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +105,42 @@ async function loadTilesetTexture(
     return null;
   } finally {
     loadingTextures.delete(tilesetId);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Image layer texture cache — loads image layer assets as Pixi Textures
+// ---------------------------------------------------------------------------
+
+const imageLayerTextureCache = new Map<string, Texture>();
+const imageLayerBlobUrls = new Map<string, string>();
+const loadingImageLayers = new Set<string>();
+
+async function loadImageLayerTexture(
+  assetId: AssetId,
+): Promise<Texture | null> {
+  if (imageLayerTextureCache.has(assetId))
+    return imageLayerTextureCache.get(assetId)!;
+  if (loadingImageLayers.has(assetId)) return null;
+
+  loadingImageLayers.add(assetId);
+  try {
+    const url = await getAssetUrl(assetId);
+    if (!url) return null;
+    imageLayerBlobUrls.set(assetId, url);
+
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+
+    const source = new ImageSource({ resource: img });
+    const texture = new Texture({ source });
+    imageLayerTextureCache.set(assetId, texture);
+    return texture;
+  } catch {
+    return null;
+  } finally {
+    loadingImageLayers.delete(assetId);
   }
 }
 
@@ -155,6 +196,8 @@ const MapScene = memo(function MapScene({
   mapSelection,
   onSelectionChange,
   onMoveTiles,
+  imageLayers,
+  onMoveImageLayer,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
@@ -180,6 +223,21 @@ const MapScene = memo(function MapScene({
   const [isMoving, setIsMoving] = useState(false);
   // The rendered selection is the live one during interaction, otherwise the prop
   const renderedSelection = liveSelection ?? mapSelection;
+
+  // --- Image layer drag state ---
+  type ImageDragAction = {
+    layerId: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  };
+  const imageDragRef = useRef<ImageDragAction | null>(null);
+  const [liveImagePos, setLiveImagePos] = useState<{
+    layerId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
@@ -229,6 +287,46 @@ const MapScene = memo(function MapScene({
       if (e.button === 1) return;
 
       if (currentTool === "select") {
+        // Check if active layer is an image layer — start dragging it
+        const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+        if (activeImgLayer) {
+          const imgX = activeImgLayer.x * zoom;
+          const imgY = activeImgLayer.y * zoom;
+          const imgW = activeImgLayer.width * zoom;
+          const imgH = activeImgLayer.height * zoom;
+          // Use live position if available
+          const posX =
+            liveImagePos?.layerId === activeImgLayer.id
+              ? liveImagePos.x * zoom
+              : imgX;
+          const posY =
+            liveImagePos?.layerId === activeImgLayer.id
+              ? liveImagePos.y * zoom
+              : imgY;
+          if (
+            e.global.x >= posX &&
+            e.global.x <= posX + imgW &&
+            e.global.y >= posY &&
+            e.global.y <= posY + imgH
+          ) {
+            imageDragRef.current = {
+              layerId: activeImgLayer.id,
+              startX: e.global.x,
+              startY: e.global.y,
+              origX:
+                liveImagePos?.layerId === activeImgLayer.id
+                  ? liveImagePos.x
+                  : activeImgLayer.x,
+              origY:
+                liveImagePos?.layerId === activeImgLayer.id
+                  ? liveImagePos.y
+                  : activeImgLayer.y,
+            };
+            setIsMoving(true);
+            return;
+          }
+        }
+
         const gx = Math.floor(e.global.x / scaledTile);
         const gy = Math.floor(e.global.y / scaledTile);
 
@@ -284,6 +382,9 @@ const MapScene = memo(function MapScene({
       isInsideSelection,
       layers,
       activeLayerId,
+      imageLayers,
+      zoom,
+      liveImagePos,
     ],
   );
 
@@ -293,6 +394,19 @@ const MapScene = memo(function MapScene({
       setHoverTile(pos);
 
       if (currentTool === "select") {
+        // Handle image layer dragging
+        const imgDrag = imageDragRef.current;
+        if (imgDrag) {
+          const dx = (e.global.x - imgDrag.startX) / zoom;
+          const dy = (e.global.y - imgDrag.startY) / zoom;
+          setLiveImagePos({
+            layerId: imgDrag.layerId,
+            x: Math.round(imgDrag.origX + dx),
+            y: Math.round(imgDrag.origY + dy),
+          });
+          return;
+        }
+
         const action = selActionRef.current;
         if (!action) return;
         const gx = Math.floor(e.global.x / scaledTile);
@@ -344,13 +458,28 @@ const MapScene = memo(function MapScene({
       if (!pos) return;
       onPaintTile(pos.x, pos.y);
     },
-    [getGridPos, currentTool, onPaintTile, scaledTile, mapW, mapH],
+    [getGridPos, currentTool, onPaintTile, scaledTile, mapW, mapH, zoom],
   );
 
   const handlePointerUp = useCallback(
     (e?: { button?: number }) => {
       // Ignore middle mouse button release
       if (e?.button === 1) return;
+
+      // Commit image layer drag
+      if (currentTool === "select" && imageDragRef.current) {
+        if (liveImagePos) {
+          onMoveImageLayer(
+            liveImagePos.layerId,
+            liveImagePos.x,
+            liveImagePos.y,
+          );
+          setLiveImagePos(null);
+        }
+        imageDragRef.current = null;
+        setIsMoving(false);
+        return;
+      }
 
       if (currentTool === "select" && selActionRef.current) {
         const action = selActionRef.current;
@@ -373,11 +502,29 @@ const MapScene = memo(function MapScene({
       isPaintingRef.current = false;
       onPaintEnd();
     },
-    [onPaintEnd, currentTool, liveSelection, onSelectionChange, onMoveTiles],
+    [
+      onPaintEnd,
+      currentTool,
+      liveSelection,
+      onSelectionChange,
+      onMoveTiles,
+      liveImagePos,
+      onMoveImageLayer,
+    ],
   );
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
+    // Commit image layer drag on leave
+    if (currentTool === "select" && imageDragRef.current) {
+      if (liveImagePos) {
+        onMoveImageLayer(liveImagePos.layerId, liveImagePos.x, liveImagePos.y);
+        setLiveImagePos(null);
+      }
+      imageDragRef.current = null;
+      setIsMoving(false);
+      return;
+    }
     if (currentTool === "select" && selActionRef.current) {
       const action = selActionRef.current;
       if (action.type === "move" && liveSelection) {
@@ -397,7 +544,15 @@ const MapScene = memo(function MapScene({
       isPaintingRef.current = false;
       onPaintEnd();
     }
-  }, [onPaintEnd, currentTool, liveSelection, onSelectionChange, onMoveTiles]);
+  }, [
+    onPaintEnd,
+    currentTool,
+    liveSelection,
+    onSelectionChange,
+    onMoveTiles,
+    liveImagePos,
+    onMoveImageLayer,
+  ]);
 
   // Draw checkerboard background
   const drawCheckerboard = useCallback(
@@ -492,19 +647,60 @@ const MapScene = memo(function MapScene({
     [renderedSelection, scaledTile],
   );
 
+  // Draw selection border around active image layer
+  const drawImageLayerSelection = useCallback(
+    (g: Graphics) => {
+      g.clear();
+      if (currentTool !== "select") return;
+      const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+      if (!activeImgLayer) return;
+
+      const posX =
+        (liveImagePos?.layerId === activeImgLayer.id
+          ? liveImagePos.x
+          : activeImgLayer.x) * zoom;
+      const posY =
+        (liveImagePos?.layerId === activeImgLayer.id
+          ? liveImagePos.y
+          : activeImgLayer.y) * zoom;
+      const w = activeImgLayer.width * zoom;
+      const h = activeImgLayer.height * zoom;
+
+      // Selection fill
+      g.rect(posX, posY, w, h);
+      g.fill({ color: 0x3b82f6, alpha: 0.08 });
+
+      // Dashed-style border (double line)
+      g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.8 });
+      g.rect(posX + 0.5, posY + 0.5, w - 1, h - 1);
+      g.stroke();
+
+      g.setStrokeStyle({ width: 2, color: 0x3b82f6, alpha: 1 });
+      g.rect(posX - 0.5, posY - 0.5, w + 1, h + 1);
+      g.stroke();
+    },
+    [currentTool, imageLayers, activeLayerId, zoom, liveImagePos],
+  );
+
   // Get the tile snapshot from the current move action (for overlay rendering)
   const moveAction =
     selActionRef.current?.type === "move" ? selActionRef.current : null;
   const moveTiles = moveAction?.tiles ?? [];
   const moveDestSel = moveAction ? liveSelection : null;
 
-  // Get layers in render order (bottom to top)
-  const orderedLayers = useMemo(
+  // Get layers in render order (bottom to top) — both tile and image layers
+  const orderedLayerEntries = useMemo(
     () =>
       map.layerOrder
-        .map((lid) => layers.find((l) => l.id === lid))
-        .filter((l): l is TileLayer => l !== undefined),
-    [map.layerOrder, layers],
+        .map((lid) => {
+          const tileLayer = layers.find((l) => l.id === lid);
+          if (tileLayer) return { kind: "tile" as const, layer: tileLayer };
+          const imgLayer = imageLayers.find((l) => l.id === lid);
+          if (imgLayer) return { kind: "image" as const, layer: imgLayer };
+          return null;
+        })
+        .filter((e): e is NonNullable<typeof e> => e !== null),
+    [map.layerOrder, layers, imageLayers],
   );
 
   // Force reference to texturesReady / paintBufferVersion for reactivity
@@ -516,8 +712,35 @@ const MapScene = memo(function MapScene({
       {/* Checkerboard background */}
       <pixiGraphics draw={drawCheckerboard} />
 
-      {/* Tile layers */}
-      {orderedLayers.map((layer) => {
+      {/* Tile and image layers in order */}
+      {orderedLayerEntries.map((entry) => {
+        if (entry.kind === "image") {
+          const imgLayer = entry.layer as ImageLayer;
+          const tex = imageLayerTextureCache.get(imgLayer.assetId);
+          if (!tex) return null;
+          const posX =
+            (liveImagePos?.layerId === imgLayer.id
+              ? liveImagePos.x
+              : imgLayer.x) * zoom;
+          const posY =
+            (liveImagePos?.layerId === imgLayer.id
+              ? liveImagePos.y
+              : imgLayer.y) * zoom;
+          return (
+            <pixiSprite
+              key={imgLayer.id}
+              texture={tex}
+              x={posX}
+              y={posY}
+              width={imgLayer.width * zoom}
+              height={imgLayer.height * zoom}
+              visible={imgLayer.visible}
+              alpha={imgLayer.id === activeLayerId ? 1 : 0.7}
+            />
+          );
+        }
+
+        const layer = entry.layer as TileLayer;
         const isActiveLayer = layer.id === activeLayerId;
         return (
           <pixiContainer
@@ -602,6 +825,11 @@ const MapScene = memo(function MapScene({
 
       {/* Selection overlay */}
       {currentTool === "select" && <pixiGraphics draw={drawSelection} />}
+
+      {/* Image layer selection border */}
+      {currentTool === "select" && (
+        <pixiGraphics draw={drawImageLayerSelection} />
+      )}
 
       {/* Tile move overlay — ghost tiles at destination during drag */}
       {currentTool === "select" &&
@@ -698,6 +926,14 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const result = await loadTilesetTexture(tilesetId, tileset.assetId);
         if (result && !cancelled) loaded++;
       }
+
+      // Load image layer textures
+      for (const imgLayer of props.imageLayers) {
+        if (imageLayerTextureCache.has(imgLayer.assetId)) continue;
+        const result = await loadImageLayerTexture(imgLayer.assetId);
+        if (result && !cancelled) loaded++;
+      }
+
       if (loaded > 0 && !cancelled) {
         setTexturesReady((n) => n + loaded);
       }
@@ -707,7 +943,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     return () => {
       cancelled = true;
     };
-  }, [map.layerOrder, props.layers, tilesets, props.selectedTile]);
+  }, [
+    map.layerOrder,
+    props.layers,
+    tilesets,
+    props.selectedTile,
+    props.imageLayers,
+  ]);
 
   return (
     <div

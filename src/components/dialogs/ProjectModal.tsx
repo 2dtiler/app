@@ -26,7 +26,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { listProjects, deleteProject, getProject, saveProject } from "@/lib/db";
+import {
+  listProjects,
+  deleteProject,
+  getProject,
+  saveProject,
+  saveProjectPrefs,
+  loadProjectPrefs,
+  deleteProjectPrefs,
+} from "@/lib/db";
 import type { ProjectRecord } from "@/lib/db";
 import { getEditorStore } from "@/lib/store";
 import {
@@ -114,14 +122,66 @@ export function ProjectModal({
 
   function openProject(project: Project) {
     const store = getEditorStore();
+    const currentState = store.getState();
+
+    // Save current project's UI preferences before switching
+    if (currentState.project) {
+      saveProjectPrefs(currentState.project.id, {
+        activeTilesetGroupId: currentState.activeTilesetGroupId,
+        activeTilesetId: currentState.activeTilesetId,
+        activeMapGroupId: currentState.activeMapGroupId,
+        activeMapId: currentState.activeMapId,
+        activeLayerId: currentState.activeLayerId,
+      });
+    }
+
+    // Restore saved preferences for the project being opened
+    const prefs = loadProjectPrefs(project.id);
+
     store.setState((draft) => {
       draft.project = project;
-      draft.activeTilesetGroupId = project.tilesetGroups[0]?.id ?? null;
-      draft.activeMapGroupId = project.mapGroups[0]?.id ?? null;
-      draft.activeTilesetId = null;
-      draft.activeMapId = null;
-      draft.activeLayerId = null;
       draft.tileSize = project.tileSize;
+
+      if (prefs) {
+        // Validate that saved IDs still exist in the project
+        const tilesetGroupIds = new Set(
+          project.tilesetGroups.map((g) => g.id as string),
+        );
+        const tilesetIds = new Set(project.tilesets.map((t) => t.id as string));
+        const mapGroupIds = new Set(
+          project.mapGroups.map((g) => g.id as string),
+        );
+        const mapIds = new Set(project.maps.map((m) => m.id as string));
+        const layerIds = new Set(project.layers.map((l) => l.id as string));
+
+        draft.activeTilesetGroupId =
+          prefs.activeTilesetGroupId &&
+          tilesetGroupIds.has(prefs.activeTilesetGroupId)
+            ? (prefs.activeTilesetGroupId as typeof draft.activeTilesetGroupId)
+            : (project.tilesetGroups[0]?.id ?? null);
+        draft.activeTilesetId =
+          prefs.activeTilesetId && tilesetIds.has(prefs.activeTilesetId)
+            ? (prefs.activeTilesetId as typeof draft.activeTilesetId)
+            : null;
+        draft.activeMapGroupId =
+          prefs.activeMapGroupId && mapGroupIds.has(prefs.activeMapGroupId)
+            ? (prefs.activeMapGroupId as typeof draft.activeMapGroupId)
+            : (project.mapGroups[0]?.id ?? null);
+        draft.activeMapId =
+          prefs.activeMapId && mapIds.has(prefs.activeMapId)
+            ? (prefs.activeMapId as typeof draft.activeMapId)
+            : null;
+        draft.activeLayerId =
+          prefs.activeLayerId && layerIds.has(prefs.activeLayerId)
+            ? (prefs.activeLayerId as typeof draft.activeLayerId)
+            : null;
+      } else {
+        draft.activeTilesetGroupId = project.tilesetGroups[0]?.id ?? null;
+        draft.activeMapGroupId = project.mapGroups[0]?.id ?? null;
+        draft.activeTilesetId = null;
+        draft.activeMapId = null;
+        draft.activeLayerId = null;
+      }
     });
     onOpenChange(false);
     onProjectLoaded();
@@ -142,6 +202,7 @@ export function ProjectModal({
   async function handleDeleteProject() {
     if (!deleteTarget) return;
     await deleteProject(deleteTarget.id);
+    deleteProjectPrefs(deleteTarget.id);
     setDeleteTarget(null);
     await loadProjects();
   }

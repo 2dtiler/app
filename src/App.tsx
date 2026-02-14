@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { initEditorStore } from "@/lib/store";
+import { initEditorStore, getEditorStore } from "@/lib/store";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { saveProject } from "@/lib/db";
+import { saveProject, saveProjectPrefs } from "@/lib/db";
 import {
   exportProject,
   exportMap,
@@ -71,6 +71,29 @@ function App() {
 
   useAutoSave();
   useKeyboardShortcuts();
+
+  // Save project UI preferences on page unload so they persist across refreshes
+  useEffect(() => {
+    function handleBeforeUnload() {
+      try {
+        const store = getEditorStore();
+        const s = store.getState();
+        if (s.project) {
+          saveProjectPrefs(s.project.id, {
+            activeTilesetGroupId: s.activeTilesetGroupId,
+            activeTilesetId: s.activeTilesetId,
+            activeMapGroupId: s.activeMapGroupId,
+            activeMapId: s.activeMapId,
+            activeLayerId: s.activeLayerId,
+          });
+        }
+      } catch {
+        // Store may not be initialized yet
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   // Listen for the Find and Replace custom event from keyboard shortcuts
   useEffect(() => {

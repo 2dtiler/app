@@ -88,6 +88,10 @@ export async function initEditorStore(): Promise<EditorTravels> {
     if (restoredState.project && !restoredState.project.terrains) {
       restoredState.project.terrains = [];
     }
+    // Ensure project.imageLayers exists for older projects
+    if (restoredState.project && !restoredState.project.imageLayers) {
+      restoredState.project.imageLayers = [];
+    }
     travelsInstance = createTravels<EditorState>(restoredState, {
       maxHistory: 50,
       initialPatches: persisted.patches,

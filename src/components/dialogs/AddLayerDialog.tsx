@@ -46,7 +46,7 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <Image className="h-6 w-6" />,
     description:
       "A layer that displays a single image, such as a background or parallax element. Not bound to the tile grid.",
-    disabled: true,
+    disabled: false,
   },
   {
     type: "object",
@@ -63,6 +63,8 @@ interface AddLayerDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultName: string;
   onCreateLayer: (name: string, type: LayerType) => void;
+  /** Called when the user selects "Image Layer" — parent handles file picking */
+  onRequestImageLayer?: () => void;
 }
 
 export function AddLayerDialog({
@@ -70,6 +72,7 @@ export function AddLayerDialog({
   onOpenChange,
   defaultName,
   onCreateLayer,
+  onRequestImageLayer,
 }: AddLayerDialogProps) {
   const [step, setStep] = useState<"select" | "name">("select");
   const [selectedType, setSelectedType] = useState<LayerType>("tile");
@@ -85,6 +88,12 @@ export function AddLayerDialog({
   }
 
   function handleSelectType(type: LayerType) {
+    if (type === "image") {
+      // Image layer: close dialog and let the parent handle file picking
+      handleOpenChange(false);
+      onRequestImageLayer?.();
+      return;
+    }
     setSelectedType(type);
     setLayerName(type === "group" ? "Group" : defaultName);
     setStep("name");

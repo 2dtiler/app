@@ -5,7 +5,13 @@
  * and query the tree for rendering, export, and UI purposes.
  */
 
-import type { LayerId, LayerGroupId, LayerGroup, TileLayer } from "@/types";
+import type {
+  LayerId,
+  LayerGroupId,
+  LayerGroup,
+  TileLayer,
+  ImageLayer,
+} from "@/types";
 
 // ---------------------------------------------------------------------------
 // Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())
@@ -16,6 +22,12 @@ function buildGroupMap(groups: readonly LayerGroup[]): Map<string, LayerGroup> {
 }
 
 function buildLayerMap(layers: readonly TileLayer[]): Map<string, TileLayer> {
+  return new Map(layers.map((l) => [l.id as string, l]));
+}
+
+function buildImageLayerMap(
+  layers: readonly ImageLayer[],
+): Map<string, ImageLayer> {
   return new Map(layers.map((l) => [l.id as string, l]));
 }
 
@@ -122,6 +134,62 @@ function flattenLayerTreeImpl(
       );
     } else {
       const layer = layerMap.get(id as string);
+      if (layer) {
+        result.push({
+          ...layer,
+          visible: parentVisible && layer.visible,
+          locked: parentLocked || layer.locked,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Flatten the layer tree to extract image layers in render order (bottom-to-top)
+ * with effective visibility and lock state inherited from parent groups.
+ */
+export function flattenImageLayers(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  imageLayers: readonly ImageLayer[],
+  groups: readonly LayerGroup[],
+  parentVisible = true,
+  parentLocked = false,
+): ImageLayer[] {
+  const groupMap = buildGroupMap(groups);
+  const imageLayerMap = buildImageLayerMap(imageLayers);
+  return flattenImageLayersImpl(
+    layerOrder,
+    imageLayerMap,
+    groupMap,
+    parentVisible,
+    parentLocked,
+  );
+}
+
+function flattenImageLayersImpl(
+  layerOrder: readonly (LayerId | LayerGroupId)[],
+  imageLayerMap: Map<string, ImageLayer>,
+  groupMap: Map<string, LayerGroup>,
+  parentVisible: boolean,
+  parentLocked: boolean,
+): ImageLayer[] {
+  const result: ImageLayer[] = [];
+  for (const id of layerOrder) {
+    const group = groupMap.get(id as string);
+    if (group) {
+      result.push(
+        ...flattenImageLayersImpl(
+          group.childOrder,
+          imageLayerMap,
+          groupMap,
+          parentVisible && group.visible,
+          parentLocked || group.locked,
+        ),
+      );
+    } else {
+      const layer = imageLayerMap.get(id as string);
       if (layer) {
         result.push({
           ...layer,
@@ -249,6 +317,12 @@ export type LayerTreeNode =
       parentGroupId: LayerGroupId | null;
     }
   | {
+      type: "imageLayer";
+      layer: ImageLayer;
+      depth: number;
+      parentGroupId: LayerGroupId | null;
+    }
+  | {
       type: "group";
       group: LayerGroup;
       depth: number;
@@ -265,17 +339,27 @@ export function buildDisplayTree(
   groups: readonly LayerGroup[],
   depth = 0,
   parentGroupId: LayerGroupId | null = null,
+  imageLayers: readonly ImageLayer[] = [],
 ): LayerTreeNode[] {
   // Build index maps at top level; reuse via inner impl for recursion
   const groupMap = buildGroupMap(groups);
   const layerMap = buildLayerMap(layers);
-  return buildDisplayTreeImpl(order, layerMap, groupMap, depth, parentGroupId);
+  const imageLayerMap = buildImageLayerMap(imageLayers);
+  return buildDisplayTreeImpl(
+    order,
+    layerMap,
+    groupMap,
+    imageLayerMap,
+    depth,
+    parentGroupId,
+  );
 }
 
 function buildDisplayTreeImpl(
   order: readonly (LayerId | LayerGroupId)[],
   layerMap: Map<string, TileLayer>,
   groupMap: Map<string, LayerGroup>,
+  imageLayerMap: Map<string, ImageLayer>,
   depth: number,
   parentGroupId: LayerGroupId | null,
 ): LayerTreeNode[] {
@@ -291,6 +375,7 @@ function buildDisplayTreeImpl(
             group.childOrder,
             layerMap,
             groupMap,
+            imageLayerMap,
             depth + 1,
             group.id,
           ),
@@ -300,6 +385,16 @@ function buildDisplayTreeImpl(
       const layer = layerMap.get(id as string);
       if (layer) {
         nodes.push({ type: "layer", layer, depth, parentGroupId });
+      } else {
+        const imgLayer = imageLayerMap.get(id as string);
+        if (imgLayer) {
+          nodes.push({
+            type: "imageLayer",
+            layer: imgLayer,
+            depth,
+            parentGroupId,
+          });
+        }
       }
     }
   }

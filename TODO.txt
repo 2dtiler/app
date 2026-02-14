@@ -1,6 +1,8 @@
+Check image layer
+
+When "Select Tool" is active and you select a tile from the tileset pane, it should automatically select the "Paint tool" and unselect the "Select Tool"
 
 Layers
-  - Image Layer
   - Object Layer
 
 Tools:
@@ -13,7 +15,6 @@ Palettes
 Export Options
 Import Options
 Get some ideas from: Keep Notes
-Allow PNG or WebP or gif
 
 =======================================
 Add sentry for errors

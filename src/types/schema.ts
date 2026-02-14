@@ -113,6 +113,29 @@ export interface LayerGroup {
 }
 
 /**
+ * An image layer displays a single image (e.g. background, parallax)
+ * that is not bound to the tile grid.
+ */
+export interface ImageLayer {
+  id: LayerId;
+  mapId: MapId;
+  name: string;
+  type: "image";
+  visible: boolean;
+  locked: boolean;
+  /** Reference to the image blob stored in IndexedDB */
+  assetId: AssetId;
+  /** X position in pixels relative to map origin */
+  x: number;
+  /** Y position in pixels relative to map origin */
+  y: number;
+  /** Display width in pixels */
+  width: number;
+  /** Display height in pixels */
+  height: number;
+}
+
+/**
  * A reference to a specific tile within a tileset.
  * Stores the source tileset and the pixel region to sample from.
  */
@@ -169,6 +192,8 @@ export interface Project {
   mapGroups: MapGroup[];
   maps: TileMapData[];
   layers: TileLayer[];
+  /** Image layers (free-positioned images not bound to tile grid) */
+  imageLayers: ImageLayer[];
   layerGroups: LayerGroup[];
   /** Saved terrain definitions for the Fill Terrain tool */
   terrains: Terrain[];
