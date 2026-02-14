@@ -429,7 +429,9 @@ const MapScene = memo(function MapScene({
   } | null>(null);
 
   // --- Polygon drawing state ---
-  const [polygonPoints, setPolygonPoints] = useState<{ x: number; y: number }[]>([]);
+  const [polygonPoints, setPolygonPoints] = useState<
+    { x: number; y: number }[]
+  >([]);
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
 
   // --- Object drag state ---
@@ -579,15 +581,28 @@ const MapScene = memo(function MapScene({
             } else {
               // Close polygon if clicking near the first point or if we have 3+ points and double-click
               const first = polygonPoints[0];
-              const distToFirst = Math.hypot((px - first.x) * zoom, (py - first.y) * zoom);
+              const distToFirst = Math.hypot(
+                (px - first.x) * zoom,
+                (py - first.y) * zoom,
+              );
               if (polygonPoints.length >= 3 && distToFirst < 10) {
                 // Close polygon by clicking near the first vertex
                 const minX = Math.min(...polygonPoints.map((p) => p.x));
                 const minY = Math.min(...polygonPoints.map((p) => p.y));
                 const maxX = Math.max(...polygonPoints.map((p) => p.x));
                 const maxY = Math.max(...polygonPoints.map((p) => p.y));
-                const relativePoints = polygonPoints.map((p) => ({ x: p.x - minX, y: p.y - minY }));
-                onCreateObject("polygon", minX, minY, maxX - minX, maxY - minY, relativePoints);
+                const relativePoints = polygonPoints.map((p) => ({
+                  x: p.x - minX,
+                  y: p.y - minY,
+                }));
+                onCreateObject(
+                  "polygon",
+                  minX,
+                  minY,
+                  maxX - minX,
+                  maxY - minY,
+                  relativePoints,
+                );
                 setIsDrawingPolygon(false);
                 setPolygonPoints([]);
               } else {
@@ -623,21 +638,36 @@ const MapScene = memo(function MapScene({
 
         // --- Object resize handle hit test ---
         const activeObj = objects.find((o) => o.id === activeObjectId);
-        if (activeObj && (activeObj.type === "rectangle" || activeObj.type === "ellipse")) {
-          const resize = liveObjectResize?.objectId === activeObj.id ? liveObjectResize : null;
-          const drag = liveObjectPos?.objectId === activeObj.id ? liveObjectPos : null;
+        if (
+          activeObj &&
+          (activeObj.type === "rectangle" || activeObj.type === "ellipse")
+        ) {
+          const resize =
+            liveObjectResize?.objectId === activeObj.id
+              ? liveObjectResize
+              : null;
+          const drag =
+            liveObjectPos?.objectId === activeObj.id ? liveObjectPos : null;
           const aox = (resize?.x ?? drag?.x ?? activeObj.x) * zoom;
           const aoy = (resize?.y ?? drag?.y ?? activeObj.y) * zoom;
           const aow = (resize?.width ?? activeObj.width) * zoom;
           const aoh = (resize?.height ?? activeObj.height) * zoom;
           const handles: [ResizeHandle, number, number][] = [
-            ["nw", aox, aoy], ["n", aox + aow / 2, aoy], ["ne", aox + aow, aoy],
-            ["w", aox, aoy + aoh / 2], ["e", aox + aow, aoy + aoh / 2],
-            ["sw", aox, aoy + aoh], ["s", aox + aow / 2, aoy + aoh], ["se", aox + aow, aoy + aoh],
+            ["nw", aox, aoy],
+            ["n", aox + aow / 2, aoy],
+            ["ne", aox + aow, aoy],
+            ["w", aox, aoy + aoh / 2],
+            ["e", aox + aow, aoy + aoh / 2],
+            ["sw", aox, aoy + aoh],
+            ["s", aox + aow / 2, aoy + aoh],
+            ["se", aox + aow, aoy + aoh],
           ];
           const hSize = 8;
           for (const [handle, cx, cy] of handles) {
-            if (Math.abs(e.global.x - cx) <= hSize && Math.abs(e.global.y - cy) <= hSize) {
+            if (
+              Math.abs(e.global.x - cx) <= hSize &&
+              Math.abs(e.global.y - cy) <= hSize
+            ) {
               objectResizeRef.current = {
                 objectId: activeObj.id,
                 handle,
@@ -660,7 +690,10 @@ const MapScene = memo(function MapScene({
           for (let i = 0; i < activeObj.points.length; i++) {
             const vx = aox + activeObj.points[i].x * zoom;
             const vy = aoy + activeObj.points[i].y * zoom;
-            if (Math.abs(e.global.x - vx) <= 8 && Math.abs(e.global.y - vy) <= 8) {
+            if (
+              Math.abs(e.global.x - vx) <= 8 &&
+              Math.abs(e.global.y - vy) <= 8
+            ) {
               polyVertexDragRef.current = {
                 objectId: activeObj.id,
                 vertexIndex: i,
@@ -688,10 +721,16 @@ const MapScene = memo(function MapScene({
             const oh = obj.height * zoom;
             let hit = false;
             if (obj.type === "rectangle" || obj.type === "ellipse") {
-              hit = e.global.x >= ox && e.global.x <= ox + ow && e.global.y >= oy && e.global.y <= oy + oh;
+              hit =
+                e.global.x >= ox &&
+                e.global.x <= ox + ow &&
+                e.global.y >= oy &&
+                e.global.y <= oy + oh;
             } else if (obj.type === "point") {
               const ps = 8 * zoom;
-              hit = Math.abs(e.global.x - ox) <= ps && Math.abs(e.global.y - oy) <= ps;
+              hit =
+                Math.abs(e.global.x - ox) <= ps &&
+                Math.abs(e.global.y - oy) <= ps;
             } else if (obj.type === "polygon" && obj.points.length >= 3) {
               // Simple bounding box hit for polygons
               const pts = obj.points;
@@ -699,7 +738,11 @@ const MapScene = memo(function MapScene({
               const maxX = Math.max(...pts.map((p) => p.x)) * zoom + ox;
               const minY = Math.min(...pts.map((p) => p.y)) * zoom + oy;
               const maxY = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-              hit = e.global.x >= minX && e.global.x <= maxX && e.global.y >= minY && e.global.y <= maxY;
+              hit =
+                e.global.x >= minX &&
+                e.global.x <= maxX &&
+                e.global.y >= minY &&
+                e.global.y <= maxY;
             }
             if (hit) {
               onSelectObject(obj.id);
@@ -871,7 +914,13 @@ const MapScene = memo(function MapScene({
           const y = Math.min(startPy, curPy);
           const w = Math.abs(curPx - startPx);
           const h = Math.abs(curPy - startPy);
-          setLiveObjectPlace({ type: placeAction.type, x, y, width: w, height: h });
+          setLiveObjectPlace({
+            type: placeAction.type,
+            x,
+            y,
+            width: w,
+            height: h,
+          });
           return;
         }
 
@@ -1033,7 +1082,10 @@ const MapScene = memo(function MapScene({
 
       // Commit object placement
       if (currentTool === "select" && objectPlaceRef.current) {
-        if (liveObjectPlace && (liveObjectPlace.width > 2 || liveObjectPlace.height > 2)) {
+        if (
+          liveObjectPlace &&
+          (liveObjectPlace.width > 2 || liveObjectPlace.height > 2)
+        ) {
           onCreateObject(
             liveObjectPlace.type,
             liveObjectPlace.x,
@@ -1073,7 +1125,11 @@ const MapScene = memo(function MapScene({
       // Commit object drag
       if (currentTool === "select" && objectDragRef.current) {
         if (liveObjectPos) {
-          onMoveObject(liveObjectPos.objectId, liveObjectPos.x, liveObjectPos.y);
+          onMoveObject(
+            liveObjectPos.objectId,
+            liveObjectPos.x,
+            liveObjectPos.y,
+          );
           setLiveObjectPos(null);
         }
         objectDragRef.current = null;
@@ -1164,7 +1220,13 @@ const MapScene = memo(function MapScene({
     // Commit object resize on leave
     if (currentTool === "select" && objectResizeRef.current) {
       if (liveObjectResize) {
-        onResizeObject(liveObjectResize.objectId, liveObjectResize.x, liveObjectResize.y, liveObjectResize.width, liveObjectResize.height);
+        onResizeObject(
+          liveObjectResize.objectId,
+          liveObjectResize.x,
+          liveObjectResize.y,
+          liveObjectResize.width,
+          liveObjectResize.height,
+        );
         setLiveObjectResize(null);
       }
       objectResizeRef.current = null;
@@ -1431,8 +1493,10 @@ const MapScene = memo(function MapScene({
           const oh = obj.height * zoom;
 
           // Use live position/size if this object is being dragged/resized
-          const drag = liveObjectPos?.objectId === obj.id ? liveObjectPos : null;
-          const resize = liveObjectResize?.objectId === obj.id ? liveObjectResize : null;
+          const drag =
+            liveObjectPos?.objectId === obj.id ? liveObjectPos : null;
+          const resize =
+            liveObjectResize?.objectId === obj.id ? liveObjectResize : null;
           const dx = (resize?.x ?? drag?.x ?? obj.x) * zoom;
           const dy = (resize?.y ?? drag?.y ?? obj.y) * zoom;
           const dw = (resize?.width ?? obj.width) * zoom;
@@ -1491,13 +1555,21 @@ const MapScene = memo(function MapScene({
           }
 
           // Draw resize handles for selected object (rectangle/ellipse)
-          if (isActive && (obj.type === "rectangle" || obj.type === "ellipse")) {
+          if (
+            isActive &&
+            (obj.type === "rectangle" || obj.type === "ellipse")
+          ) {
             const hs = 6;
             const hh = hs / 2;
             const handlePositions: [number, number][] = [
-              [dx, dy], [dx + dw / 2, dy], [dx + dw, dy],
-              [dx, dy + dh / 2], [dx + dw, dy + dh / 2],
-              [dx, dy + dh], [dx + dw / 2, dy + dh], [dx + dw, dy + dh],
+              [dx, dy],
+              [dx + dw / 2, dy],
+              [dx + dw, dy],
+              [dx, dy + dh / 2],
+              [dx + dw, dy + dh / 2],
+              [dx, dy + dh],
+              [dx + dw / 2, dy + dh],
+              [dx + dw, dy + dh],
             ];
             for (const [hx, hy] of handlePositions) {
               g.rect(hx - hh, hy - hh, hs, hs);
@@ -1560,7 +1632,17 @@ const MapScene = memo(function MapScene({
         }
       }
     },
-    [objectLayers, objects, activeObjectId, zoom, liveObjectPos, liveObjectResize, liveObjectPlace, isDrawingPolygon, polygonPoints],
+    [
+      objectLayers,
+      objects,
+      activeObjectId,
+      zoom,
+      liveObjectPos,
+      liveObjectResize,
+      liveObjectPlace,
+      isDrawingPolygon,
+      polygonPoints,
+    ],
   );
 
   // Get the tile snapshot from the current move action (for overlay rendering)
@@ -1775,21 +1857,28 @@ const MapScene = memo(function MapScene({
         onPointerUp={handlePointerUp}
         onPointerUpOutside={handlePointerUp}
         onPointerLeave={handlePointerLeave}
-        ondblclick={useCallback(
-          () => {
-            if (isDrawingPolygon && polygonPoints.length >= 3) {
-              const minX = Math.min(...polygonPoints.map((p) => p.x));
-              const minY = Math.min(...polygonPoints.map((p) => p.y));
-              const maxX = Math.max(...polygonPoints.map((p) => p.x));
-              const maxY = Math.max(...polygonPoints.map((p) => p.y));
-              const relativePoints = polygonPoints.map((p) => ({ x: p.x - minX, y: p.y - minY }));
-              onCreateObject("polygon", minX, minY, maxX - minX, maxY - minY, relativePoints);
-              setIsDrawingPolygon(false);
-              setPolygonPoints([]);
-            }
-          },
-          [isDrawingPolygon, polygonPoints, onCreateObject],
-        )}
+        ondblclick={useCallback(() => {
+          if (isDrawingPolygon && polygonPoints.length >= 3) {
+            const minX = Math.min(...polygonPoints.map((p) => p.x));
+            const minY = Math.min(...polygonPoints.map((p) => p.y));
+            const maxX = Math.max(...polygonPoints.map((p) => p.x));
+            const maxY = Math.max(...polygonPoints.map((p) => p.y));
+            const relativePoints = polygonPoints.map((p) => ({
+              x: p.x - minX,
+              y: p.y - minY,
+            }));
+            onCreateObject(
+              "polygon",
+              minX,
+              minY,
+              maxX - minX,
+              maxY - minY,
+              relativePoints,
+            );
+            setIsDrawingPolygon(false);
+            setPolygonPoints([]);
+          }
+        }, [isDrawingPolygon, polygonPoints, onCreateObject])}
       />
     </>
   );

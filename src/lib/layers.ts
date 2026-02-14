@@ -280,7 +280,13 @@ export function findLastLayerId(
   const layerMap = buildLayerMap(layers);
   const imageLayerMap = buildImageLayerMap(imageLayers);
   const objectLayerMap = buildObjectLayerMap(objectLayers);
-  return findLastLayerIdImpl(layerOrder, layerMap, groupMap, imageLayerMap, objectLayerMap);
+  return findLastLayerIdImpl(
+    layerOrder,
+    layerMap,
+    groupMap,
+    imageLayerMap,
+    objectLayerMap,
+  );
 }
 
 function findLastLayerIdImpl(
@@ -295,7 +301,13 @@ function findLastLayerIdImpl(
     const id = layerOrder[i];
     const group = groupMap.get(id as string);
     if (group) {
-      const found = findLastLayerIdImpl(group.childOrder, layerMap, groupMap, imageLayerMap, objectLayerMap);
+      const found = findLastLayerIdImpl(
+        group.childOrder,
+        layerMap,
+        groupMap,
+        imageLayerMap,
+        objectLayerMap,
+      );
       if (found) return found;
     } else {
       const layer = layerMap.get(id as string);

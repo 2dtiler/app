@@ -438,7 +438,14 @@ export function MapPanel() {
 
   // Create a new map object (called from MapCanvas after click-drag placement)
   const handleCreateObject = useCallback(
-    (type: ObjectType, x: number, y: number, width: number, height: number, points: { x: number; y: number }[]) => {
+    (
+      type: ObjectType,
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      points: { x: number; y: number }[],
+    ) => {
       if (!state.activeLayerId) return;
       const objectId = generateObjectId();
       const objCount = (project?.objects ?? []).filter(
@@ -546,10 +553,16 @@ export function MapPanel() {
     : [];
   const projectObjectLayers = project.objectLayers ?? [];
   const flatObjectLayers = activeMap
-    ? flattenObjectLayers(activeMap.layerOrder, projectObjectLayers, layerGroups)
+    ? flattenObjectLayers(
+        activeMap.layerOrder,
+        projectObjectLayers,
+        layerGroups,
+      )
     : [];
   // Collect all objects for flat object layers
-  const flatObjectLayerIds = new Set(flatObjectLayers.map((l) => l.id as string));
+  const flatObjectLayerIds = new Set(
+    flatObjectLayers.map((l) => l.id as string),
+  );
   const projectObjects = project.objects ?? [];
   const flatObjects = projectObjects.filter((o) =>
     flatObjectLayerIds.has(o.layerId as string),
@@ -1232,7 +1245,11 @@ export function MapPanel() {
             onMoveObject={handleMoveObject}
             onResizeObject={handleResizeObject}
             onUpdatePolygonPoints={handleUpdatePolygonPoints}
-            onSelectObject={(id) => setState((draft) => { draft.activeObjectId = id as ObjectId | null; })}
+            onSelectObject={(id) =>
+              setState((draft) => {
+                draft.activeObjectId = id as ObjectId | null;
+              })
+            }
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

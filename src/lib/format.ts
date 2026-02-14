@@ -177,7 +177,15 @@ export async function exportMap(
   const mapObjectLayerIds = new Set(mapObjectLayers.map((ol) => ol.id));
   const mapObjects = objects.filter((o) => mapObjectLayerIds.has(o.layerId));
 
-  const packed: PackedMap = { map, layers, tilesets, objectLayers: mapObjectLayers, objects: mapObjects, manifest, assetBlob };
+  const packed: PackedMap = {
+    map,
+    layers,
+    tilesets,
+    objectLayers: mapObjectLayers,
+    objects: mapObjects,
+    manifest,
+    assetBlob,
+  };
   return compressPack(packed);
 }
 
@@ -187,7 +195,13 @@ export async function exportMap(
  */
 export async function importMap(
   data: Uint8Array,
-): Promise<{ map: TileMapData; layers: TileLayer[]; tilesets: Tileset[]; objectLayers: ObjectLayer[]; objects: MapObject[] }> {
+): Promise<{
+  map: TileMapData;
+  layers: TileLayer[];
+  tilesets: Tileset[];
+  objectLayers: ObjectLayer[];
+  objects: MapObject[];
+}> {
   const packed = decompressPack<PackedMap>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
   return {

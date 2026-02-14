@@ -374,8 +374,8 @@ export function ObjectsPanel() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete object?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &quot;{deleteTarget?.name}&quot;. This
-              action cannot be undone.
+              This will permanently delete &quot;{deleteTarget?.name}&quot;.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -529,9 +529,7 @@ const ObjectRow = memo(function ObjectRow({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {object.visible ? "Hide" : "Show"}
-            </TooltipContent>
+            <TooltipContent>{object.visible ? "Hide" : "Show"}</TooltipContent>
           </Tooltip>
 
           {/* Lock */}
@@ -553,9 +551,7 @@ const ObjectRow = memo(function ObjectRow({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {object.locked ? "Unlock" : "Lock"}
-            </TooltipContent>
+            <TooltipContent>{object.locked ? "Unlock" : "Lock"}</TooltipContent>
           </Tooltip>
 
           {/* Type icon */}
@@ -664,9 +660,7 @@ const ObjectRow = memo(function ObjectRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => onDoubleClick(object.id, object.name)}
-        >
+        <ContextMenuItem onClick={() => onDoubleClick(object.id, object.name)}>
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
         </ContextMenuItem>
         <ContextMenuSeparator />

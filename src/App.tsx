@@ -195,7 +195,13 @@ function AppShell({
     const layers = state.project.layers.filter((l) =>
       layerIdSet.has(l.id as string),
     );
-    const data = await exportMap(map, layers, state.project.tilesets, state.project.objectLayers ?? [], state.project.objects ?? []);
+    const data = await exportMap(
+      map,
+      layers,
+      state.project.tilesets,
+      state.project.objectLayers ?? [],
+      state.project.objects ?? [],
+    );
     downloadFile(data, `${map.name}.2dm`);
   }, [state.project, state.activeMapId]);
 
@@ -209,7 +215,13 @@ function AppShell({
       if (!file) return;
       try {
         const raw = await readFileAsUint8Array(file);
-        const { map, layers, tilesets, objectLayers: importedObjLayers, objects: importedObjects } = await importMap(raw);
+        const {
+          map,
+          layers,
+          tilesets,
+          objectLayers: importedObjLayers,
+          objects: importedObjects,
+        } = await importMap(raw);
 
         // Assign new IDs to avoid collisions with existing project data
         const newMapId = generateMapId();

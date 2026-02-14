@@ -797,7 +797,10 @@ export function LayersPanel() {
                   onDrop={handleDrop}
                 />
               );
-            } else if (node.type === "imageLayer" || node.type === "objectLayer") {
+            } else if (
+              node.type === "imageLayer" ||
+              node.type === "objectLayer"
+            ) {
               return (
                 <LayerRow
                   key={node.layer.id}
