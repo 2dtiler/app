@@ -68,6 +68,14 @@ interface MapCanvasProps {
   imageLayers: ImageLayer[];
   /** Called when an image layer is moved via drag */
   onMoveImageLayer: (layerId: string, x: number, y: number) => void;
+  /** Called when an image layer is resized via drag handles */
+  onResizeImageLayer: (
+    layerId: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +185,83 @@ function getTileTexture(ref: TileRef): Texture | null {
 }
 
 // ---------------------------------------------------------------------------
+// Resize handle helpers
+// ---------------------------------------------------------------------------
+
+const RESIZE_CURSORS: Record<string, string> = {
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  n: "ns-resize",
+  s: "ns-resize",
+  e: "ew-resize",
+  w: "ew-resize",
+};
+
+function computeResize(
+  handle: string,
+  origX: number,
+  origY: number,
+  origW: number,
+  origH: number,
+  deltaX: number,
+  deltaY: number,
+  shiftKey: boolean,
+): { x: number; y: number; width: number; height: number } {
+  let left = origX;
+  let top = origY;
+  let right = origX + origW;
+  let bottom = origY + origH;
+
+  const movesLeft = handle === "nw" || handle === "w" || handle === "sw";
+  const movesTop = handle === "nw" || handle === "n" || handle === "ne";
+  const movesRight = handle === "ne" || handle === "e" || handle === "se";
+  const movesBottom = handle === "sw" || handle === "s" || handle === "se";
+
+  if (movesLeft) left += deltaX;
+  if (movesTop) top += deltaY;
+  if (movesRight) right += deltaX;
+  if (movesBottom) bottom += deltaY;
+
+  let w = right - left;
+  let h = bottom - top;
+
+  const minSize = 4;
+  if (w < minSize) {
+    if (movesLeft) left = right - minSize;
+    else right = left + minSize;
+    w = right - left;
+  }
+  if (h < minSize) {
+    if (movesTop) top = bottom - minSize;
+    else bottom = top + minSize;
+    h = bottom - top;
+  }
+
+  const isCorner = (movesLeft || movesRight) && (movesTop || movesBottom);
+  if (shiftKey && isCorner && origW > 0 && origH > 0) {
+    const aspect = origW / origH;
+    if (Math.abs(w - origW) / origW >= Math.abs(h - origH) / origH) {
+      h = w / aspect;
+    } else {
+      w = h * aspect;
+    }
+    if (movesLeft) left = right - w;
+    else right = left + w;
+    if (movesTop) top = bottom - h;
+    else bottom = top + h;
+  }
+
+  return {
+    x: Math.round(left),
+    y: Math.round(top),
+    width: Math.max(minSize, Math.round(right - left)),
+    height: Math.max(minSize, Math.round(bottom - top)),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Inner scene rendered inside the Pixi Application
 // ---------------------------------------------------------------------------
 
@@ -198,6 +283,7 @@ const MapScene = memo(function MapScene({
   onMoveTiles,
   imageLayers,
   onMoveImageLayer,
+  onResizeImageLayer,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
@@ -238,6 +324,96 @@ const MapScene = memo(function MapScene({
     x: number;
     y: number;
   } | null>(null);
+
+  // --- Image layer resize state ---
+  type ResizeHandle = "nw" | "n" | "ne" | "w" | "e" | "sw" | "s" | "se";
+  type ImageResizeAction = {
+    layerId: string;
+    handle: ResizeHandle;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origWidth: number;
+    origHeight: number;
+  };
+  const imageResizeRef = useRef<ImageResizeAction | null>(null);
+  const [liveImageResize, setLiveImageResize] = useState<{
+    layerId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [resizingHandle, setResizingHandle] = useState<ResizeHandle | null>(
+    null,
+  );
+  const [hoveredHandle, setHoveredHandle] = useState<ResizeHandle | null>(null);
+
+  // --- Shift key tracking for aspect ratio constraint ---
+  const shiftKeyRef = useRef(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") shiftKeyRef.current = true;
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") shiftKeyRef.current = false;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
+
+  // --- Resize handle hit testing ---
+  const handleHitSize = 12;
+  const getImageLayerHandles = useCallback(
+    (
+      imgLayer: ImageLayer,
+    ): [ResizeHandle, number, number][] => {
+      const resize =
+        liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
+      const drag =
+        liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
+      const px = (resize?.x ?? drag?.x ?? imgLayer.x) * zoom;
+      const py = (resize?.y ?? drag?.y ?? imgLayer.y) * zoom;
+      const pw = (resize?.width ?? imgLayer.width) * zoom;
+      const ph = (resize?.height ?? imgLayer.height) * zoom;
+      return [
+        ["nw", px, py],
+        ["n", px + pw / 2, py],
+        ["ne", px + pw, py],
+        ["w", px, py + ph / 2],
+        ["e", px + pw, py + ph / 2],
+        ["sw", px, py + ph],
+        ["s", px + pw / 2, py + ph],
+        ["se", px + pw, py + ph],
+      ];
+    },
+    [zoom, liveImageResize, liveImagePos],
+  );
+
+  const hitTestResizeHandle = useCallback(
+    (globalX: number, globalY: number): ResizeHandle | null => {
+      if (currentTool !== "select") return null;
+      const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+      if (!activeImgLayer) return null;
+      const handles = getImageLayerHandles(activeImgLayer);
+      const half = handleHitSize / 2;
+      for (const [handle, cx, cy] of handles) {
+        if (
+          Math.abs(globalX - cx) <= half &&
+          Math.abs(globalY - cy) <= half
+        ) {
+          return handle;
+        }
+      }
+      return null;
+    },
+    [currentTool, imageLayers, activeLayerId, getImageLayerHandles],
+  );
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
@@ -287,6 +463,28 @@ const MapScene = memo(function MapScene({
       if (e.button === 1) return;
 
       if (currentTool === "select") {
+        // Check for resize handle hit first
+        const resizeHandle = hitTestResizeHandle(e.global.x, e.global.y);
+        if (resizeHandle) {
+          const resizeImgLayer = imageLayers.find(
+            (l) => l.id === activeLayerId,
+          );
+          if (resizeImgLayer) {
+            imageResizeRef.current = {
+              layerId: resizeImgLayer.id,
+              handle: resizeHandle,
+              startX: e.global.x,
+              startY: e.global.y,
+              origX: resizeImgLayer.x,
+              origY: resizeImgLayer.y,
+              origWidth: resizeImgLayer.width,
+              origHeight: resizeImgLayer.height,
+            };
+            setResizingHandle(resizeHandle);
+            return;
+          }
+        }
+
         // Check if active layer is an image layer — start dragging it
         const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
         if (activeImgLayer) {
@@ -385,6 +583,7 @@ const MapScene = memo(function MapScene({
       imageLayers,
       zoom,
       liveImagePos,
+      hitTestResizeHandle,
     ],
   );
 
@@ -394,6 +593,25 @@ const MapScene = memo(function MapScene({
       setHoverTile(pos);
 
       if (currentTool === "select") {
+        // Handle image layer resize
+        const resizeAction = imageResizeRef.current;
+        if (resizeAction) {
+          const rdx = (e.global.x - resizeAction.startX) / zoom;
+          const rdy = (e.global.y - resizeAction.startY) / zoom;
+          const result = computeResize(
+            resizeAction.handle,
+            resizeAction.origX,
+            resizeAction.origY,
+            resizeAction.origWidth,
+            resizeAction.origHeight,
+            rdx,
+            rdy,
+            shiftKeyRef.current,
+          );
+          setLiveImageResize({ layerId: resizeAction.layerId, ...result });
+          return;
+        }
+
         // Handle image layer dragging
         const imgDrag = imageDragRef.current;
         if (imgDrag) {
@@ -408,7 +626,12 @@ const MapScene = memo(function MapScene({
         }
 
         const action = selActionRef.current;
-        if (!action) return;
+        if (!action) {
+          // Check hover on resize handles for cursor feedback
+          const handle = hitTestResizeHandle(e.global.x, e.global.y);
+          setHoveredHandle(handle);
+          return;
+        }
         const gx = Math.floor(e.global.x / scaledTile);
         const gy = Math.floor(e.global.y / scaledTile);
 
@@ -458,13 +681,39 @@ const MapScene = memo(function MapScene({
       if (!pos) return;
       onPaintTile(pos.x, pos.y);
     },
-    [getGridPos, currentTool, onPaintTile, scaledTile, mapW, mapH, zoom],
+    [
+      getGridPos,
+      currentTool,
+      onPaintTile,
+      scaledTile,
+      mapW,
+      mapH,
+      zoom,
+      hitTestResizeHandle,
+    ],
   );
 
   const handlePointerUp = useCallback(
     (e?: { button?: number }) => {
       // Ignore middle mouse button release
       if (e?.button === 1) return;
+
+      // Commit image layer resize
+      if (currentTool === "select" && imageResizeRef.current) {
+        if (liveImageResize) {
+          onResizeImageLayer(
+            liveImageResize.layerId,
+            liveImageResize.x,
+            liveImageResize.y,
+            liveImageResize.width,
+            liveImageResize.height,
+          );
+          setLiveImageResize(null);
+        }
+        imageResizeRef.current = null;
+        setResizingHandle(null);
+        return;
+      }
 
       // Commit image layer drag
       if (currentTool === "select" && imageDragRef.current) {
@@ -510,11 +759,29 @@ const MapScene = memo(function MapScene({
       onMoveTiles,
       liveImagePos,
       onMoveImageLayer,
+      liveImageResize,
+      onResizeImageLayer,
     ],
   );
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
+    // Commit image layer resize on leave
+    if (currentTool === "select" && imageResizeRef.current) {
+      if (liveImageResize) {
+        onResizeImageLayer(
+          liveImageResize.layerId,
+          liveImageResize.x,
+          liveImageResize.y,
+          liveImageResize.width,
+          liveImageResize.height,
+        );
+        setLiveImageResize(null);
+      }
+      imageResizeRef.current = null;
+      setResizingHandle(null);
+      return;
+    }
     // Commit image layer drag on leave
     if (currentTool === "select" && imageDragRef.current) {
       if (liveImagePos) {
@@ -552,6 +819,8 @@ const MapScene = memo(function MapScene({
     onMoveTiles,
     liveImagePos,
     onMoveImageLayer,
+    liveImageResize,
+    onResizeImageLayer,
   ]);
 
   // Draw checkerboard background
@@ -647,7 +916,7 @@ const MapScene = memo(function MapScene({
     [renderedSelection, scaledTile],
   );
 
-  // Draw selection border around active image layer
+  // Draw selection border and resize handles around active image layer
   const drawImageLayerSelection = useCallback(
     (g: Graphics) => {
       g.clear();
@@ -655,16 +924,24 @@ const MapScene = memo(function MapScene({
       const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
       if (!activeImgLayer) return;
 
+      const imgIsResizing = liveImageResize?.layerId === activeImgLayer.id;
+      const imgIsDragging = liveImagePos?.layerId === activeImgLayer.id;
       const posX =
-        (liveImagePos?.layerId === activeImgLayer.id
-          ? liveImagePos.x
-          : activeImgLayer.x) * zoom;
+        (imgIsResizing
+          ? liveImageResize.x
+          : imgIsDragging
+            ? liveImagePos.x
+            : activeImgLayer.x) * zoom;
       const posY =
-        (liveImagePos?.layerId === activeImgLayer.id
-          ? liveImagePos.y
-          : activeImgLayer.y) * zoom;
-      const w = activeImgLayer.width * zoom;
-      const h = activeImgLayer.height * zoom;
+        (imgIsResizing
+          ? liveImageResize.y
+          : imgIsDragging
+            ? liveImagePos.y
+            : activeImgLayer.y) * zoom;
+      const w =
+        (imgIsResizing ? liveImageResize.width : activeImgLayer.width) * zoom;
+      const h =
+        (imgIsResizing ? liveImageResize.height : activeImgLayer.height) * zoom;
 
       // Selection fill
       g.rect(posX, posY, w, h);
@@ -678,8 +955,36 @@ const MapScene = memo(function MapScene({
       g.setStrokeStyle({ width: 2, color: 0x3b82f6, alpha: 1 });
       g.rect(posX - 0.5, posY - 0.5, w + 1, h + 1);
       g.stroke();
+
+      // Resize handles
+      const hs = 8;
+      const hh = hs / 2;
+      const handlePositions: [number, number][] = [
+        [posX, posY],
+        [posX + w / 2, posY],
+        [posX + w, posY],
+        [posX, posY + h / 2],
+        [posX + w, posY + h / 2],
+        [posX, posY + h],
+        [posX + w / 2, posY + h],
+        [posX + w, posY + h],
+      ];
+      for (const [hx, hy] of handlePositions) {
+        g.rect(hx - hh, hy - hh, hs, hs);
+        g.fill({ color: 0xffffff, alpha: 1 });
+        g.setStrokeStyle({ width: 1, color: 0x3b82f6, alpha: 1 });
+        g.rect(hx - hh, hy - hh, hs, hs);
+        g.stroke();
+      }
     },
-    [currentTool, imageLayers, activeLayerId, zoom, liveImagePos],
+    [
+      currentTool,
+      imageLayers,
+      activeLayerId,
+      zoom,
+      liveImagePos,
+      liveImageResize,
+    ],
   );
 
   // Get the tile snapshot from the current move action (for overlay rendering)
@@ -718,22 +1023,32 @@ const MapScene = memo(function MapScene({
           const imgLayer = entry.layer as ImageLayer;
           const tex = imageLayerTextureCache.get(imgLayer.assetId);
           if (!tex) return null;
+          const imgIsResizing = liveImageResize?.layerId === imgLayer.id;
+          const imgIsDragging = liveImagePos?.layerId === imgLayer.id;
           const posX =
-            (liveImagePos?.layerId === imgLayer.id
-              ? liveImagePos.x
-              : imgLayer.x) * zoom;
+            (imgIsResizing
+              ? liveImageResize.x
+              : imgIsDragging
+                ? liveImagePos.x
+                : imgLayer.x) * zoom;
           const posY =
-            (liveImagePos?.layerId === imgLayer.id
-              ? liveImagePos.y
-              : imgLayer.y) * zoom;
+            (imgIsResizing
+              ? liveImageResize.y
+              : imgIsDragging
+                ? liveImagePos.y
+                : imgLayer.y) * zoom;
+          const spriteW =
+            (imgIsResizing ? liveImageResize.width : imgLayer.width) * zoom;
+          const spriteH =
+            (imgIsResizing ? liveImageResize.height : imgLayer.height) * zoom;
           return (
             <pixiSprite
               key={imgLayer.id}
               texture={tex}
               x={posX}
               y={posY}
-              width={imgLayer.width * zoom}
-              height={imgLayer.height * zoom}
+              width={spriteW}
+              height={spriteH}
               visible={imgLayer.visible}
               alpha={imgLayer.id === activeLayerId ? 1 : 0.7}
             />
@@ -867,9 +1182,13 @@ const MapScene = memo(function MapScene({
         eventMode="static"
         cursor={
           currentTool === "select"
-            ? isMoving
-              ? "grabbing"
-              : "default"
+            ? resizingHandle
+              ? RESIZE_CURSORS[resizingHandle]
+              : hoveredHandle
+                ? RESIZE_CURSORS[hoveredHandle]
+                : isMoving
+                  ? "grabbing"
+                  : "default"
             : "crosshair"
         }
         onPointerDown={handlePointerDown}

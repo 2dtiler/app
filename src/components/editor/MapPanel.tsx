@@ -413,6 +413,24 @@ export function MapPanel() {
     [setState],
   );
 
+  // Resize an image layer to new position and dimensions
+  const handleResizeImageLayer = useCallback(
+    (layerId: string, x: number, y: number, width: number, height: number) => {
+      setState((draft) => {
+        const imgLayer = (draft.project?.imageLayers ?? []).find(
+          (l) => l.id === layerId,
+        );
+        if (imgLayer) {
+          imgLayer.x = x;
+          imgLayer.y = y;
+          imgLayer.width = width;
+          imgLayer.height = height;
+        }
+      });
+    },
+    [setState],
+  );
+
   if (!project) return null;
 
   const activeGroup = project.mapGroups.find(
@@ -1100,6 +1118,7 @@ export function MapPanel() {
             onMoveTiles={handleMoveTiles}
             imageLayers={flatImageLayers}
             onMoveImageLayer={handleMoveImageLayer}
+            onResizeImageLayer={handleResizeImageLayer}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
