@@ -113,6 +113,8 @@ interface MapCanvasProps {
   ) => void;
   /** Called when an object is selected/deselected on canvas */
   onSelectObject: (objectId: string | null) => void;
+  /** Called when user cancels pending object placement (e.g. Escape during polygon drawing) */
+  onCancelPendingObject?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +332,7 @@ const MapScene = memo(function MapScene({
   onResizeObject,
   onUpdatePolygonPoints,
   onSelectObject,
+  onCancelPendingObject,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
@@ -395,6 +398,10 @@ const MapScene = memo(function MapScene({
     null,
   );
   const [hoveredHandle, setHoveredHandle] = useState<ResizeHandle | null>(null);
+  // --- Object hover cursor state ---
+  const [hoveredObjectCursor, setHoveredObjectCursor] = useState<string | null>(
+    null,
+  );
 
   // --- Shift key tracking for aspect ratio constraint ---
   const shiftKeyRef = useRef(false);
@@ -420,6 +427,11 @@ const MapScene = memo(function MapScene({
     startY: number;
   };
   const objectPlaceRef = useRef<ObjectPlaceAction | null>(null);
+
+  // --- Manual double-click detection for polygon closure ---
+  const lastClickRef = useRef<{ time: number; x: number; y: number } | null>(
+    null,
+  );
   const [liveObjectPlace, setLiveObjectPlace] = useState<{
     type: ObjectType;
     x: number;
@@ -433,6 +445,9 @@ const MapScene = memo(function MapScene({
     { x: number; y: number }[]
   >([]);
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
+  const [polygonCursorPos, setPolygonCursorPos] = useState<
+    { x: number; y: number } | null
+  >(null);
 
   // --- Object drag state ---
   type ObjectDragAction = {
@@ -478,6 +493,12 @@ const MapScene = memo(function MapScene({
     origPoint: { x: number; y: number };
   };
   const polyVertexDragRef = useRef<PolyVertexDragAction | null>(null);
+  const [livePolyVertex, setLivePolyVertex] = useState<{
+    objectId: string;
+    vertexIndex: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // --- Resize handle hit testing ---
   const handleHitSize = 12;
@@ -572,26 +593,34 @@ const MapScene = memo(function MapScene({
         // --- Object placement mode ---
         if (pendingObjectType) {
           if (pendingObjectType === "polygon") {
-            // Polygon: each click adds a point
+            // Polygon: each click adds a point (Figma-like behavior)
+            // - Click first point or double-click to close
+            // - Enter to close, Escape to cancel (handled via useEffect)
             const px = e.global.x / zoom;
             const py = e.global.y / zoom;
+
+            // Detect double-click manually (PixiJS doesn't support dblclick)
+            const now = Date.now();
+            const last = lastClickRef.current;
+            const isDoubleClick =
+              last !== null &&
+              now - last.time < 400 &&
+              Math.hypot(e.global.x - last.x, e.global.y - last.y) < 12;
+            lastClickRef.current = { time: now, x: e.global.x, y: e.global.y };
+
             if (!isDrawingPolygon) {
+              // Start a new polygon
               setIsDrawingPolygon(true);
               setPolygonPoints([{ x: px, y: py }]);
+              setPolygonCursorPos({ x: px, y: py });
             } else {
-              // Close polygon if clicking near the first point or if we have 3+ points and double-click
-              const first = polygonPoints[0];
-              const distToFirst = Math.hypot(
-                (px - first.x) * zoom,
-                (py - first.y) * zoom,
-              );
-              if (polygonPoints.length >= 3 && distToFirst < 10) {
-                // Close polygon by clicking near the first vertex
-                const minX = Math.min(...polygonPoints.map((p) => p.x));
-                const minY = Math.min(...polygonPoints.map((p) => p.y));
-                const maxX = Math.max(...polygonPoints.map((p) => p.x));
-                const maxY = Math.max(...polygonPoints.map((p) => p.y));
-                const relativePoints = polygonPoints.map((p) => ({
+              // Helper to finalize and create the polygon object
+              const closePolygon = (pts: { x: number; y: number }[]) => {
+                const minX = Math.min(...pts.map((p) => p.x));
+                const minY = Math.min(...pts.map((p) => p.y));
+                const maxX = Math.max(...pts.map((p) => p.x));
+                const maxY = Math.max(...pts.map((p) => p.y));
+                const relativePoints = pts.map((p) => ({
                   x: p.x - minX,
                   y: p.y - minY,
                 }));
@@ -605,7 +634,28 @@ const MapScene = memo(function MapScene({
                 );
                 setIsDrawingPolygon(false);
                 setPolygonPoints([]);
+                setPolygonCursorPos(null);
+                lastClickRef.current = null;
+              };
+
+              // Check if clicking near the first point (snap to close)
+              const first = polygonPoints[0];
+              const distToFirst = Math.hypot(
+                (px - first.x) * zoom,
+                (py - first.y) * zoom,
+              );
+              if (polygonPoints.length >= 3 && distToFirst < 15) {
+                // Close polygon by clicking near the first vertex
+                closePolygon(polygonPoints);
+              } else if (isDoubleClick && polygonPoints.length >= 3) {
+                // Close polygon via double-click (don't add the double-click point)
+                closePolygon(polygonPoints);
+              } else if (isDoubleClick && polygonPoints.length === 2) {
+                // Double-click with only 2 points — add this point then close
+                const pts = [...polygonPoints, { x: px, y: py }];
+                closePolygon(pts);
               } else {
+                // Add a new vertex
                 setPolygonPoints((prev) => [...prev, { x: px, y: py }]);
               }
             }
@@ -892,6 +942,7 @@ const MapScene = memo(function MapScene({
       onCreateObject,
       onSelectObject,
       isDrawingPolygon,
+      polygonPoints,
       liveObjectPos,
       liveObjectResize,
     ],
@@ -901,6 +952,11 @@ const MapScene = memo(function MapScene({
     (e: { global: { x: number; y: number } }) => {
       const pos = getGridPos(e.global.x, e.global.y);
       setHoverTile(pos);
+
+      // Track cursor for polygon drawing preview
+      if (isDrawingPolygon) {
+        setPolygonCursorPos({ x: e.global.x / zoom, y: e.global.y / zoom });
+      }
 
       if (currentTool === "select") {
         // Handle object placement rubber-banding
@@ -943,20 +999,17 @@ const MapScene = memo(function MapScene({
           return;
         }
 
-        // Handle polygon vertex drag
+        // Handle polygon vertex drag — use local state for real-time feedback
         const pvDrag = polyVertexDragRef.current;
         if (pvDrag) {
           const dx = (e.global.x - pvDrag.startX) / zoom;
           const dy = (e.global.y - pvDrag.startY) / zoom;
-          const activeObj = objects.find((o) => o.id === pvDrag.objectId);
-          if (activeObj) {
-            const newPoints = activeObj.points.map((p, i) =>
-              i === pvDrag.vertexIndex
-                ? { x: pvDrag.origPoint.x + dx, y: pvDrag.origPoint.y + dy }
-                : p,
-            );
-            onUpdatePolygonPoints(pvDrag.objectId, newPoints);
-          }
+          setLivePolyVertex({
+            objectId: pvDrag.objectId,
+            vertexIndex: pvDrag.vertexIndex,
+            x: pvDrag.origPoint.x + dx,
+            y: pvDrag.origPoint.y + dy,
+          });
           return;
         }
 
@@ -1007,9 +1060,112 @@ const MapScene = memo(function MapScene({
 
         const action = selActionRef.current;
         if (!action) {
-          // Check hover on resize handles for cursor feedback
+          // Check hover on resize handles for cursor feedback (image layers)
           const handle = hitTestResizeHandle(e.global.x, e.global.y);
           setHoveredHandle(handle);
+
+          // Check hover over objects for cursor feedback (object layers)
+          const isObjLayerActive = objectLayers.some(
+            (l) => l.id === activeLayerId,
+          );
+          if (isObjLayerActive && !handle) {
+            let objCursor: string | null = null;
+
+            // Check resize handles of active object
+            const activeObj = objects.find((o) => o.id === activeObjectId);
+            if (
+              activeObj &&
+              (activeObj.type === "rectangle" || activeObj.type === "ellipse")
+            ) {
+              const aox = activeObj.x * zoom;
+              const aoy = activeObj.y * zoom;
+              const aow = activeObj.width * zoom;
+              const aoh = activeObj.height * zoom;
+              const objHandles: [ResizeHandle, number, number][] = [
+                ["nw", aox, aoy],
+                ["n", aox + aow / 2, aoy],
+                ["ne", aox + aow, aoy],
+                ["w", aox, aoy + aoh / 2],
+                ["e", aox + aow, aoy + aoh / 2],
+                ["sw", aox, aoy + aoh],
+                ["s", aox + aow / 2, aoy + aoh],
+                ["se", aox + aow, aoy + aoh],
+              ];
+              const hSize = 8;
+              for (const [h, cx, cy] of objHandles) {
+                if (
+                  Math.abs(e.global.x - cx) <= hSize &&
+                  Math.abs(e.global.y - cy) <= hSize
+                ) {
+                  objCursor = RESIZE_CURSORS[h];
+                  break;
+                }
+              }
+            }
+
+            // Check polygon vertex handles of active polygon
+            if (!objCursor && activeObj && activeObj.type === "polygon") {
+              const aox = activeObj.x * zoom;
+              const aoy = activeObj.y * zoom;
+              for (const pt of activeObj.points) {
+                const vx = aox + pt.x * zoom;
+                const vy = aoy + pt.y * zoom;
+                if (
+                  Math.abs(e.global.x - vx) <= 8 &&
+                  Math.abs(e.global.y - vy) <= 8
+                ) {
+                  objCursor = "pointer";
+                  break;
+                }
+              }
+            }
+
+            // Check hover over object bodies
+            if (!objCursor) {
+              const layerObjects = objects
+                .filter((o) => o.layerId === activeLayerId && o.visible)
+                .reverse();
+              for (const obj of layerObjects) {
+                const ox = obj.x * zoom;
+                const oy = obj.y * zoom;
+                const ow = obj.width * zoom;
+                const oh = obj.height * zoom;
+                let hit = false;
+                if (obj.type === "rectangle" || obj.type === "ellipse") {
+                  hit =
+                    e.global.x >= ox &&
+                    e.global.x <= ox + ow &&
+                    e.global.y >= oy &&
+                    e.global.y <= oy + oh;
+                } else if (obj.type === "point") {
+                  const ps = 8 * zoom;
+                  hit =
+                    Math.abs(e.global.x - ox) <= ps &&
+                    Math.abs(e.global.y - oy) <= ps;
+                } else if (obj.type === "polygon" && obj.points.length >= 3) {
+                  const pts = obj.points;
+                  const minPx = Math.min(...pts.map((p) => p.x)) * zoom + ox;
+                  const maxPx = Math.max(...pts.map((p) => p.x)) * zoom + ox;
+                  const minPy = Math.min(...pts.map((p) => p.y)) * zoom + oy;
+                  const maxPy = Math.max(...pts.map((p) => p.y)) * zoom + oy;
+                  hit =
+                    e.global.x >= minPx &&
+                    e.global.x <= maxPx &&
+                    e.global.y >= minPy &&
+                    e.global.y <= maxPy;
+                }
+                if (hit) {
+                  objCursor = obj.locked ? "not-allowed" : "move";
+                  break;
+                }
+              }
+            }
+
+            setHoveredObjectCursor(objCursor);
+          } else if (!isObjLayerActive) {
+            setHoveredObjectCursor(null);
+          }
+
           return;
         }
         const gx = Math.floor(e.global.x / scaledTile);
@@ -1072,6 +1228,10 @@ const MapScene = memo(function MapScene({
       hitTestResizeHandle,
       objects,
       onUpdatePolygonPoints,
+      objectLayers,
+      activeLayerId,
+      activeObjectId,
+      isDrawingPolygon,
     ],
   );
 
@@ -1118,6 +1278,18 @@ const MapScene = memo(function MapScene({
 
       // Commit polygon vertex drag
       if (currentTool === "select" && polyVertexDragRef.current) {
+        if (livePolyVertex) {
+          const activeObj = objects.find((o) => o.id === livePolyVertex.objectId);
+          if (activeObj) {
+            const newPoints = activeObj.points.map((p, i) =>
+              i === livePolyVertex.vertexIndex
+                ? { x: livePolyVertex.x, y: livePolyVertex.y }
+                : p,
+            );
+            onUpdatePolygonPoints(livePolyVertex.objectId, newPoints);
+          }
+          setLivePolyVertex(null);
+        }
         polyVertexDragRef.current = null;
         return;
       }
@@ -1206,6 +1378,9 @@ const MapScene = memo(function MapScene({
       onResizeObject,
       liveObjectPos,
       onMoveObject,
+      livePolyVertex,
+      objects,
+      onUpdatePolygonPoints,
     ],
   );
 
@@ -1234,6 +1409,18 @@ const MapScene = memo(function MapScene({
     }
     // Commit polygon vertex drag on leave
     if (currentTool === "select" && polyVertexDragRef.current) {
+      if (livePolyVertex) {
+        const activeObj = objects.find((o) => o.id === livePolyVertex.objectId);
+        if (activeObj) {
+          const newPoints = activeObj.points.map((p, i) =>
+            i === livePolyVertex.vertexIndex
+              ? { x: livePolyVertex.x, y: livePolyVertex.y }
+              : p,
+          );
+          onUpdatePolygonPoints(livePolyVertex.objectId, newPoints);
+        }
+        setLivePolyVertex(null);
+      }
       polyVertexDragRef.current = null;
       return;
     }
@@ -1306,6 +1493,9 @@ const MapScene = memo(function MapScene({
     onMoveObject,
     liveObjectResize,
     onResizeObject,
+    livePolyVertex,
+    objects,
+    onUpdatePolygonPoints,
   ]);
 
   // Draw checkerboard background
@@ -1537,7 +1727,14 @@ const MapScene = memo(function MapScene({
           } else if (obj.type === "polygon") {
             if (obj.points.length >= 2) {
               g.setStrokeStyle({ width: lineWidth, color, alpha });
-              const pts = obj.points;
+              // Use live vertex position during drag for instant feedback
+              const pts = obj.points.map((p, i) =>
+                livePolyVertex &&
+                livePolyVertex.objectId === obj.id &&
+                livePolyVertex.vertexIndex === i
+                  ? livePolyVertex
+                  : p,
+              );
               g.moveTo(dx + pts[0].x * zoom, dy + pts[0].y * zoom);
               for (let i = 1; i < pts.length; i++) {
                 g.lineTo(dx + pts[i].x * zoom, dy + pts[i].y * zoom);
@@ -1583,7 +1780,14 @@ const MapScene = memo(function MapScene({
           // Draw polygon vertex handles for selected polygon
           if (isActive && obj.type === "polygon") {
             const vr = 4;
-            for (const pt of obj.points) {
+            for (let vi = 0; vi < obj.points.length; vi++) {
+              // Use live vertex position during drag
+              const pt =
+                livePolyVertex &&
+                livePolyVertex.objectId === obj.id &&
+                livePolyVertex.vertexIndex === vi
+                  ? livePolyVertex
+                  : obj.points[vi];
               const vx = dx + pt.x * zoom;
               const vy = dy + pt.y * zoom;
               g.circle(vx, vy, vr);
@@ -1619,16 +1823,70 @@ const MapScene = memo(function MapScene({
 
       // Draw polygon being drawn
       if (isDrawingPolygon && polygonPoints.length > 0) {
+        // Draw filled polygon preview (semi-transparent)
+        if (polygonPoints.length >= 3) {
+          g.moveTo(polygonPoints[0].x * zoom, polygonPoints[0].y * zoom);
+          for (let i = 1; i < polygonPoints.length; i++) {
+            g.lineTo(polygonPoints[i].x * zoom, polygonPoints[i].y * zoom);
+          }
+          if (polygonCursorPos) {
+            g.lineTo(polygonCursorPos.x * zoom, polygonCursorPos.y * zoom);
+          }
+          g.closePath();
+          g.fill({ color: 0x00aaff, alpha: 0.06 });
+        }
+
+        // Draw placed edges
         g.setStrokeStyle({ width: 2, color: 0x00aaff, alpha: 0.8 });
         g.moveTo(polygonPoints[0].x * zoom, polygonPoints[0].y * zoom);
         for (let i = 1; i < polygonPoints.length; i++) {
           g.lineTo(polygonPoints[i].x * zoom, polygonPoints[i].y * zoom);
         }
         g.stroke();
+
+        // Draw preview line from last point to cursor
+        if (polygonCursorPos && polygonPoints.length >= 1) {
+          const last = polygonPoints[polygonPoints.length - 1];
+          g.setStrokeStyle({ width: 1.5, color: 0x00aaff, alpha: 0.5 });
+          g.moveTo(last.x * zoom, last.y * zoom);
+          g.lineTo(polygonCursorPos.x * zoom, polygonCursorPos.y * zoom);
+          g.stroke();
+
+          // Draw closing preview line from cursor to first point when >= 2 points
+          if (polygonPoints.length >= 2) {
+            const first = polygonPoints[0];
+            g.setStrokeStyle({ width: 1, color: 0x00aaff, alpha: 0.3 });
+            g.moveTo(polygonCursorPos.x * zoom, polygonCursorPos.y * zoom);
+            g.lineTo(first.x * zoom, first.y * zoom);
+            g.stroke();
+          }
+        }
+
         // Draw vertex circles
-        for (const pt of polygonPoints) {
-          g.circle(pt.x * zoom, pt.y * zoom, 4);
-          g.fill({ color: 0x00aaff, alpha: 0.8 });
+        for (let i = 0; i < polygonPoints.length; i++) {
+          const pt = polygonPoints[i];
+          const isFirst = i === 0;
+          // Show snap indicator on first point when cursor is near it
+          let snapHighlight = false;
+          if (
+            isFirst &&
+            polygonCursorPos &&
+            polygonPoints.length >= 3
+          ) {
+            const dist = Math.hypot(
+              (polygonCursorPos.x - pt.x) * zoom,
+              (polygonCursorPos.y - pt.y) * zoom,
+            );
+            snapHighlight = dist < 15;
+          }
+          const radius = snapHighlight ? 7 : 4;
+          g.circle(pt.x * zoom, pt.y * zoom, radius);
+          g.fill({ color: snapHighlight ? 0x00ff88 : 0x00aaff, alpha: snapHighlight ? 1 : 0.8 });
+          if (snapHighlight) {
+            g.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 1 });
+            g.circle(pt.x * zoom, pt.y * zoom, radius);
+            g.stroke();
+          }
         }
       }
     },
@@ -1640,10 +1898,66 @@ const MapScene = memo(function MapScene({
       liveObjectPos,
       liveObjectResize,
       liveObjectPlace,
+      livePolyVertex,
       isDrawingPolygon,
       polygonPoints,
+      polygonCursorPos,
     ],
   );
+
+  // --- Keyboard handler for polygon drawing (Escape/Enter) ---
+  useEffect(() => {
+    if (!isDrawingPolygon) return;
+
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDrawingPolygon(false);
+        setPolygonPoints([]);
+        setPolygonCursorPos(null);
+        lastClickRef.current = null;
+        onCancelPendingObject?.();
+      }
+      if (e.key === "Enter" && polygonPoints.length >= 3) {
+        e.preventDefault();
+        e.stopPropagation();
+        const minX = Math.min(...polygonPoints.map((p) => p.x));
+        const minY = Math.min(...polygonPoints.map((p) => p.y));
+        const maxX = Math.max(...polygonPoints.map((p) => p.x));
+        const maxY = Math.max(...polygonPoints.map((p) => p.y));
+        const relativePoints = polygonPoints.map((p) => ({
+          x: p.x - minX,
+          y: p.y - minY,
+        }));
+        onCreateObject(
+          "polygon",
+          minX,
+          minY,
+          maxX - minX,
+          maxY - minY,
+          relativePoints,
+        );
+        setIsDrawingPolygon(false);
+        setPolygonPoints([]);
+        setPolygonCursorPos(null);
+        lastClickRef.current = null;
+      }
+    }
+
+    window.addEventListener("keydown", handleKey, true);
+    return () => window.removeEventListener("keydown", handleKey, true);
+  }, [isDrawingPolygon, polygonPoints, onCreateObject, onCancelPendingObject]);
+
+  // --- Reset polygon state when pendingObjectType changes away from polygon ---
+  useEffect(() => {
+    if (pendingObjectType !== "polygon") {
+      setIsDrawingPolygon(false);
+      setPolygonPoints([]);
+      setPolygonCursorPos(null);
+      lastClickRef.current = null;
+    }
+  }, [pendingObjectType]);
 
   // Get the tile snapshot from the current move action (for overlay rendering)
   const moveAction =
@@ -1843,13 +2157,17 @@ const MapScene = memo(function MapScene({
         eventMode="static"
         cursor={
           currentTool === "select"
-            ? resizingHandle
-              ? RESIZE_CURSORS[resizingHandle]
-              : hoveredHandle
-                ? RESIZE_CURSORS[hoveredHandle]
-                : isMoving
-                  ? "grabbing"
-                  : "default"
+            ? pendingObjectType
+              ? "crosshair"
+              : resizingHandle
+                ? RESIZE_CURSORS[resizingHandle]
+                : hoveredHandle
+                  ? RESIZE_CURSORS[hoveredHandle]
+                  : hoveredObjectCursor
+                    ? hoveredObjectCursor
+                    : isMoving
+                      ? "grabbing"
+                      : "default"
             : "crosshair"
         }
         onPointerDown={handlePointerDown}
@@ -1857,28 +2175,6 @@ const MapScene = memo(function MapScene({
         onPointerUp={handlePointerUp}
         onPointerUpOutside={handlePointerUp}
         onPointerLeave={handlePointerLeave}
-        ondblclick={useCallback(() => {
-          if (isDrawingPolygon && polygonPoints.length >= 3) {
-            const minX = Math.min(...polygonPoints.map((p) => p.x));
-            const minY = Math.min(...polygonPoints.map((p) => p.y));
-            const maxX = Math.max(...polygonPoints.map((p) => p.x));
-            const maxY = Math.max(...polygonPoints.map((p) => p.y));
-            const relativePoints = polygonPoints.map((p) => ({
-              x: p.x - minX,
-              y: p.y - minY,
-            }));
-            onCreateObject(
-              "polygon",
-              minX,
-              minY,
-              maxX - minX,
-              maxY - minY,
-              relativePoints,
-            );
-            setIsDrawingPolygon(false);
-            setPolygonPoints([]);
-          }
-        }, [isDrawingPolygon, polygonPoints, onCreateObject])}
       />
     </>
   );

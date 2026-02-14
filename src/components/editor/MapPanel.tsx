@@ -484,6 +484,13 @@ export function MapPanel() {
     [setState, state.activeLayerId, project?.objects],
   );
 
+  // Cancel pending object placement (e.g. Escape during polygon drawing)
+  const handleCancelPendingObject = useCallback(() => {
+    setState((draft) => {
+      draft.pendingObjectType = null;
+    });
+  }, [setState]);
+
   // Move a map object to a new position
   const handleMoveObject = useCallback(
     (objectId: string, x: number, y: number) => {
@@ -1242,6 +1249,7 @@ export function MapPanel() {
             activeObjectId={state.activeObjectId}
             pendingObjectType={state.pendingObjectType}
             onCreateObject={handleCreateObject}
+            onCancelPendingObject={handleCancelPendingObject}
             onMoveObject={handleMoveObject}
             onResizeObject={handleResizeObject}
             onUpdatePolygonPoints={handleUpdatePolygonPoints}
