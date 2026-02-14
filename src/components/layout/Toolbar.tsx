@@ -61,11 +61,11 @@ export const Toolbar = memo(function Toolbar({
             File
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onClick={onNewProject}>
+            <MenubarItem onMouseDown={onNewProject}>
               New Project
               <MenubarShortcut>⌘N</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem onClick={onSaveProject}>
+            <MenubarItem onMouseDown={onSaveProject}>
               Save Project
               <MenubarShortcut>⌘S</MenubarShortcut>
             </MenubarItem>
@@ -73,25 +73,25 @@ export const Toolbar = memo(function Toolbar({
             <MenubarSub>
               <MenubarSubTrigger>Import</MenubarSubTrigger>
               <MenubarSubContent>
-                <MenubarItem onClick={onImportProject}>
+                <MenubarItem onMouseDown={onImportProject}>
                   Project (.2dp)
                 </MenubarItem>
-                <MenubarItem onClick={onImportMap}>Map</MenubarItem>
-                <MenubarItem onClick={onImportTileset}>Tileset</MenubarItem>
+                <MenubarItem onMouseDown={onImportMap}>Map</MenubarItem>
+                <MenubarItem onMouseDown={onImportTileset}>Tileset</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSub>
               <MenubarSubTrigger>Export</MenubarSubTrigger>
               <MenubarSubContent>
-                <MenubarItem onClick={onExportProject}>
+                <MenubarItem onMouseDown={onExportProject}>
                   Project (.2dp)
                 </MenubarItem>
-                <MenubarItem onClick={onExportMap}>Map</MenubarItem>
-                <MenubarItem onClick={onExportTileset}>Tileset</MenubarItem>
+                <MenubarItem onMouseDown={onExportMap}>Map</MenubarItem>
+                <MenubarItem onMouseDown={onExportTileset}>Tileset</MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator />
-            <MenubarItem onClick={onOpenSettings}>
+            <MenubarItem onMouseDown={onOpenSettings}>
               Settings
               <MenubarShortcut>⌘,</MenubarShortcut>
             </MenubarItem>
@@ -104,21 +104,21 @@ export const Toolbar = memo(function Toolbar({
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem
-              onClick={() => controls.back()}
+              onMouseDown={() => controls.back()}
               disabled={!controls.canBack()}
             >
               Undo
               <MenubarShortcut>⌘Z</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
-              onClick={() => controls.forward()}
+              onMouseDown={() => controls.forward()}
               disabled={!controls.canForward()}
             >
               Redo
               <MenubarShortcut>⇧⌘Z</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onClick={onFindReplace}>
+            <MenubarItem onMouseDown={onFindReplace}>
               Find and Replace
               <MenubarShortcut>⌘H</MenubarShortcut>
             </MenubarItem>
@@ -130,13 +130,13 @@ export const Toolbar = memo(function Toolbar({
             Tools
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onClick={() => onOpenTool("image-editor")}>
+            <MenubarItem onMouseDown={() => onOpenTool("image-editor")}>
               Image Editor
             </MenubarItem>
-            <MenubarItem onClick={() => onOpenTool("ai-assets")}>
+            <MenubarItem onMouseDown={() => onOpenTool("ai-assets")}>
               AI Assets
             </MenubarItem>
-            <MenubarItem onClick={() => onOpenTool("sprite-generator")}>
+            <MenubarItem onMouseDown={() => onOpenTool("sprite-generator")}>
               Sprite Generator
             </MenubarItem>
           </MenubarContent>
@@ -147,12 +147,12 @@ export const Toolbar = memo(function Toolbar({
             Help
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onClick={onAbout}>About</MenubarItem>
-            <MenubarItem onClick={onKeyboardShortcuts}>
+            <MenubarItem onMouseDown={onAbout}>About</MenubarItem>
+            <MenubarItem onMouseDown={onKeyboardShortcuts}>
               Keyboard Shortcuts
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onClick={onSubmitBug}>Submit Bug</MenubarItem>
+            <MenubarItem onMouseDown={onSubmitBug}>Submit Bug</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
       </Menubar>

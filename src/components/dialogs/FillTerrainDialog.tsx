@@ -283,7 +283,7 @@ export function FillTerrainDialog({
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs text-destructive"
-                onClick={handleDeleteTerrain}
+                onMouseDown={handleDeleteTerrain}
               >
                 Delete
               </Button>
@@ -347,7 +347,7 @@ export function FillTerrainDialog({
                 <Button
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={handleSave}
+                  onMouseDown={handleSave}
                   disabled={!terrainName.trim()}
                 >
                   Save
@@ -356,7 +356,7 @@ export function FillTerrainDialog({
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setShowSaveInput(false)}
+                  onMouseDown={() => setShowSaveInput(false)}
                 >
                   Cancel
                 </Button>
@@ -366,7 +366,7 @@ export function FillTerrainDialog({
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs"
-                onClick={() => setShowSaveInput(true)}
+                onMouseDown={() => setShowSaveInput(true)}
                 disabled={terrainTiles.length === 0}
               >
                 <Save className="h-3 w-3 mr-1" />
@@ -380,14 +380,14 @@ export function FillTerrainDialog({
               variant="ghost"
               size="sm"
               className="h-7 text-xs"
-              onClick={() => onOpenChange(false)}
+              onMouseDown={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
               className="h-7 text-xs"
-              onClick={handleApply}
+              onMouseDown={handleApply}
               disabled={terrainTiles.length === 0}
             >
               Apply

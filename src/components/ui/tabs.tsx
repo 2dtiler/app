@@ -113,7 +113,7 @@ function TabsList({
           "flex-none flex items-center justify-center h-6 w-5 text-muted-foreground hover:text-foreground transition-opacity",
           canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
-        onClick={() => scroll("left")}
+        onMouseDown={() => scroll("left")}
       >
         <ChevronLeft className="h-3.5 w-3.5" />
       </button>
@@ -141,7 +141,7 @@ function TabsList({
           "flex-none flex items-center justify-center h-6 w-5 text-muted-foreground hover:text-foreground transition-opacity",
           canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
-        onClick={() => scroll("right")}
+        onMouseDown={() => scroll("right")}
       >
         <ChevronRight className="h-3.5 w-3.5" />
       </button>

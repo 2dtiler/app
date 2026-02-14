@@ -324,7 +324,7 @@ export function TilesetPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => handleZoom(-1)}
+                onMouseDown={() => handleZoom(-1)}
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
@@ -340,7 +340,7 @@ export function TilesetPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => handleZoom(1)}
+                onMouseDown={() => handleZoom(1)}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </Button>
@@ -376,7 +376,7 @@ export function TilesetPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 shrink-0 text-destructive"
-                onClick={() =>
+                onMouseDown={() =>
                   setDeleteTarget({
                     type: "group",
                     id: activeGroup.id,
@@ -445,12 +445,12 @@ export function TilesetPanel() {
                         </ContextMenuTrigger>
                         <ContextMenuContent>
                           <ContextMenuItem
-                            onClick={() => handleTabDoubleClick(t)}
+                            onMouseDown={() => handleTabDoubleClick(t)}
                           >
                             Rename
                           </ContextMenuItem>
                           <ContextMenuItem
-                            onClick={() => handleDuplicateTileset(t)}
+                            onMouseDown={() => handleDuplicateTileset(t)}
                           >
                             Duplicate
                           </ContextMenuItem>
@@ -463,7 +463,7 @@ export function TilesetPanel() {
                           variant="ghost"
                           size="icon"
                           className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                          onClick={() =>
+                          onMouseDown={() =>
                             setDeleteTarget({
                               type: "tileset",
                               id: t.id,
@@ -489,7 +489,7 @@ export function TilesetPanel() {
           variant="default"
           size="sm"
           className="h-6 px-2 text-[10px] shrink-0"
-          onClick={handleAddTileset}
+          onMouseDown={handleAddTileset}
         >
           <Plus className="h-3.5 w-3.5" />
           Add Tileset
@@ -541,13 +541,13 @@ export function TilesetPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setAddGroupOpen(false)}
+              onMouseDown={() => setAddGroupOpen(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={handleCreateGroup}
+              onMouseDown={handleCreateGroup}
               disabled={!newGroupName.trim()}
             >
               Create
@@ -574,7 +574,7 @@ export function TilesetPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
+            <AlertDialogAction onMouseDown={handleDeleteConfirm}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -260,13 +260,13 @@ export function ProjectModal({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowNewProject(false)}
+                  onMouseDown={() => setShowNewProject(false)}
                 >
                   Cancel
                 </Button>
                 <Button
                   size="sm"
-                  onClick={handleCreateProject}
+                  onMouseDown={handleCreateProject}
                   disabled={!newProjectName.trim()}
                 >
                   Create
@@ -279,7 +279,7 @@ export function ProjectModal({
                 <Button
                   size="sm"
                   className="flex-1"
-                  onClick={() => setShowNewProject(true)}
+                  onMouseDown={() => setShowNewProject(true)}
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   New Project
@@ -288,7 +288,7 @@ export function ProjectModal({
                   size="sm"
                   variant="outline"
                   className="flex-1"
-                  onClick={handleImportProject}
+                  onMouseDown={handleImportProject}
                 >
                   <FolderOpen className="mr-1 h-3.5 w-3.5" />
                   Import .2dp
@@ -305,7 +305,7 @@ export function ProjectModal({
                       >
                         <button
                           className="flex-1 text-left text-sm truncate"
-                          onClick={() => handleOpenProject(p)}
+                          onMouseDown={() => handleOpenProject(p)}
                         >
                           {p.name}
                         </button>
@@ -318,7 +318,7 @@ export function ProjectModal({
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={() => handleExportProject(p)}
+                              onMouseDown={() => handleExportProject(p)}
                             >
                               <Download className="h-3 w-3" />
                             </Button>
@@ -331,7 +331,7 @@ export function ProjectModal({
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive"
-                              onClick={() => setDeleteTarget(p)}
+                              onMouseDown={() => setDeleteTarget(p)}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -376,7 +376,7 @@ export function ProjectModal({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteProject}>
+            <AlertDialogAction onMouseDown={handleDeleteProject}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

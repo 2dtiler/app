@@ -124,7 +124,7 @@ export function AddLayerDialog({
                 <button
                   key={opt.type}
                   disabled={opt.disabled}
-                  onClick={() => handleSelectType(opt.type)}
+                  onMouseDown={() => handleSelectType(opt.type)}
                   className={cn(
                     "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
                     opt.disabled
@@ -179,10 +179,10 @@ export function AddLayerDialog({
               />
             </div>
             <DialogFooter>
-              <Button variant="ghost" size="sm" onClick={handleBack}>
+              <Button variant="ghost" size="sm" onMouseDown={handleBack}>
                 Back
               </Button>
-              <Button size="sm" onClick={handleCreate}>
+              <Button size="sm" onMouseDown={handleCreate}>
                 Create
               </Button>
             </DialogFooter>

@@ -1,5 +1,4 @@
 Ability to duplicate a layer
-Replace onClick => onMouseDown
 File -> Settings - Set up AI Providers
 Get Claude Code Account
 Performance Audit

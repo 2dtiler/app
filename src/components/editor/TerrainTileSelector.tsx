@@ -177,7 +177,7 @@ export function TerrainTileSelector({
                 variant="ghost"
                 size="icon"
                 className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => handleRemove(index)}
+                onMouseDown={() => handleRemove(index)}
               >
                 <X className="h-2.5 w-2.5" />
               </Button>

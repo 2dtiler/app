@@ -152,7 +152,7 @@ export function ObjectPropertiesDialog({
                 variant="ghost"
                 size="sm"
                 className="h-6 text-xs"
-                onClick={handleAddProperty}
+                onMouseDown={handleAddProperty}
               >
                 <Plus className="h-3 w-3 mr-1" /> Add
               </Button>
@@ -199,7 +199,7 @@ export function ObjectPropertiesDialog({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive shrink-0"
-                  onClick={() => handleRemoveProperty(idx)}
+                  onMouseDown={() => handleRemoveProperty(idx)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
@@ -209,10 +209,10 @@ export function ObjectPropertiesDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave}>
+          <Button size="sm" onMouseDown={handleSave}>
             Save
           </Button>
         </DialogFooter>

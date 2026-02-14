@@ -64,14 +64,14 @@ function TileCell({
   tileRef,
   tileSize,
   assetId,
-  onClick,
+  onMouseDown,
   onClear,
 }: {
   tileRef: TileRef | null;
   tileSize: number;
   assetId: AssetId | null;
   /** Called when the user clicks this cell — parent places the active tile */
-  onClick: () => void;
+  onMouseDown: () => void;
   onClear: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -151,7 +151,7 @@ function TileCell({
       className={`border cursor-pointer transition-colors hover:border-orange-400/60 ${
         tileRef ? "border-border" : "border-dashed border-muted-foreground/30"
       }`}
-      onClick={onClick}
+      onMouseDown={onMouseDown}
       onContextMenu={(e) => {
         e.preventDefault();
         onClear();
@@ -208,7 +208,7 @@ function TilePatternGrid({
                   ? (tilesetAssetMap.get(cell.tilesetId as string) ?? null)
                   : null
               }
-              onClick={() => onCellClick(gy, gx)}
+              onMouseDown={() => onCellClick(gy, gx)}
               onClear={() => onCellClear(gy, gx)}
             />
           )),
@@ -265,7 +265,7 @@ function LayerMultiSelect({
       <button
         type="button"
         className="flex h-7 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-xs shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
-        onClick={() => setOpen(!open)}
+        onMouseDown={() => setOpen(!open)}
       >
         <span className="truncate">{label}</span>
         <svg
@@ -287,14 +287,14 @@ function LayerMultiSelect({
             <button
               type="button"
               className="flex-1 rounded px-2 py-0.5 text-[10px] font-medium hover:bg-accent"
-              onClick={onSelectAll}
+              onMouseDown={onSelectAll}
             >
               Select All
             </button>
             <button
               type="button"
               className="flex-1 rounded px-2 py-0.5 text-[10px] font-medium hover:bg-accent"
-              onClick={onDeselectAll}
+              onMouseDown={onDeselectAll}
             >
               Deselect All
             </button>
@@ -792,14 +792,14 @@ export function FindReplaceDialog({
             variant="ghost"
             size="sm"
             className="h-7 text-xs"
-            onClick={() => onOpenChange(false)}
+            onMouseDown={() => onOpenChange(false)}
           >
             Cancel
           </Button>
           <Button
             size="sm"
             className="h-7 text-xs"
-            onClick={handleFindReplace}
+            onMouseDown={handleFindReplace}
             disabled={!hasFindTile || selectedLayerIds.size === 0}
           >
             Find and Replace

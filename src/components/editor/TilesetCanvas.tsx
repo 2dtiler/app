@@ -252,7 +252,7 @@ export function TilesetCanvas({
           ref={canvasRef}
           className="cursor-crosshair"
           draggable={!!dragTilesetId}
-          onClick={handleClick}
+          onMouseDown={handleClick}
           onMouseMove={handleMouseMove}
           onDragStart={dragTilesetId ? handleDragStart : undefined}
         />

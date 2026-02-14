@@ -750,7 +750,7 @@ export function LayersPanel() {
           variant="default"
           size="sm"
           className="h-5 px-2 text-[10px]"
-          onClick={handleAddLayer}
+          onMouseDown={handleAddLayer}
         >
           <Plus className="h-3 w-3" />
           Add Layer
@@ -903,7 +903,7 @@ export function LayersPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onMouseDown={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -991,7 +991,7 @@ const GroupRow = memo(function GroupRow({
               "ring-2 ring-primary ring-inset bg-primary/10",
           )}
           style={{ paddingLeft: `${6 + depth * 16}px` }}
-          onClick={() => onToggleExpand(group.id)}
+          onMouseDown={() => onToggleExpand(group.id)}
           draggable
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
@@ -1025,7 +1025,7 @@ const GroupRow = memo(function GroupRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(group.id, true);
                 }}
@@ -1049,7 +1049,7 @@ const GroupRow = memo(function GroupRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleLock(group.id, true);
                 }}
@@ -1087,7 +1087,7 @@ const GroupRow = memo(function GroupRow({
                 if (e.key === "Enter") onCommitRename();
                 if (e.key === "Escape") onCancelRename();
               }}
-              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
             />
           ) : (
             <span
@@ -1109,7 +1109,7 @@ const GroupRow = memo(function GroupRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(group.id, "up", parentGroupId);
                   }}
@@ -1125,7 +1125,7 @@ const GroupRow = memo(function GroupRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(group.id, "down", parentGroupId);
                   }}
@@ -1141,7 +1141,7 @@ const GroupRow = memo(function GroupRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 text-destructive"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onDelete(group.id, group.name);
                   }}
@@ -1155,7 +1155,7 @@ const GroupRow = memo(function GroupRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onToggleVisibility(group.id, true)}>
+        <ContextMenuItem onMouseDown={() => onToggleVisibility(group.id, true)}>
           {group.visible ? (
             <>
               <EyeOff className="h-4 w-4 mr-2" /> Hide Group
@@ -1166,7 +1166,7 @@ const GroupRow = memo(function GroupRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onToggleLock(group.id, true)}>
+        <ContextMenuItem onMouseDown={() => onToggleLock(group.id, true)}>
           {group.locked ? (
             <>
               <Unlock className="h-4 w-4 mr-2" /> Unlock Group
@@ -1177,22 +1177,22 @@ const GroupRow = memo(function GroupRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onDoubleClick(group.id, group.name)}>
+        <ContextMenuItem onMouseDown={() => onDoubleClick(group.id, group.name)}>
           Rename
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onMove(group.id, "up", parentGroupId)}>
+        <ContextMenuItem onMouseDown={() => onMove(group.id, "up", parentGroupId)}>
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
         </ContextMenuItem>
         <ContextMenuItem
-          onClick={() => onMove(group.id, "down", parentGroupId)}
+          onMouseDown={() => onMove(group.id, "down", parentGroupId)}
         >
           <ChevronDown className="h-4 w-4 mr-2" /> Move Down
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           variant="destructive"
-          onClick={() => onDelete(group.id, group.name)}
+          onMouseDown={() => onDelete(group.id, group.name)}
         >
           <Trash2 className="h-4 w-4 mr-2" /> Delete Group
         </ContextMenuItem>
@@ -1284,7 +1284,7 @@ const LayerRow = memo(function LayerRow({
             isDragging && "opacity-40",
           )}
           style={{ paddingLeft: `${6 + depth * 16}px` }}
-          onClick={() => onSelect(layer.id)}
+          onMouseDown={() => onSelect(layer.id)}
           draggable
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
@@ -1317,7 +1317,7 @@ const LayerRow = memo(function LayerRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(layer.id, false);
                 }}
@@ -1339,7 +1339,7 @@ const LayerRow = memo(function LayerRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleLock(layer.id, false);
                 }}
@@ -1377,7 +1377,7 @@ const LayerRow = memo(function LayerRow({
                 if (e.key === "Enter") onCommitRename();
                 if (e.key === "Escape") onCancelRename();
               }}
-              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
             />
           ) : (
             <span
@@ -1396,7 +1396,7 @@ const LayerRow = memo(function LayerRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(layer.id, "up", parentGroupId);
                   }}
@@ -1412,7 +1412,7 @@ const LayerRow = memo(function LayerRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(layer.id, "down", parentGroupId);
                   }}
@@ -1428,7 +1428,7 @@ const LayerRow = memo(function LayerRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 text-destructive"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onDelete(layer.id, layer.name);
                   }}
@@ -1442,7 +1442,7 @@ const LayerRow = memo(function LayerRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onToggleVisibility(layer.id, false)}>
+        <ContextMenuItem onMouseDown={() => onToggleVisibility(layer.id, false)}>
           {layer.visible ? (
             <>
               <EyeOff className="h-4 w-4 mr-2" /> Hide Layer
@@ -1453,7 +1453,7 @@ const LayerRow = memo(function LayerRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onToggleLock(layer.id, false)}>
+        <ContextMenuItem onMouseDown={() => onToggleLock(layer.id, false)}>
           {layer.locked ? (
             <>
               <Unlock className="h-4 w-4 mr-2" /> Unlock Layer
@@ -1464,22 +1464,22 @@ const LayerRow = memo(function LayerRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onDoubleClick(layer.id, layer.name)}>
+        <ContextMenuItem onMouseDown={() => onDoubleClick(layer.id, layer.name)}>
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onMove(layer.id, "up", parentGroupId)}>
+        <ContextMenuItem onMouseDown={() => onMove(layer.id, "up", parentGroupId)}>
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
         </ContextMenuItem>
         <ContextMenuItem
-          onClick={() => onMove(layer.id, "down", parentGroupId)}
+          onMouseDown={() => onMove(layer.id, "down", parentGroupId)}
         >
           <ChevronDown className="h-4 w-4 mr-2" /> Move Down
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           variant="destructive"
-          onClick={() => onDelete(layer.id, layer.name)}
+          onMouseDown={() => onDelete(layer.id, layer.name)}
         >
           <Trash2 className="h-4 w-4 mr-2" /> Delete Layer
         </ContextMenuItem>

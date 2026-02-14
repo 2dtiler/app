@@ -896,7 +896,7 @@ export function MapPanel() {
               variant={state.currentTool === "select" ? "default" : "ghost"}
               size="icon"
               className="h-6 w-6"
-              onClick={() =>
+              onMouseDown={() =>
                 setState((draft) => {
                   draft.currentTool = "select";
                 })
@@ -934,7 +934,7 @@ export function MapPanel() {
                 {BRUSH_SIZES.map((size) => (
                   <DropdownMenuItem
                     key={size}
-                    onClick={() =>
+                    onMouseDown={() =>
                       setState((draft) => {
                         draft.currentTool = tool;
                         draft.brushSize = size;
@@ -970,7 +970,7 @@ export function MapPanel() {
           </Tooltip>
           <DropdownMenuContent>
             <DropdownMenuItem
-              onClick={() =>
+              onMouseDown={() =>
                 setState((draft) => {
                   draft.currentTool = "fill";
                   draft.fillMode = "fill";
@@ -983,7 +983,7 @@ export function MapPanel() {
                 " ✓"}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => {
+              onMouseDown={() => {
                 setState((draft) => {
                   draft.currentTool = "fill";
                   draft.fillMode = "fillTerrain";
@@ -1009,7 +1009,7 @@ export function MapPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => handleZoom(-1)}
+                onMouseDown={() => handleZoom(-1)}
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
@@ -1025,7 +1025,7 @@ export function MapPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => handleZoom(1)}
+                onMouseDown={() => handleZoom(1)}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </Button>
@@ -1044,7 +1044,7 @@ export function MapPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => setMapOptionsOpen(true)}
+                onMouseDown={() => setMapOptionsOpen(true)}
               >
                 <Settings className="h-3.5 w-3.5" />
               </Button>
@@ -1091,7 +1091,7 @@ export function MapPanel() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 shrink-0 text-destructive"
-                onClick={() =>
+                onMouseDown={() =>
                   setDeleteTarget({
                     type: "group",
                     id: activeGroup.id,
@@ -1169,12 +1169,12 @@ export function MapPanel() {
                         </ContextMenuTrigger>
                         <ContextMenuContent>
                           <ContextMenuItem
-                            onClick={() => handleTabDoubleClick(m)}
+                            onMouseDown={() => handleTabDoubleClick(m)}
                           >
                             Rename
                           </ContextMenuItem>
                           <ContextMenuItem
-                            onClick={() => handleDuplicateMap(m)}
+                            onMouseDown={() => handleDuplicateMap(m)}
                           >
                             Duplicate
                           </ContextMenuItem>
@@ -1187,7 +1187,7 @@ export function MapPanel() {
                           variant="ghost"
                           size="icon"
                           className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                          onClick={() =>
+                          onMouseDown={() =>
                             setDeleteTarget({
                               type: "map",
                               id: m.id,
@@ -1213,7 +1213,7 @@ export function MapPanel() {
           variant="default"
           size="sm"
           className="h-6 px-2 text-[10px] shrink-0"
-          onClick={handleAddMap}
+          onMouseDown={handleAddMap}
         >
           <Plus className="h-3.5 w-3.5" />
           Add Map
@@ -1319,11 +1319,11 @@ export function MapPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setAddMapOpen(false)}
+              onMouseDown={() => setAddMapOpen(false)}
             >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleCreateMap}>
+            <Button size="sm" onMouseDown={handleCreateMap}>
               Create
             </Button>
           </DialogFooter>
@@ -1373,13 +1373,13 @@ export function MapPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setAddGroupOpen(false)}
+              onMouseDown={() => setAddGroupOpen(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={handleCreateGroup}
+              onMouseDown={handleCreateGroup}
               disabled={!newGroupName.trim()}
             >
               Create
@@ -1404,7 +1404,7 @@ export function MapPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
+            <AlertDialogAction onMouseDown={handleDeleteConfirm}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1507,10 +1507,10 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
           Pixel size: {width * map.tileSize} × {height * map.tileSize}px
         </p>
         <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={() => onResize(width, height)}>
+          <Button size="sm" onMouseDown={() => onResize(width, height)}>
             Apply
           </Button>
         </DialogFooter>

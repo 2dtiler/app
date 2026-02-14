@@ -306,7 +306,7 @@ export function ObjectsPanel() {
                   }
                   size="icon"
                   className="h-5 w-5"
-                  onClick={() => handleAddObject(type as ObjectType)}
+                  onMouseDown={() => handleAddObject(type as ObjectType)}
                 >
                   <Icon className="h-3 w-3" />
                 </Button>
@@ -375,7 +375,7 @@ export function ObjectsPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onMouseDown={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -478,7 +478,7 @@ const ObjectRow = memo(function ObjectRow({
               : "hover:bg-secondary",
             isDragging && "opacity-40",
           )}
-          onClick={() => onSelect(object.id)}
+          onMouseDown={() => onSelect(object.id)}
           draggable
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
@@ -512,7 +512,7 @@ const ObjectRow = memo(function ObjectRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(object.id);
                 }}
@@ -534,7 +534,7 @@ const ObjectRow = memo(function ObjectRow({
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 shrink-0"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleLock(object.id);
                 }}
@@ -566,7 +566,7 @@ const ObjectRow = memo(function ObjectRow({
                 if (e.key === "Enter") onCommitRename();
                 if (e.key === "Escape") onCancelRename();
               }}
-              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
             />
           ) : (
             <span
@@ -587,7 +587,7 @@ const ObjectRow = memo(function ObjectRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(object.id, "up");
                   }}
@@ -603,7 +603,7 @@ const ObjectRow = memo(function ObjectRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(object.id, "down");
                   }}
@@ -619,7 +619,7 @@ const ObjectRow = memo(function ObjectRow({
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 text-destructive"
-                  onClick={(e) => {
+                  onMouseDown={(e) => {
                     e.stopPropagation();
                     onDelete(object.id, object.name);
                   }}
@@ -633,7 +633,7 @@ const ObjectRow = memo(function ObjectRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onToggleVisibility(object.id)}>
+        <ContextMenuItem onMouseDown={() => onToggleVisibility(object.id)}>
           {object.visible ? (
             <>
               <EyeOff className="h-4 w-4 mr-2" /> Hide
@@ -644,7 +644,7 @@ const ObjectRow = memo(function ObjectRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onToggleLock(object.id)}>
+        <ContextMenuItem onMouseDown={() => onToggleLock(object.id)}>
           {object.locked ? (
             <>
               <Unlock className="h-4 w-4 mr-2" /> Unlock
@@ -655,27 +655,27 @@ const ObjectRow = memo(function ObjectRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onDoubleClick(object.id, object.name)}>
+        <ContextMenuItem onMouseDown={() => onDoubleClick(object.id, object.name)}>
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onEditProperties(object.id)}>
+        <ContextMenuItem onMouseDown={() => onEditProperties(object.id)}>
           <Settings2 className="h-4 w-4 mr-2" /> Edit Properties
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onDuplicate(object.id)}>
+        <ContextMenuItem onMouseDown={() => onDuplicate(object.id)}>
           <Copy className="h-4 w-4 mr-2" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onMove(object.id, "up")}>
+        <ContextMenuItem onMouseDown={() => onMove(object.id, "up")}>
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => onMove(object.id, "down")}>
+        <ContextMenuItem onMouseDown={() => onMove(object.id, "down")}>
           <ChevronDown className="h-4 w-4 mr-2" /> Move Down
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           variant="destructive"
-          onClick={() => onDelete(object.id, object.name)}
+          onMouseDown={() => onDelete(object.id, object.name)}
         >
           <Trash2 className="h-4 w-4 mr-2" /> Delete
         </ContextMenuItem>
