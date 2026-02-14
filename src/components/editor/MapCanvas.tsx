@@ -445,9 +445,10 @@ const MapScene = memo(function MapScene({
     { x: number; y: number }[]
   >([]);
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
-  const [polygonCursorPos, setPolygonCursorPos] = useState<
-    { x: number; y: number } | null
-  >(null);
+  const [polygonCursorPos, setPolygonCursorPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // --- Object drag state ---
   type ObjectDragAction = {
@@ -1279,7 +1280,9 @@ const MapScene = memo(function MapScene({
       // Commit polygon vertex drag
       if (currentTool === "select" && polyVertexDragRef.current) {
         if (livePolyVertex) {
-          const activeObj = objects.find((o) => o.id === livePolyVertex.objectId);
+          const activeObj = objects.find(
+            (o) => o.id === livePolyVertex.objectId,
+          );
           if (activeObj) {
             const newPoints = activeObj.points.map((p, i) =>
               i === livePolyVertex.vertexIndex
@@ -1868,11 +1871,7 @@ const MapScene = memo(function MapScene({
           const isFirst = i === 0;
           // Show snap indicator on first point when cursor is near it
           let snapHighlight = false;
-          if (
-            isFirst &&
-            polygonCursorPos &&
-            polygonPoints.length >= 3
-          ) {
+          if (isFirst && polygonCursorPos && polygonPoints.length >= 3) {
             const dist = Math.hypot(
               (polygonCursorPos.x - pt.x) * zoom,
               (polygonCursorPos.y - pt.y) * zoom,
@@ -1881,7 +1880,10 @@ const MapScene = memo(function MapScene({
           }
           const radius = snapHighlight ? 7 : 4;
           g.circle(pt.x * zoom, pt.y * zoom, radius);
-          g.fill({ color: snapHighlight ? 0x00ff88 : 0x00aaff, alpha: snapHighlight ? 1 : 0.8 });
+          g.fill({
+            color: snapHighlight ? 0x00ff88 : 0x00aaff,
+            alpha: snapHighlight ? 1 : 0.8,
+          });
           if (snapHighlight) {
             g.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 1 });
             g.circle(pt.x * zoom, pt.y * zoom, radius);
