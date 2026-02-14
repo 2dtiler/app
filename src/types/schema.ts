@@ -158,6 +158,21 @@ export interface TileRef {
 
 export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon";
 
+/** Property types for Tiled-compatible custom properties (values are always stored as strings) */
+export type PropertyType =
+  | "bool"
+  | "color"
+  | "float"
+  | "file"
+  | "int"
+  | "object"
+  | "string";
+
+export interface PropertyValue {
+  value: string;
+  type: PropertyType;
+}
+
 export interface MapObject {
   id: ObjectId;
   layerId: LayerId;
@@ -177,8 +192,8 @@ export interface MapObject {
   points: { x: number; y: number }[];
   visible: boolean;
   locked: boolean;
-  /** Custom key-value properties */
-  properties: Record<string, string>;
+  /** Custom key-value properties (typed for Tiled format compatibility) */
+  properties: Record<string, PropertyValue>;
 }
 
 export interface ObjectLayer {

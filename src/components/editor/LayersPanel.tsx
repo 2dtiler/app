@@ -746,19 +746,15 @@ export function LayersPanel() {
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           Layers
         </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={handleAddLayer}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Add Layer</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-5 px-2 text-[10px]"
+          onClick={handleAddLayer}
+        >
+          <Plus className="h-3 w-3" />
+          Add Layer
+        </Button>
       </div>
 
       {/* Layer tree */}

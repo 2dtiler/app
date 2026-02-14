@@ -93,14 +93,21 @@ export function TerrainTileSelector({
     null,
   );
 
+  // Clear image synchronously during render when asset is removed (avoids
+  // the "setState in effect" lint error).
+  const [prevAssetId, setPrevAssetId] = useState(tilesetAssetId);
+  if (tilesetAssetId !== prevAssetId) {
+    setPrevAssetId(tilesetAssetId);
+    if (!tilesetAssetId) {
+      setTilesetImage(null);
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Load the tileset image for mini-previews
   // -----------------------------------------------------------------------
   useEffect(() => {
-    if (!tilesetAssetId) {
-      setTilesetImage(null);
-      return;
-    }
+    if (!tilesetAssetId) return;
     let revoke: string | null = null;
     let cancelled = false;
 
@@ -194,7 +201,7 @@ export function TerrainTileSelector({
         ))}
 
         {/* Empty placeholder slot — indicates where the next tile will go */}
-        <div className="flex items-center justify-center shrink-0 w-[52px] h-[52px] rounded-md border-2 border-dashed border-muted-foreground/30 text-muted-foreground/40 self-start mt-2">
+        <div className="flex items-center justify-center shrink-0 w-13 h-13 rounded-md border-2 border-dashed border-muted-foreground/30 text-muted-foreground/40 self-start mt-2">
           <span className="text-lg">+</span>
         </div>
       </div>

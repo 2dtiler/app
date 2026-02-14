@@ -23,6 +23,7 @@ import type {
   TileLayer,
   LayerId,
   LayerGroupId,
+  ObjectId,
 } from "@/types";
 
 import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
@@ -284,7 +285,7 @@ function AppShell({
             layerIdMap.set(ol.id, newOlId);
             draft.project.objectLayers.push({
               ...ol,
-              id: newOlId as any,
+              id: newOlId,
               mapId: newMapId,
               objectOrder: ol.objectOrder.map((oid) => {
                 // object IDs will be remapped below
@@ -299,14 +300,14 @@ function AppShell({
             const newLayerId = layerIdMap.get(obj.layerId) ?? obj.layerId;
             draft.project.objects.push({
               ...obj,
-              id: newObjId as any,
-              layerId: newLayerId as any,
+              id: newObjId,
+              layerId: newLayerId as LayerId,
             });
           }
           // Fix up objectOrder references
           for (const ol of draft.project.objectLayers) {
             ol.objectOrder = ol.objectOrder.map(
-              (oid) => (objectIdMap.get(oid as string) ?? oid) as any,
+              (oid) => (objectIdMap.get(oid as string) ?? oid) as ObjectId,
             );
           }
 

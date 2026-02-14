@@ -485,19 +485,15 @@ export function TilesetPanel() {
 
         {!groupTilesets.length && <div className="flex-1" />}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={handleAddTileset}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Add Tileset</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-6 px-2 text-[10px] shrink-0"
+          onClick={handleAddTileset}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Tileset
+        </Button>
       </div>
 
       {/* Tileset canvas area — uses the shared TilesetCanvas component */}
@@ -511,7 +507,7 @@ export function TilesetPanel() {
         className="flex-1 min-h-0"
         placeholder={
           groupTilesets.length === 0
-            ? "Click + to add a tileset"
+            ? "Click 'Add Tileset' to add a tileset"
             : "Select a tileset tab"
         }
       />

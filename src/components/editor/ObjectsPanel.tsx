@@ -1,6 +1,5 @@
-import { useState, useRef, memo, useCallback } from "react";
+import { useState, memo, useCallback } from "react";
 import {
-  Plus,
   Trash2,
   Eye,
   EyeOff,
@@ -14,6 +13,8 @@ import {
   MapPin,
   Circle,
   Pentagon,
+  Settings2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,8 +47,6 @@ import type {
   ObjectId,
   ObjectType,
   MapObject,
-  ObjectLayer,
-  LayerId,
 } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -397,7 +396,7 @@ export function ObjectsPanel() {
                 (o) => o.id === propsObjectId,
               );
               if (obj) {
-                obj.properties = updatedProps;
+                obj.properties = updatedProps as typeof obj.properties;
                 if (updatedName) obj.name = updatedName;
               }
             });
@@ -665,10 +664,10 @@ const ObjectRow = memo(function ObjectRow({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onEditProperties(object.id)}>
-          Edit Properties
+          <Settings2 className="h-4 w-4 mr-2" /> Edit Properties
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onDuplicate(object.id)}>
-          Duplicate
+          <Copy className="h-4 w-4 mr-2" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onMove(object.id, "up")}>

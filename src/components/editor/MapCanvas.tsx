@@ -115,6 +115,8 @@ interface MapCanvasProps {
   onSelectObject: (objectId: string | null) => void;
   /** Called when user cancels pending object placement (e.g. Escape during polygon drawing) */
   onCancelPendingObject?: () => void;
+  /** Called when an object is double-clicked on canvas (to open properties) */
+  onDoubleClickObject?: (objectId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +335,7 @@ const MapScene = memo(function MapScene({
   onUpdatePolygonPoints,
   onSelectObject,
   onCancelPendingObject,
+  onDoubleClickObject,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
@@ -354,6 +357,10 @@ const MapScene = memo(function MapScene({
   const selActionRef = useRef<SelectionAction | null>(null);
   // Live selection for rendering during drag (avoids store round-trips)
   const [liveSelection, setLiveSelection] = useState<MapSelection | null>(null);
+  // Tile snapshot mirrored from selActionRef for safe render-time access
+  const [moveTilesSnapshot, setMoveTilesSnapshot] = useState<
+    { dx: number; dy: number; ref: TileRef }[] | null
+  >(null);
   // Whether tiles are currently being dragged (for cursor feedback)
   const [isMoving, setIsMoving] = useState(false);
   // The rendered selection is the live one during interaction, otherwise the prop
@@ -432,6 +439,10 @@ const MapScene = memo(function MapScene({
   const lastClickRef = useRef<{ time: number; x: number; y: number } | null>(
     null,
   );
+  // --- Manual double-click detection for objects ---
+  const lastObjectClickRef = useRef<{ time: number; x: number; y: number; objectId: string } | null>(
+    null,
+  );
   const [liveObjectPlace, setLiveObjectPlace] = useState<{
     type: ObjectType;
     x: number;
@@ -449,6 +460,7 @@ const MapScene = memo(function MapScene({
     x: number;
     y: number;
   } | null>(null);
+  const [prevPendingObjectType, setPrevPendingObjectType] = useState(pendingObjectType);
 
   // --- Object drag state ---
   type ObjectDragAction = {
@@ -796,6 +808,22 @@ const MapScene = memo(function MapScene({
                 e.global.y <= maxY;
             }
             if (hit) {
+              // Detect double-click on object to open properties
+              const now = Date.now();
+              const lastObjClick = lastObjectClickRef.current;
+              const isObjDoubleClick =
+                lastObjClick !== null &&
+                lastObjClick.objectId === obj.id &&
+                now - lastObjClick.time < 400 &&
+                Math.hypot(e.global.x - lastObjClick.x, e.global.y - lastObjClick.y) < 12;
+              lastObjectClickRef.current = { time: now, x: e.global.x, y: e.global.y, objectId: obj.id };
+
+              if (isObjDoubleClick) {
+                onDoubleClickObject?.(obj.id);
+                lastObjectClickRef.current = null;
+                return;
+              }
+
               onSelectObject(obj.id);
               if (!obj.locked) {
                 objectDragRef.current = {
@@ -903,6 +931,7 @@ const MapScene = memo(function MapScene({
             orig: { ...renderedSelection },
             tiles: tileSnapshot,
           };
+          setMoveTilesSnapshot(tileSnapshot);
           setIsMoving(true);
           return;
         }
@@ -942,6 +971,7 @@ const MapScene = memo(function MapScene({
       objectLayers,
       onCreateObject,
       onSelectObject,
+      onDoubleClickObject,
       isDrawingPolygon,
       polygonPoints,
       liveObjectPos,
@@ -1228,7 +1258,6 @@ const MapScene = memo(function MapScene({
       zoom,
       hitTestResizeHandle,
       objects,
-      onUpdatePolygonPoints,
       objectLayers,
       activeLayerId,
       activeObjectId,
@@ -1358,6 +1387,7 @@ const MapScene = memo(function MapScene({
         onSelectionChange(liveSelection);
         setLiveSelection(null);
         setIsMoving(false);
+        setMoveTilesSnapshot(null);
         selActionRef.current = null;
         return;
       }
@@ -1475,6 +1505,7 @@ const MapScene = memo(function MapScene({
       onSelectionChange(liveSelection);
       setLiveSelection(null);
       setIsMoving(false);
+      setMoveTilesSnapshot(null);
       selActionRef.current = null;
       return;
     }
@@ -1679,11 +1710,6 @@ const MapScene = memo(function MapScene({
           const color = isActive ? 0x00aaff : 0x00ccaa;
           const alpha = isActive ? 1 : 0.7;
           const lineWidth = isActive ? 2 : 1.5;
-
-          const ox = obj.x * zoom;
-          const oy = obj.y * zoom;
-          const ow = obj.width * zoom;
-          const oh = obj.height * zoom;
 
           // Use live position/size if this object is being dragged/resized
           const drag =
@@ -1952,20 +1978,23 @@ const MapScene = memo(function MapScene({
   }, [isDrawingPolygon, polygonPoints, onCreateObject, onCancelPendingObject]);
 
   // --- Reset polygon state when pendingObjectType changes away from polygon ---
-  useEffect(() => {
+  if (prevPendingObjectType !== pendingObjectType) {
+    setPrevPendingObjectType(pendingObjectType);
     if (pendingObjectType !== "polygon") {
       setIsDrawingPolygon(false);
       setPolygonPoints([]);
       setPolygonCursorPos(null);
+    }
+  }
+  useEffect(() => {
+    if (pendingObjectType !== "polygon") {
       lastClickRef.current = null;
     }
   }, [pendingObjectType]);
 
   // Get the tile snapshot from the current move action (for overlay rendering)
-  const moveAction =
-    selActionRef.current?.type === "move" ? selActionRef.current : null;
-  const moveTiles = moveAction?.tiles ?? [];
-  const moveDestSel = moveAction ? liveSelection : null;
+  const moveTiles = moveTilesSnapshot ?? [];
+  const moveDestSel = moveTilesSnapshot ? liveSelection : null;
 
   // Get layers in render order (bottom to top) — both tile and image layers
   const orderedLayerEntries = useMemo(

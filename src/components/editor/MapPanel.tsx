@@ -58,6 +58,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FillTerrainDialog } from "@/components/dialogs/FillTerrainDialog";
+import { ObjectPropertiesDialog } from "@/components/dialogs/ObjectPropertiesDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import {
@@ -140,6 +141,7 @@ export function MapPanel() {
   const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [propsObjectId, setPropsObjectId] = useState<ObjectId | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Ctrl+Wheel zoom and middle-mouse pan
@@ -1207,19 +1209,15 @@ export function MapPanel() {
 
         {!groupMaps.length && <div className="flex-1" />}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={handleAddMap}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Add Map</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-6 px-2 text-[10px] shrink-0"
+          onClick={handleAddMap}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Map
+        </Button>
       </div>
 
       {/* Map canvas area — PixiJS renderer */}
@@ -1258,6 +1256,7 @@ export function MapPanel() {
                 draft.activeObjectId = id as ObjectId | null;
               })
             }
+            onDoubleClickObject={(id) => setPropsObjectId(id as ObjectId)}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
@@ -1411,6 +1410,33 @@ export function MapPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Object properties dialog (opened by double-clicking object on canvas) */}
+      {(() => {
+        const propsObject = propsObjectId
+          ? (project.objects ?? []).find((o) => o.id === propsObjectId)
+          : null;
+        if (!propsObject) return null;
+        return (
+          <ObjectPropertiesDialog
+            open={!!propsObjectId}
+            onOpenChange={(o) => !o && setPropsObjectId(null)}
+            object={propsObject}
+            onSave={(updatedProps, updatedName) => {
+              setState((draft) => {
+                const obj = (draft.project?.objects ?? []).find(
+                  (o) => o.id === propsObjectId,
+                );
+                if (obj) {
+                  obj.properties = updatedProps as typeof obj.properties;
+                  if (updatedName) obj.name = updatedName;
+                }
+              });
+              setPropsObjectId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

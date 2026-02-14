@@ -1,12 +1,9 @@
-When adding custom properties to an object, it currently only supports string. String should be the default, but I want to add a dropdown to support the following types: bool, color, float, file, int, object, string. These options will just save to string anyway. But I need these options for importing/exporting to Tiled format later.
-
-Add Buttons Should be Bigger. Currently the Add Tileset, Add Map, Add Layer buttons are not visible enough. They Should be primary buttons and the full text of the button, not just an icon.
-
-
+Fix linting issues
 Ability to duplicate a layer
 Replace onClick => onMouseDown
 File -> Settings - Set up AI Providers
 Get Claude Code Account
+Performance Audit
 Tools:
   Image Editor
   AI Asset Generation

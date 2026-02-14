@@ -84,15 +84,22 @@ export function TilesetCanvas({
   // Ctrl+Wheel zoom and middle-mouse pan
   useCanvasNavigation(containerRef, zoom, onZoomChange);
 
+  // Clear image synchronously during render when asset is removed (avoids
+  // the "setState in effect" lint error).
+  const [prevAssetId, setPrevAssetId] = useState(assetId);
+  if (assetId !== prevAssetId) {
+    setPrevAssetId(assetId);
+    if (!assetId) {
+      setTilesetImage(null);
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Step 1: Load the tileset image whenever the assetId changes.
   // We create a blob URL, load an HTMLImageElement, then clean up on unmount.
   // -----------------------------------------------------------------------
   useEffect(() => {
-    if (!assetId) {
-      setTilesetImage(null);
-      return;
-    }
+    if (!assetId) return;
     let revoke: string | null = null;
     let cancelled = false;
 

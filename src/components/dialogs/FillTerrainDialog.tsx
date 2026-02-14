@@ -18,7 +18,7 @@
  * from a dropdown, editing it in-place before applying.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Save } from "lucide-react";
 import {
   Dialog,
@@ -89,7 +89,7 @@ export function FillTerrainDialog({
 
   // -- Derived values -------------------------------------------------------
   const tilesets = project?.tilesets ?? [];
-  const terrains = project?.terrains ?? [];
+  const terrains = useMemo(() => project?.terrains ?? [], [project?.terrains]);
   const activeTileset =
     tilesets.find((t) => t.id === selectedTilesetId) ?? null;
 

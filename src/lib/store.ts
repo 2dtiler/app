@@ -12,6 +12,7 @@
 
 import { createTravels, type TravelPatches, type Travels } from "travels";
 import { DEFAULT_EDITOR_STATE, type EditorState } from "@/types";
+import type { MapObject } from "@/types";
 import { db } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -98,6 +99,22 @@ export async function initEditorStore(): Promise<EditorTravels> {
     }
     if (restoredState.project && !restoredState.project.objects) {
       restoredState.project.objects = [];
+    }
+    // Migrate old string-only properties to { value, type } format
+    if (restoredState.project) {
+      for (const obj of restoredState.project.objects) {
+        if (obj.properties) {
+          const migrated: Record<string, { value: string; type: string }> = {};
+          for (const [k, v] of Object.entries(obj.properties)) {
+            if (typeof v === "string") {
+              migrated[k] = { value: v, type: "string" };
+            } else {
+              migrated[k] = v as { value: string; type: string };
+            }
+          }
+          (obj as MapObject).properties = migrated as MapObject["properties"];
+        }
+      }
     }
     travelsInstance = createTravels<EditorState>(restoredState, {
       maxHistory: 50,
