@@ -346,6 +346,15 @@ export function LayersPanel() {
     const file = e.target.files?.[0];
     if (!file || !project) return;
 
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_IMAGE_SIZE) {
+      alert(
+        `Image must be under 5 MB. The selected file is ${(file.size / (1024 * 1024)).toFixed(1)} MB.`,
+      );
+      e.target.value = "";
+      return;
+    }
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const assetId = generateAssetId();

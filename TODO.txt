@@ -1,11 +1,4 @@
-When adding an image as an image layer. There should be strict checking that the uploaded image is under 5MB, and show an error message when it isn't
-
-When "Select Tool" is active and you select a tile from the tileset pane, it should automatically select the "Paint tool" and unselect the "Select Tool"
-
-File -> Save Project
-
-Layers
-  - Object Layer
+Object Layer
 
 Tools:
   Image Editor

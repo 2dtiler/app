@@ -19,6 +19,7 @@ export type ToolName = "image-editor" | "ai-assets" | "sprite-generator";
 
 interface ToolbarProps {
   onNewProject: () => void;
+  onSaveProject: () => void;
   onImportProject: () => void;
   onImportMap: () => void;
   onImportTileset: () => void;
@@ -35,6 +36,7 @@ interface ToolbarProps {
 
 export const Toolbar = memo(function Toolbar({
   onNewProject,
+  onSaveProject,
   onImportProject,
   onImportMap,
   onImportTileset,
@@ -62,6 +64,10 @@ export const Toolbar = memo(function Toolbar({
             <MenubarItem onClick={onNewProject}>
               New Project
               <MenubarShortcut>⌘N</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem onClick={onSaveProject}>
+              Save Project
+              <MenubarShortcut>⌘S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarSub>

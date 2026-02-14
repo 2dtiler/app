@@ -322,6 +322,12 @@ function AppShell({
     <div className="flex h-full flex-col">
       <Toolbar
         onNewProject={handleNewProject}
+        onSaveProject={() => {
+          const project = state.project;
+          if (project) {
+            void saveProject({ ...project, updatedAt: Date.now() });
+          }
+        }}
         onImportProject={() => setProjectModalOpen(true)}
         onImportMap={handleImportMap}
         onImportTileset={handleImportTileset}

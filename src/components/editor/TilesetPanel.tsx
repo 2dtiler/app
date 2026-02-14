@@ -102,6 +102,9 @@ export function TilesetPanel() {
       if (!activeTileset) return;
       setState((draft) => {
         draft.selectedTile = { tilesetId: activeTileset.id, ...tile };
+        if (draft.currentTool === "select") {
+          draft.currentTool = "paint";
+        }
       });
     },
     [activeTileset, setState],
