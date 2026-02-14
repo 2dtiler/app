@@ -370,13 +370,10 @@ const MapScene = memo(function MapScene({
   // --- Resize handle hit testing ---
   const handleHitSize = 12;
   const getImageLayerHandles = useCallback(
-    (
-      imgLayer: ImageLayer,
-    ): [ResizeHandle, number, number][] => {
+    (imgLayer: ImageLayer): [ResizeHandle, number, number][] => {
       const resize =
         liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
-      const drag =
-        liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
+      const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
       const px = (resize?.x ?? drag?.x ?? imgLayer.x) * zoom;
       const py = (resize?.y ?? drag?.y ?? imgLayer.y) * zoom;
       const pw = (resize?.width ?? imgLayer.width) * zoom;
@@ -403,10 +400,7 @@ const MapScene = memo(function MapScene({
       const handles = getImageLayerHandles(activeImgLayer);
       const half = handleHitSize / 2;
       for (const [handle, cx, cy] of handles) {
-        if (
-          Math.abs(globalX - cx) <= half &&
-          Math.abs(globalY - cy) <= half
-        ) {
+        if (Math.abs(globalX - cx) <= half && Math.abs(globalY - cy) <= half) {
           return handle;
         }
       }
