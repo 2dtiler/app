@@ -440,9 +440,12 @@ const MapScene = memo(function MapScene({
     null,
   );
   // --- Manual double-click detection for objects ---
-  const lastObjectClickRef = useRef<{ time: number; x: number; y: number; objectId: string } | null>(
-    null,
-  );
+  const lastObjectClickRef = useRef<{
+    time: number;
+    x: number;
+    y: number;
+    objectId: string;
+  } | null>(null);
   const [liveObjectPlace, setLiveObjectPlace] = useState<{
     type: ObjectType;
     x: number;
@@ -460,7 +463,8 @@ const MapScene = memo(function MapScene({
     x: number;
     y: number;
   } | null>(null);
-  const [prevPendingObjectType, setPrevPendingObjectType] = useState(pendingObjectType);
+  const [prevPendingObjectType, setPrevPendingObjectType] =
+    useState(pendingObjectType);
 
   // --- Object drag state ---
   type ObjectDragAction = {
@@ -815,8 +819,16 @@ const MapScene = memo(function MapScene({
                 lastObjClick !== null &&
                 lastObjClick.objectId === obj.id &&
                 now - lastObjClick.time < 400 &&
-                Math.hypot(e.global.x - lastObjClick.x, e.global.y - lastObjClick.y) < 12;
-              lastObjectClickRef.current = { time: now, x: e.global.x, y: e.global.y, objectId: obj.id };
+                Math.hypot(
+                  e.global.x - lastObjClick.x,
+                  e.global.y - lastObjClick.y,
+                ) < 12;
+              lastObjectClickRef.current = {
+                time: now,
+                x: e.global.x,
+                y: e.global.y,
+                objectId: obj.id,
+              };
 
               if (isObjDoubleClick) {
                 onDoubleClickObject?.(obj.id);
