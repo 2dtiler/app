@@ -54,7 +54,7 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <Shapes className="h-6 w-6" />,
     description:
       "A layer for placing freeform objects like spawn points, collision zones, triggers, and other non-tile entities.",
-    disabled: true,
+    disabled: false,
   },
 ];
 

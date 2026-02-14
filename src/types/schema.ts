@@ -19,6 +19,7 @@ export type LayerId = string & { readonly __brand: "LayerId" };
 export type LayerGroupId = string & { readonly __brand: "LayerGroupId" };
 export type AssetId = string & { readonly __brand: "AssetId" };
 export type TerrainId = string & { readonly __brand: "TerrainId" };
+export type ObjectId = string & { readonly __brand: "ObjectId" };
 
 // ---------------------------------------------------------------------------
 // Brush / Tile Size
@@ -152,6 +153,46 @@ export interface TileRef {
 }
 
 // ---------------------------------------------------------------------------
+// Object Layer
+// ---------------------------------------------------------------------------
+
+export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon";
+
+export interface MapObject {
+  id: ObjectId;
+  layerId: LayerId;
+  name: string;
+  type: ObjectType;
+  /** X position in pixels relative to map origin */
+  x: number;
+  /** Y position in pixels relative to map origin */
+  y: number;
+  /** Width in pixels (used by rectangle/ellipse, ignored for point) */
+  width: number;
+  /** Height in pixels (used by rectangle/ellipse, ignored for point) */
+  height: number;
+  /** Rotation in degrees */
+  rotation: number;
+  /** Polygon vertices relative to (x, y) — only used for polygon type */
+  points: { x: number; y: number }[];
+  visible: boolean;
+  locked: boolean;
+  /** Custom key-value properties */
+  properties: Record<string, string>;
+}
+
+export interface ObjectLayer {
+  id: LayerId;
+  mapId: MapId;
+  name: string;
+  type: "object";
+  visible: boolean;
+  locked: boolean;
+  /** Ordered object IDs from bottom to top */
+  objectOrder: ObjectId[];
+}
+
+// ---------------------------------------------------------------------------
 // Terrain  (weighted random tile sets for the Fill Terrain tool)
 // ---------------------------------------------------------------------------
 
@@ -197,6 +238,10 @@ export interface Project {
   layerGroups: LayerGroup[];
   /** Saved terrain definitions for the Fill Terrain tool */
   terrains: Terrain[];
+  /** Object layers (freeform shapes, points, polygons) */
+  objectLayers: ObjectLayer[];
+  /** Map objects placed on object layers */
+  objects: MapObject[];
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +302,10 @@ export interface EditorState {
   activeMapGroupId: MapGroupId | null;
   activeMapId: MapId | null;
   activeLayerId: LayerId | null;
+  activeObjectId: ObjectId | null;
+
+  /** Pending object type to place on the canvas (transient) */
+  pendingObjectType: ObjectType | null;
 
   // -- Tools --
   currentTool: EditorTool;
@@ -284,6 +333,8 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   activeMapGroupId: null,
   activeMapId: null,
   activeLayerId: null,
+  activeObjectId: null,
+  pendingObjectType: null,
   currentTool: "paint",
   brushSize: "1x1",
   tileSize: 32,

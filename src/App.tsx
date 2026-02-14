@@ -15,7 +15,7 @@ import {
   downloadFile,
   readFileAsUint8Array,
 } from "@/lib/format";
-import { generateMapId, generateLayerId } from "@/lib/ids";
+import { generateMapId, generateLayerId, generateObjectId } from "@/lib/ids";
 import { getAllLayerIds } from "@/lib/layers";
 import type {
   TilesetGroupId,
@@ -35,6 +35,7 @@ import { ToolDrawer } from "@/components/dialogs/ToolDrawer";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
+import { ObjectsPanel } from "@/components/editor/ObjectsPanel";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (
@@ -160,6 +161,14 @@ function AppShell({
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
 
+  // Determine if the active layer is an object layer
+  const isObjectLayerActive =
+    state.project !== null &&
+    state.activeLayerId !== null &&
+    (state.project.objectLayers ?? []).some(
+      (l) => l.id === state.activeLayerId,
+    );
+
   const handleExportProject = useCallback(async () => {
     if (!state.project) return;
     await saveProject(state.project);
@@ -186,7 +195,7 @@ function AppShell({
     const layers = state.project.layers.filter((l) =>
       layerIdSet.has(l.id as string),
     );
-    const data = await exportMap(map, layers, state.project.tilesets);
+    const data = await exportMap(map, layers, state.project.tilesets, state.project.objectLayers ?? [], state.project.objects ?? []);
     downloadFile(data, `${map.name}.2dm`);
   }, [state.project, state.activeMapId]);
 
@@ -200,7 +209,7 @@ function AppShell({
       if (!file) return;
       try {
         const raw = await readFileAsUint8Array(file);
-        const { map, layers, tilesets } = await importMap(raw);
+        const { map, layers, tilesets, objectLayers: importedObjLayers, objects: importedObjects } = await importMap(raw);
 
         // Assign new IDs to avoid collisions with existing project data
         const newMapId = generateMapId();
@@ -253,6 +262,40 @@ function AppShell({
           // Add layers
           for (const layer of newLayers) {
             draft.project.layers.push(layer);
+          }
+
+          // Add imported object layers and objects (re-ID to avoid collisions)
+          if (!draft.project.objectLayers) draft.project.objectLayers = [];
+          if (!draft.project.objects) draft.project.objects = [];
+          for (const ol of importedObjLayers) {
+            const newOlId = generateLayerId();
+            layerIdMap.set(ol.id, newOlId);
+            draft.project.objectLayers.push({
+              ...ol,
+              id: newOlId as any,
+              mapId: newMapId,
+              objectOrder: ol.objectOrder.map((oid) => {
+                // object IDs will be remapped below
+                return oid;
+              }),
+            });
+          }
+          const objectIdMap = new Map<string, string>();
+          for (const obj of importedObjects) {
+            const newObjId = generateObjectId();
+            objectIdMap.set(obj.id, newObjId);
+            const newLayerId = layerIdMap.get(obj.layerId) ?? obj.layerId;
+            draft.project.objects.push({
+              ...obj,
+              id: newObjId as any,
+              layerId: newLayerId as any,
+            });
+          }
+          // Fix up objectOrder references
+          for (const ol of draft.project.objectLayers) {
+            ol.objectOrder = ol.objectOrder.map(
+              (oid) => (objectIdMap.get(oid as string) ?? oid) as any,
+            );
           }
 
           draft.activeMapId = newMapId;
@@ -362,9 +405,21 @@ function AppShell({
 
                 <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-                {/* Right: Layers */}
+                {/* Right: Layers + Objects */}
                 <Panel defaultSize="25%" minSize="10%" maxSize="50%">
-                  <LayersPanel />
+                  {isObjectLayerActive ? (
+                    <Group orientation="vertical" id="layers-objects-layout">
+                      <Panel defaultSize="50%" minSize="20%">
+                        <LayersPanel />
+                      </Panel>
+                      <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors cursor-row-resize" />
+                      <Panel defaultSize="50%" minSize="20%">
+                        <ObjectsPanel />
+                      </Panel>
+                    </Group>
+                  ) : (
+                    <LayersPanel />
+                  )}
                 </Panel>
               </Group>
             </Panel>

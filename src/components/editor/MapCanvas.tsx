@@ -26,6 +26,9 @@ import type {
   TileMapData,
   TileLayer,
   ImageLayer,
+  ObjectLayer,
+  MapObject,
+  ObjectType,
   TileRef,
   TilesetId,
   EditorState,
@@ -76,6 +79,40 @@ interface MapCanvasProps {
     width: number,
     height: number,
   ) => void;
+  /** Object layers to render (already flattened with visibility applied) */
+  objectLayers: ObjectLayer[];
+  /** All map objects belonging to visible object layers */
+  objects: MapObject[];
+  /** Currently selected object ID */
+  activeObjectId: string | null;
+  /** Pending object type being placed (null if not placing) */
+  pendingObjectType: ObjectType | null;
+  /** Called when a new object is placed on the canvas */
+  onCreateObject: (
+    type: ObjectType,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    points: { x: number; y: number }[],
+  ) => void;
+  /** Called when an object is moved */
+  onMoveObject: (objectId: string, x: number, y: number) => void;
+  /** Called when an object is resized */
+  onResizeObject: (
+    objectId: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => void;
+  /** Called when polygon points are updated */
+  onUpdatePolygonPoints: (
+    objectId: string,
+    points: { x: number; y: number }[],
+  ) => void;
+  /** Called when an object is selected/deselected on canvas */
+  onSelectObject: (objectId: string | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,6 +321,15 @@ const MapScene = memo(function MapScene({
   imageLayers,
   onMoveImageLayer,
   onResizeImageLayer,
+  objectLayers,
+  objects,
+  activeObjectId,
+  pendingObjectType,
+  onCreateObject,
+  onMoveObject,
+  onResizeObject,
+  onUpdatePolygonPoints,
+  onSelectObject,
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
@@ -366,6 +412,70 @@ const MapScene = memo(function MapScene({
       window.removeEventListener("keyup", onKeyUp);
     };
   }, []);
+
+  // --- Object placement state ---
+  type ObjectPlaceAction = {
+    type: ObjectType;
+    startX: number;
+    startY: number;
+  };
+  const objectPlaceRef = useRef<ObjectPlaceAction | null>(null);
+  const [liveObjectPlace, setLiveObjectPlace] = useState<{
+    type: ObjectType;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // --- Polygon drawing state ---
+  const [polygonPoints, setPolygonPoints] = useState<{ x: number; y: number }[]>([]);
+  const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
+
+  // --- Object drag state ---
+  type ObjectDragAction = {
+    objectId: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  };
+  const objectDragRef = useRef<ObjectDragAction | null>(null);
+  const [liveObjectPos, setLiveObjectPos] = useState<{
+    objectId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // --- Object resize state ---
+  type ObjectResizeAction = {
+    objectId: string;
+    handle: ResizeHandle;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origWidth: number;
+    origHeight: number;
+  };
+  const objectResizeRef = useRef<ObjectResizeAction | null>(null);
+  const [liveObjectResize, setLiveObjectResize] = useState<{
+    objectId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // --- Polygon vertex drag state ---
+  type PolyVertexDragAction = {
+    objectId: string;
+    vertexIndex: number;
+    startX: number;
+    startY: number;
+    origPoint: { x: number; y: number };
+  };
+  const polyVertexDragRef = useRef<PolyVertexDragAction | null>(null);
 
   // --- Resize handle hit testing ---
   const handleHitSize = 12;
@@ -457,6 +567,160 @@ const MapScene = memo(function MapScene({
       if (e.button === 1) return;
 
       if (currentTool === "select") {
+        // --- Object placement mode ---
+        if (pendingObjectType) {
+          if (pendingObjectType === "polygon") {
+            // Polygon: each click adds a point
+            const px = e.global.x / zoom;
+            const py = e.global.y / zoom;
+            if (!isDrawingPolygon) {
+              setIsDrawingPolygon(true);
+              setPolygonPoints([{ x: px, y: py }]);
+            } else {
+              // Close polygon if clicking near the first point or if we have 3+ points and double-click
+              const first = polygonPoints[0];
+              const distToFirst = Math.hypot((px - first.x) * zoom, (py - first.y) * zoom);
+              if (polygonPoints.length >= 3 && distToFirst < 10) {
+                // Close polygon by clicking near the first vertex
+                const minX = Math.min(...polygonPoints.map((p) => p.x));
+                const minY = Math.min(...polygonPoints.map((p) => p.y));
+                const maxX = Math.max(...polygonPoints.map((p) => p.x));
+                const maxY = Math.max(...polygonPoints.map((p) => p.y));
+                const relativePoints = polygonPoints.map((p) => ({ x: p.x - minX, y: p.y - minY }));
+                onCreateObject("polygon", minX, minY, maxX - minX, maxY - minY, relativePoints);
+                setIsDrawingPolygon(false);
+                setPolygonPoints([]);
+              } else {
+                setPolygonPoints((prev) => [...prev, { x: px, y: py }]);
+              }
+            }
+            return;
+          }
+          if (pendingObjectType === "point") {
+            // Point: single click places immediately
+            const px = e.global.x / zoom;
+            const py = e.global.y / zoom;
+            onCreateObject("point", px, py, 0, 0, []);
+            return;
+          }
+          // Rectangle/Ellipse: start click-drag
+          objectPlaceRef.current = {
+            type: pendingObjectType,
+            startX: e.global.x,
+            startY: e.global.y,
+          };
+          const px = e.global.x / zoom;
+          const py = e.global.y / zoom;
+          setLiveObjectPlace({
+            type: pendingObjectType,
+            x: px,
+            y: py,
+            width: 0,
+            height: 0,
+          });
+          return;
+        }
+
+        // --- Object resize handle hit test ---
+        const activeObj = objects.find((o) => o.id === activeObjectId);
+        if (activeObj && (activeObj.type === "rectangle" || activeObj.type === "ellipse")) {
+          const resize = liveObjectResize?.objectId === activeObj.id ? liveObjectResize : null;
+          const drag = liveObjectPos?.objectId === activeObj.id ? liveObjectPos : null;
+          const aox = (resize?.x ?? drag?.x ?? activeObj.x) * zoom;
+          const aoy = (resize?.y ?? drag?.y ?? activeObj.y) * zoom;
+          const aow = (resize?.width ?? activeObj.width) * zoom;
+          const aoh = (resize?.height ?? activeObj.height) * zoom;
+          const handles: [ResizeHandle, number, number][] = [
+            ["nw", aox, aoy], ["n", aox + aow / 2, aoy], ["ne", aox + aow, aoy],
+            ["w", aox, aoy + aoh / 2], ["e", aox + aow, aoy + aoh / 2],
+            ["sw", aox, aoy + aoh], ["s", aox + aow / 2, aoy + aoh], ["se", aox + aow, aoy + aoh],
+          ];
+          const hSize = 8;
+          for (const [handle, cx, cy] of handles) {
+            if (Math.abs(e.global.x - cx) <= hSize && Math.abs(e.global.y - cy) <= hSize) {
+              objectResizeRef.current = {
+                objectId: activeObj.id,
+                handle,
+                startX: e.global.x,
+                startY: e.global.y,
+                origX: activeObj.x,
+                origY: activeObj.y,
+                origWidth: activeObj.width,
+                origHeight: activeObj.height,
+              };
+              return;
+            }
+          }
+        }
+
+        // --- Polygon vertex drag hit test ---
+        if (activeObj && activeObj.type === "polygon") {
+          const aox = activeObj.x * zoom;
+          const aoy = activeObj.y * zoom;
+          for (let i = 0; i < activeObj.points.length; i++) {
+            const vx = aox + activeObj.points[i].x * zoom;
+            const vy = aoy + activeObj.points[i].y * zoom;
+            if (Math.abs(e.global.x - vx) <= 8 && Math.abs(e.global.y - vy) <= 8) {
+              polyVertexDragRef.current = {
+                objectId: activeObj.id,
+                vertexIndex: i,
+                startX: e.global.x,
+                startY: e.global.y,
+                origPoint: { ...activeObj.points[i] },
+              };
+              return;
+            }
+          }
+        }
+
+        // --- Object body hit test (click on object to select/drag) ---
+        // Check if the active layer is an object layer
+        const isObjLayer = objectLayers.some((l) => l.id === activeLayerId);
+        if (isObjLayer) {
+          // Iterate objects in reverse order (topmost first)
+          const layerObjects = objects
+            .filter((o) => o.layerId === activeLayerId && o.visible)
+            .reverse();
+          for (const obj of layerObjects) {
+            const ox = obj.x * zoom;
+            const oy = obj.y * zoom;
+            const ow = obj.width * zoom;
+            const oh = obj.height * zoom;
+            let hit = false;
+            if (obj.type === "rectangle" || obj.type === "ellipse") {
+              hit = e.global.x >= ox && e.global.x <= ox + ow && e.global.y >= oy && e.global.y <= oy + oh;
+            } else if (obj.type === "point") {
+              const ps = 8 * zoom;
+              hit = Math.abs(e.global.x - ox) <= ps && Math.abs(e.global.y - oy) <= ps;
+            } else if (obj.type === "polygon" && obj.points.length >= 3) {
+              // Simple bounding box hit for polygons
+              const pts = obj.points;
+              const minX = Math.min(...pts.map((p) => p.x)) * zoom + ox;
+              const maxX = Math.max(...pts.map((p) => p.x)) * zoom + ox;
+              const minY = Math.min(...pts.map((p) => p.y)) * zoom + oy;
+              const maxY = Math.max(...pts.map((p) => p.y)) * zoom + oy;
+              hit = e.global.x >= minX && e.global.x <= maxX && e.global.y >= minY && e.global.y <= maxY;
+            }
+            if (hit) {
+              onSelectObject(obj.id);
+              if (!obj.locked) {
+                objectDragRef.current = {
+                  objectId: obj.id,
+                  startX: e.global.x,
+                  startY: e.global.y,
+                  origX: obj.x,
+                  origY: obj.y,
+                };
+                setIsMoving(true);
+              }
+              return;
+            }
+          }
+          // Clicked empty space on object layer — deselect
+          onSelectObject(null);
+          return;
+        }
+
         // Check for resize handle hit first
         const resizeHandle = hitTestResizeHandle(e.global.x, e.global.y);
         if (resizeHandle) {
@@ -578,6 +842,15 @@ const MapScene = memo(function MapScene({
       zoom,
       liveImagePos,
       hitTestResizeHandle,
+      pendingObjectType,
+      objects,
+      activeObjectId,
+      objectLayers,
+      onCreateObject,
+      onSelectObject,
+      isDrawingPolygon,
+      liveObjectPos,
+      liveObjectResize,
     ],
   );
 
@@ -587,6 +860,70 @@ const MapScene = memo(function MapScene({
       setHoverTile(pos);
 
       if (currentTool === "select") {
+        // Handle object placement rubber-banding
+        const placeAction = objectPlaceRef.current;
+        if (placeAction) {
+          const startPx = placeAction.startX / zoom;
+          const startPy = placeAction.startY / zoom;
+          const curPx = e.global.x / zoom;
+          const curPy = e.global.y / zoom;
+          const x = Math.min(startPx, curPx);
+          const y = Math.min(startPy, curPy);
+          const w = Math.abs(curPx - startPx);
+          const h = Math.abs(curPy - startPy);
+          setLiveObjectPlace({ type: placeAction.type, x, y, width: w, height: h });
+          return;
+        }
+
+        // Handle object resize
+        const objResize = objectResizeRef.current;
+        if (objResize) {
+          const rdx = (e.global.x - objResize.startX) / zoom;
+          const rdy = (e.global.y - objResize.startY) / zoom;
+          const result = computeResize(
+            objResize.handle,
+            objResize.origX,
+            objResize.origY,
+            objResize.origWidth,
+            objResize.origHeight,
+            rdx,
+            rdy,
+            shiftKeyRef.current,
+          );
+          setLiveObjectResize({ objectId: objResize.objectId, ...result });
+          return;
+        }
+
+        // Handle polygon vertex drag
+        const pvDrag = polyVertexDragRef.current;
+        if (pvDrag) {
+          const dx = (e.global.x - pvDrag.startX) / zoom;
+          const dy = (e.global.y - pvDrag.startY) / zoom;
+          const activeObj = objects.find((o) => o.id === pvDrag.objectId);
+          if (activeObj) {
+            const newPoints = activeObj.points.map((p, i) =>
+              i === pvDrag.vertexIndex
+                ? { x: pvDrag.origPoint.x + dx, y: pvDrag.origPoint.y + dy }
+                : p,
+            );
+            onUpdatePolygonPoints(pvDrag.objectId, newPoints);
+          }
+          return;
+        }
+
+        // Handle object dragging
+        const objDrag = objectDragRef.current;
+        if (objDrag) {
+          const dx = (e.global.x - objDrag.startX) / zoom;
+          const dy = (e.global.y - objDrag.startY) / zoom;
+          setLiveObjectPos({
+            objectId: objDrag.objectId,
+            x: Math.round(objDrag.origX + dx),
+            y: Math.round(objDrag.origY + dy),
+          });
+          return;
+        }
+
         // Handle image layer resize
         const resizeAction = imageResizeRef.current;
         if (resizeAction) {
@@ -684,6 +1021,8 @@ const MapScene = memo(function MapScene({
       mapH,
       zoom,
       hitTestResizeHandle,
+      objects,
+      onUpdatePolygonPoints,
     ],
   );
 
@@ -691,6 +1030,56 @@ const MapScene = memo(function MapScene({
     (e?: { button?: number }) => {
       // Ignore middle mouse button release
       if (e?.button === 1) return;
+
+      // Commit object placement
+      if (currentTool === "select" && objectPlaceRef.current) {
+        if (liveObjectPlace && (liveObjectPlace.width > 2 || liveObjectPlace.height > 2)) {
+          onCreateObject(
+            liveObjectPlace.type,
+            liveObjectPlace.x,
+            liveObjectPlace.y,
+            liveObjectPlace.width,
+            liveObjectPlace.height,
+            [],
+          );
+        }
+        objectPlaceRef.current = null;
+        setLiveObjectPlace(null);
+        return;
+      }
+
+      // Commit object resize
+      if (currentTool === "select" && objectResizeRef.current) {
+        if (liveObjectResize) {
+          onResizeObject(
+            liveObjectResize.objectId,
+            liveObjectResize.x,
+            liveObjectResize.y,
+            liveObjectResize.width,
+            liveObjectResize.height,
+          );
+          setLiveObjectResize(null);
+        }
+        objectResizeRef.current = null;
+        return;
+      }
+
+      // Commit polygon vertex drag
+      if (currentTool === "select" && polyVertexDragRef.current) {
+        polyVertexDragRef.current = null;
+        return;
+      }
+
+      // Commit object drag
+      if (currentTool === "select" && objectDragRef.current) {
+        if (liveObjectPos) {
+          onMoveObject(liveObjectPos.objectId, liveObjectPos.x, liveObjectPos.y);
+          setLiveObjectPos(null);
+        }
+        objectDragRef.current = null;
+        setIsMoving(false);
+        return;
+      }
 
       // Commit image layer resize
       if (currentTool === "select" && imageResizeRef.current) {
@@ -755,11 +1144,47 @@ const MapScene = memo(function MapScene({
       onMoveImageLayer,
       liveImageResize,
       onResizeImageLayer,
+      liveObjectPlace,
+      onCreateObject,
+      liveObjectResize,
+      onResizeObject,
+      liveObjectPos,
+      onMoveObject,
     ],
   );
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
+    // Commit object placement on leave
+    if (currentTool === "select" && objectPlaceRef.current) {
+      objectPlaceRef.current = null;
+      setLiveObjectPlace(null);
+      return;
+    }
+    // Commit object resize on leave
+    if (currentTool === "select" && objectResizeRef.current) {
+      if (liveObjectResize) {
+        onResizeObject(liveObjectResize.objectId, liveObjectResize.x, liveObjectResize.y, liveObjectResize.width, liveObjectResize.height);
+        setLiveObjectResize(null);
+      }
+      objectResizeRef.current = null;
+      return;
+    }
+    // Commit polygon vertex drag on leave
+    if (currentTool === "select" && polyVertexDragRef.current) {
+      polyVertexDragRef.current = null;
+      return;
+    }
+    // Commit object drag on leave
+    if (currentTool === "select" && objectDragRef.current) {
+      if (liveObjectPos) {
+        onMoveObject(liveObjectPos.objectId, liveObjectPos.x, liveObjectPos.y);
+        setLiveObjectPos(null);
+      }
+      objectDragRef.current = null;
+      setIsMoving(false);
+      return;
+    }
     // Commit image layer resize on leave
     if (currentTool === "select" && imageResizeRef.current) {
       if (liveImageResize) {
@@ -815,6 +1240,10 @@ const MapScene = memo(function MapScene({
     onMoveImageLayer,
     liveImageResize,
     onResizeImageLayer,
+    liveObjectPos,
+    onMoveObject,
+    liveObjectResize,
+    onResizeObject,
   ]);
 
   // Draw checkerboard background
@@ -981,6 +1410,159 @@ const MapScene = memo(function MapScene({
     ],
   );
 
+  // Draw all map objects (dotted outlines)
+  const drawObjects = useCallback(
+    (g: Graphics) => {
+      g.clear();
+      // Draw objects per layer order
+      for (const objLayer of objectLayers) {
+        if (!objLayer.visible) continue;
+        const layerObjects = objects.filter((o) => o.layerId === objLayer.id);
+        for (const obj of layerObjects) {
+          if (!obj.visible) continue;
+          const isActive = obj.id === activeObjectId;
+          const color = isActive ? 0x00aaff : 0x00ccaa;
+          const alpha = isActive ? 1 : 0.7;
+          const lineWidth = isActive ? 2 : 1.5;
+
+          const ox = obj.x * zoom;
+          const oy = obj.y * zoom;
+          const ow = obj.width * zoom;
+          const oh = obj.height * zoom;
+
+          // Use live position/size if this object is being dragged/resized
+          const drag = liveObjectPos?.objectId === obj.id ? liveObjectPos : null;
+          const resize = liveObjectResize?.objectId === obj.id ? liveObjectResize : null;
+          const dx = (resize?.x ?? drag?.x ?? obj.x) * zoom;
+          const dy = (resize?.y ?? drag?.y ?? obj.y) * zoom;
+          const dw = (resize?.width ?? obj.width) * zoom;
+          const dh = (resize?.height ?? obj.height) * zoom;
+
+          if (obj.type === "rectangle") {
+            g.setStrokeStyle({ width: lineWidth, color, alpha });
+            g.rect(dx, dy, dw, dh);
+            g.stroke();
+            g.rect(dx, dy, dw, dh);
+            g.fill({ color, alpha: 0.08 });
+          } else if (obj.type === "ellipse") {
+            g.setStrokeStyle({ width: lineWidth, color, alpha });
+            g.ellipse(dx + dw / 2, dy + dh / 2, dw / 2, dh / 2);
+            g.stroke();
+            g.ellipse(dx + dw / 2, dy + dh / 2, dw / 2, dh / 2);
+            g.fill({ color, alpha: 0.08 });
+          } else if (obj.type === "point") {
+            const px = dx;
+            const py = dy;
+            const ps = 6 * zoom;
+            // Crosshair
+            g.setStrokeStyle({ width: lineWidth, color, alpha });
+            g.moveTo(px - ps, py);
+            g.lineTo(px + ps, py);
+            g.stroke();
+            g.moveTo(px, py - ps);
+            g.lineTo(px, py + ps);
+            g.stroke();
+            // Diamond
+            g.moveTo(px, py - ps * 0.7);
+            g.lineTo(px + ps * 0.7, py);
+            g.lineTo(px, py + ps * 0.7);
+            g.lineTo(px - ps * 0.7, py);
+            g.closePath();
+            g.fill({ color, alpha: 0.3 });
+            g.stroke();
+          } else if (obj.type === "polygon") {
+            if (obj.points.length >= 2) {
+              g.setStrokeStyle({ width: lineWidth, color, alpha });
+              const pts = obj.points;
+              g.moveTo(dx + pts[0].x * zoom, dy + pts[0].y * zoom);
+              for (let i = 1; i < pts.length; i++) {
+                g.lineTo(dx + pts[i].x * zoom, dy + pts[i].y * zoom);
+              }
+              g.closePath();
+              g.stroke();
+              // Fill
+              g.moveTo(dx + pts[0].x * zoom, dy + pts[0].y * zoom);
+              for (let i = 1; i < pts.length; i++) {
+                g.lineTo(dx + pts[i].x * zoom, dy + pts[i].y * zoom);
+              }
+              g.closePath();
+              g.fill({ color, alpha: 0.08 });
+            }
+          }
+
+          // Draw resize handles for selected object (rectangle/ellipse)
+          if (isActive && (obj.type === "rectangle" || obj.type === "ellipse")) {
+            const hs = 6;
+            const hh = hs / 2;
+            const handlePositions: [number, number][] = [
+              [dx, dy], [dx + dw / 2, dy], [dx + dw, dy],
+              [dx, dy + dh / 2], [dx + dw, dy + dh / 2],
+              [dx, dy + dh], [dx + dw / 2, dy + dh], [dx + dw, dy + dh],
+            ];
+            for (const [hx, hy] of handlePositions) {
+              g.rect(hx - hh, hy - hh, hs, hs);
+              g.fill({ color: 0xffffff, alpha: 1 });
+              g.setStrokeStyle({ width: 1, color: 0x00aaff, alpha: 1 });
+              g.rect(hx - hh, hy - hh, hs, hs);
+              g.stroke();
+            }
+          }
+
+          // Draw polygon vertex handles for selected polygon
+          if (isActive && obj.type === "polygon") {
+            const vr = 4;
+            for (const pt of obj.points) {
+              const vx = dx + pt.x * zoom;
+              const vy = dy + pt.y * zoom;
+              g.circle(vx, vy, vr);
+              g.fill({ color: 0xffffff, alpha: 1 });
+              g.setStrokeStyle({ width: 1, color: 0x00aaff, alpha: 1 });
+              g.circle(vx, vy, vr);
+              g.stroke();
+            }
+          }
+        }
+      }
+
+      // Draw live placement preview
+      if (liveObjectPlace) {
+        const { type, x, y, width, height } = liveObjectPlace;
+        const px = x * zoom;
+        const py = y * zoom;
+        const pw = width * zoom;
+        const ph = height * zoom;
+        g.setStrokeStyle({ width: 2, color: 0x00aaff, alpha: 0.8 });
+        if (type === "rectangle") {
+          g.rect(px, py, pw, ph);
+          g.stroke();
+          g.rect(px, py, pw, ph);
+          g.fill({ color: 0x00aaff, alpha: 0.1 });
+        } else if (type === "ellipse") {
+          g.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2);
+          g.stroke();
+          g.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2);
+          g.fill({ color: 0x00aaff, alpha: 0.1 });
+        }
+      }
+
+      // Draw polygon being drawn
+      if (isDrawingPolygon && polygonPoints.length > 0) {
+        g.setStrokeStyle({ width: 2, color: 0x00aaff, alpha: 0.8 });
+        g.moveTo(polygonPoints[0].x * zoom, polygonPoints[0].y * zoom);
+        for (let i = 1; i < polygonPoints.length; i++) {
+          g.lineTo(polygonPoints[i].x * zoom, polygonPoints[i].y * zoom);
+        }
+        g.stroke();
+        // Draw vertex circles
+        for (const pt of polygonPoints) {
+          g.circle(pt.x * zoom, pt.y * zoom, 4);
+          g.fill({ color: 0x00aaff, alpha: 0.8 });
+        }
+      }
+    },
+    [objectLayers, objects, activeObjectId, zoom, liveObjectPos, liveObjectResize, liveObjectPlace, isDrawingPolygon, polygonPoints],
+  );
+
   // Get the tile snapshot from the current move action (for overlay rendering)
   const moveAction =
     selActionRef.current?.type === "move" ? selActionRef.current : null;
@@ -1140,6 +1722,9 @@ const MapScene = memo(function MapScene({
         <pixiGraphics draw={drawImageLayerSelection} />
       )}
 
+      {/* Object layers rendering */}
+      <pixiGraphics draw={drawObjects} />
+
       {/* Tile move overlay — ghost tiles at destination during drag */}
       {currentTool === "select" &&
         moveDestSel &&
@@ -1190,6 +1775,21 @@ const MapScene = memo(function MapScene({
         onPointerUp={handlePointerUp}
         onPointerUpOutside={handlePointerUp}
         onPointerLeave={handlePointerLeave}
+        ondblclick={useCallback(
+          () => {
+            if (isDrawingPolygon && polygonPoints.length >= 3) {
+              const minX = Math.min(...polygonPoints.map((p) => p.x));
+              const minY = Math.min(...polygonPoints.map((p) => p.y));
+              const maxX = Math.max(...polygonPoints.map((p) => p.x));
+              const maxY = Math.max(...polygonPoints.map((p) => p.y));
+              const relativePoints = polygonPoints.map((p) => ({ x: p.x - minX, y: p.y - minY }));
+              onCreateObject("polygon", minX, minY, maxX - minX, maxY - minY, relativePoints);
+              setIsDrawingPolygon(false);
+              setPolygonPoints([]);
+            }
+          },
+          [isDrawingPolygon, polygonPoints, onCreateObject],
+        )}
       />
     </>
   );

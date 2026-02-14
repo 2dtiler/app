@@ -69,6 +69,7 @@ import {
 import {
   flattenLayerTree,
   flattenImageLayers,
+  flattenObjectLayers,
   getAllLayerIds,
   isLayerEffectivelyLocked,
   findLastLayerId,
@@ -88,7 +89,11 @@ import {
   type TerrainTile,
   type MapSelection,
   type ImageLayer,
+  type MapObject,
+  type ObjectId,
+  type ObjectType,
 } from "@/types";
+import { generateObjectId } from "@/lib/ids";
 import { pickWeightedTile } from "@/lib/terrain";
 
 export function MapPanel() {
@@ -431,6 +436,96 @@ export function MapPanel() {
     [setState],
   );
 
+  // Create a new map object (called from MapCanvas after click-drag placement)
+  const handleCreateObject = useCallback(
+    (type: ObjectType, x: number, y: number, width: number, height: number, points: { x: number; y: number }[]) => {
+      if (!state.activeLayerId) return;
+      const objectId = generateObjectId();
+      const objCount = (project?.objects ?? []).filter(
+        (o) => o.layerId === state.activeLayerId,
+      ).length;
+      setState((draft) => {
+        if (!draft.project) return;
+        if (!draft.project.objects) draft.project.objects = [];
+        const newObj: MapObject = {
+          id: objectId,
+          layerId: state.activeLayerId!,
+          name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${objCount + 1}`,
+          type,
+          x,
+          y,
+          width,
+          height,
+          rotation: 0,
+          points,
+          visible: true,
+          locked: false,
+          properties: {},
+        };
+        draft.project.objects.push(newObj);
+        // Add to object layer's objectOrder
+        const layer = (draft.project.objectLayers ?? []).find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (layer) {
+          layer.objectOrder.push(objectId);
+        }
+        draft.activeObjectId = objectId;
+        draft.pendingObjectType = null;
+      });
+    },
+    [setState, state.activeLayerId, project?.objects],
+  );
+
+  // Move a map object to a new position
+  const handleMoveObject = useCallback(
+    (objectId: string, x: number, y: number) => {
+      setState((draft) => {
+        const obj = (draft.project?.objects ?? []).find(
+          (o) => o.id === objectId,
+        );
+        if (obj) {
+          obj.x = x;
+          obj.y = y;
+        }
+      });
+    },
+    [setState],
+  );
+
+  // Resize a map object
+  const handleResizeObject = useCallback(
+    (objectId: string, x: number, y: number, width: number, height: number) => {
+      setState((draft) => {
+        const obj = (draft.project?.objects ?? []).find(
+          (o) => o.id === objectId,
+        );
+        if (obj) {
+          obj.x = x;
+          obj.y = y;
+          obj.width = width;
+          obj.height = height;
+        }
+      });
+    },
+    [setState],
+  );
+
+  // Update polygon points
+  const handleUpdatePolygonPoints = useCallback(
+    (objectId: string, points: { x: number; y: number }[]) => {
+      setState((draft) => {
+        const obj = (draft.project?.objects ?? []).find(
+          (o) => o.id === objectId,
+        );
+        if (obj) {
+          obj.points = points;
+        }
+      });
+    },
+    [setState],
+  );
+
   if (!project) return null;
 
   const activeGroup = project.mapGroups.find(
@@ -449,6 +544,16 @@ export function MapPanel() {
   const flatImageLayers = activeMap
     ? flattenImageLayers(activeMap.layerOrder, projectImageLayers, layerGroups)
     : [];
+  const projectObjectLayers = project.objectLayers ?? [];
+  const flatObjectLayers = activeMap
+    ? flattenObjectLayers(activeMap.layerOrder, projectObjectLayers, layerGroups)
+    : [];
+  // Collect all objects for flat object layers
+  const flatObjectLayerIds = new Set(flatObjectLayers.map((l) => l.id as string));
+  const projectObjects = project.objects ?? [];
+  const flatObjects = projectObjects.filter((o) =>
+    flatObjectLayerIds.has(o.layerId as string),
+  );
   // Create a virtual map with all flattened layer IDs in correct tree order.
   // getAllLayerIds walks the tree and returns all leaf IDs (tile + image) in order.
   const flatAllIds = activeMap
@@ -1119,6 +1224,15 @@ export function MapPanel() {
             imageLayers={flatImageLayers}
             onMoveImageLayer={handleMoveImageLayer}
             onResizeImageLayer={handleResizeImageLayer}
+            objectLayers={flatObjectLayers}
+            objects={flatObjects}
+            activeObjectId={state.activeObjectId}
+            pendingObjectType={state.pendingObjectType}
+            onCreateObject={handleCreateObject}
+            onMoveObject={handleMoveObject}
+            onResizeObject={handleResizeObject}
+            onUpdatePolygonPoints={handleUpdatePolygonPoints}
+            onSelectObject={(id) => setState((draft) => { draft.activeObjectId = id as ObjectId | null; })}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

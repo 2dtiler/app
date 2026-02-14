@@ -21,6 +21,8 @@ import type {
   TileLayer,
   Tileset,
   TilesetId,
+  ObjectLayer,
+  MapObject,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
 
@@ -42,6 +44,8 @@ interface PackedMap {
   layers: TileLayer[];
   /** Tileset metadata for every tileset referenced by tiles on these layers */
   tilesets: Tileset[];
+  objectLayers?: ObjectLayer[];
+  objects?: MapObject[];
   manifest: AssetManifestEntry[];
   assetBlob: Uint8Array;
 }
@@ -131,6 +135,12 @@ export async function importProject(data: Uint8Array): Promise<Project> {
   if (!packed.project.terrains) {
     packed.project.terrains = [];
   }
+  if (!packed.project.objectLayers) {
+    packed.project.objectLayers = [];
+  }
+  if (!packed.project.objects) {
+    packed.project.objects = [];
+  }
   return packed.project;
 }
 
@@ -145,6 +155,8 @@ export async function exportMap(
   map: TileMapData,
   layers: TileLayer[],
   projectTilesets: Tileset[],
+  objectLayers: ObjectLayer[] = [],
+  objects: MapObject[] = [],
 ): Promise<Uint8Array> {
   // Collect unique tileset IDs referenced by tiles in these layers
   const referencedTilesetIds = new Set<TilesetId>();
@@ -161,7 +173,11 @@ export async function exportMap(
   const assetIds = tilesets.map((t) => t.assetId);
   const { manifest, assetBlob } = await packAssets(assetIds);
 
-  const packed: PackedMap = { map, layers, tilesets, manifest, assetBlob };
+  const mapObjectLayers = objectLayers.filter((ol) => ol.mapId === map.id);
+  const mapObjectLayerIds = new Set(mapObjectLayers.map((ol) => ol.id));
+  const mapObjects = objects.filter((o) => mapObjectLayerIds.has(o.layerId));
+
+  const packed: PackedMap = { map, layers, tilesets, objectLayers: mapObjectLayers, objects: mapObjects, manifest, assetBlob };
   return compressPack(packed);
 }
 
@@ -171,13 +187,15 @@ export async function exportMap(
  */
 export async function importMap(
   data: Uint8Array,
-): Promise<{ map: TileMapData; layers: TileLayer[]; tilesets: Tileset[] }> {
+): Promise<{ map: TileMapData; layers: TileLayer[]; tilesets: Tileset[]; objectLayers: ObjectLayer[]; objects: MapObject[] }> {
   const packed = decompressPack<PackedMap>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
   return {
     map: packed.map,
     layers: packed.layers,
     tilesets: packed.tilesets,
+    objectLayers: packed.objectLayers ?? [],
+    objects: packed.objects ?? [],
   };
 }
 

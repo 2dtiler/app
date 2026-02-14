@@ -1,4 +1,12 @@
 Object Layer
+  - Adding polygons doesnt save to objects
+  - Adding another polygon continues from the old one
+
+Layer overlay is not working anymore when Window is very small
+Add Buttons Should be Bigger
+Ability to duplicate a layer
+
+File -> Settings - Set up AI Providers
 
 Tools:
   Image Editor

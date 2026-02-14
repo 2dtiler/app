@@ -60,6 +60,7 @@ import type {
   LayerGroupId,
   TileLayer,
   ImageLayer,
+  ObjectLayer,
   LayerGroup,
   LayerType,
 } from "@/types";
@@ -111,6 +112,7 @@ export function LayersPanel() {
 
   // Build display tree (top-to-bottom for rendering)
   const imageLayers = project.imageLayers ?? [];
+  const objectLayers = project.objectLayers ?? [];
   const treeNodes = buildDisplayTree(
     activeMap.layerOrder,
     project.layers,
@@ -118,6 +120,7 @@ export function LayersPanel() {
     0,
     null,
     imageLayers,
+    objectLayers,
   );
 
   // Count total layers (including nested) for default name
@@ -270,6 +273,11 @@ export function LayersPanel() {
       return;
     }
 
+    if (type === "object") {
+      handleCreateObjectLayer(name);
+      return;
+    }
+
     const layerId = generateLayerId();
     setState((draft) => {
       if (!draft.project) return;
@@ -329,6 +337,50 @@ export function LayersPanel() {
       };
       draft.project.layerGroups.push(group);
       map.layerOrder.push(groupId);
+    });
+  }
+
+  function handleCreateObjectLayer(name: string) {
+    const layerId = generateLayerId();
+    setState((draft) => {
+      if (!draft.project) return;
+      const map = draft.project.maps.find((m) => m.id === state.activeMapId);
+      if (!map) return;
+
+      if (!draft.project.objectLayers) draft.project.objectLayers = [];
+      if (!draft.project.objects) draft.project.objects = [];
+
+      const objectLayer: ObjectLayer = {
+        id: layerId,
+        mapId: map.id,
+        name,
+        type: "object",
+        visible: true,
+        locked: false,
+        objectOrder: [],
+      };
+      draft.project.objectLayers.push(objectLayer);
+
+      // Add to layer order
+      const groups = draft.project.layerGroups ?? [];
+      if (state.activeLayerId) {
+        const parentGroup = groups.find((g) =>
+          (g.childOrder as string[]).includes(state.activeLayerId as string),
+        );
+        if (parentGroup) {
+          const idx = (parentGroup.childOrder as string[]).indexOf(
+            state.activeLayerId as string,
+          );
+          parentGroup.childOrder.splice(idx + 1, 0, layerId);
+        } else {
+          map.layerOrder.push(layerId);
+        }
+      } else {
+        map.layerOrder.push(layerId);
+      }
+
+      draft.activeLayerId = layerId;
+      draft.currentTool = "select";
     });
   }
 
@@ -440,7 +492,7 @@ export function LayersPanel() {
         const childGroupIds = getAllGroupIds(group.childOrder, groups);
         childGroupIds.push(group.id as LayerGroupId);
 
-        // Remove all child layers (tile and image)
+        // Remove all child layers (tile, image, and object)
         draft.project.layers = draft.project.layers.filter(
           (l) => !childLayerIds.includes(l.id),
         );
@@ -448,6 +500,17 @@ export function LayersPanel() {
           draft.project.imageLayers = draft.project.imageLayers.filter(
             (l) => !childLayerIds.includes(l.id),
           );
+        }
+        if (draft.project.objectLayers) {
+          draft.project.objectLayers = draft.project.objectLayers.filter(
+            (l) => !childLayerIds.includes(l.id),
+          );
+          // Remove objects belonging to deleted object layers
+          if (draft.project.objects) {
+            draft.project.objects = draft.project.objects.filter(
+              (o) => !childLayerIds.includes(o.layerId),
+            );
+          }
         }
 
         // Remove all child groups + the group itself
@@ -497,6 +560,17 @@ export function LayersPanel() {
             (l) => l.id !== deleteTarget.id,
           );
         }
+        if (draft.project.objectLayers) {
+          draft.project.objectLayers = draft.project.objectLayers.filter(
+            (l) => l.id !== deleteTarget.id,
+          );
+          // Remove objects belonging to deleted object layer
+          if (draft.project.objects) {
+            draft.project.objects = draft.project.objects.filter(
+              (o) => o.layerId !== deleteTarget.id,
+            );
+          }
+        }
 
         if (draft.activeLayerId === deleteTarget.id) {
           draft.activeLayerId =
@@ -526,7 +600,14 @@ export function LayersPanel() {
           const imgLayer = (draft.project?.imageLayers ?? []).find(
             (l) => l.id === id,
           );
-          if (imgLayer) imgLayer.visible = !imgLayer.visible;
+          if (imgLayer) {
+            imgLayer.visible = !imgLayer.visible;
+          } else {
+            const objLayer = (draft.project?.objectLayers ?? []).find(
+              (l) => l.id === id,
+            );
+            if (objLayer) objLayer.visible = !objLayer.visible;
+          }
         }
       }
     });
@@ -547,7 +628,14 @@ export function LayersPanel() {
           const imgLayer = (draft.project?.imageLayers ?? []).find(
             (l) => l.id === id,
           );
-          if (imgLayer) imgLayer.locked = !imgLayer.locked;
+          if (imgLayer) {
+            imgLayer.locked = !imgLayer.locked;
+          } else {
+            const objLayer = (draft.project?.objectLayers ?? []).find(
+              (l) => l.id === id,
+            );
+            if (objLayer) objLayer.locked = !objLayer.locked;
+          }
         }
       }
     });
@@ -627,6 +715,14 @@ export function LayersPanel() {
           imgLayer.name = name;
           return;
         }
+        // Try object layer
+        const objLayer = (draft.project?.objectLayers ?? []).find(
+          (l) => l.id === renamingId,
+        );
+        if (objLayer) {
+          objLayer.name = name;
+          return;
+        }
         // Try group
         const group = (draft.project?.layerGroups ?? []).find(
           (g) => g.id === renamingId,
@@ -701,7 +797,7 @@ export function LayersPanel() {
                   onDrop={handleDrop}
                 />
               );
-            } else if (node.type === "imageLayer") {
+            } else if (node.type === "imageLayer" || node.type === "objectLayer") {
               return (
                 <LayerRow
                   key={node.layer.id}
@@ -1111,7 +1207,7 @@ const GroupRow = memo(function GroupRow({
 // ---------------------------------------------------------------------------
 
 interface LayerRowProps {
-  layer: TileLayer | ImageLayer;
+  layer: TileLayer | ImageLayer | ObjectLayer;
   depth: number;
   parentGroupId: LayerGroupId | null;
   isActive: boolean;
