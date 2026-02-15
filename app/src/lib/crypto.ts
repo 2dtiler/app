@@ -9,13 +9,10 @@
 const APP_PASSPHRASE = "2dtiler-ai-provider-keys";
 const PBKDF2_ITERATIONS = 100_000;
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-
 async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(APP_PASSPHRASE),
+    new TextEncoder().encode(APP_PASSPHRASE),
     "PBKDF2",
     false,
     ["deriveKey"],
@@ -24,7 +21,7 @@ async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      salt: salt as BufferSource,
       iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
     },
@@ -35,8 +32,14 @@ async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
   );
 }
 
-function toBase64(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+function toBase64(buf: ArrayBuffer | Uint8Array): string {
+  let bytes: Uint8Array;
+  if (buf instanceof Uint8Array) {
+    bytes = buf;
+  } else {
+    bytes = new Uint8Array(buf);
+  }
+  return btoa(String.fromCharCode(...bytes));
 }
 
 function fromBase64(b64: string): Uint8Array {
@@ -54,9 +57,9 @@ export async function encryptValue(plaintext: string): Promise<string> {
   const key = await deriveKey(salt);
 
   const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    encoder.encode(plaintext),
+    new TextEncoder().encode(plaintext),
   );
 
   return JSON.stringify({
@@ -74,10 +77,10 @@ export async function decryptValue(encrypted: string): Promise<string> {
   const key = await deriveKey(salt);
 
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    ciphertext,
+    ciphertext as BufferSource,
   );
 
-  return decoder.decode(plaintext);
+  return new TextDecoder().decode(plaintext);
 }
