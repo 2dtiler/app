@@ -32,6 +32,7 @@ import { ProjectModal } from "@/components/dialogs/ProjectModal";
 import { AboutDialog } from "@/components/dialogs/AboutDialog";
 import { KeyboardShortcutsDialog } from "@/components/dialogs/KeyboardShortcutsDialog";
 import { FindReplaceDialog } from "@/components/dialogs/FindReplaceDialog";
+import { BugReportDialog } from "@/components/dialogs/BugReportDialog";
 import { ToolDrawer } from "@/components/dialogs/ToolDrawer";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
@@ -63,6 +64,7 @@ function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolName | null>(null);
 
   useEffect(() => {
@@ -124,6 +126,8 @@ function App() {
         setShortcutsOpen={setShortcutsOpen}
         findReplaceOpen={findReplaceOpen}
         setFindReplaceOpen={setFindReplaceOpen}
+        bugReportOpen={bugReportOpen}
+        setBugReportOpen={setBugReportOpen}
         activeTool={activeTool}
         setActiveTool={setActiveTool}
       />
@@ -143,6 +147,8 @@ function AppShell({
   setShortcutsOpen,
   findReplaceOpen,
   setFindReplaceOpen,
+  bugReportOpen,
+  setBugReportOpen,
   activeTool,
   setActiveTool,
 }: {
@@ -156,6 +162,8 @@ function AppShell({
   setShortcutsOpen: (v: boolean) => void;
   findReplaceOpen: boolean;
   setFindReplaceOpen: (v: boolean) => void;
+  bugReportOpen: boolean;
+  setBugReportOpen: (v: boolean) => void;
   activeTool: ToolName | null;
   setActiveTool: (v: ToolName | null) => void;
 }) {
@@ -393,7 +401,7 @@ function AppShell({
         onOpenSettings={() => setSettingsOpen(true)}
         onAbout={() => setAboutOpen(true)}
         onKeyboardShortcuts={() => setShortcutsOpen(true)}
-        onSubmitBug={() => window.open("https://github.com", "_blank")}
+        onSubmitBug={() => setBugReportOpen(true)}
         onFindReplace={() => setFindReplaceOpen(true)}
         onOpenTool={(tool) => setActiveTool(tool)}
       />
@@ -456,6 +464,10 @@ function AppShell({
       <FindReplaceDialog
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
+      />
+      <BugReportDialog
+        open={bugReportOpen}
+        onOpenChange={setBugReportOpen}
       />
       <ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} />
     </div>
