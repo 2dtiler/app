@@ -1,4 +1,6 @@
-Ability to duplicate a layer
+Make a PWA
+Add a website
+
 File -> Settings - Set up AI Providers
 Get Claude Code Account
 Performance Audit
@@ -17,10 +19,8 @@ Get some ideas from: Keep Notes
 Add sentry for errors
 Allow logging bugs (From users)
 Add Google Ads
-Add a website
 Deploy to internet
 Add tutorial video
 Add google site analytics
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
-Make a PWA
