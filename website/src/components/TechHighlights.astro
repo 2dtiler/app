@@ -1,0 +1,146 @@
+---
+const highlights = [
+	{
+		icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 12V22" stroke="currentColor" stroke-width="2"/><path d="M12 12L21 7" stroke="currentColor" stroke-width="2"/><path d="M12 12L3 7" stroke="currentColor" stroke-width="2"/></svg>`,
+		title: 'Local-First',
+		description: 'All data stored in your browser via IndexedDB. No account, no server, no internet required.',
+		color: 'var(--lavender)',
+		bgColor: 'var(--lavender-pale)',
+	},
+	{
+		icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+		title: '60fps Rendering',
+		description: 'GPU-accelerated canvas powered by PixiJS. Smooth painting even on large maps.',
+		color: 'var(--amber)',
+		bgColor: 'var(--amber-light)',
+	},
+	{
+		icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 10H7L10 3L14 17L17 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+		title: 'Smart Undo/Redo',
+		description: 'Lightweight JSON patches instead of full snapshots. Up to 50 steps, persisted across sessions.',
+		color: 'var(--mint)',
+		bgColor: 'var(--mint-light)',
+	},
+	{
+		icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 8V16C21 18.2 19.2 20 17 20H7C4.8 20 3 18.2 3 16V8C3 5.8 4.8 4 7 4H17C19.2 4 21 5.8 21 8Z" stroke="currentColor" stroke-width="2"/><path d="M12 9V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 12H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+		title: 'Tiny Exports',
+		description: 'MsgPack + zlib compression for compact .2dp project files you can share anywhere.',
+		color: 'var(--rose)',
+		bgColor: 'var(--rose-light)',
+	},
+];
+---
+
+<section class="tech" id="tech">
+	<div class="section-inner">
+		<div class="tech-header reveal">
+			<span class="section-label">Built Different</span>
+			<h2 class="section-title">Engineered for performance</h2>
+			<p class="section-subtitle">
+				No bloated Electron app. Just a fast, lightweight editor that runs entirely in your browser.
+			</p>
+		</div>
+
+		<div class="tech-grid">
+			{highlights.map((h, i) => (
+				<div class={`tech-card reveal reveal-delay-${i + 1}`}>
+					<div class="tech-icon" style={`background: ${h.bgColor}; color: ${h.color};`}>
+						<Fragment set:html={h.icon} />
+					</div>
+					<div class="tech-body">
+						<h3 class="tech-title">{h.title}</h3>
+						<p class="tech-desc">{h.description}</p>
+					</div>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.tech {
+		padding: 100px 24px;
+		background: var(--bg-alt);
+		position: relative;
+	}
+
+	.tech::before {
+		content: '';
+		position: absolute;
+		top: -1px;
+		left: 0;
+		right: 0;
+		height: 60px;
+		background: var(--bg);
+		border-radius: 0 0 50% 50%;
+	}
+
+	.tech-header {
+		text-align: center;
+		margin-bottom: 64px;
+	}
+
+	.tech-header .section-subtitle {
+		margin: 0 auto;
+	}
+
+	.tech-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 20px;
+	}
+
+	.tech-card {
+		background: var(--surface);
+		border-radius: var(--radius-lg);
+		padding: 28px 32px;
+		border: 1px solid var(--border);
+		display: flex;
+		align-items: flex-start;
+		gap: 20px;
+		transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+					box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.tech-card:hover {
+		transform: translateY(-3px);
+		box-shadow: var(--shadow-hover);
+	}
+
+	.tech-icon {
+		width: 48px;
+		height: 48px;
+		border-radius: 12px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.tech-title {
+		font-size: 17px;
+		font-weight: 700;
+		margin-bottom: 4px;
+		letter-spacing: -0.01em;
+	}
+
+	.tech-desc {
+		font-size: 14px;
+		color: var(--text-muted);
+		line-height: 1.6;
+	}
+
+	@media (max-width: 700px) {
+		.tech {
+			padding: 80px 20px;
+		}
+
+		.tech-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.tech-card {
+			padding: 24px;
+		}
+	}
+</style>

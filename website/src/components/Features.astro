@@ -1,0 +1,165 @@
+---
+const features = [
+	{
+		title: 'Tile Painting',
+		description: 'Paint tiles with variable brush sizes from 1×1 to 5×5. Use bucket fill for large areas or terrain fill with weighted random tiles.',
+		color: 'var(--lavender)',
+		bgColor: 'var(--lavender-pale)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M16.5 3.5L22 9L10 21H4.5V15.5L16.5 3.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6L20 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+	},
+	{
+		title: 'Layer System',
+		description: 'Tile layers, image layers, object layers, and groups. Reorder, lock, hide, rename, and nest — just like Photoshop.',
+		color: 'var(--sky)',
+		bgColor: 'var(--sky-light)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 3L25 9L14 15L3 9L14 3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3 14L14 20L25 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 19L14 25L25 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+	},
+	{
+		title: 'Object Editor',
+		description: 'Place rectangles, points, ellipses, and polygons. Add typed custom properties for game entities like spawn points and triggers.',
+		color: 'var(--peach)',
+		bgColor: 'var(--peach-light)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="4" y="4" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><circle cx="19.5" cy="19.5" r="5" stroke="currentColor" stroke-width="2"/><path d="M15 4.5H24V13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+	},
+	{
+		title: 'Tileset Management',
+		description: 'Import any image as a tileset. Organize into groups, configure tile sizes from 8px to 128px, zoom, rename, and export.',
+		color: 'var(--mint)',
+		bgColor: 'var(--mint-light)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="3" y="3" width="9" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="16" y="3" width="9" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="9" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="16" y="16" width="9" height="9" rx="1" stroke="currentColor" stroke-width="2"/></svg>`,
+	},
+	{
+		title: 'Find & Replace',
+		description: 'Pattern-based tile search and replace across multiple layers. Supports grid patterns up to 5×5 with wildcards.',
+		color: 'var(--rose)',
+		bgColor: 'var(--rose-light)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="2"/><path d="M17 17L24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 12H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 9V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+	},
+	{
+		title: 'Project & Maps',
+		description: 'Manage multiple maps per project with groups. Export compressed binary files. Full undo/redo with up to 50 steps.',
+		color: 'var(--amber)',
+		bgColor: 'var(--amber-light)',
+		icon: `<svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M4 7C4 5.9 4.9 5 6 5H11L13 7H22C23.1 7 24 7.9 24 9V21C24 22.1 23.1 23 22 23H6C4.9 23 4 22.1 4 21V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 15H18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 19H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+	},
+];
+---
+
+<section class="features" id="features">
+	<div class="section-inner">
+		<div class="features-header reveal">
+			<span class="section-label">Features</span>
+			<h2 class="section-title">Everything you need to build game worlds</h2>
+			<p class="section-subtitle">
+				A complete toolkit for 2D tile map creation — from painting individual tiles
+				to managing complex multi-layer projects.
+			</p>
+		</div>
+
+		<div class="features-grid">
+			{features.map((feature, i) => (
+				<div class={`feature-card reveal reveal-delay-${(i % 3) + 1}`}>
+					<div class="feature-icon" style={`background: ${feature.bgColor}; color: ${feature.color};`}>
+						<Fragment set:html={feature.icon} />
+					</div>
+					<h3 class="feature-title">{feature.title}</h3>
+					<p class="feature-desc">{feature.description}</p>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.features {
+		padding: 100px 24px;
+		background: var(--bg-alt);
+		position: relative;
+	}
+
+	/* Subtle top/bottom curves */
+	.features::before {
+		content: '';
+		position: absolute;
+		top: -1px;
+		left: 0;
+		right: 0;
+		height: 60px;
+		background: var(--bg);
+		border-radius: 0 0 50% 50%;
+	}
+
+	.features-header {
+		text-align: center;
+		margin-bottom: 64px;
+	}
+
+	.features-header .section-subtitle {
+		margin: 0 auto;
+	}
+
+	.features-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 24px;
+	}
+
+	.feature-card {
+		background: var(--surface);
+		border-radius: var(--radius-lg);
+		padding: 32px;
+		border: 1px solid var(--border);
+		transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+					box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+		cursor: default;
+	}
+
+	.feature-card:hover {
+		transform: translateY(-4px);
+		box-shadow: var(--shadow-hover);
+	}
+
+	.feature-icon {
+		width: 52px;
+		height: 52px;
+		border-radius: 14px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 20px;
+	}
+
+	.feature-title {
+		font-size: 18px;
+		font-weight: 700;
+		margin-bottom: 8px;
+		letter-spacing: -0.01em;
+	}
+
+	.feature-desc {
+		font-size: 15px;
+		color: var(--text-muted);
+		line-height: 1.65;
+	}
+
+	@media (max-width: 900px) {
+		.features-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.features {
+			padding: 80px 20px;
+		}
+
+		.features-grid {
+			grid-template-columns: 1fr;
+			gap: 16px;
+		}
+
+		.feature-card {
+			padding: 24px;
+		}
+	}
+</style>

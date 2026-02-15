@@ -1,0 +1,136 @@
+---
+const steps = [
+	{
+		number: '01',
+		title: 'Import your tileset',
+		description: 'Upload any image as a tileset. Configure tile size, organize into groups, and start selecting tiles to paint with.',
+		accent: 'var(--lavender)',
+		accentBg: 'var(--lavender-pale)',
+	},
+	{
+		number: '02',
+		title: 'Paint your map',
+		description: 'Use brushes, bucket fill, or terrain fill to paint tiles onto layers. Add objects, images, and create complex multi-layered scenes.',
+		accent: 'var(--peach)',
+		accentBg: 'var(--peach-light)',
+	},
+	{
+		number: '03',
+		title: 'Export & use',
+		description: 'Export your project, individual maps, or tilesets as compact binary files. Use them directly in your game engine of choice.',
+		accent: 'var(--mint)',
+		accentBg: 'var(--mint-light)',
+	},
+];
+---
+
+<section class="workflow" id="workflow">
+	<div class="section-inner">
+		<div class="workflow-header reveal">
+			<span class="section-label">Workflow</span>
+			<h2 class="section-title">Simple workflow, powerful results</h2>
+			<p class="section-subtitle">
+				Get from tileset to finished map in three easy steps.
+			</p>
+		</div>
+
+		<div class="steps-row">
+			{steps.map((step, i) => (
+				<div class={`step reveal reveal-delay-${i + 1}`}>
+					<div class="step-number" style={`background: ${step.accentBg}; color: ${step.accent};`}>
+						{step.number}
+					</div>
+					<h3 class="step-title">{step.title}</h3>
+					<p class="step-desc">{step.description}</p>
+					{i < steps.length - 1 && (
+						<div class="step-connector" aria-hidden="true">
+							<svg width="40" height="12" viewBox="0 0 40 12" fill="none">
+								<path d="M0 6H32M32 6L26 1M32 6L26 11" stroke="var(--border)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+							</svg>
+						</div>
+					)}
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.workflow {
+		padding: 100px 24px;
+		background: var(--bg);
+	}
+
+	.workflow-header {
+		text-align: center;
+		margin-bottom: 72px;
+	}
+
+	.workflow-header .section-subtitle {
+		margin: 0 auto;
+	}
+
+	.steps-row {
+		display: flex;
+		gap: 24px;
+		justify-content: center;
+		align-items: flex-start;
+	}
+
+	.step {
+		flex: 1;
+		max-width: 320px;
+		text-align: center;
+		position: relative;
+	}
+
+	.step-number {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
+		border-radius: 16px;
+		font-family: var(--font-display);
+		font-size: 20px;
+		font-weight: 800;
+		margin-bottom: 20px;
+	}
+
+	.step-title {
+		font-size: 20px;
+		font-weight: 700;
+		margin-bottom: 10px;
+		letter-spacing: -0.01em;
+	}
+
+	.step-desc {
+		font-size: 15px;
+		color: var(--text-muted);
+		line-height: 1.65;
+	}
+
+	/* Connector arrows between steps */
+	.step-connector {
+		position: absolute;
+		top: 28px;
+		right: -32px;
+		transform: translateX(0);
+	}
+
+	@media (max-width: 768px) {
+		.steps-row {
+			flex-direction: column;
+			align-items: center;
+			gap: 40px;
+		}
+
+		.step {
+			max-width: 400px;
+		}
+
+		.step-connector {
+			display: none;
+		}
+	}
+</style>

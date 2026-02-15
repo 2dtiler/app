@@ -1,0 +1,145 @@
+---
+const shortcuts = [
+	{ key: 'B', label: 'Paint', color: 'var(--lavender)', bgColor: 'var(--lavender-pale)' },
+	{ key: 'E', label: 'Erase', color: 'var(--rose)', bgColor: 'var(--rose-light)' },
+	{ key: 'G', label: 'Fill', color: 'var(--mint)', bgColor: 'var(--mint-light)' },
+	{ key: 'S', label: 'Select', color: 'var(--sky)', bgColor: 'var(--sky-light)' },
+	{ key: '1-5', label: 'Brush Size', color: 'var(--amber)', bgColor: 'var(--amber-light)' },
+	{ key: '⌘Z', label: 'Undo', color: 'var(--peach)', bgColor: 'var(--peach-light)' },
+	{ key: '⌘S', label: 'Save', color: 'var(--mint)', bgColor: 'var(--mint-light)' },
+	{ key: '⌘H', label: 'Find & Replace', color: 'var(--lavender)', bgColor: 'var(--lavender-pale)' },
+];
+---
+
+<section class="shortcuts" id="shortcuts">
+	<div class="section-inner">
+		<div class="shortcuts-layout">
+			<div class="shortcuts-text reveal">
+				<span class="section-label">Keyboard-First</span>
+				<h2 class="section-title">Master the shortcuts</h2>
+				<p class="section-subtitle">
+					Every tool is a keypress away. Speed up your workflow with intuitive
+					keyboard shortcuts designed for rapid iteration.
+				</p>
+			</div>
+
+			<div class="shortcuts-grid">
+				{shortcuts.map((s, i) => (
+					<div class={`shortcut-item reveal reveal-delay-${(i % 4) + 1}`}>
+						<kbd class="keycap" style={`--key-color: ${s.color}; --key-bg: ${s.bgColor};`}>
+							{s.key}
+						</kbd>
+						<span class="shortcut-label">{s.label}</span>
+					</div>
+				))}
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.shortcuts {
+		padding: 100px 24px;
+		background: var(--bg);
+	}
+
+	.shortcuts-layout {
+		display: flex;
+		align-items: center;
+		gap: 80px;
+	}
+
+	.shortcuts-text {
+		flex: 1;
+		min-width: 280px;
+	}
+
+	.shortcuts-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 16px;
+		flex: 1;
+	}
+
+	.shortcut-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		text-align: center;
+	}
+
+	.keycap {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 64px;
+		height: 64px;
+		border-radius: 14px;
+		font-family: var(--font-display);
+		font-size: 18px;
+		font-weight: 700;
+		color: var(--key-color);
+		background: var(--key-bg);
+		border: 1.5px solid color-mix(in srgb, var(--key-color) 20%, transparent);
+		box-shadow:
+			0 2px 0 color-mix(in srgb, var(--key-color) 15%, transparent),
+			0 4px 12px rgba(120, 100, 160, 0.06);
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
+		cursor: default;
+		user-select: none;
+	}
+
+	.keycap:hover {
+		transform: translateY(-2px);
+		box-shadow:
+			0 4px 0 color-mix(in srgb, var(--key-color) 15%, transparent),
+			0 8px 20px rgba(120, 100, 160, 0.1);
+	}
+
+	.keycap:active {
+		transform: translateY(1px);
+		box-shadow:
+			0 0px 0 color-mix(in srgb, var(--key-color) 15%, transparent),
+			0 1px 4px rgba(120, 100, 160, 0.06);
+	}
+
+	.shortcut-label {
+		font-family: var(--font-display);
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--text-muted);
+		letter-spacing: 0.02em;
+	}
+
+	@media (max-width: 900px) {
+		.shortcuts-layout {
+			flex-direction: column;
+			gap: 48px;
+			text-align: center;
+		}
+
+		.shortcuts-text {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+	}
+
+	@media (max-width: 500px) {
+		.shortcuts {
+			padding: 80px 20px;
+		}
+
+		.shortcuts-grid {
+			grid-template-columns: repeat(2, 1fr);
+			gap: 20px;
+		}
+
+		.keycap {
+			width: 56px;
+			height: 56px;
+			font-size: 16px;
+		}
+	}
+</style>

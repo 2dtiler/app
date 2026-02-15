@@ -1,0 +1,112 @@
+---
+---
+
+<footer class="footer">
+	<div class="footer-inner">
+		<div class="footer-divider"></div>
+
+		<div class="footer-content">
+			<div class="footer-brand">
+				<svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+					<rect x="2" y="2" width="12" height="12" rx="2.5" fill="#A78BDA"/>
+					<rect x="18" y="2" width="12" height="12" rx="2.5" fill="#F2B5A0"/>
+					<rect x="2" y="18" width="12" height="12" rx="2.5" fill="#7EC4AA"/>
+					<rect x="18" y="18" width="12" height="12" rx="2.5" fill="#E8C470"/>
+				</svg>
+				<span class="footer-name">2D Tiler</span>
+			</div>
+
+			<p class="footer-tagline">Made for game developers. Free &amp; open source.</p>
+
+			<div class="footer-links">
+				<a href="#" class="footer-link">Open Editor</a>
+				<span class="footer-sep">&middot;</span>
+				<a href="#" class="footer-link">GitHub</a>
+				<span class="footer-sep">&middot;</span>
+				<a href="#features" class="footer-link">Features</a>
+			</div>
+
+			<p class="footer-copy">&copy; 2026 2D Tiler</p>
+		</div>
+	</div>
+</footer>
+
+<style>
+	.footer {
+		padding: 0 24px 48px;
+		background: var(--bg);
+	}
+
+	.footer-inner {
+		max-width: var(--max-width);
+		margin: 0 auto;
+	}
+
+	.footer-divider {
+		height: 1px;
+		background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
+		margin-bottom: 48px;
+	}
+
+	.footer-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: 16px;
+	}
+
+	.footer-brand {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.footer-name {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 18px;
+		color: var(--text);
+	}
+
+	.footer-tagline {
+		font-size: 15px;
+		color: var(--text-muted);
+	}
+
+	.footer-links {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 4px;
+	}
+
+	.footer-link {
+		font-family: var(--font-display);
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--text-muted);
+		transition: color 0.2s;
+	}
+
+	.footer-link:hover {
+		color: var(--lavender);
+	}
+
+	.footer-sep {
+		color: var(--text-light);
+		font-size: 12px;
+	}
+
+	.footer-copy {
+		font-size: 13px;
+		color: var(--text-light);
+		margin-top: 8px;
+	}
+
+	@media (max-width: 600px) {
+		.footer {
+			padding: 0 20px 40px;
+		}
+	}
+</style>
