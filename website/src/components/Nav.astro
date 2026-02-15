@@ -1,10 +1,13 @@
 ---
 ---
 
-<nav class="nav" id="nav">
-	<div class="nav-inner">
-		<a href="#" class="nav-brand">
-			<svg class="nav-logo" width="28" height="28" viewBox="0 0 32 32" fill="none">
+<nav
+	class="fixed top-0 inset-x-0 h-16 z-100 transition-[background,box-shadow] duration-300 ease-out data-[scrolled]:bg-[rgba(251,247,244,0.88)] data-[scrolled]:backdrop-blur-[20px] data-[scrolled]:shadow-[0_1px_0_var(--color-border)]"
+	id="nav"
+>
+	<div class="max-w-300 mx-auto px-6 h-full flex items-center justify-between">
+		<a href="#" class="flex items-center gap-2.5 font-display font-bold text-lg text-foreground tracking-[-0.01em]">
+			<svg class="shrink-0" width="28" height="28" viewBox="0 0 32 32" fill="none">
 				<rect x="2" y="2" width="12" height="12" rx="2.5" fill="#A78BDA"/>
 				<rect x="18" y="2" width="12" height="12" rx="2.5" fill="#F2B5A0"/>
 				<rect x="2" y="18" width="12" height="12" rx="2.5" fill="#7EC4AA"/>
@@ -13,192 +16,48 @@
 			<span>2D Tiler</span>
 		</a>
 
-		<div class="nav-links" id="nav-links">
-			<a href="#features">Features</a>
-			<a href="#workflow">How It Works</a>
-			<a href="#tech">Tech</a>
-			<a href="#shortcuts">Shortcuts</a>
+		<div
+			class="hidden data-[open]:flex data-[open]:flex-col data-[open]:absolute data-[open]:top-16 data-[open]:inset-x-0 data-[open]:bg-[rgba(251,247,244,0.96)] data-[open]:backdrop-blur-[20px] data-[open]:py-5 data-[open]:px-6 data-[open]:gap-[18px] data-[open]:border-b data-[open]:border-border md:flex md:flex-row md:static md:bg-transparent md:backdrop-blur-none md:p-0 md:gap-9 md:border-0"
+			id="nav-links"
+		>
+			<a href="#features" class="text-base md:text-sm font-display font-medium text-muted transition-colors duration-200 relative after:content-[''] after:absolute after:-bottom-1 after:inset-x-0 after:h-0.5 after:bg-lavender after:rounded-[1px] after:scale-x-0 after:transition-transform after:duration-[250ms] after:ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:after:scale-x-100">Features</a>
+			<a href="#workflow" class="text-base md:text-sm font-display font-medium text-muted transition-colors duration-200 relative after:content-[''] after:absolute after:-bottom-1 after:inset-x-0 after:h-0.5 after:bg-lavender after:rounded-[1px] after:scale-x-0 after:transition-transform after:duration-[250ms] after:ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:after:scale-x-100">How It Works</a>
+			<a href="#tech" class="text-base md:text-sm font-display font-medium text-muted transition-colors duration-200 relative after:content-[''] after:absolute after:-bottom-1 after:inset-x-0 after:h-0.5 after:bg-lavender after:rounded-[1px] after:scale-x-0 after:transition-transform after:duration-[250ms] after:ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:after:scale-x-100">Tech</a>
+			<a href="#shortcuts" class="text-base md:text-sm font-display font-medium text-muted transition-colors duration-200 relative after:content-[''] after:absolute after:-bottom-1 after:inset-x-0 after:h-0.5 after:bg-lavender after:rounded-[1px] after:scale-x-0 after:transition-transform after:duration-[250ms] after:ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:after:scale-x-100">Shortcuts</a>
 		</div>
 
-		<a href="#" class="nav-cta">
+		<a href="https://app.2dtiler.com/" class="hidden md:inline-flex items-center gap-1.5 font-display text-sm font-semibold text-white bg-lavender py-2 px-5 rounded-full transition-all duration-200 hover:bg-[#9578D0] hover:-translate-y-px hover:shadow-[0_4px_16px_rgba(167,139,218,0.35)]">
 			Open Editor
 			<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
 				<path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
 		</a>
 
-		<button class="nav-mobile-toggle" id="nav-toggle" aria-label="Toggle menu">
-			<span></span>
-			<span></span>
-			<span></span>
+		<button class="flex flex-col gap-[5px] bg-transparent border-none cursor-pointer p-1 md:hidden" id="nav-toggle" aria-label="Toggle menu">
+			<span class="block w-[22px] h-0.5 bg-foreground rounded-[1px] transition-[transform,opacity] duration-300"></span>
+			<span class="block w-[22px] h-0.5 bg-foreground rounded-[1px] transition-[transform,opacity] duration-300"></span>
+			<span class="block w-[22px] h-0.5 bg-foreground rounded-[1px] transition-[transform,opacity] duration-300"></span>
 		</button>
 	</div>
 </nav>
-
-<style>
-	.nav {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		height: var(--nav-height);
-		z-index: 100;
-		transition: background 0.35s ease, box-shadow 0.35s ease;
-	}
-
-	.nav.scrolled {
-		background: rgba(251, 247, 244, 0.88);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		box-shadow: 0 1px 0 var(--border);
-	}
-
-	.nav-inner {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		padding: 0 24px;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.nav-brand {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-family: var(--font-display);
-		font-weight: 700;
-		font-size: 18px;
-		color: var(--text);
-		letter-spacing: -0.01em;
-	}
-
-	.nav-logo {
-		flex-shrink: 0;
-	}
-
-	.nav-links {
-		display: flex;
-		gap: 36px;
-	}
-
-	.nav-links a {
-		font-family: var(--font-display);
-		font-size: 14px;
-		font-weight: 500;
-		color: var(--text-muted);
-		transition: color 0.2s;
-		position: relative;
-	}
-
-	.nav-links a::after {
-		content: '';
-		position: absolute;
-		bottom: -4px;
-		left: 0;
-		right: 0;
-		height: 2px;
-		background: var(--lavender);
-		border-radius: 1px;
-		transform: scaleX(0);
-		transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-
-	.nav-links a:hover {
-		color: var(--text);
-	}
-
-	.nav-links a:hover::after {
-		transform: scaleX(1);
-	}
-
-	.nav-cta {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		font-family: var(--font-display);
-		font-size: 14px;
-		font-weight: 600;
-		color: white;
-		background: var(--lavender);
-		padding: 8px 20px;
-		border-radius: 100px;
-		transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-	}
-
-	.nav-cta:hover {
-		background: #9578D0;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 16px rgba(167, 139, 218, 0.35);
-	}
-
-	.nav-mobile-toggle {
-		display: none;
-		flex-direction: column;
-		gap: 5px;
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 4px;
-	}
-
-	.nav-mobile-toggle span {
-		display: block;
-		width: 22px;
-		height: 2px;
-		background: var(--text);
-		border-radius: 1px;
-		transition: transform 0.3s, opacity 0.3s;
-	}
-
-	@media (max-width: 768px) {
-		.nav-links {
-			display: none;
-		}
-
-		.nav-links.open {
-			display: flex;
-			flex-direction: column;
-			position: absolute;
-			top: var(--nav-height);
-			left: 0;
-			right: 0;
-			background: rgba(251, 247, 244, 0.96);
-			backdrop-filter: blur(20px);
-			-webkit-backdrop-filter: blur(20px);
-			padding: 20px 24px;
-			gap: 18px;
-			border-bottom: 1px solid var(--border);
-		}
-
-		.nav-links.open a {
-			font-size: 16px;
-		}
-
-		.nav-cta {
-			display: none;
-		}
-
-		.nav-mobile-toggle {
-			display: flex;
-		}
-	}
-</style>
 
 <script>
 	const nav = document.getElementById('nav');
 	window.addEventListener('scroll', () => {
 		if (window.scrollY > 20) {
-			nav?.classList.add('scrolled');
+			nav?.setAttribute('data-scrolled', '');
 		} else {
-			nav?.classList.remove('scrolled');
+			nav?.removeAttribute('data-scrolled');
 		}
 	}, { passive: true });
 
 	const toggle = document.getElementById('nav-toggle');
 	const links = document.getElementById('nav-links');
 	toggle?.addEventListener('click', () => {
-		links?.classList.toggle('open');
+		if (links?.hasAttribute('data-open')) {
+			links.removeAttribute('data-open');
+		} else {
+			links?.setAttribute('data-open', '');
+		}
 	});
 </script>

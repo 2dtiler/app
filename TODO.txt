@@ -1,7 +1,7 @@
+Conert Website to PWA
 Make a PWA
 
 File -> Settings - Set up AI Providers
-Get Claude Code Account
 Performance Audit
 Tools:
   Image Editor

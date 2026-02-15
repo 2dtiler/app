@@ -1,42 +1,45 @@
 ---
 ---
 
-<section class="hero">
+<section class="relative pt-26 px-5 pb-15 md:pt-31 md:px-6 md:pb-20 min-h-screen flex items-center overflow-hidden">
 	<!-- Gradient orbs -->
-	<div class="hero-bg" aria-hidden="true">
-		<div class="orb orb-1"></div>
-		<div class="orb orb-2"></div>
-		<div class="orb orb-3"></div>
+	<div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+		<div class="absolute rounded-full blur-[100px] w-150 h-150 bg-lavender-light opacity-35 -top-[10%] -right-[5%] animate-[float-1_18s_ease-in-out_infinite]"></div>
+		<div class="absolute rounded-full blur-[100px] w-125 h-125 bg-peach-light opacity-30 -bottom-[10%] -left-[5%] animate-[float-2_22s_ease-in-out_infinite]"></div>
+		<div class="absolute rounded-full blur-[100px] w-[400px] h-[400px] bg-mint-light opacity-25 top-[40%] left-[40%] animate-[float-3_20s_ease-in-out_infinite]"></div>
 	</div>
 
 	<!-- Subtle tile grid decoration -->
-	<div class="hero-grid-deco" aria-hidden="true"></div>
+	<div
+		class="absolute inset-0 opacity-[0.04] pointer-events-none bg-[linear-gradient(var(--color-lavender)_1px,transparent_1px),linear-gradient(90deg,var(--color-lavender)_1px,transparent_1px)] bg-[length:48px_48px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,black_0%,transparent_70%)] [-webkit-mask-image:radial-gradient(ellipse_60%_60%_at_50%_40%,black_0%,transparent_70%)]"
+		aria-hidden="true"
+	></div>
 
-	<div class="hero-inner">
-		<div class="hero-content">
-			<div class="hero-badge reveal">
-				<span class="badge-dot"></span>
+	<div class="max-w-300 mx-auto w-full flex flex-col items-center text-center gap-14 relative z-1">
+		<div class="max-w-180">
+			<div class="inline-flex items-center gap-2 font-display text-[13px] font-semibold text-lavender bg-lavender-pale px-4 py-1.5 rounded-full mb-6 tracking-[0.02em] reveal">
+				<span class="w-1.5 h-1.5 rounded-full bg-lavender animate-[pulse-dot_2s_ease-in-out_infinite]"></span>
 				Free &amp; Local-First
 			</div>
 
-			<h1 class="hero-title reveal reveal-delay-1">
+			<h1 class="text-[clamp(36px,6.5vw,64px)] font-extrabold leading-[1.1] tracking-[-0.03em] mb-5 reveal reveal-delay-1">
 				Build beautiful tile maps
-				<span class="gradient-text">in your browser.</span>
+				<span class="bg-[linear-gradient(135deg,var(--color-lavender)_0%,var(--color-peach)_50%,var(--color-rose)_100%)] bg-clip-text text-transparent">in your browser.</span>
 			</h1>
 
-			<p class="hero-subtitle reveal reveal-delay-2">
+			<p class="text-[clamp(16px,2.5vw,19px)] text-muted leading-[1.7] mx-auto mb-8 max-w-140 reveal reveal-delay-2">
 				A powerful tile map editor powered by PixiJS. Paint with brushes,
 				manage layers, place objects, and export your work — no account needed.
 			</p>
 
-			<div class="hero-actions reveal reveal-delay-3">
-				<a href="#" class="btn-primary">
+			<div class="flex gap-3.5 justify-center flex-wrap reveal reveal-delay-3">
+				<a href="https://app.2dtiler.com/" class="inline-flex items-center gap-2 font-display font-semibold text-[15px] md:text-base py-3 px-6 md:py-3.5 md:px-7 rounded-full transition-all duration-200 ease-out text-white bg-lavender shadow-[0_4px_20px_rgba(167,139,218,0.3)] hover:bg-[#9578D0] hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(167,139,218,0.4)]">
 					Open Editor
 					<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
 						<path d="M7 4L13 9L7 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 					</svg>
 				</a>
-				<a href="#features" class="btn-ghost">
+				<a href="#features" class="inline-flex items-center gap-2 font-display font-semibold text-[15px] md:text-base py-3 px-6 md:py-3.5 md:px-7 rounded-full transition-all duration-200 ease-out text-muted bg-transparent border-[1.5px] border-border hover:text-foreground hover:border-lavender-light hover:bg-[rgba(167,139,218,0.06)]">
 					Explore Features
 					<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
 						<path d="M9 4V14M9 14L5 10M9 14L13 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -45,62 +48,70 @@
 			</div>
 		</div>
 
-		<div class="hero-preview reveal reveal-delay-4">
-			<div class="preview-window">
-				<div class="preview-topbar">
-					<div class="preview-dots">
-						<span class="dot-rose"></span>
-						<span class="dot-amber"></span>
-						<span class="dot-mint"></span>
+		<div class="w-full max-w-225 reveal reveal-delay-4">
+			<div class="bg-surface rounded-lg border border-border shadow-lg overflow-hidden">
+				<div class="flex items-center py-3 px-4 bg-[linear-gradient(180deg,#F8F4FC_0%,#F3EEF8_100%)] border-b border-border">
+					<div class="flex gap-[7px]">
+						<span class="w-[11px] h-[11px] rounded-full bg-rose"></span>
+						<span class="w-[11px] h-[11px] rounded-full bg-amber"></span>
+						<span class="w-[11px] h-[11px] rounded-full bg-mint"></span>
 					</div>
-					<span class="preview-title">2D Tiler</span>
-					<span class="preview-spacer"></span>
+					<span class="font-display text-xs font-semibold text-subtle ml-4 tracking-[0.06em]">2D Tiler</span>
+					<span class="flex-1"></span>
 				</div>
-				<div class="preview-body">
-					<!-- Stylized app mockup -->
-					<div class="mock-sidebar">
-						<div class="mock-tile-grid">
-							<span style="background: var(--lavender-light)"></span>
-							<span style="background: var(--peach-light)"></span>
-							<span style="background: var(--mint-light)"></span>
-							<span style="background: var(--sky-light)"></span>
-							<span style="background: var(--rose-light)"></span>
-							<span style="background: var(--amber-light)"></span>
-							<span style="background: var(--lavender-pale)"></span>
-							<span style="background: var(--peach)"></span>
-							<span style="background: var(--mint-light)"></span>
-							<span style="background: var(--lavender-light)"></span>
-							<span style="background: var(--sky-light)"></span>
-							<span style="background: var(--rose-light)"></span>
+				<div class="flex h-[240px] md:h-[360px] bg-[#FDFBF9]">
+					<!-- Mock sidebar -->
+					<div class="w-[120px] shrink-0 p-3 border-r border-border bg-[rgba(243,237,247,0.3)] hidden md:block">
+						<div class="grid grid-cols-3 gap-1">
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-peach-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-mint-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-sky-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-rose-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-amber-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-pale)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-peach)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-mint-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-sky-light)"></span>
+							<span class="aspect-square rounded-[4px]" style="background: var(--color-rose-light)"></span>
 						</div>
 					</div>
-					<div class="mock-canvas">
-						<div class="mock-grid-lines"></div>
-						<div class="mock-painted-tiles">
-							<span style="background: var(--mint-light); grid-area: 2/3/3/4;"></span>
-							<span style="background: var(--mint-light); grid-area: 2/4/3/5;"></span>
-							<span style="background: var(--mint); grid-area: 3/3/4/4; opacity:0.5;"></span>
-							<span style="background: var(--mint); grid-area: 3/4/4/5; opacity:0.5;"></span>
-							<span style="background: var(--lavender-light); grid-area: 4/5/5/6;"></span>
-							<span style="background: var(--lavender-light); grid-area: 4/6/5/7;"></span>
-							<span style="background: var(--lavender-light); grid-area: 5/5/6/6;"></span>
-							<span style="background: var(--lavender-light); grid-area: 5/6/6/7;"></span>
-							<span style="background: var(--peach-light); grid-area: 6/2/7/3;"></span>
-							<span style="background: var(--peach-light); grid-area: 6/3/7/4;"></span>
-							<span style="background: var(--peach-light); grid-area: 7/2/8/3;"></span>
-							<span style="background: var(--amber-light); grid-area: 3/7/4/8;"></span>
-							<span style="background: var(--amber-light); grid-area: 3/8/4/9;"></span>
-							<span style="background: var(--sky-light); grid-area: 5/2/6/3;"></span>
-							<span style="background: var(--rose-light); grid-area: 7/6/8/7;"></span>
-							<span style="background: var(--rose-light); grid-area: 7/7/8/8;"></span>
+					<!-- Mock canvas -->
+					<div class="flex-1 relative overflow-hidden">
+						<div class="absolute inset-0 opacity-[0.06] bg-[linear-gradient(var(--color-foreground)_1px,transparent_1px),linear-gradient(90deg,var(--color-foreground)_1px,transparent_1px)] bg-[length:40px_40px]"></div>
+						<div class="absolute inset-0 grid grid-cols-[repeat(9,40px)] grid-rows-[repeat(9,40px)]">
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint-light); grid-area: 2/3/3/4;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint-light); grid-area: 2/4/3/5;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint); grid-area: 3/3/4/4; opacity:0.5;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint); grid-area: 3/4/4/5; opacity:0.5;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 4/5/5/6;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 4/6/5/7;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 5/5/6/6;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 5/6/6/7;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 6/2/7/3;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 6/3/7/4;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 7/2/8/3;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-amber-light); grid-area: 3/7/4/8;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-amber-light); grid-area: 3/8/4/9;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-sky-light); grid-area: 5/2/6/3;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-rose-light); grid-area: 7/6/8/7;"></span>
+							<span class="rounded-[3px] m-0.5" style="background: var(--color-rose-light); grid-area: 7/7/8/8;"></span>
 						</div>
-						<p class="mock-label">Your screenshot here</p>
+						<p class="absolute bottom-5 left-1/2 -translate-x-1/2 font-display text-[13px] text-subtle bg-white/80 py-1.5 px-4 rounded-full border border-border whitespace-nowrap">Your screenshot here</p>
 					</div>
-					<div class="mock-right-panel">
-						<div class="mock-layers">
-							<div class="mock-layer active"><span class="mock-layer-icon"></span> Terrain</div>
-							<div class="mock-layer"><span class="mock-layer-icon"></span> Objects</div>
-							<div class="mock-layer"><span class="mock-layer-icon"></span> Background</div>
+					<!-- Mock right panel -->
+					<div class="w-[130px] shrink-0 p-3 border-l border-border bg-[rgba(243,237,247,0.3)] hidden md:block">
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2 font-display text-[11px] py-1.5 px-2 rounded-[6px] bg-lavender-pale text-lavender font-semibold">
+								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-60"></span> Terrain
+							</div>
+							<div class="flex items-center gap-2 font-display text-[11px] text-subtle py-1.5 px-2 rounded-[6px] transition-colors duration-200">
+								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-35"></span> Objects
+							</div>
+							<div class="flex items-center gap-2 font-display text-[11px] text-subtle py-1.5 px-2 rounded-[6px] transition-colors duration-200">
+								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-35"></span> Background
+							</div>
 						</div>
 					</div>
 				</div>
@@ -108,392 +119,3 @@
 		</div>
 	</div>
 </section>
-
-<style>
-	.hero {
-		position: relative;
-		padding: calc(var(--nav-height) + 60px) 24px 80px;
-		min-height: 100vh;
-		display: flex;
-		align-items: center;
-		overflow: hidden;
-	}
-
-	/* Gradient orbs */
-	.hero-bg {
-		position: absolute;
-		inset: 0;
-		overflow: hidden;
-		pointer-events: none;
-	}
-
-	.orb {
-		position: absolute;
-		border-radius: 50%;
-		filter: blur(100px);
-	}
-
-	.orb-1 {
-		width: 600px;
-		height: 600px;
-		background: var(--lavender-light);
-		opacity: 0.35;
-		top: -10%;
-		right: -5%;
-		animation: float-1 18s ease-in-out infinite;
-	}
-
-	.orb-2 {
-		width: 500px;
-		height: 500px;
-		background: var(--peach-light);
-		opacity: 0.3;
-		bottom: -10%;
-		left: -5%;
-		animation: float-2 22s ease-in-out infinite;
-	}
-
-	.orb-3 {
-		width: 400px;
-		height: 400px;
-		background: var(--mint-light);
-		opacity: 0.25;
-		top: 40%;
-		left: 40%;
-		animation: float-3 20s ease-in-out infinite;
-	}
-
-	@keyframes float-1 {
-		0%, 100% { transform: translate(0, 0); }
-		33% { transform: translate(-30px, 20px); }
-		66% { transform: translate(20px, -30px); }
-	}
-
-	@keyframes float-2 {
-		0%, 100% { transform: translate(0, 0); }
-		33% { transform: translate(25px, -15px); }
-		66% { transform: translate(-20px, 25px); }
-	}
-
-	@keyframes float-3 {
-		0%, 100% { transform: translate(0, 0); }
-		33% { transform: translate(-20px, -20px); }
-		66% { transform: translate(15px, 15px); }
-	}
-
-	/* Subtle grid decoration */
-	.hero-grid-deco {
-		position: absolute;
-		inset: 0;
-		opacity: 0.04;
-		background-image:
-			linear-gradient(var(--lavender) 1px, transparent 1px),
-			linear-gradient(90deg, var(--lavender) 1px, transparent 1px);
-		background-size: 48px 48px;
-		pointer-events: none;
-		mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, black 0%, transparent 70%);
-		-webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, black 0%, transparent 70%);
-	}
-
-	/* Inner layout */
-	.hero-inner {
-		max-width: var(--max-width);
-		margin: 0 auto;
-		width: 100%;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		gap: 56px;
-		position: relative;
-		z-index: 1;
-	}
-
-	.hero-content {
-		max-width: 720px;
-	}
-
-	/* Badge */
-	.hero-badge {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		font-family: var(--font-display);
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--lavender);
-		background: var(--lavender-pale);
-		padding: 6px 16px;
-		border-radius: 100px;
-		margin-bottom: 24px;
-		letter-spacing: 0.02em;
-	}
-
-	.badge-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--lavender);
-		animation: pulse-dot 2s ease-in-out infinite;
-	}
-
-	@keyframes pulse-dot {
-		0%, 100% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0.5; transform: scale(1.4); }
-	}
-
-	/* Title */
-	.hero-title {
-		font-size: clamp(36px, 6.5vw, 64px);
-		font-weight: 800;
-		line-height: 1.1;
-		letter-spacing: -0.03em;
-		margin-bottom: 20px;
-	}
-
-	.gradient-text {
-		background: linear-gradient(135deg, var(--lavender) 0%, var(--peach) 50%, var(--rose) 100%);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	/* Subtitle */
-	.hero-subtitle {
-		font-size: clamp(16px, 2.5vw, 19px);
-		color: var(--text-muted);
-		line-height: 1.7;
-		margin: 0 auto 32px;
-		max-width: 560px;
-	}
-
-	/* Actions */
-	.hero-actions {
-		display: flex;
-		gap: 14px;
-		justify-content: center;
-		flex-wrap: wrap;
-	}
-
-	.btn-primary, .btn-ghost {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		font-family: var(--font-display);
-		font-weight: 600;
-		font-size: 16px;
-		padding: 14px 28px;
-		border-radius: 100px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-primary {
-		color: white;
-		background: var(--lavender);
-		box-shadow: 0 4px 20px rgba(167, 139, 218, 0.3);
-	}
-
-	.btn-primary:hover {
-		background: #9578D0;
-		transform: translateY(-2px);
-		box-shadow: 0 8px 32px rgba(167, 139, 218, 0.4);
-	}
-
-	.btn-ghost {
-		color: var(--text-muted);
-		background: transparent;
-		border: 1.5px solid var(--border);
-	}
-
-	.btn-ghost:hover {
-		color: var(--text);
-		border-color: var(--lavender-light);
-		background: rgba(167, 139, 218, 0.06);
-	}
-
-	/* Preview window */
-	.hero-preview {
-		width: 100%;
-		max-width: 900px;
-	}
-
-	.preview-window {
-		background: var(--surface);
-		border-radius: var(--radius-lg);
-		border: 1px solid var(--border);
-		box-shadow: var(--shadow-lg);
-		overflow: hidden;
-	}
-
-	.preview-topbar {
-		display: flex;
-		align-items: center;
-		padding: 12px 16px;
-		background: linear-gradient(180deg, #F8F4FC 0%, #F3EEF8 100%);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.preview-dots {
-		display: flex;
-		gap: 7px;
-	}
-
-	.preview-dots span {
-		width: 11px;
-		height: 11px;
-		border-radius: 50%;
-	}
-
-	.dot-rose { background: var(--rose); }
-	.dot-amber { background: var(--amber); }
-	.dot-mint { background: var(--mint); }
-
-	.preview-title {
-		font-family: var(--font-display);
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--text-light);
-		margin-left: 16px;
-		letter-spacing: 0.06em;
-	}
-
-	.preview-spacer {
-		flex: 1;
-	}
-
-	.preview-body {
-		display: flex;
-		height: 360px;
-		background: #FDFBF9;
-	}
-
-	/* Mock sidebar */
-	.mock-sidebar {
-		width: 120px;
-		flex-shrink: 0;
-		padding: 12px;
-		border-right: 1px solid var(--border);
-		background: rgba(243, 237, 247, 0.3);
-	}
-
-	.mock-tile-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 4px;
-	}
-
-	.mock-tile-grid span {
-		aspect-ratio: 1;
-		border-radius: 4px;
-	}
-
-	/* Mock canvas */
-	.mock-canvas {
-		flex: 1;
-		position: relative;
-		overflow: hidden;
-	}
-
-	.mock-grid-lines {
-		position: absolute;
-		inset: 0;
-		opacity: 0.06;
-		background-image:
-			linear-gradient(var(--text) 1px, transparent 1px),
-			linear-gradient(90deg, var(--text) 1px, transparent 1px);
-		background-size: 40px 40px;
-	}
-
-	.mock-painted-tiles {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		grid-template-columns: repeat(9, 40px);
-		grid-template-rows: repeat(9, 40px);
-	}
-
-	.mock-painted-tiles span {
-		border-radius: 3px;
-		margin: 2px;
-	}
-
-	.mock-label {
-		position: absolute;
-		bottom: 20px;
-		left: 50%;
-		transform: translateX(-50%);
-		font-family: var(--font-display);
-		font-size: 13px;
-		color: var(--text-light);
-		background: rgba(255, 255, 255, 0.8);
-		padding: 6px 16px;
-		border-radius: 100px;
-		border: 1px solid var(--border);
-		white-space: nowrap;
-	}
-
-	/* Mock right panel */
-	.mock-right-panel {
-		width: 130px;
-		flex-shrink: 0;
-		padding: 12px;
-		border-left: 1px solid var(--border);
-		background: rgba(243, 237, 247, 0.3);
-	}
-
-	.mock-layers {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
-	.mock-layer {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		font-family: var(--font-display);
-		font-size: 11px;
-		color: var(--text-light);
-		padding: 6px 8px;
-		border-radius: 6px;
-		transition: background 0.2s;
-	}
-
-	.mock-layer.active {
-		background: var(--lavender-pale);
-		color: var(--lavender);
-		font-weight: 600;
-	}
-
-	.mock-layer-icon {
-		width: 10px;
-		height: 10px;
-		border-radius: 3px;
-		background: currentColor;
-		opacity: 0.35;
-	}
-
-	.mock-layer.active .mock-layer-icon {
-		opacity: 0.6;
-	}
-
-	/* Responsive */
-	@media (max-width: 768px) {
-		.hero {
-			padding: calc(var(--nav-height) + 40px) 20px 60px;
-		}
-
-		.preview-body {
-			height: 240px;
-		}
-
-		.mock-sidebar, .mock-right-panel {
-			display: none;
-		}
-
-		.btn-primary, .btn-ghost {
-			padding: 12px 24px;
-			font-size: 15px;
-		}
-	}
-</style>
