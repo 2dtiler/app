@@ -71,7 +71,9 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-primary">Submit a Bug Report</DialogTitle>
+          <DialogTitle className="text-primary">
+            Submit a Bug Report
+          </DialogTitle>
           <DialogDescription>
             Describe the issue you encountered and we'll look into it.
           </DialogDescription>

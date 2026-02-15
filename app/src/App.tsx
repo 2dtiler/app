@@ -465,10 +465,7 @@ function AppShell({
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
       />
-      <BugReportDialog
-        open={bugReportOpen}
-        onOpenChange={setBugReportOpen}
-      />
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
       <ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} />
     </div>
   );
