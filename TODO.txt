@@ -1,8 +1,8 @@
-Fix bun run build errors
+Allow logging bugs (From users)
+Add Google Ads
+Add google site analytics
+=======================================
 
-Check that sentry is working: throw new Error("This is your first error!");
-
-File -> Settings - Set up AI Providers
 Performance Audit
 Tools:
   Image Editor
@@ -16,9 +16,6 @@ Import Options
 Get some ideas from: Keep Notes
 
 =======================================
-Allow logging bugs (From users)
-Add Google Ads
-Add tutorial video
-Add google site analytics
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
+Add tutorial video

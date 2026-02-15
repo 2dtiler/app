@@ -250,7 +250,7 @@ export function FillTerrainDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-150 max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Fill Terrain</DialogTitle>
           <DialogDescription>

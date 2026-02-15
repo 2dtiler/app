@@ -34,9 +34,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   useEffect(() => {
     if (open) {
-      getSettings().then(setSettings);
-      getProviders().then(setProviders);
-      setVisibleKeys({});
+      Promise.all([getSettings(), getProviders()]).then(
+        ([newSettings, newProviders]) => {
+          setSettings(newSettings);
+          setProviders(newProviders);
+          setVisibleKeys({});
+        },
+      );
     }
   }, [open]);
 
