@@ -63,8 +63,11 @@ function createNewProject(name: string): Project {
     mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
     maps: [],
     layers: [],
+    imageLayers: [],
     layerGroups: [],
     terrains: [],
+    objectLayers: [],
+    objects: [],
   };
 }
 

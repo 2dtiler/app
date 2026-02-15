@@ -200,6 +200,7 @@ export function ObjectsPanel() {
   }
 
   function handleDuplicateObject(objectId: string) {
+    if (!project) return;
     const src = (project.objects ?? []).find((o) => o.id === objectId);
     if (!src) return;
     const newId = generateObjectId();
@@ -375,7 +376,9 @@ export function ObjectsPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onMouseDown={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onMouseDown={handleDelete}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -655,7 +658,9 @@ const ObjectRow = memo(function ObjectRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onMouseDown={() => onDoubleClick(object.id, object.name)}>
+        <ContextMenuItem
+          onMouseDown={() => onDoubleClick(object.id, object.name)}
+        >
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
         </ContextMenuItem>
         <ContextMenuSeparator />

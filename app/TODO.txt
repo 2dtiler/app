@@ -1,5 +1,13 @@
-Refine Website
 Deploy to internet with CI/CD
+
+I want to add a github actions CI/CD pipeline to this project. Both the website and app folders should be different cloudflare pages projects.
+
+When a commit is done to the main branch. It should use the wrangler cli to deploy the app folder to dev-app.2dtiler.com. It should use bun run build and only use the dist folder for deployment.
+
+When a release is created, it should deploy the app folder using the same method as above, but this time it should deploy the app folder to app.2dtiler.com, and it should also run build
+
+
+===
 
 Make a PWA
 
