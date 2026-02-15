@@ -15,6 +15,7 @@ import {
   Grid3X3,
   Image,
   Shapes,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,7 @@ import {
   generateLayerId,
   generateLayerGroupId,
   generateAssetId,
+  generateObjectId,
 } from "@/lib/ids";
 import { saveAsset } from "@/lib/db";
 import {
@@ -63,6 +65,7 @@ import type {
   ObjectLayer,
   LayerGroup,
   LayerType,
+  MapObject,
 } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -691,6 +694,266 @@ export function LayersPanel() {
     });
   }
 
+  function handleDuplicateLayer(layerId: string) {
+    const newLayerId = generateLayerId();
+    setState((draft) => {
+      if (!draft.project) return;
+      const map = draft.project.maps.find((m) => m.id === state.activeMapId);
+      if (!map) return;
+      const groups = draft.project.layerGroups ?? [];
+
+      // Try tile layer
+      const tileLayer = draft.project.layers.find((l) => l.id === layerId);
+      if (tileLayer) {
+        const copy: TileLayer = {
+          id: newLayerId,
+          mapId: tileLayer.mapId,
+          name: `${tileLayer.name} copy`,
+          type: tileLayer.type,
+          visible: tileLayer.visible,
+          locked: tileLayer.locked,
+          tiles: { ...tileLayer.tiles },
+        };
+        draft.project.layers.push(copy);
+        insertAfter(layerId, newLayerId, map.layerOrder, groups);
+        draft.activeLayerId = newLayerId;
+        return;
+      }
+
+      // Try image layer
+      const imgLayer = (draft.project.imageLayers ?? []).find(
+        (l) => l.id === layerId,
+      );
+      if (imgLayer) {
+        const copy: ImageLayer = {
+          id: newLayerId,
+          mapId: imgLayer.mapId,
+          name: `${imgLayer.name} copy`,
+          type: "image",
+          visible: imgLayer.visible,
+          locked: imgLayer.locked,
+          assetId: imgLayer.assetId,
+          x: imgLayer.x,
+          y: imgLayer.y,
+          width: imgLayer.width,
+          height: imgLayer.height,
+        };
+        draft.project.imageLayers.push(copy);
+        insertAfter(layerId, newLayerId, map.layerOrder, groups);
+        draft.activeLayerId = newLayerId;
+        return;
+      }
+
+      // Try object layer
+      const objLayer = (draft.project.objectLayers ?? []).find(
+        (l) => l.id === layerId,
+      );
+      if (objLayer) {
+        // Map old object IDs to new ones
+        const objectIdMap = new Map<string, string>();
+        for (const oid of objLayer.objectOrder) {
+          objectIdMap.set(oid as string, generateObjectId() as string);
+        }
+
+        const copy: ObjectLayer = {
+          id: newLayerId,
+          mapId: objLayer.mapId,
+          name: `${objLayer.name} copy`,
+          type: "object",
+          visible: objLayer.visible,
+          locked: objLayer.locked,
+          objectOrder: objLayer.objectOrder.map(
+            (oid) => (objectIdMap.get(oid as string) ?? oid) as typeof oid,
+          ),
+        };
+        draft.project.objectLayers.push(copy);
+
+        // Duplicate the objects themselves
+        if (draft.project.objects) {
+          for (const obj of [...draft.project.objects]) {
+            if (obj.layerId !== layerId) continue;
+            const newObjId = objectIdMap.get(obj.id as string);
+            if (!newObjId) continue;
+            const objCopy: MapObject = {
+              ...obj,
+              id: newObjId as typeof obj.id,
+              layerId: newLayerId,
+              name: obj.name,
+              points: obj.points.map((p) => ({ ...p })),
+              properties: { ...obj.properties },
+            };
+            draft.project.objects.push(objCopy);
+          }
+        }
+
+        insertAfter(layerId, newLayerId, map.layerOrder, groups);
+        draft.activeLayerId = newLayerId;
+      }
+    });
+  }
+
+  function handleDuplicateGroup(groupId: string) {
+    setState((draft) => {
+      if (!draft.project) return;
+      const map = draft.project.maps.find((m) => m.id === state.activeMapId);
+      if (!map) return;
+      const groups = draft.project.layerGroups ?? [];
+      const srcGroup = groups.find((g) => g.id === groupId);
+      if (!srcGroup) return;
+
+      // Collect all nested layer IDs and group IDs to duplicate
+      const childLayerIds = getAllLayerIds(srcGroup.childOrder, groups);
+      const childGroupIds = getAllGroupIds(srcGroup.childOrder, groups);
+
+      // Build ID maps
+      const layerIdMap = new Map<string, LayerId>();
+      const groupIdMap = new Map<string, LayerGroupId>();
+      for (const id of childLayerIds) layerIdMap.set(id as string, generateLayerId());
+      for (const id of childGroupIds) groupIdMap.set(id as string, generateLayerGroupId());
+
+      const newGroupId = generateLayerGroupId();
+      groupIdMap.set(groupId, newGroupId);
+
+      const remapId = (id: LayerId | LayerGroupId): LayerId | LayerGroupId =>
+        (layerIdMap.get(id as string) ?? groupIdMap.get(id as string) ?? id) as
+          | LayerId
+          | LayerGroupId;
+
+      // Duplicate the group itself
+      const newGroup: LayerGroup = {
+        id: newGroupId,
+        mapId: srcGroup.mapId,
+        name: `${srcGroup.name} copy`,
+        visible: srcGroup.visible,
+        locked: srcGroup.locked,
+        expanded: srcGroup.expanded,
+        childOrder: srcGroup.childOrder.map(remapId),
+      };
+      draft.project.layerGroups.push(newGroup);
+
+      // Duplicate nested groups
+      for (const gid of childGroupIds) {
+        const g = groups.find((gr) => gr.id === gid);
+        if (!g) continue;
+        const newGId = groupIdMap.get(gid as string)!;
+        const gCopy: LayerGroup = {
+          id: newGId,
+          mapId: g.mapId,
+          name: g.name,
+          visible: g.visible,
+          locked: g.locked,
+          expanded: g.expanded,
+          childOrder: g.childOrder.map(remapId),
+        };
+        draft.project.layerGroups.push(gCopy);
+      }
+
+      // Duplicate nested tile layers
+      for (const lid of childLayerIds) {
+        const tl = draft.project.layers.find((l) => l.id === lid);
+        if (tl) {
+          const newId = layerIdMap.get(lid as string)!;
+          const copy: TileLayer = {
+            id: newId,
+            mapId: tl.mapId,
+            name: tl.name,
+            type: tl.type,
+            visible: tl.visible,
+            locked: tl.locked,
+            tiles: { ...tl.tiles },
+          };
+          draft.project.layers.push(copy);
+          continue;
+        }
+
+        const il = (draft.project.imageLayers ?? []).find((l) => l.id === lid);
+        if (il) {
+          const newId = layerIdMap.get(lid as string)!;
+          const copy: ImageLayer = {
+            id: newId,
+            mapId: il.mapId,
+            name: il.name,
+            type: "image",
+            visible: il.visible,
+            locked: il.locked,
+            assetId: il.assetId,
+            x: il.x,
+            y: il.y,
+            width: il.width,
+            height: il.height,
+          };
+          draft.project.imageLayers.push(copy);
+          continue;
+        }
+
+        const ol = (draft.project.objectLayers ?? []).find((l) => l.id === lid);
+        if (ol) {
+          const newId = layerIdMap.get(lid as string)!;
+          // Map old object IDs to new ones
+          const objectIdMap = new Map<string, string>();
+          for (const oid of ol.objectOrder) {
+            objectIdMap.set(oid as string, generateObjectId() as string);
+          }
+
+          const copy: ObjectLayer = {
+            id: newId,
+            mapId: ol.mapId,
+            name: ol.name,
+            type: "object",
+            visible: ol.visible,
+            locked: ol.locked,
+            objectOrder: ol.objectOrder.map(
+              (oid) => (objectIdMap.get(oid as string) ?? oid) as typeof oid,
+            ),
+          };
+          draft.project.objectLayers.push(copy);
+
+          // Duplicate objects belonging to this layer
+          if (draft.project.objects) {
+            for (const obj of [...draft.project.objects]) {
+              if (obj.layerId !== lid) continue;
+              const newObjId = objectIdMap.get(obj.id as string);
+              if (!newObjId) continue;
+              const objCopy: MapObject = {
+                ...obj,
+                id: newObjId as typeof obj.id,
+                layerId: newId,
+                name: obj.name,
+                points: obj.points.map((p) => ({ ...p })),
+                properties: { ...obj.properties },
+              };
+              draft.project.objects.push(objCopy);
+            }
+          }
+        }
+      }
+
+      // Insert the new group after the source group in the layer order
+      insertAfter(groupId, newGroupId as string, map.layerOrder, groups);
+    });
+  }
+
+  /** Insert newId right after refId in whichever order array contains refId. */
+  function insertAfter(
+    refId: string,
+    newId: string,
+    topOrder: (LayerId | LayerGroupId)[],
+    groups: LayerGroup[],
+  ) {
+    const topIdx = (topOrder as string[]).indexOf(refId);
+    if (topIdx !== -1) {
+      topOrder.splice(topIdx + 1, 0, newId as LayerId | LayerGroupId);
+      return;
+    }
+    for (const g of groups) {
+      const idx = (g.childOrder as string[]).indexOf(refId);
+      if (idx !== -1) {
+        g.childOrder.splice(idx + 1, 0, newId as LayerId | LayerGroupId);
+        return;
+      }
+    }
+  }
+
   function handleDoubleClick(id: string, name: string) {
     setRenamingId(id);
     setRenameValue(name);
@@ -781,6 +1044,7 @@ export function LayersPanel() {
                   onDelete={(id, name) =>
                     setDeleteTarget({ id, name, isGroup: true })
                   }
+                  onDuplicate={handleDuplicateGroup}
                   isDragging={dragId === node.group.id}
                   dropIndicator={
                     dropIndicator?.targetId === node.group.id
@@ -817,6 +1081,7 @@ export function LayersPanel() {
                   onDelete={(id, name) =>
                     setDeleteTarget({ id, name, isGroup: false })
                   }
+                  onDuplicate={handleDuplicateLayer}
                   isDragging={dragId === node.layer.id}
                   dropIndicator={
                     dropIndicator?.targetId === node.layer.id
@@ -850,6 +1115,7 @@ export function LayersPanel() {
                   onDelete={(id, name) =>
                     setDeleteTarget({ id, name, isGroup: false })
                   }
+                  onDuplicate={handleDuplicateLayer}
                   isDragging={dragId === node.layer.id}
                   dropIndicator={
                     dropIndicator?.targetId === node.layer.id
@@ -934,6 +1200,7 @@ interface GroupRowProps {
     parentGroupId: LayerGroupId | null,
   ) => void;
   onDelete: (id: string, name: string) => void;
+  onDuplicate: (id: string) => void;
   // Drag & Drop
   isDragging: boolean;
   dropIndicator: "above" | "below" | "inside" | null;
@@ -962,6 +1229,7 @@ const GroupRow = memo(function GroupRow({
   onToggleLock,
   onMove,
   onDelete,
+  onDuplicate,
   isDragging,
   dropIndicator,
   onDragStart,
@@ -1180,6 +1448,9 @@ const GroupRow = memo(function GroupRow({
         <ContextMenuItem onMouseDown={() => onDoubleClick(group.id, group.name)}>
           Rename
         </ContextMenuItem>
+        <ContextMenuItem onMouseDown={() => onDuplicate(group.id)}>
+          <Copy className="h-4 w-4 mr-2" /> Duplicate
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onMouseDown={() => onMove(group.id, "up", parentGroupId)}>
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
@@ -1225,6 +1496,7 @@ interface LayerRowProps {
     parentGroupId: LayerGroupId | null,
   ) => void;
   onDelete: (id: string, name: string) => void;
+  onDuplicate: (id: string) => void;
   // Drag & Drop
   isDragging: boolean;
   dropIndicator: "above" | "below" | "inside" | null;
@@ -1254,6 +1526,7 @@ const LayerRow = memo(function LayerRow({
   onToggleLock,
   onMove,
   onDelete,
+  onDuplicate,
   isDragging,
   dropIndicator,
   onDragStart,
@@ -1466,6 +1739,9 @@ const LayerRow = memo(function LayerRow({
         </ContextMenuItem>
         <ContextMenuItem onMouseDown={() => onDoubleClick(layer.id, layer.name)}>
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
+        </ContextMenuItem>
+        <ContextMenuItem onMouseDown={() => onDuplicate(layer.id)}>
+          <Copy className="h-4 w-4 mr-2" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onMouseDown={() => onMove(layer.id, "up", parentGroupId)}>
