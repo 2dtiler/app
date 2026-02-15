@@ -291,6 +291,7 @@ export function TilesetPanel() {
 
   function handleZoom(direction: 1 | -1) {
     setState((draft) => {
+      throw new Error("This is your first error!");
       const next = draft.tilesetZoom + direction * 0.5;
       draft.tilesetZoom = Math.max(0.5, Math.min(4, next));
     });

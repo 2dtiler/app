@@ -65,8 +65,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setVisibleKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const showBaseUrl = (id: string) =>
-    id === "ollama" || id === "openai";
+  const showBaseUrl = (id: string) => id === "ollama" || id === "openai";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

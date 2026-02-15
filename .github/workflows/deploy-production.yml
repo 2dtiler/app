@@ -19,6 +19,8 @@ jobs:
         working-directory: app
 
       - name: Build
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: bun run build
         working-directory: app
 

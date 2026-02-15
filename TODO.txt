@@ -1,4 +1,4 @@
-Make a PWA
+Check that sentry is working locally, and then make sure it's only working in prod
 
 File -> Settings - Set up AI Providers
 Performance Audit
@@ -14,7 +14,6 @@ Import Options
 Get some ideas from: Keep Notes
 
 =======================================
-Add sentry for errors
 Allow logging bugs (From users)
 Add Google Ads
 Add tutorial video
