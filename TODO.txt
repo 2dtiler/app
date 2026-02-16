@@ -1,10 +1,11 @@
-Remove Sprite Generator
-Rename Image Editor -> Image/Sprite Editor
 Check Image Generator
+  Option to change image dimensions
+
 Fix Sentry Error
 Fix Tailwind Issues
 Get Lighthouse scores 100%
 Break up into smaller components and make sure chunking is correct
+Make list of tiled advanced features
 AI Asset Generation
 Autotile. Like Spritefusion
 Palettes

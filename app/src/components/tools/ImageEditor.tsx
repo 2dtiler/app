@@ -11,8 +11,7 @@ import type { Color, ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
   const editor = useImageEditor();
-  // Start with dialog open — user must create or import to begin
-  const [showNewDialog, setShowNewDialog] = useState(true);
+  const [showNewDialog, setShowNewDialog] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
 
   const handleCreate = useCallback(

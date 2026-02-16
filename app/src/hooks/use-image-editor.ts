@@ -27,15 +27,38 @@ import type {
 import { DEFAULT_PALETTE_COLORS } from "@/types/image-editor";
 
 // ---------------------------------------------------------------------------
+// Module-level frame data — survives component unmount/remount so the
+// editor remembers what you had open when you close and reopen the drawer.
+// ---------------------------------------------------------------------------
+
+const moduleFrameData: Map<FrameId, ImageData> = new Map();
+
+/**
+ * Ensure the image editor store is initialized.
+ * If it's already ready, this is a no-op.
+ * Otherwise creates a default 32×32 canvas.
+ */
+function ensureStoreReady() {
+  if (isImageEditorStoreReady()) return;
+
+  const w = 32;
+  const h = 32;
+  initImageEditorStore(w, h);
+
+  const store = getImageEditorStore();
+  const s = store.getState();
+  if (s.frames.length > 0 && !moduleFrameData.has(s.frames[0].id)) {
+    moduleFrameData.set(s.frames[0].id, new ImageData(w, h));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
 export function useImageEditor() {
-  // Track whether we've initialized
-  const initializedRef = useRef(false);
-
-  // Per-frame pixel data stored in a Map<FrameId, ImageData>
-  const frameDataRef = useRef<Map<FrameId, ImageData>>(new Map());
+  // Ensure there's always a store ready (persists across open/close)
+  ensureStoreReady();
 
   // Animation timer ref
   const animTimerRef = useRef<number | null>(null);
@@ -70,7 +93,7 @@ export function useImageEditor() {
     // Tear down any previous instance
     destroyImageEditorStore();
     pixelHistory.clearAllHistory();
-    frameDataRef.current.clear();
+    moduleFrameData.clear();
 
     initImageEditorStore(width, height);
 
@@ -80,20 +103,17 @@ export function useImageEditor() {
     if (s.frames.length > 0) {
       const frame = s.frames[0];
       const imgData = new ImageData(width, height);
-      frameDataRef.current.set(frame.id, imgData);
+      moduleFrameData.set(frame.id, imgData);
     }
-
-    initializedRef.current = true;
   }, []);
 
-  // Clean up on unmount
+  // Stop animation on unmount, but do NOT destroy the store
+  // so the canvas persists when the drawer is closed and reopened.
   useEffect(() => {
     return () => {
       if (animTimerRef.current !== null) {
         cancelAnimationFrame(animTimerRef.current);
       }
-      destroyImageEditorStore();
-      pixelHistory.clearAllHistory();
     };
   }, []);
 
@@ -110,15 +130,15 @@ export function useImageEditor() {
   const getCurrentFrameData = useCallback((): ImageData | null => {
     const frameId = getCurrentFrameId();
     if (!frameId) return null;
-    return frameDataRef.current.get(frameId) ?? null;
+    return moduleFrameData.get(frameId) ?? null;
   }, [getCurrentFrameId]);
 
   const getFrameData = useCallback((frameId: FrameId): ImageData | null => {
-    return frameDataRef.current.get(frameId) ?? null;
+    return moduleFrameData.get(frameId) ?? null;
   }, []);
 
   const setFrameData = useCallback((frameId: FrameId, data: ImageData) => {
-    frameDataRef.current.set(frameId, data);
+    moduleFrameData.set(frameId, data);
   }, []);
 
   // -----------------------------------------------------------------------
@@ -161,7 +181,7 @@ export function useImageEditor() {
     };
 
     // Create blank ImageData
-    frameDataRef.current.set(newId, new ImageData(state.width, state.height));
+    moduleFrameData.set(newId, new ImageData(state.width, state.height));
 
     setState((d) => {
       d.frames.push(newFrame);
@@ -182,16 +202,16 @@ export function useImageEditor() {
     };
 
     // Deep copy pixel data
-    const srcData = frameDataRef.current.get(srcFrame.id);
+    const srcData = moduleFrameData.get(srcFrame.id);
     if (srcData) {
       const copy = new ImageData(
         new Uint8ClampedArray(srcData.data),
         srcData.width,
         srcData.height,
       );
-      frameDataRef.current.set(newId, copy);
+      moduleFrameData.set(newId, copy);
     } else {
-      frameDataRef.current.set(newId, new ImageData(state.width, state.height));
+      moduleFrameData.set(newId, new ImageData(state.width, state.height));
     }
 
     setState((d) => {
@@ -205,7 +225,7 @@ export function useImageEditor() {
     const frameToDelete = state.frames[state.currentFrameIndex];
     if (!frameToDelete) return;
 
-    frameDataRef.current.delete(frameToDelete.id);
+    moduleFrameData.delete(frameToDelete.id);
     pixelHistory.clearFrameHistory(frameToDelete.id);
 
     setState((d) => {
@@ -481,7 +501,7 @@ export function useImageEditor() {
       const store = getImageEditorStore();
       const s = store.getState();
       if (s.frames.length > 0) {
-        frameDataRef.current.set(s.frames[0].id, imgData);
+        moduleFrameData.set(s.frames[0].id, imgData);
       }
     },
     [initProject],
@@ -495,7 +515,7 @@ export function useImageEditor() {
     if (!state) return;
     const frameId = getCurrentFrameId();
     if (!frameId) return;
-    const data = frameDataRef.current.get(frameId);
+    const data = moduleFrameData.get(frameId);
     if (!data) return;
 
     const canvas = document.createElement("canvas");
@@ -528,7 +548,7 @@ export function useImageEditor() {
     const gif = GIFEncoder();
 
     for (const frame of state.frames) {
-      const data = frameDataRef.current.get(frame.id);
+      const data = moduleFrameData.get(frame.id);
       if (!data) continue;
 
       // gifenc expects RGBA Uint8Array
@@ -574,7 +594,7 @@ export function useImageEditor() {
       const ctx = canvas.getContext("2d")!;
 
       state.frames.forEach((frame, i) => {
-        const data = frameDataRef.current.get(frame.id);
+        const data = moduleFrameData.get(frame.id);
         if (!data) return;
         const col = i % cols;
         const row = Math.floor(i / cols);
@@ -602,21 +622,20 @@ export function useImageEditor() {
     if (!state || state.currentFrameIndex === 0) return null;
     const prevFrame = state.frames[state.currentFrameIndex - 1];
     if (!prevFrame) return null;
-    return frameDataRef.current.get(prevFrame.id) ?? null;
+    return moduleFrameData.get(prevFrame.id) ?? null;
   }, [state]);
 
   return {
     state,
     setState,
     initProject,
-    isInitialized: initializedRef.current && state !== null,
+    isInitialized: state !== null,
 
     // Frame data
     getCurrentFrameId,
     getCurrentFrameData,
     getFrameData,
     setFrameData,
-    frameDataRef,
     getPreviousFrameData,
 
     // Undo / redo

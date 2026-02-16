@@ -41,9 +41,9 @@ export function NewImageDialog({
     >
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>New Image</DialogTitle>
+          <DialogTitle>Image Dimensions</DialogTitle>
           <DialogDescription>
-            Set the canvas dimensions for your new sprite.
+            Set the canvas dimensions for your image/sprite.
           </DialogDescription>
         </DialogHeader>
 
@@ -76,30 +76,13 @@ export function NewImageDialog({
               className="col-span-3"
             />
           </div>
-
-          {/* Preset buttons */}
-          <div className="flex gap-2 justify-end">
-            {[8, 16, 32, 64, 128, 256].map((size) => (
-              <Button
-                key={size}
-                variant="outline"
-                size="xs"
-                onClick={() => {
-                  setWidth(size);
-                  setHeight(size);
-                }}
-              >
-                {size}
-              </Button>
-            ))}
-          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleCreate}>Create</Button>
+          <Button onClick={handleCreate}>Set Size</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

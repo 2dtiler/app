@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
+import { X } from "lucide-react";
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
@@ -9,7 +11,6 @@ import {
 import type { ToolName } from "@/components/layout/Toolbar";
 import { ImageEditor } from "@/components/tools/ImageEditor";
 import { AiAssets } from "@/components/tools/AiAssets";
-import { SpriteGenerator } from "@/components/tools/SpriteGenerator";
 
 const TOOL_CONFIG: Record<
   ToolName,
@@ -17,7 +18,6 @@ const TOOL_CONFIG: Record<
 > = {
   "image-editor": { label: "Image Editor", component: ImageEditor },
   "ai-assets": { label: "AI Assets", component: AiAssets },
-  "sprite-generator": { label: "Sprite Generator", component: SpriteGenerator },
 };
 
 interface ToolDrawerProps {
@@ -32,17 +32,22 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   return (
     <Drawer
       direction="right"
+      handleOnly
       open={activeTool !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
       <DrawerContent className="w-[90%] sm:max-w-none">
-        <DrawerHeader>
+        <DrawerHeader className="relative">
           <DrawerTitle className="text-lg">{config?.label ?? ""}</DrawerTitle>
           <DrawerDescription className="sr-only">
             {config?.label ?? "Tool panel"}
           </DrawerDescription>
+          <DrawerClose className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm opacity-70 hover:opacity-100 focus:outline-none">
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close</span>
+          </DrawerClose>
         </DrawerHeader>
         {ToolComponent && <ToolComponent />}
       </DrawerContent>

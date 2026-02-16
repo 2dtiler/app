@@ -15,7 +15,7 @@ import {
 // subscribing to full state which would re-render on every change
 import { getEditorStore } from "@/lib/store";
 
-export type ToolName = "image-editor" | "ai-assets" | "sprite-generator";
+export type ToolName = "image-editor" | "ai-assets";
 
 interface ToolbarProps {
   onNewProject: () => void;
@@ -131,13 +131,10 @@ export const Toolbar = memo(function Toolbar({
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem onMouseDown={() => onOpenTool("image-editor")}>
-              Image Editor
+              Image/Sprite Editor
             </MenubarItem>
             <MenubarItem onMouseDown={() => onOpenTool("ai-assets")}>
-              AI Assets
-            </MenubarItem>
-            <MenubarItem onMouseDown={() => onOpenTool("sprite-generator")}>
-              Sprite Generator
+              AI Assets Generator
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
