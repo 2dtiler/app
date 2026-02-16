@@ -1,6 +1,4 @@
 Image Generator
-  Image import is just fitting to frame at the moment
-  
   Undo/Redo
   Check .ase import, Export
   Add dropdown to select tileset
@@ -8,6 +6,7 @@ Image Generator
   Is there anything we can do to make importing image faster
   Add undo/redo buttons to toolbar
 
+Currently the drawers are not 90%
 Move kibo-ui color picker inside ui folder
 Add ability to deploy from local
 Map. Selection Tool. Allow Ctrl + C, Ctrl + V, Ctrl + X
@@ -23,6 +22,7 @@ Get some ideas from: Keep Notes
 
 =======================================
 Google Ads
+Ad Marketplace for selling/buying tilesets etc.
 Performance Audit
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps

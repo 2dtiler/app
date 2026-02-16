@@ -1,7 +1,5 @@
-import { useRef } from "react";
 import {
   FilePlus,
-  FileImage,
   Download,
   ZoomIn,
   ZoomOut,
@@ -37,7 +35,6 @@ interface EditorToolbarProps {
   onBlurIntensity: (i: number) => void;
   onNew: () => void;
   onResize: () => void;
-  onImport: (file: File) => void;
   onExportPng: () => void;
   onExportGif: () => void;
   onExportSpriteSheet: () => void;
@@ -55,13 +52,10 @@ export function EditorToolbar({
   onBlurIntensity,
   onNew,
   onResize,
-  onImport,
   onExportPng,
   onExportGif,
   onExportSpriteSheet,
 }: EditorToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2 px-2 py-1 bg-card border-b border-border min-h-10 shrink-0">
@@ -78,37 +72,12 @@ export function EditorToolbar({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <FileImage className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Import Image</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
               <Button variant="ghost" size="icon-sm" onClick={onResize}>
                 <Scaling className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Image Dimensions</TooltipContent>
           </Tooltip>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,.jpg,.jpeg,.gif,.webp"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onImport(file);
-              e.target.value = "";
-            }}
-          />
 
           {/* Export dropdown */}
           <DropdownMenu>

@@ -1,0 +1,1 @@
+- Always run "bun run lint" after making changes and correct all the errors you see, even if it was not a direct issue caused by current code changes

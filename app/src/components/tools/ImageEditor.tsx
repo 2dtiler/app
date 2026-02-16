@@ -14,8 +14,6 @@ export function ImageEditor() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
-  const [pendingImport, setPendingImport] = useState<ImageData | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {
@@ -37,21 +35,6 @@ export function ImageEditor() {
     (w: number, h: number) => {
       editor.resizeCanvas(w, h);
       setShowResizeDialog(false);
-    },
-    [editor],
-  );
-
-  const handleImport = useCallback(
-    async (file: File) => {
-      setIsImporting(true);
-      try {
-        const imgData = await editor.importImage(file);
-        if (imgData) {
-          setPendingImport(imgData);
-        }
-      } finally {
-        setIsImporting(false);
-      }
     },
     [editor],
   );
@@ -124,7 +107,7 @@ export function ImageEditor() {
     return (
       <>
         <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-          Create or import an image to begin.
+          Create an image to begin.
         </div>
         <NewImageDialog
           open={showNewDialog}
@@ -173,7 +156,6 @@ export function ImageEditor() {
         onBlurIntensity={editor.setBlurIntensity}
         onNew={handleNew}
         onResize={handleResize}
-        onImport={handleImport}
         onExportPng={editor.exportPng}
         onExportGif={editor.exportGif}
         onExportSpriteSheet={() => setShowExportSheet(true)}
@@ -186,13 +168,6 @@ export function ImageEditor() {
 
         {/* Canvas */}
         <div className="relative flex-1 min-w-0">
-          {isImporting && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80">
-              <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
-                Importing image…
-              </div>
-            </div>
-          )}
           <ImageCanvas
             width={width}
             height={height}
@@ -212,8 +187,6 @@ export function ImageEditor() {
             onPushUndo={editor.pushUndoSnapshot}
             onSelectionChange={editor.setSelection}
             onFrameDataChange={editor.setFrameData}
-            pendingImport={pendingImport}
-            onImportConsumed={() => setPendingImport(null)}
           />
         </div>
 

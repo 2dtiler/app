@@ -699,45 +699,6 @@ export function useImageEditor() {
   }, [state, setState]);
 
   // -----------------------------------------------------------------------
-  // Import image
-  // -----------------------------------------------------------------------
-
-  const importImage = useCallback(
-    async (file: File): Promise<ImageData | null> => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-
-      try {
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Failed to load image"));
-          img.src = url;
-        });
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-
-      // Draw the image onto an offscreen canvas to get pixel data
-      const offscreen = document.createElement("canvas");
-      offscreen.width = w;
-      offscreen.height = h;
-      const ctx = offscreen.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-
-      const imgData = ctx.getImageData(0, 0, w, h);
-
-      // Switch to selection tool so the user can position the imported image
-      setTool("selection");
-
-      return imgData;
-    },
-    [setTool],
-  );
-
-  // -----------------------------------------------------------------------
   // Export PNG (single frame)
   // -----------------------------------------------------------------------
 
@@ -908,7 +869,6 @@ export function useImageEditor() {
     stopAnimation,
 
     // Import / Export
-    importImage,
     exportPng,
     exportGif,
     exportSpriteSheet,

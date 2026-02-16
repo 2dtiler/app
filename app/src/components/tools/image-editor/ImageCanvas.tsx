@@ -41,8 +41,6 @@ interface ImageCanvasProps {
   onPushUndo: () => void;
   onSelectionChange: (sel: PixelSelection | null) => void;
   onFrameDataChange: (frameId: FrameId, data: ImageData) => void;
-  pendingImport?: ImageData | null;
-  onImportConsumed?: () => void;
 }
 
 export function ImageCanvas({
@@ -64,8 +62,6 @@ export function ImageCanvas({
   onPushUndo,
   onSelectionChange,
   onFrameDataChange,
-  pendingImport,
-  onImportConsumed,
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -368,22 +364,6 @@ export function ImageCanvas({
 
     return () => cancelAnimationFrame(animFrame);
   }, [tool, zoom, width, height]);
-
-  // Handle pending image import — paste as floating selection
-  useEffect(() => {
-    if (!pendingImport) return;
-    const tc = getToolContext();
-    if (!tc) return;
-
-    onPushUndo();
-    const sel = pasteSelectionPixels(tc, pendingImport, { width, height });
-    onSelectionChange(sel);
-    if (currentFrameId) {
-      const imgData = tc.ctx.getImageData(0, 0, width, height);
-      onFrameDataChange(currentFrameId, imgData);
-    }
-    onImportConsumed?.();
-  }, [pendingImport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Selection tool keyboard shortcuts: copy, paste, delete, escape
   useEffect(() => {
