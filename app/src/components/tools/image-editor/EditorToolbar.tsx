@@ -1,5 +1,13 @@
 import { useRef } from "react";
-import { FilePlus, FileImage, Download, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  FilePlus,
+  FileImage,
+  Download,
+  ZoomIn,
+  ZoomOut,
+  ChevronDown,
+  Scaling,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -8,6 +16,12 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface EditorToolbarProps {
   zoom: number;
@@ -15,6 +29,7 @@ interface EditorToolbarProps {
   onZoom: (z: number) => void;
   onBrushSize: (s: number) => void;
   onNew: () => void;
+  onResize: () => void;
   onImport: (file: File) => void;
   onExportPng: () => void;
   onExportGif: () => void;
@@ -27,6 +42,7 @@ export function EditorToolbar({
   onZoom,
   onBrushSize,
   onNew,
+  onResize,
   onImport,
   onExportPng,
   onExportGif,
@@ -61,6 +77,15 @@ export function EditorToolbar({
             <TooltipContent>Import Image</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" onClick={onResize}>
+                <Scaling className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Image Dimensions</TooltipContent>
+          </Tooltip>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -73,36 +98,32 @@ export function EditorToolbar({
             }}
           />
 
-          {/* Export dropdown — simplified as buttons */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="xs" onClick={onExportPng}>
-                <Download className="size-3.5 mr-1" />
-                PNG
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export current frame as PNG</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="xs" onClick={onExportGif}>
-                <Download className="size-3.5 mr-1" />
-                GIF
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export animation as GIF</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="xs" onClick={onExportSpriteSheet}>
-                <Download className="size-3.5 mr-1" />
-                Sheet
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export as sprite sheet</TooltipContent>
-          </Tooltip>
+          {/* Export dropdown */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="xs">
+                    <Download className="size-3.5 mr-1" />
+                    Export
+                    <ChevronDown className="size-3 ml-0.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Export image</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={onExportPng}>
+                Export as PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onExportGif}>
+                Export as GIF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onExportSpriteSheet}>
+                Export as Sprite Sheet
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="w-px h-5 bg-border" />

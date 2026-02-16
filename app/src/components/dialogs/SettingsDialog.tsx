@@ -86,7 +86,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <AccordionContent>
               <div className="flex items-center justify-between">
                 <Label htmlFor="autosave" className="text-sm">
-                  Save every minute
+                  Save project every minute
                 </Label>
                 <Switch
                   id="autosave"

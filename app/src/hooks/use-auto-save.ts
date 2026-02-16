@@ -2,7 +2,7 @@
  * Auto-save hook: periodically persists the current project to IndexedDB.
  * Also runs orphan asset cleanup on each save cycle to reclaim storage
  * from assets orphaned by undo/redo history trimming.
- * Respects the "Save every minute" toggle from Settings.
+ * Respects the "Save project every minute" toggle from Settings.
  */
 
 import { useEffect, useRef } from "react";

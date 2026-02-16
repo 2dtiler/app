@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { Plus, Trash2, FileDown, FileUp, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +7,21 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ColorPicker,
+  ColorPickerSelection,
+  ColorPickerHue,
+  ColorPickerAlpha,
+  ColorPickerEyeDropper,
+  ColorPickerOutput,
+  ColorPickerFormat,
+} from "@/components/kibo-ui/color-picker";
 import type { Color } from "@/types/image-editor";
 
 interface PalettePanelProps {
@@ -31,13 +45,6 @@ function colorToHex(c: Color): string {
   return `#${r}${g}${b}`;
 }
 
-function hexToColor(hex: string): Color {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b, a: 255 };
-}
-
 function colorsMatch(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
 }
@@ -56,8 +63,57 @@ export function PalettePanel({
   onReset,
 }: PalettePanelProps) {
   const importRef = useRef<HTMLInputElement>(null);
-  const colorPickerRef = useRef<HTMLInputElement>(null);
-  const editingIndexRef = useRef<number | null>(null);
+
+  // Color picker popover state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const pickedColorRef = useRef<Color | null>(null);
+
+  const getInitialHex = useCallback(() => {
+    if (editingIndex !== null) return colorToHex(colors[editingIndex]);
+    return colorToHex(primaryColor);
+  }, [editingIndex, colors, primaryColor]);
+
+  const openPickerForAdd = useCallback(() => {
+    setEditingIndex(null);
+    pickedColorRef.current = null;
+    setPickerOpen(true);
+  }, []);
+
+  const openPickerForEdit = useCallback((index: number) => {
+    setEditingIndex(index);
+    pickedColorRef.current = null;
+    setPickerOpen(true);
+  }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePickerChange = useCallback((value: any) => {
+    const arr = value as number[];
+    pickedColorRef.current = {
+      r: Math.round(arr[0]),
+      g: Math.round(arr[1]),
+      b: Math.round(arr[2]),
+      a: Math.round((arr[3] ?? 1) * 255),
+    };
+  }, []);
+
+  const handlePickerConfirm = useCallback(() => {
+    const color = pickedColorRef.current;
+    if (color) {
+      if (editingIndex !== null) {
+        onUpdateColor(editingIndex, color);
+      } else {
+        onAddColor(color);
+      }
+    }
+    setPickerOpen(false);
+    setEditingIndex(null);
+  }, [editingIndex, onAddColor, onUpdateColor]);
+
+  const handlePickerCancel = useCallback(() => {
+    setPickerOpen(false);
+    setEditingIndex(null);
+  }, []);
 
   const handleSwatchClick = useCallback(
     (color: Color, e: React.MouseEvent) => {
@@ -73,30 +129,6 @@ export function PalettePanel({
       onSelectSecondary(color);
     },
     [onSelectSecondary],
-  );
-
-  const handleSwatchDoubleClick = useCallback(
-    (index: number) => {
-      editingIndexRef.current = index;
-      if (colorPickerRef.current) {
-        colorPickerRef.current.value = colorToHex(colors[index]);
-        colorPickerRef.current.click();
-      }
-    },
-    [colors],
-  );
-
-  const handleColorPickerChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newColor = hexToColor(e.target.value);
-      if (editingIndexRef.current !== null) {
-        onUpdateColor(editingIndexRef.current, newColor);
-        editingIndexRef.current = null;
-      } else {
-        onAddColor(newColor);
-      }
-    },
-    [onAddColor, onUpdateColor],
   );
 
   const selectedIndex = colors.findIndex((c) => colorsMatch(c, primaryColor));
@@ -142,7 +174,7 @@ export function PalettePanel({
                 style={{ backgroundColor: colorToHex(color) }}
                 onClick={(e) => handleSwatchClick(color, e)}
                 onContextMenu={(e) => handleSwatchContextMenu(color, e)}
-                onDoubleClick={() => handleSwatchDoubleClick(i)}
+                onDoubleClick={() => openPickerForEdit(i)}
                 title={`${colorToHex(color)} (dbl-click to edit)`}
               />
             ))}
@@ -151,21 +183,64 @@ export function PalettePanel({
 
         {/* Actions */}
         <div className="flex flex-wrap gap-0.5 p-1 border-t border-border">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => {
-                  editingIndexRef.current = null;
-                  colorPickerRef.current?.click();
-                }}
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={openPickerForAdd}
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Add Color</TooltipContent>
+            </Tooltip>
+            <PopoverContent
+              side="left"
+              align="end"
+              sideOffset={8}
+              className="w-auto"
+            >
+              <ColorPicker
+                defaultValue={getInitialHex()}
+                onChange={handlePickerChange}
+                className="w-56 gap-3"
               >
-                <Plus className="size-3" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Add Color</TooltipContent>
-          </Tooltip>
+                <ColorPickerSelection className="h-40" />
+                <div className="flex items-center gap-2">
+                  <ColorPickerEyeDropper className="size-8" />
+                  <div className="grid w-full gap-1">
+                    <ColorPickerHue />
+                    <ColorPickerAlpha />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ColorPickerOutput />
+                  <ColorPickerFormat />
+                </div>
+                <div className="flex justify-end gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handlePickerCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handlePickerConfirm}
+                  >
+                    OK
+                  </Button>
+                </div>
+              </ColorPicker>
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -226,12 +301,6 @@ export function PalettePanel({
             if (file) onImport(file);
             e.target.value = "";
           }}
-        />
-        <input
-          ref={colorPickerRef}
-          type="color"
-          className="hidden"
-          onChange={handleColorPickerChange}
         />
       </div>
     </TooltipProvider>

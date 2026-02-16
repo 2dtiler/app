@@ -1,12 +1,22 @@
-Check Image Generator
-  Option to change image dimensions
-
+Image Generator
+  Image Editor navs should have highlighted state
+  Import image should show loading bar
+  Remove Eye Dropper and Marquee tool
+  Add a selection tool
+  Line Tool. Hold down shift to restrain angle
+  Rectangle Tool. Hold down shift to restrain angle
+  Contour Tool. Hold down shift to restrain angle
+  Should be able to set blur size
+  Deleting a frame should be able to be undone
+  What does union mean, can we delete it.
+  Frames per second is not registering
+  
+Map. Selection Tool. Allow Ctrl + C, Ctrl + V
+Right click on a tile or map element to open in editor
 Get Lighthouse scores 100%
-Break up into smaller components and make sure chunking is correct
 Make list of tiled advanced features
 AI Asset Generation
 Autotile. Like Spritefusion
-Palettes
 Export Options
 Import Options
 Get some ideas from: Keep Notes

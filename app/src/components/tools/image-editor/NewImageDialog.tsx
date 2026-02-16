@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,15 +15,28 @@ interface NewImageDialogProps {
   open: boolean;
   onClose: () => void;
   onCreate: (width: number, height: number) => void;
+  /** When provided, the dialog acts as a "resize" dialog pre-filled with current dimensions. */
+  initialWidth?: number;
+  initialHeight?: number;
 }
 
 export function NewImageDialog({
   open,
   onClose,
   onCreate,
+  initialWidth,
+  initialHeight,
 }: NewImageDialogProps) {
-  const [width, setWidth] = useState(32);
-  const [height, setHeight] = useState(32);
+  const [width, setWidth] = useState(initialWidth ?? 32);
+  const [height, setHeight] = useState(initialHeight ?? 32);
+
+  // Sync local state when the dialog opens with new initial values
+  useEffect(() => {
+    if (open) {
+      setWidth(initialWidth ?? 32);
+      setHeight(initialHeight ?? 32);
+    }
+  }, [open, initialWidth, initialHeight]);
 
   const handleCreate = () => {
     const w = Math.max(1, Math.min(1024, width));
@@ -50,7 +63,7 @@ export function NewImageDialog({
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="img-width" className="text-right">
-              Width
+              Width (px)
             </Label>
             <Input
               id="img-width"
@@ -64,7 +77,7 @@ export function NewImageDialog({
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="img-height" className="text-right">
-              Height
+              Height (px)
             </Label>
             <Input
               id="img-height"

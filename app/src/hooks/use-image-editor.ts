@@ -107,6 +107,52 @@ export function useImageEditor() {
     }
   }, []);
 
+  // -----------------------------------------------------------------------
+  // Resize canvas (preserving existing pixel data, cropping or padding)
+  // -----------------------------------------------------------------------
+
+  const resizeCanvas = useCallback(
+    (newWidth: number, newHeight: number) => {
+      if (!isImageEditorStoreReady()) return;
+      const store = getImageEditorStore();
+      const s = store.getState();
+      const oldW = s.width;
+      const oldH = s.height;
+      if (newWidth === oldW && newHeight === oldH) return;
+
+      // Resize each frame's pixel data (top-left aligned copy)
+      for (const frame of s.frames) {
+        const oldData = moduleFrameData.get(frame.id);
+        const newData = new ImageData(newWidth, newHeight);
+        if (oldData) {
+          const copyW = Math.min(oldW, newWidth);
+          const copyH = Math.min(oldH, newHeight);
+          for (let y = 0; y < copyH; y++) {
+            for (let x = 0; x < copyW; x++) {
+              const oldIdx = (y * oldW + x) * 4;
+              const newIdx = (y * newWidth + x) * 4;
+              newData.data[newIdx] = oldData.data[oldIdx];
+              newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
+              newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
+              newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
+            }
+          }
+        }
+        moduleFrameData.set(frame.id, newData);
+      }
+
+      // Update store dimensions
+      store.setState((draft) => {
+        draft.width = newWidth;
+        draft.height = newHeight;
+      });
+
+      // Clear undo history since frame data shapes changed
+      pixelHistory.clearAllHistory();
+    },
+    [],
+  );
+
   // Stop animation on unmount, but do NOT destroy the store
   // so the canvas persists when the drawer is closed and reopened.
   useEffect(() => {
@@ -629,6 +675,7 @@ export function useImageEditor() {
     state,
     setState,
     initProject,
+    resizeCanvas,
     isInitialized: state !== null,
 
     // Frame data

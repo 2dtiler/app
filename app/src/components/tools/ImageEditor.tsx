@@ -12,6 +12,7 @@ import type { Color, ImageEditorTool } from "@/types/image-editor";
 export function ImageEditor() {
   const editor = useImageEditor();
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
 
   const handleCreate = useCallback(
@@ -25,6 +26,18 @@ export function ImageEditor() {
   const handleNew = useCallback(() => {
     setShowNewDialog(true);
   }, []);
+
+  const handleResize = useCallback(() => {
+    setShowResizeDialog(true);
+  }, []);
+
+  const handleResizeConfirm = useCallback(
+    (w: number, h: number) => {
+      editor.resizeCanvas(w, h);
+      setShowResizeDialog(false);
+    },
+    [editor],
+  );
 
   const handleImport = useCallback(
     async (file: File) => {
@@ -145,6 +158,7 @@ export function ImageEditor() {
         onZoom={editor.setZoom}
         onBrushSize={editor.setBrushSize}
         onNew={handleNew}
+        onResize={handleResize}
         onImport={handleImport}
         onExportPng={editor.exportPng}
         onExportGif={editor.exportGif}
@@ -220,6 +234,13 @@ export function ImageEditor() {
         open={showNewDialog}
         onClose={() => setShowNewDialog(false)}
         onCreate={handleCreate}
+      />
+      <NewImageDialog
+        open={showResizeDialog}
+        onClose={() => setShowResizeDialog(false)}
+        onCreate={handleResizeConfirm}
+        initialWidth={width}
+        initialHeight={height}
       />
       <ExportDialog
         open={showExportSheet}
