@@ -21,7 +21,7 @@ import {
   ColorPickerEyeDropper,
   ColorPickerOutput,
   ColorPickerFormat,
-} from "@/components/kibo-ui/color-picker";
+} from "@/components/ui/color-picker";
 import type { Color } from "@/types/image-editor";
 
 interface PalettePanelProps {
@@ -207,7 +207,7 @@ export function PalettePanel({
               <ColorPicker
                 defaultValue={getInitialHex()}
                 onChange={handlePickerChange}
-                className="w-56 gap-3"
+                className="w-75 gap-3"
               >
                 <ColorPickerSelection className="h-40" />
                 <div className="flex items-center gap-2">
