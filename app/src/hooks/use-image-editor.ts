@@ -33,6 +33,19 @@ import { DEFAULT_PALETTE_COLORS } from "@/types/image-editor";
 
 const moduleFrameData: Map<FrameId, ImageData> = new Map();
 
+// ---------------------------------------------------------------------------
+// Frame deletion undo/redo stacks
+// ---------------------------------------------------------------------------
+
+interface DeletedFrameRecord {
+  frame: Frame;
+  index: number;
+  pixelData: ImageData;
+}
+
+const deletedFrameUndoStack: DeletedFrameRecord[] = [];
+const deletedFrameRedoStack: DeletedFrameRecord[] = [];
+
 /**
  * Ensure the image editor store is initialized.
  * If it's already ready, this is a no-op.
@@ -268,6 +281,22 @@ export function useImageEditor() {
     const frameToDelete = state.frames[state.currentFrameIndex];
     if (!frameToDelete) return;
 
+    // Save undo record before deleting
+    const pixelData = moduleFrameData.get(frameToDelete.id);
+    if (pixelData) {
+      deletedFrameUndoStack.push({
+        frame: { ...frameToDelete },
+        index: state.currentFrameIndex,
+        pixelData: new ImageData(
+          new Uint8ClampedArray(pixelData.data),
+          pixelData.width,
+          pixelData.height,
+        ),
+      });
+      // New deletion invalidates redo stack
+      deletedFrameRedoStack.length = 0;
+    }
+
     moduleFrameData.delete(frameToDelete.id);
     pixelHistory.clearFrameHistory(frameToDelete.id);
 
@@ -298,6 +327,45 @@ export function useImageEditor() {
     },
     [setState],
   );
+
+  const undoDeleteFrame = useCallback((): boolean => {
+    if (deletedFrameUndoStack.length === 0) return false;
+    const record = deletedFrameUndoStack.pop()!;
+
+    // Restore pixel data
+    moduleFrameData.set(record.frame.id, record.pixelData);
+
+    // Restore frame in state
+    setState((d) => {
+      const idx = Math.min(record.index, d.frames.length);
+      d.frames.splice(idx, 0, record.frame);
+      d.currentFrameIndex = idx;
+    });
+
+    deletedFrameRedoStack.push(record);
+    return true;
+  }, [setState]);
+
+  const redoDeleteFrame = useCallback((): boolean => {
+    if (deletedFrameRedoStack.length === 0) return false;
+    const record = deletedFrameRedoStack.pop()!;
+
+    moduleFrameData.delete(record.frame.id);
+    pixelHistory.clearFrameHistory(record.frame.id);
+
+    setState((d) => {
+      const idx = d.frames.findIndex((f) => f.id === record.frame.id);
+      if (idx >= 0) {
+        d.frames.splice(idx, 1);
+        if (d.currentFrameIndex >= d.frames.length) {
+          d.currentFrameIndex = d.frames.length - 1;
+        }
+      }
+    });
+
+    deletedFrameUndoStack.push(record);
+    return true;
+  }, [setState]);
 
   // -----------------------------------------------------------------------
   // Tool / state setters
@@ -359,6 +427,22 @@ export function useImageEditor() {
     [setState],
   );
 
+  const setBlurSize = useCallback(
+    (size: number) =>
+      setState((d) => {
+        d.blurSize = Math.max(1, Math.min(8, size));
+      }),
+    [setState],
+  );
+
+  const setBlurIntensity = useCallback(
+    (intensity: number) =>
+      setState((d) => {
+        d.blurIntensity = Math.max(1, Math.min(100, intensity));
+      }),
+    [setState],
+  );
+
   const setLoop = useCallback(
     (on: boolean) =>
       setState((d) => {
@@ -371,6 +455,11 @@ export function useImageEditor() {
     (fps: number) =>
       setState((d) => {
         d.fps = Math.max(1, Math.min(60, fps));
+        // Sync all frame durations to match new FPS for consistent export
+        const duration = Math.round(1000 / d.fps);
+        for (const frame of d.frames) {
+          frame.duration = duration;
+        }
       }),
     [setState],
   );
@@ -481,8 +570,7 @@ export function useImageEditor() {
       lastTime = now;
       frameAccum += delta;
 
-      const currentFrame = s.frames[s.currentFrameIndex];
-      const frameDuration = currentFrame ? currentFrame.duration : 1000 / s.fps;
+      const frameDuration = 1000 / s.fps;
 
       if (frameAccum >= frameDuration) {
         frameAccum -= frameDuration;
@@ -690,6 +778,8 @@ export function useImageEditor() {
     addFrame,
     duplicateFrame,
     deleteFrame,
+    undoDeleteFrame,
+    redoDeleteFrame,
     setCurrentFrame,
     setFrameDuration,
 
@@ -703,6 +793,8 @@ export function useImageEditor() {
     setOnionSkin,
     setLoop,
     setFps,
+    setBlurSize,
+    setBlurIntensity,
 
     // Palette
     addPaletteColor,

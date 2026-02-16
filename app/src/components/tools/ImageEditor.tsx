@@ -87,6 +87,9 @@ export function ImageEditor() {
           if (frameId) {
             editor.setFrameData(frameId, restored);
           }
+        } else {
+          // Nothing to undo in pixels — try undoing frame deletion
+          editor.undoDeleteFrame();
         }
         return;
       }
@@ -98,6 +101,9 @@ export function ImageEditor() {
           if (frameId) {
             editor.setFrameData(frameId, restored);
           }
+        } else {
+          // Nothing to redo in pixels — try redoing frame deletion
+          editor.redoDeleteFrame();
         }
         return;
       }
@@ -137,6 +143,8 @@ export function ImageEditor() {
     primaryColor,
     secondaryColor,
     brushSize,
+    blurSize,
+    blurIntensity,
     frames,
     currentFrameIndex,
     palette,
@@ -157,8 +165,13 @@ export function ImageEditor() {
       <EditorToolbar
         zoom={zoom}
         brushSize={brushSize}
+        tool={tool}
+        blurSize={blurSize}
+        blurIntensity={blurIntensity}
         onZoom={editor.setZoom}
         onBrushSize={editor.setBrushSize}
+        onBlurSize={editor.setBlurSize}
+        onBlurIntensity={editor.setBlurIntensity}
         onNew={handleNew}
         onResize={handleResize}
         onImport={handleImport}
@@ -175,12 +188,9 @@ export function ImageEditor() {
         {/* Canvas */}
         <div className="relative flex-1 min-w-0">
           {isImporting && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-48 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full animate-[progress-bar_1.5s_ease-in-out_infinite]" />
-                </div>
-                <span className="text-sm text-white/80">Importing image…</span>
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80">
+              <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
+                Importing image…
               </div>
             </div>
           )}
@@ -192,6 +202,8 @@ export function ImageEditor() {
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
             brushSize={brushSize}
+            blurSize={blurSize}
+            blurIntensity={blurIntensity}
             currentFrameId={currentFrameId}
             currentFrameData={currentFrameData}
             previousFrameData={previousFrameData}

@@ -30,6 +30,8 @@ interface ImageCanvasProps {
   primaryColor: Color;
   secondaryColor: Color;
   brushSize: number;
+  blurSize: number;
+  blurIntensity: number;
   currentFrameId: FrameId | null;
   currentFrameData: ImageData | null;
   previousFrameData: ImageData | null;
@@ -51,6 +53,8 @@ export function ImageCanvas({
   primaryColor,
   secondaryColor,
   brushSize,
+  blurSize,
+  blurIntensity,
   currentFrameId,
   currentFrameData,
   previousFrameData,
@@ -209,23 +213,29 @@ export function ImageCanvas({
     };
   }, []);
 
-  const getToolContext = useCallback((): ToolContext | null => {
-    const canvas = canvasRef.current;
-    const overlay = overlayRef.current;
-    if (!canvas || !overlay) return null;
-    const ctx = canvas.getContext("2d");
-    const overlayCtx = overlay.getContext("2d");
-    if (!ctx || !overlayCtx) return null;
-    return {
-      ctx,
-      overlayCtx,
-      width,
-      height,
-      color: primaryColor,
-      brushSize,
-      tool,
-    };
-  }, [width, height, primaryColor, brushSize, tool]);
+  const getToolContext = useCallback(
+    (opts?: { shiftKey?: boolean }): ToolContext | null => {
+      const canvas = canvasRef.current;
+      const overlay = overlayRef.current;
+      if (!canvas || !overlay) return null;
+      const ctx = canvas.getContext("2d");
+      const overlayCtx = overlay.getContext("2d");
+      if (!ctx || !overlayCtx) return null;
+      return {
+        ctx,
+        overlayCtx,
+        width,
+        height,
+        color: primaryColor,
+        brushSize,
+        tool,
+        shiftKey: opts?.shiftKey ?? false,
+        blurSize,
+        blurIntensity,
+      };
+    },
+    [width, height, primaryColor, brushSize, tool, blurSize, blurIntensity],
+  );
 
   // Draw floating pixels on overlay when selection exists
   useEffect(() => {
@@ -495,7 +505,7 @@ export function ImageCanvas({
       if (e.button === 1) return; // middle mouse = pan
       if (!currentFrameId) return;
 
-      const tc = getToolContext();
+      const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
 
       // Use secondary color for right-click
@@ -547,7 +557,7 @@ export function ImageCanvas({
       }
 
       if (!strokeRef.current.active) return;
-      const tc = getToolContext();
+      const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
 
       const sel = dispatchMove(tool, tc, px, py, strokeRef.current);
@@ -561,7 +571,7 @@ export function ImageCanvas({
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      const tc = getToolContext();
+      const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
 
       const [px, py] = toPixel(e as unknown as React.MouseEvent);

@@ -105,6 +105,12 @@ export interface ImageEditorState {
   /** Brush size in pixels (1–16) */
   brushSize: number;
 
+  /** Blur kernel radius (1–8, where 1 = 3×3, 2 = 5×5, etc.) */
+  blurSize: number;
+
+  /** Blur intensity / strength (1–100, percentage blend) */
+  blurIntensity: number;
+
   /** Canvas zoom level */
   zoom: number;
 
@@ -161,6 +167,8 @@ export const DEFAULT_IMAGE_EDITOR_STATE: ImageEditorState = {
   primaryColor: { r: 0, g: 0, b: 0, a: 255 },
   secondaryColor: { r: 255, g: 255, b: 255, a: 255 },
   brushSize: 1,
+  blurSize: 1,
+  blurIntensity: 100,
   zoom: 8,
   selection: null,
   isPlaying: false,

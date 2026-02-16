@@ -1,16 +1,14 @@
 Image Generator
-  Holding shift while dragging something that's selected should preserve scaling ratio
-  Importing image loader is a bit ugly
-  Line Tool. Hold down shift to restrain angle
-  Rectangle Tool. Hold down shift to restrain angle
-  Contour Tool. Hold down shift to restrain angle
-  Should be able to set blur size
-  Deleting a frame should be able to be undone
-  What does union mean, can we delete it.
+  Stop animation and Toggle Loop buttons are useless
   Frames per second is not registering
+  Importing image should show the full image over the overlay, allowing you to resize it.
+  What does union mean, can we delete it.
   Check .ase import, Export
   Add dropdown to select tileset
+  Add Layers. Each object placed should be in the layer
+  Undo/Redo
   
+Add ability to deploy from local
 Map. Selection Tool. Allow Ctrl + C, Ctrl + V
 Allow multiple select in tileset view
 Right click on a tile or map element to open in editor

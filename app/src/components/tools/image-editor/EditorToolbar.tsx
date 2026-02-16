@@ -23,11 +23,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import type { ImageEditorTool } from "@/types/image-editor";
+
 interface EditorToolbarProps {
   zoom: number;
   brushSize: number;
+  tool: ImageEditorTool;
+  blurSize: number;
+  blurIntensity: number;
   onZoom: (z: number) => void;
   onBrushSize: (s: number) => void;
+  onBlurSize: (s: number) => void;
+  onBlurIntensity: (i: number) => void;
   onNew: () => void;
   onResize: () => void;
   onImport: (file: File) => void;
@@ -39,8 +46,13 @@ interface EditorToolbarProps {
 export function EditorToolbar({
   zoom,
   brushSize,
+  tool,
+  blurSize,
+  blurIntensity,
   onZoom,
   onBrushSize,
+  onBlurSize,
+  onBlurIntensity,
   onNew,
   onResize,
   onImport,
@@ -141,6 +153,37 @@ export function EditorToolbar({
             className="w-24"
           />
         </div>
+
+        {/* Blur settings (visible only when blur tool is active) */}
+        {tool === "blur" && (
+          <>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Size: {blurSize}
+              </span>
+              <Slider
+                min={1}
+                max={8}
+                value={[blurSize]}
+                onValueChange={([v]) => onBlurSize(v)}
+                className="w-20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Intensity: {blurIntensity}%
+              </span>
+              <Slider
+                min={1}
+                max={100}
+                value={[blurIntensity]}
+                onValueChange={([v]) => onBlurIntensity(v)}
+                className="w-20"
+              />
+            </div>
+          </>
+        )}
 
         <div className="w-px h-5 bg-border" />
 

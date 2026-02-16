@@ -130,6 +130,12 @@ export interface ToolContext {
   color: Color;
   brushSize: number;
   tool: ImageEditorTool;
+  /** Whether the shift key is currently held */
+  shiftKey: boolean;
+  /** Blur kernel radius (1–8) */
+  blurSize: number;
+  /** Blur intensity (1–100) */
+  blurIntensity: number;
 }
 
 /**
@@ -161,6 +167,51 @@ export function createStrokeState(): StrokeState {
     moveOffsetY: 0,
     active: false,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Shift-constraint helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Snap the endpoint to the nearest 45° angle increment from the start point.
+ * Used by the line tool when shift is held.
+ */
+export function constrainAngle(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+): [number, number] {
+  const dx = ex - sx;
+  const dy = ey - sy;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) return [ex, ey];
+
+  const angle = Math.atan2(dy, dx);
+  const snap = Math.PI / 4; // 45°
+  const snapped = Math.round(angle / snap) * snap;
+
+  return [
+    sx + Math.round(dist * Math.cos(snapped)),
+    sy + Math.round(dist * Math.sin(snapped)),
+  ];
+}
+
+/**
+ * Constrain a rectangle to a square by using the larger dimension.
+ * Used by rectangle/contour tools when shift is held.
+ */
+export function constrainSquare(
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+): [number, number] {
+  const dx = ex - sx;
+  const dy = ey - sy;
+  const size = Math.max(Math.abs(dx), Math.abs(dy));
+  return [sx + size * Math.sign(dx || 1), sy + size * Math.sign(dy || 1)];
 }
 
 // ---------------------------------------------------------------------------
@@ -603,6 +654,31 @@ export function selectionMove(
       nh = b.h + dy;
     }
 
+    // Shift-constrain: preserve original aspect ratio on corner handles
+    if (
+      tc.shiftKey &&
+      selectionState.floatingPixels &&
+      (handle === "nw" ||
+        handle === "ne" ||
+        handle === "sw" ||
+        handle === "se")
+    ) {
+      const ar =
+        selectionState.floatingPixels.width /
+        selectionState.floatingPixels.height;
+      if (nw / ar > nh) {
+        nh = Math.round(nw / ar);
+      } else {
+        nw = Math.round(nh * ar);
+      }
+      if (handle.includes("n")) {
+        ny = b.y + b.h - nh;
+      }
+      if (handle.includes("w")) {
+        nx = b.x + b.w - nw;
+      }
+    }
+
     // Enforce minimum size
     if (nw < 1) {
       nw = 1;
@@ -901,11 +977,17 @@ export function lineMove(
 ): void {
   if (!ss.active || !ss.snapshot) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainAngle(ss.startX, ss.startY, x, y);
+  }
+
   // Restore snapshot, then draw preview line on overlay
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
   const overlayImgData = tc.overlayCtx.createImageData(tc.width, tc.height);
 
-  const points = bresenhamLine(ss.startX, ss.startY, x, y);
+  const points = bresenhamLine(ss.startX, ss.startY, endX, endY);
   for (const [px, py] of points) {
     drawBrush(
       overlayImgData.data,
@@ -928,11 +1010,17 @@ export function lineUp(
 ): void {
   if (!ss.active) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainAngle(ss.startX, ss.startY, x, y);
+  }
+
   // Commit line to the main canvas
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
 
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  const points = bresenhamLine(ss.startX, ss.startY, x, y);
+  const points = bresenhamLine(ss.startX, ss.startY, endX, endY);
   for (const [px, py] of points) {
     drawBrush(
       imgData.data,
@@ -995,6 +1083,12 @@ export function rectangleMove(
 ): void {
   if (!ss.active) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainSquare(ss.startX, ss.startY, x, y);
+  }
+
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
   const overlayImgData = tc.overlayCtx.createImageData(tc.width, tc.height);
   drawFilledRect(
@@ -1003,8 +1097,8 @@ export function rectangleMove(
     tc.height,
     ss.startX,
     ss.startY,
-    x,
-    y,
+    endX,
+    endY,
     tc.color,
   );
   tc.overlayCtx.putImageData(overlayImgData, 0, 0);
@@ -1018,6 +1112,12 @@ export function rectangleUp(
 ): void {
   if (!ss.active) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainSquare(ss.startX, ss.startY, x, y);
+  }
+
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
 
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
@@ -1027,8 +1127,8 @@ export function rectangleUp(
     tc.height,
     ss.startX,
     ss.startY,
-    x,
-    y,
+    endX,
+    endY,
     tc.color,
   );
   tc.ctx.putImageData(imgData, 0, 0);
@@ -1088,6 +1188,12 @@ export function contourMove(
 ): void {
   if (!ss.active) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainSquare(ss.startX, ss.startY, x, y);
+  }
+
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
   const overlayImgData = tc.overlayCtx.createImageData(tc.width, tc.height);
   drawRectOutline(
@@ -1096,8 +1202,8 @@ export function contourMove(
     tc.height,
     ss.startX,
     ss.startY,
-    x,
-    y,
+    endX,
+    endY,
     tc.color,
   );
   tc.overlayCtx.putImageData(overlayImgData, 0, 0);
@@ -1111,6 +1217,12 @@ export function contourUp(
 ): void {
   if (!ss.active) return;
 
+  let endX = x,
+    endY = y;
+  if (tc.shiftKey) {
+    [endX, endY] = constrainSquare(ss.startX, ss.startY, x, y);
+  }
+
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
 
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
@@ -1120,8 +1232,8 @@ export function contourUp(
     tc.height,
     ss.startX,
     ss.startY,
-    x,
-    y,
+    endX,
+    endY,
     tc.color,
   );
   tc.ctx.putImageData(imgData, 0, 0);
@@ -1176,27 +1288,29 @@ function applyBlurAt(tc: ToolContext, cx: number, cy: number): void {
   const w = tc.width;
   const h = tc.height;
 
-  const radius = Math.max(1, Math.floor(tc.brushSize / 2));
+  const brushRadius = Math.max(1, Math.floor(tc.brushSize / 2));
+  const kernelRadius = Math.max(1, tc.blurSize);
+  const intensity = Math.max(1, Math.min(100, tc.blurIntensity)) / 100;
 
   // Copy original data for reading
   const orig = new Uint8ClampedArray(data);
 
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      if (dx * dx + dy * dy > radius * radius) continue;
+  for (let dy = -brushRadius; dy <= brushRadius; dy++) {
+    for (let dx = -brushRadius; dx <= brushRadius; dx++) {
+      if (dx * dx + dy * dy > brushRadius * brushRadius) continue;
 
       const px = cx + dx;
       const py = cy + dy;
       if (px < 0 || py < 0 || px >= w || py >= h) continue;
 
-      // 3x3 box blur kernel around (px, py)
+      // Variable-size box blur kernel around (px, py)
       let r = 0,
         g = 0,
         b = 0,
         a = 0,
         count = 0;
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
+      for (let ky = -kernelRadius; ky <= kernelRadius; ky++) {
+        for (let kx = -kernelRadius; kx <= kernelRadius; kx++) {
           const nx = px + kx;
           const ny = py + ky;
           if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
@@ -1210,10 +1324,17 @@ function applyBlurAt(tc: ToolContext, cx: number, cy: number): void {
       }
 
       const i = (py * w + px) * 4;
-      data[i] = Math.round(r / count);
-      data[i + 1] = Math.round(g / count);
-      data[i + 2] = Math.round(b / count);
-      data[i + 3] = Math.round(a / count);
+      // Blend between original and blurred by intensity
+      data[i] = Math.round(orig[i] * (1 - intensity) + (r / count) * intensity);
+      data[i + 1] = Math.round(
+        orig[i + 1] * (1 - intensity) + (g / count) * intensity,
+      );
+      data[i + 2] = Math.round(
+        orig[i + 2] * (1 - intensity) + (b / count) * intensity,
+      );
+      data[i + 3] = Math.round(
+        orig[i + 3] * (1 - intensity) + (a / count) * intensity,
+      );
     }
   }
 
