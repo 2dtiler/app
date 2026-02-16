@@ -1,6 +1,3 @@
-Add Google Ads
-
-Performance Audit
 Tools:
   Image Editor
   AI Asset Generation
@@ -13,6 +10,9 @@ Import Options
 Get some ideas from: Keep Notes
 
 =======================================
+Google Ads
+Performance Audit
+Get Lighthouse scores 100%
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
 Add tutorial video

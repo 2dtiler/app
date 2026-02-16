@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -6,11 +7,17 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer";
 import type { ToolName } from "@/components/layout/Toolbar";
+import { ImageEditor } from "@/components/tools/ImageEditor";
+import { AiAssets } from "@/components/tools/AiAssets";
+import { SpriteGenerator } from "@/components/tools/SpriteGenerator";
 
-const TOOL_LABELS: Record<ToolName, string> = {
-  "image-editor": "Image Editor",
-  "ai-assets": "AI Assets",
-  "sprite-generator": "Sprite Generator",
+const TOOL_CONFIG: Record<
+  ToolName,
+  { label: string; component: ComponentType }
+> = {
+  "image-editor": { label: "Image Editor", component: ImageEditor },
+  "ai-assets": { label: "AI Assets", component: AiAssets },
+  "sprite-generator": { label: "Sprite Generator", component: SpriteGenerator },
 };
 
 interface ToolDrawerProps {
@@ -19,6 +26,9 @@ interface ToolDrawerProps {
 }
 
 export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
+  const config = activeTool ? TOOL_CONFIG[activeTool] : null;
+  const ToolComponent = config?.component ?? null;
+
   return (
     <Drawer
       direction="right"
@@ -29,13 +39,12 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
     >
       <DrawerContent className="w-[90%] sm:max-w-none">
         <DrawerHeader>
-          <DrawerTitle className="text-lg">
-            {activeTool ? TOOL_LABELS[activeTool] : ""}
-          </DrawerTitle>
+          <DrawerTitle className="text-lg">{config?.label ?? ""}</DrawerTitle>
           <DrawerDescription className="sr-only">
-            {activeTool ? TOOL_LABELS[activeTool] : "Tool panel"}
+            {config?.label ?? "Tool panel"}
           </DrawerDescription>
         </DrawerHeader>
+        {ToolComponent && <ToolComponent />}
       </DrawerContent>
     </Drawer>
   );
