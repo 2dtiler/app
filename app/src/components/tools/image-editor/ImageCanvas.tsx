@@ -376,7 +376,7 @@ export function ImageCanvas({
     if (!tc) return;
 
     onPushUndo();
-    const sel = pasteSelectionPixels(tc, pendingImport);
+    const sel = pasteSelectionPixels(tc, pendingImport, { width, height });
     onSelectionChange(sel);
     if (currentFrameId) {
       const imgData = tc.ctx.getImageData(0, 0, width, height);

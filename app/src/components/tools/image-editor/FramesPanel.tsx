@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Plus, Copy, Trash2, Play, Pause, Square } from "lucide-react";
+import { Plus, Copy, Trash2, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -16,7 +16,6 @@ interface FramesPanelProps {
   frames: Frame[];
   currentFrameIndex: number;
   isPlaying: boolean;
-  loop: boolean;
   fps: number;
   onionSkin: boolean;
   canvasWidth: number;
@@ -28,7 +27,6 @@ interface FramesPanelProps {
   onDeleteFrame: () => void;
   onPlay: () => void;
   onStop: () => void;
-  onSetLoop: (loop: boolean) => void;
   onSetFps: (fps: number) => void;
   onSetOnionSkin: (on: boolean) => void;
 }
@@ -105,7 +103,6 @@ export function FramesPanel({
   frames,
   currentFrameIndex,
   isPlaying,
-  loop,
   fps,
   onionSkin,
   canvasWidth,
@@ -117,7 +114,6 @@ export function FramesPanel({
   onDeleteFrame,
   onPlay,
   onStop,
-  onSetLoop,
   onSetFps,
   onSetOnionSkin,
 }: FramesPanelProps) {
@@ -188,7 +184,7 @@ export function FramesPanel({
 
           <div className="w-px h-4 bg-border" />
 
-          {/* Play / Stop */}
+          {/* Play / Pause */}
           <div className="flex items-center gap-0.5">
             {isPlaying ? (
               <Tooltip>
@@ -209,39 +205,9 @@ export function FramesPanel({
                 <TooltipContent>Play Animation</TooltipContent>
               </Tooltip>
             )}
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={onStop}
-                  disabled={!isPlaying}
-                >
-                  <Square className="size-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Stop</TooltipContent>
-            </Tooltip>
           </div>
 
           <div className="w-px h-4 bg-border" />
-
-          {/* Loop */}
-          <div className="flex items-center gap-1">
-            <Switch
-              id="loop-toggle"
-              checked={loop}
-              onCheckedChange={onSetLoop}
-              className="scale-75"
-            />
-            <Label
-              htmlFor="loop-toggle"
-              className="text-[10px] text-muted-foreground"
-            >
-              Loop
-            </Label>
-          </div>
 
           {/* FPS */}
           <div className="flex items-center gap-1">

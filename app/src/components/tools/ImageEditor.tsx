@@ -88,8 +88,8 @@ export function ImageEditor() {
             editor.setFrameData(frameId, restored);
           }
         } else {
-          // Nothing to undo in pixels — try undoing frame deletion
-          editor.undoDeleteFrame();
+          // Nothing to undo in pixels — try undoing frame operation
+          editor.undoFrameOp();
         }
         return;
       }
@@ -102,8 +102,8 @@ export function ImageEditor() {
             editor.setFrameData(frameId, restored);
           }
         } else {
-          // Nothing to redo in pixels — try redoing frame deletion
-          editor.redoDeleteFrame();
+          // Nothing to redo in pixels — try redoing frame operation
+          editor.redoFrameOp();
         }
         return;
       }
@@ -149,7 +149,6 @@ export function ImageEditor() {
     currentFrameIndex,
     palette,
     isPlaying,
-    loop,
     fps,
     onionSkin,
     selection,
@@ -239,7 +238,6 @@ export function ImageEditor() {
         frames={frames}
         currentFrameIndex={currentFrameIndex}
         isPlaying={isPlaying}
-        loop={loop}
         fps={fps}
         onionSkin={onionSkin}
         canvasWidth={width}
@@ -251,7 +249,6 @@ export function ImageEditor() {
         onDeleteFrame={editor.deleteFrame}
         onPlay={editor.playAnimation}
         onStop={editor.stopAnimation}
-        onSetLoop={editor.setLoop}
         onSetFps={editor.setFps}
         onSetOnionSkin={editor.setOnionSkin}
       />

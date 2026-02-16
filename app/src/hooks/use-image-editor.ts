@@ -34,17 +34,20 @@ import { DEFAULT_PALETTE_COLORS } from "@/types/image-editor";
 const moduleFrameData: Map<FrameId, ImageData> = new Map();
 
 // ---------------------------------------------------------------------------
-// Frame deletion undo/redo stacks
+// Frame operation undo/redo stacks
 // ---------------------------------------------------------------------------
 
-interface DeletedFrameRecord {
+interface FrameOperation {
+  type: 'add' | 'delete' | 'duplicate';
+  frameId: FrameId;
   frame: Frame;
   index: number;
   pixelData: ImageData;
+  prevFrameIndex: number;
 }
 
-const deletedFrameUndoStack: DeletedFrameRecord[] = [];
-const deletedFrameRedoStack: DeletedFrameRecord[] = [];
+const frameOpUndoStack: FrameOperation[] = [];
+const frameOpRedoStack: FrameOperation[] = [];
 
 /**
  * Ensure the image editor store is initialized.
@@ -237,7 +240,23 @@ export function useImageEditor() {
     };
 
     // Create blank ImageData
-    moduleFrameData.set(newId, new ImageData(state.width, state.height));
+    const blankData = new ImageData(state.width, state.height);
+    moduleFrameData.set(newId, blankData);
+
+    // Record for undo
+    frameOpUndoStack.push({
+      type: 'add',
+      frameId: newId,
+      frame: { ...newFrame },
+      index: state.frames.length,
+      pixelData: new ImageData(
+        new Uint8ClampedArray(blankData.data),
+        blankData.width,
+        blankData.height,
+      ),
+      prevFrameIndex: state.currentFrameIndex,
+    });
+    frameOpRedoStack.length = 0;
 
     setState((d) => {
       d.frames.push(newFrame);
@@ -259,16 +278,34 @@ export function useImageEditor() {
 
     // Deep copy pixel data
     const srcData = moduleFrameData.get(srcFrame.id);
+    let copyData: ImageData;
     if (srcData) {
-      const copy = new ImageData(
+      copyData = new ImageData(
         new Uint8ClampedArray(srcData.data),
         srcData.width,
         srcData.height,
       );
-      moduleFrameData.set(newId, copy);
     } else {
-      moduleFrameData.set(newId, new ImageData(state.width, state.height));
+      copyData = new ImageData(state.width, state.height);
     }
+    moduleFrameData.set(newId, copyData);
+
+    const insertIndex = state.currentFrameIndex + 1;
+
+    // Record for undo
+    frameOpUndoStack.push({
+      type: 'duplicate',
+      frameId: newId,
+      frame: { ...newFrame },
+      index: insertIndex,
+      pixelData: new ImageData(
+        new Uint8ClampedArray(copyData.data),
+        copyData.width,
+        copyData.height,
+      ),
+      prevFrameIndex: state.currentFrameIndex,
+    });
+    frameOpRedoStack.length = 0;
 
     setState((d) => {
       d.frames.splice(d.currentFrameIndex + 1, 0, newFrame);
@@ -283,19 +320,21 @@ export function useImageEditor() {
 
     // Save undo record before deleting
     const pixelData = moduleFrameData.get(frameToDelete.id);
-    if (pixelData) {
-      deletedFrameUndoStack.push({
-        frame: { ...frameToDelete },
-        index: state.currentFrameIndex,
-        pixelData: new ImageData(
-          new Uint8ClampedArray(pixelData.data),
-          pixelData.width,
-          pixelData.height,
-        ),
-      });
-      // New deletion invalidates redo stack
-      deletedFrameRedoStack.length = 0;
-    }
+    frameOpUndoStack.push({
+      type: 'delete',
+      frameId: frameToDelete.id,
+      frame: { ...frameToDelete },
+      index: state.currentFrameIndex,
+      pixelData: pixelData
+        ? new ImageData(
+            new Uint8ClampedArray(pixelData.data),
+            pixelData.width,
+            pixelData.height,
+          )
+        : new ImageData(state.width, state.height),
+      prevFrameIndex: state.currentFrameIndex,
+    });
+    frameOpRedoStack.length = 0;
 
     moduleFrameData.delete(frameToDelete.id);
     pixelHistory.clearFrameHistory(frameToDelete.id);
@@ -328,43 +367,109 @@ export function useImageEditor() {
     [setState],
   );
 
-  const undoDeleteFrame = useCallback((): boolean => {
-    if (deletedFrameUndoStack.length === 0) return false;
-    const record = deletedFrameUndoStack.pop()!;
+  const undoFrameOp = useCallback((): boolean => {
+    if (frameOpUndoStack.length === 0) return false;
+    const op = frameOpUndoStack.pop()!;
 
-    // Restore pixel data
-    moduleFrameData.set(record.frame.id, record.pixelData);
-
-    // Restore frame in state
-    setState((d) => {
-      const idx = Math.min(record.index, d.frames.length);
-      d.frames.splice(idx, 0, record.frame);
-      d.currentFrameIndex = idx;
-    });
-
-    deletedFrameRedoStack.push(record);
-    return true;
+    switch (op.type) {
+      case 'add':
+      case 'duplicate': {
+        // Undo add/duplicate: remove the frame that was added
+        const currentPixelData = moduleFrameData.get(op.frameId);
+        frameOpRedoStack.push({
+          ...op,
+          pixelData: currentPixelData
+            ? new ImageData(
+                new Uint8ClampedArray(currentPixelData.data),
+                currentPixelData.width,
+                currentPixelData.height,
+              )
+            : op.pixelData,
+        });
+        moduleFrameData.delete(op.frameId);
+        pixelHistory.clearFrameHistory(op.frameId);
+        setState((d) => {
+          const idx = d.frames.findIndex((f) => f.id === op.frameId);
+          if (idx >= 0) d.frames.splice(idx, 1);
+          d.currentFrameIndex = Math.min(
+            op.prevFrameIndex,
+            d.frames.length - 1,
+          );
+        });
+        return true;
+      }
+      case 'delete': {
+        // Undo delete: re-insert the frame with its pixel data
+        moduleFrameData.set(
+          op.frameId,
+          new ImageData(
+            new Uint8ClampedArray(op.pixelData.data),
+            op.pixelData.width,
+            op.pixelData.height,
+          ),
+        );
+        frameOpRedoStack.push(op);
+        setState((d) => {
+          const idx = Math.min(op.index, d.frames.length);
+          d.frames.splice(idx, 0, op.frame);
+          d.currentFrameIndex = idx;
+        });
+        return true;
+      }
+    }
   }, [setState]);
 
-  const redoDeleteFrame = useCallback((): boolean => {
-    if (deletedFrameRedoStack.length === 0) return false;
-    const record = deletedFrameRedoStack.pop()!;
+  const redoFrameOp = useCallback((): boolean => {
+    if (frameOpRedoStack.length === 0) return false;
+    const op = frameOpRedoStack.pop()!;
 
-    moduleFrameData.delete(record.frame.id);
-    pixelHistory.clearFrameHistory(record.frame.id);
-
-    setState((d) => {
-      const idx = d.frames.findIndex((f) => f.id === record.frame.id);
-      if (idx >= 0) {
-        d.frames.splice(idx, 1);
-        if (d.currentFrameIndex >= d.frames.length) {
-          d.currentFrameIndex = d.frames.length - 1;
-        }
+    switch (op.type) {
+      case 'add':
+      case 'duplicate': {
+        // Redo add/duplicate: re-insert the frame
+        moduleFrameData.set(
+          op.frameId,
+          new ImageData(
+            new Uint8ClampedArray(op.pixelData.data),
+            op.pixelData.width,
+            op.pixelData.height,
+          ),
+        );
+        frameOpUndoStack.push(op);
+        setState((d) => {
+          const idx = Math.min(op.index, d.frames.length);
+          d.frames.splice(idx, 0, op.frame);
+          d.currentFrameIndex = idx;
+        });
+        return true;
       }
-    });
-
-    deletedFrameUndoStack.push(record);
-    return true;
+      case 'delete': {
+        // Redo delete: re-remove the frame
+        const currentPixelData = moduleFrameData.get(op.frameId);
+        frameOpUndoStack.push({
+          ...op,
+          pixelData: currentPixelData
+            ? new ImageData(
+                new Uint8ClampedArray(currentPixelData.data),
+                currentPixelData.width,
+                currentPixelData.height,
+              )
+            : op.pixelData,
+        });
+        moduleFrameData.delete(op.frameId);
+        pixelHistory.clearFrameHistory(op.frameId);
+        setState((d) => {
+          const idx = d.frames.findIndex((f) => f.id === op.frameId);
+          if (idx >= 0) {
+            d.frames.splice(idx, 1);
+            if (d.currentFrameIndex >= d.frames.length) {
+              d.currentFrameIndex = d.frames.length - 1;
+            }
+          }
+        });
+        return true;
+      }
+    }
   }, [setState]);
 
   // -----------------------------------------------------------------------
@@ -577,14 +682,9 @@ export function useImageEditor() {
         const nextIndex = s.currentFrameIndex + 1;
 
         if (nextIndex >= s.frames.length) {
-          if (s.loop) {
-            getImageEditorStore().setState((d) => {
-              d.currentFrameIndex = 0;
-            });
-          } else {
-            stopAnimation();
-            return;
-          }
+          getImageEditorStore().setState((d) => {
+            d.currentFrameIndex = 0;
+          });
         } else {
           getImageEditorStore().setState((d) => {
             d.currentFrameIndex = nextIndex;
@@ -596,7 +696,7 @@ export function useImageEditor() {
     };
 
     animTimerRef.current = requestAnimationFrame(tick);
-  }, [state, setState, stopAnimation]);
+  }, [state, setState]);
 
   // -----------------------------------------------------------------------
   // Import image
@@ -778,8 +878,8 @@ export function useImageEditor() {
     addFrame,
     duplicateFrame,
     deleteFrame,
-    undoDeleteFrame,
-    redoDeleteFrame,
+    undoFrameOp,
+    redoFrameOp,
     setCurrentFrame,
     setFrameDuration,
 
@@ -791,7 +891,6 @@ export function useImageEditor() {
     setZoom,
     setSelection,
     setOnionSkin,
-    setLoop,
     setFps,
     setBlurSize,
     setBlurIntensity,

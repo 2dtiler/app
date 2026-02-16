@@ -835,10 +835,14 @@ export function copySelectionPixels(): ImageData | null {
   );
 }
 
-/** Paste pixels as a new floating selection (for Ctrl+V). */
+/** Paste pixels as a new floating selection (for Ctrl+V or image import).
+ *  When `fitTo` is provided and the image exceeds those dimensions,
+ *  the display size is scaled down to fit so the user can see and
+ *  resize the whole image. */
 export function pasteSelectionPixels(
   tc: ToolContext,
   pixels: ImageData,
+  fitTo?: { width: number; height: number },
 ): { x: number; y: number; width: number; height: number } {
   // If there's an existing floating selection, commit it first
   if (selectionState.floatingPixels) {
@@ -853,14 +857,32 @@ export function pasteSelectionPixels(
   );
   selectionState.floatingX = 0;
   selectionState.floatingY = 0;
-  selectionState.displayWidth = pixels.width;
-  selectionState.displayHeight = pixels.height;
+
+  // When fitTo is specified and the image exceeds the canvas, scale the
+  // display dimensions down so the whole image is visible and the user
+  // can resize / reposition it before committing.
+  let displayWidth = pixels.width;
+  let displayHeight = pixels.height;
+  if (
+    fitTo &&
+    (pixels.width > fitTo.width || pixels.height > fitTo.height)
+  ) {
+    const scale = Math.min(
+      fitTo.width / pixels.width,
+      fitTo.height / pixels.height,
+    );
+    displayWidth = Math.max(1, Math.round(pixels.width * scale));
+    displayHeight = Math.max(1, Math.round(pixels.height * scale));
+  }
+
+  selectionState.displayWidth = displayWidth;
+  selectionState.displayHeight = displayHeight;
   selectionState.committed = false;
 
   // Show on overlay with handles
   drawFloatingOnOverlay(tc);
 
-  return { x: 0, y: 0, width: pixels.width, height: pixels.height };
+  return { x: 0, y: 0, width: displayWidth, height: displayHeight };
 }
 
 // ---------------------------------------------------------------------------
