@@ -863,10 +863,7 @@ export function pasteSelectionPixels(
   // can resize / reposition it before committing.
   let displayWidth = pixels.width;
   let displayHeight = pixels.height;
-  if (
-    fitTo &&
-    (pixels.width > fitTo.width || pixels.height > fitTo.height)
-  ) {
+  if (fitTo && (pixels.width > fitTo.width || pixels.height > fitTo.height)) {
     const scale = Math.min(
       fitTo.width / pixels.width,
       fitTo.height / pixels.height,

@@ -38,7 +38,7 @@ const moduleFrameData: Map<FrameId, ImageData> = new Map();
 // ---------------------------------------------------------------------------
 
 interface FrameOperation {
-  type: 'add' | 'delete' | 'duplicate';
+  type: "add" | "delete" | "duplicate";
   frameId: FrameId;
   frame: Frame;
   index: number;
@@ -245,7 +245,7 @@ export function useImageEditor() {
 
     // Record for undo
     frameOpUndoStack.push({
-      type: 'add',
+      type: "add",
       frameId: newId,
       frame: { ...newFrame },
       index: state.frames.length,
@@ -294,7 +294,7 @@ export function useImageEditor() {
 
     // Record for undo
     frameOpUndoStack.push({
-      type: 'duplicate',
+      type: "duplicate",
       frameId: newId,
       frame: { ...newFrame },
       index: insertIndex,
@@ -321,7 +321,7 @@ export function useImageEditor() {
     // Save undo record before deleting
     const pixelData = moduleFrameData.get(frameToDelete.id);
     frameOpUndoStack.push({
-      type: 'delete',
+      type: "delete",
       frameId: frameToDelete.id,
       frame: { ...frameToDelete },
       index: state.currentFrameIndex,
@@ -372,8 +372,8 @@ export function useImageEditor() {
     const op = frameOpUndoStack.pop()!;
 
     switch (op.type) {
-      case 'add':
-      case 'duplicate': {
+      case "add":
+      case "duplicate": {
         // Undo add/duplicate: remove the frame that was added
         const currentPixelData = moduleFrameData.get(op.frameId);
         frameOpRedoStack.push({
@@ -398,7 +398,7 @@ export function useImageEditor() {
         });
         return true;
       }
-      case 'delete': {
+      case "delete": {
         // Undo delete: re-insert the frame with its pixel data
         moduleFrameData.set(
           op.frameId,
@@ -424,8 +424,8 @@ export function useImageEditor() {
     const op = frameOpRedoStack.pop()!;
 
     switch (op.type) {
-      case 'add':
-      case 'duplicate': {
+      case "add":
+      case "duplicate": {
         // Redo add/duplicate: re-insert the frame
         moduleFrameData.set(
           op.frameId,
@@ -443,7 +443,7 @@ export function useImageEditor() {
         });
         return true;
       }
-      case 'delete': {
+      case "delete": {
         // Redo delete: re-remove the frame
         const currentPixelData = moduleFrameData.get(op.frameId);
         frameOpUndoStack.push({
