@@ -1,8 +1,11 @@
-Tools:
-  Image Editor
-  AI Asset Generation
-  Sprite Generator
-
+Remove Sprite Generator
+Rename Image Editor -> Image/Sprite Editor
+Check Image Generator
+Fix Sentry Error
+Fix Tailwind Issues
+Get Lighthouse scores 100%
+Break up into smaller components and make sure chunking is correct
+AI Asset Generation
 Autotile. Like Spritefusion
 Palettes
 Export Options
@@ -12,7 +15,6 @@ Get some ideas from: Keep Notes
 =======================================
 Google Ads
 Performance Audit
-Get Lighthouse scores 100%
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
 Add tutorial video
