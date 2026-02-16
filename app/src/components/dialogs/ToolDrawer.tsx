@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { type ComponentType, lazy, Suspense } from "react";
 import { X } from "lucide-react";
 import {
   Drawer,
@@ -9,8 +9,9 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer";
 import type { ToolName } from "@/components/layout/Toolbar";
-import { ImageEditor } from "@/components/tools/ImageEditor";
-import { AiAssets } from "@/components/tools/AiAssets";
+
+const ImageEditor = lazy(() => import("@/components/tools/ImageEditor").then(m => ({ default: m.ImageEditor })));
+const AiAssets = lazy(() => import("@/components/tools/AiAssets").then(m => ({ default: m.AiAssets })));
 
 const TOOL_CONFIG: Record<
   ToolName,
@@ -49,7 +50,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
             <span className="sr-only">Close</span>
           </DrawerClose>
         </DrawerHeader>
-        {ToolComponent && <ToolComponent />}
+        {ToolComponent && <Suspense><ToolComponent /></Suspense>}
       </DrawerContent>
     </Drawer>
   );

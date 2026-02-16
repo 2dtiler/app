@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { initEditorStore, getEditorStore } from "@/lib/store";
@@ -27,13 +27,13 @@ import type {
 } from "@/types";
 
 import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
-import { SettingsDialog } from "@/components/dialogs/SettingsDialog";
-import { ProjectModal } from "@/components/dialogs/ProjectModal";
-import { AboutDialog } from "@/components/dialogs/AboutDialog";
-import { KeyboardShortcutsDialog } from "@/components/dialogs/KeyboardShortcutsDialog";
-import { FindReplaceDialog } from "@/components/dialogs/FindReplaceDialog";
-import { BugReportDialog } from "@/components/dialogs/BugReportDialog";
-import { ToolDrawer } from "@/components/dialogs/ToolDrawer";
+const SettingsDialog = lazy(() => import("@/components/dialogs/SettingsDialog").then(m => ({ default: m.SettingsDialog })));
+const ProjectModal = lazy(() => import("@/components/dialogs/ProjectModal").then(m => ({ default: m.ProjectModal })));
+const AboutDialog = lazy(() => import("@/components/dialogs/AboutDialog").then(m => ({ default: m.AboutDialog })));
+const KeyboardShortcutsDialog = lazy(() => import("@/components/dialogs/KeyboardShortcutsDialog").then(m => ({ default: m.KeyboardShortcutsDialog })));
+const FindReplaceDialog = lazy(() => import("@/components/dialogs/FindReplaceDialog").then(m => ({ default: m.FindReplaceDialog })));
+const BugReportDialog = lazy(() => import("@/components/dialogs/BugReportDialog").then(m => ({ default: m.BugReportDialog })));
+const ToolDrawer = lazy(() => import("@/components/dialogs/ToolDrawer").then(m => ({ default: m.ToolDrawer })));
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
@@ -459,23 +459,23 @@ function AppShell({
         emptyProjectMessage
       )}
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ProjectModal
+      {settingsOpen && <Suspense><SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /></Suspense>}
+      {projectModalOpen && <Suspense><ProjectModal
         open={projectModalOpen}
         onOpenChange={setProjectModalOpen}
         onProjectLoaded={() => setProjectModalOpen(false)}
-      />
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
-      <KeyboardShortcutsDialog
+      /></Suspense>}
+      {aboutOpen && <Suspense><AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} /></Suspense>}
+      {shortcutsOpen && <Suspense><KeyboardShortcutsDialog
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
-      />
-      <FindReplaceDialog
+      /></Suspense>}
+      {findReplaceOpen && <Suspense><FindReplaceDialog
         open={findReplaceOpen}
         onOpenChange={setFindReplaceOpen}
-      />
-      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
-      <ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} />
+      /></Suspense>}
+      {bugReportOpen && <Suspense><BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} /></Suspense>}
+      {activeTool !== null && <Suspense><ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} /></Suspense>}
     </div>
   );
 }
