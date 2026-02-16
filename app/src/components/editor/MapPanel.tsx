@@ -1280,6 +1280,7 @@ export function MapPanel() {
             <div>
               <Label className="text-xs">Name</Label>
               <Input
+                id="new-map-name"
                 value={newMapName}
                 onChange={(e) => setNewMapName(e.target.value)}
                 className="mt-1"
@@ -1290,6 +1291,7 @@ export function MapPanel() {
               <div className="flex-1">
                 <Label className="text-xs">Width (tiles)</Label>
                 <Input
+                  id="new-map-width"
                   type="number"
                   min={1}
                   max={256}
@@ -1301,6 +1303,7 @@ export function MapPanel() {
               <div className="flex-1">
                 <Label className="text-xs">Height (tiles)</Label>
                 <Input
+                  id="new-map-height"
                   type="number"
                   min={1}
                   max={256}
@@ -1363,6 +1366,7 @@ export function MapPanel() {
             </DialogDescription>
           </DialogHeader>
           <Input
+            id="new-map-group-name"
             placeholder="Group name"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
@@ -1483,6 +1487,7 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
           <div className="flex-1">
             <Label className="text-xs">Width (tiles)</Label>
             <Input
+              id="map-options-width"
               type="number"
               min={1}
               max={256}
@@ -1494,6 +1499,7 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
           <div className="flex-1">
             <Label className="text-xs">Height (tiles)</Label>
             <Input
+              id="map-options-height"
               type="number"
               min={1}
               max={256}
@@ -1507,7 +1513,11 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
           Pixel size: {width * map.tileSize} × {height * map.tileSize}px
         </p>
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={() => onResize(width, height)}>

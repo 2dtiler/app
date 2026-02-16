@@ -172,6 +172,7 @@ export function AddLayerDialog({
             <div className="space-y-2 py-2">
               <Label className="text-xs">Name</Label>
               <Input
+                id="layer-name"
                 value={layerName}
                 onChange={(e) => setLayerName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}

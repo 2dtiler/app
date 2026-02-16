@@ -253,6 +253,7 @@ export function ProjectModal({
           {showNewProject ? (
             <div className="space-y-3 py-2">
               <Input
+                id="project-name"
                 placeholder="Project name"
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}

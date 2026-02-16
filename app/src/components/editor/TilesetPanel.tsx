@@ -531,6 +531,7 @@ export function TilesetPanel() {
             </DialogDescription>
           </DialogHeader>
           <Input
+            id="tileset-group-name"
             placeholder="Group name"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}

@@ -121,6 +121,7 @@ export function ObjectPropertiesDialog({
           <div className="space-y-1">
             <Label className="text-xs">Name</Label>
             <Input
+              id="object-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -167,6 +168,7 @@ export function ObjectPropertiesDialog({
             {entries.map((entry, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <Input
+                  id={`property-key-${idx}`}
                   placeholder="Key"
                   value={entry.key}
                   onChange={(e) => handleKeyChange(idx, e.target.value)}
@@ -190,6 +192,7 @@ export function ObjectPropertiesDialog({
                   </SelectContent>
                 </Select>
                 <Input
+                  id={`property-value-${idx}`}
                   placeholder="Value"
                   value={entry.value}
                   onChange={(e) => handleValueChange(idx, e.target.value)}
@@ -209,7 +212,11 @@ export function ObjectPropertiesDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={handleSave}>

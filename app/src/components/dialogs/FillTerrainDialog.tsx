@@ -337,6 +337,7 @@ export function FillTerrainDialog({
             {showSaveInput ? (
               <>
                 <Input
+                  id="terrain-name"
                   placeholder="Terrain name"
                   value={terrainName}
                   onChange={(e) => setTerrainName(e.target.value)}

@@ -247,6 +247,7 @@ export function FramesPanel({
           <div className="flex items-center gap-1">
             <Label className="text-[10px] text-muted-foreground">FPS:</Label>
             <Input
+              id="animation-fps"
               type="number"
               min={1}
               max={60}
