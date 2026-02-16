@@ -658,10 +658,7 @@ export function selectionMove(
     if (
       tc.shiftKey &&
       selectionState.floatingPixels &&
-      (handle === "nw" ||
-        handle === "ne" ||
-        handle === "sw" ||
-        handle === "se")
+      (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se")
     ) {
       const ar =
         selectionState.floatingPixels.width /
