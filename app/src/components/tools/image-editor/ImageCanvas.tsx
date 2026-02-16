@@ -10,6 +10,14 @@ import {
   dispatchDown,
   dispatchMove,
   dispatchUp,
+  commitFloatingSelection,
+  resetSelectionState,
+  getSelectionState,
+  copySelectionPixels,
+  pasteSelectionPixels,
+  hitTestResizeHandle,
+  getResizeHandleCursor,
+  drawFloatingOnOverlay,
   type ToolContext,
   type StrokeState,
 } from "@/lib/image-editor-tools";
@@ -29,9 +37,10 @@ interface ImageCanvasProps {
   selection: PixelSelection | null;
   onZoom: (zoom: number) => void;
   onPushUndo: () => void;
-  onColorPick: (color: Color) => void;
   onSelectionChange: (sel: PixelSelection | null) => void;
   onFrameDataChange: (frameId: FrameId, data: ImageData) => void;
+  pendingImport?: ImageData | null;
+  onImportConsumed?: () => void;
 }
 
 export function ImageCanvas({
@@ -49,17 +58,71 @@ export function ImageCanvas({
   selection,
   onZoom,
   onPushUndo,
-  onColorPick,
   onSelectionChange,
   onFrameDataChange,
+  pendingImport,
+  onImportConsumed,
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const onionRef = useRef<HTMLCanvasElement>(null);
+  const selBorderRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<StrokeState>(createStrokeState());
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const clipboardRef = useRef<ImageData | null>(null);
+  const prevToolRef = useRef<ImageEditorTool>(tool);
+
+  // When switching away from selection tool, commit any floating selection
+  useEffect(() => {
+    if (prevToolRef.current === "selection" && tool !== "selection") {
+      const ss = getSelectionState();
+      if (ss.floatingPixels) {
+        const canvas = canvasRef.current;
+        const overlay = overlayRef.current;
+        if (canvas && overlay) {
+          const ctx = canvas.getContext("2d");
+          const overlayCtx = overlay.getContext("2d");
+          if (ctx && overlayCtx) {
+            const tc: ToolContext = {
+              ctx,
+              overlayCtx,
+              width,
+              height,
+              color: primaryColor,
+              brushSize,
+              tool,
+            };
+            commitFloatingSelection(tc);
+            resetSelectionState();
+            overlayCtx.clearRect(0, 0, width, height);
+            onSelectionChange(null);
+            if (currentFrameId) {
+              const imgData = ctx.getImageData(0, 0, width, height);
+              onFrameDataChange(currentFrameId, imgData);
+            }
+          }
+        }
+      }
+    }
+    // Reset cursor when leaving selection tool
+    if (tool !== "selection") {
+      const canvas = canvasRef.current;
+      if (canvas) canvas.style.cursor = "";
+    }
+
+    prevToolRef.current = tool;
+  }, [
+    tool,
+    width,
+    height,
+    primaryColor,
+    brushSize,
+    currentFrameId,
+    onSelectionChange,
+    onFrameDataChange,
+  ]);
 
   // Sync frame data onto main canvas whenever it changes
   useEffect(() => {
@@ -146,19 +209,6 @@ export function ImageCanvas({
     };
   }, []);
 
-  // Convert mouse event to pixel coordinates
-  const toPixel = useCallback(
-    (e: React.MouseEvent): [number, number] => {
-      const canvas = canvasRef.current;
-      if (!canvas) return [0, 0];
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / zoom);
-      const y = Math.floor((e.clientY - rect.top) / zoom);
-      return [x, y];
-    },
-    [zoom],
-  );
-
   const getToolContext = useCallback((): ToolContext | null => {
     const canvas = canvasRef.current;
     const overlay = overlayRef.current;
@@ -177,6 +227,269 @@ export function ImageCanvas({
     };
   }, [width, height, primaryColor, brushSize, tool]);
 
+  // Draw floating pixels on overlay when selection exists
+  useEffect(() => {
+    if (tool !== "selection" || !selection) return;
+    const tc = getToolContext();
+    if (!tc) return;
+
+    const ss = getSelectionState();
+    if (
+      ss.floatingPixels &&
+      !ss.draggingFloating &&
+      !ss.resizingHandle &&
+      !strokeRef.current.active
+    ) {
+      drawFloatingOnOverlay(tc);
+    }
+  }, [tool, selection, width, height, getToolContext]);
+
+  // Animated marching-ants selection border (screen-resolution canvas)
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+
+  useEffect(() => {
+    const c = selBorderRef.current;
+    if (!c) return;
+
+    if (tool !== "selection") {
+      const ctx = c.getContext("2d");
+      ctx?.clearRect(0, 0, c.width, c.height);
+      return;
+    }
+
+    let animFrame: number;
+    let offset = 0;
+    let lastTime = 0;
+
+    const draw = (time: number) => {
+      const ctx = c.getContext("2d");
+      if (!ctx) {
+        animFrame = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Ensure canvas size matches display
+      const targetW = width * zoom;
+      const targetH = height * zoom;
+      if (c.width !== targetW || c.height !== targetH) {
+        c.width = targetW;
+        c.height = targetH;
+      }
+
+      ctx.clearRect(0, 0, c.width, c.height);
+
+      const sel = selectionRef.current;
+      if (!sel || (sel.width <= 0 && sel.height <= 0)) {
+        animFrame = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Advance marching offset (~15fps animation)
+      const dt = time - lastTime;
+      if (dt > 66) {
+        offset = (offset + 1) % 12;
+        lastTime = time;
+      }
+
+      const sx = Math.round(sel.x * zoom);
+      const sy = Math.round(sel.y * zoom);
+      const sw = Math.round(sel.width * zoom);
+      const sh = Math.round(sel.height * zoom);
+
+      if (sw <= 0 || sh <= 0) {
+        animFrame = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Marching ants: alternating black/white dashes
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 6]);
+
+      ctx.strokeStyle = "#fff";
+      ctx.lineDashOffset = -offset;
+      ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+
+      ctx.strokeStyle = "#000";
+      ctx.lineDashOffset = -(offset + 6);
+      ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+
+      ctx.setLineDash([]);
+
+      // Resize handles for floating selection
+      const ss = getSelectionState();
+      if (ss.floatingPixels) {
+        const hs = 4;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+
+        const handles: [number, number][] = [
+          [sx, sy],
+          [sx + sw / 2, sy],
+          [sx + sw, sy],
+          [sx, sy + sh / 2],
+          [sx + sw, sy + sh / 2],
+          [sx, sy + sh],
+          [sx + sw / 2, sy + sh],
+          [sx + sw, sy + sh],
+        ];
+
+        for (const [hx, hy] of handles) {
+          ctx.fillRect(
+            Math.round(hx) - hs,
+            Math.round(hy) - hs,
+            hs * 2,
+            hs * 2,
+          );
+          ctx.strokeRect(
+            Math.round(hx) - hs + 0.5,
+            Math.round(hy) - hs + 0.5,
+            hs * 2 - 1,
+            hs * 2 - 1,
+          );
+        }
+      }
+
+      animFrame = requestAnimationFrame(draw);
+    };
+
+    animFrame = requestAnimationFrame(draw);
+
+    return () => cancelAnimationFrame(animFrame);
+  }, [tool, zoom, width, height]);
+
+  // Handle pending image import — paste as floating selection
+  useEffect(() => {
+    if (!pendingImport) return;
+    const tc = getToolContext();
+    if (!tc) return;
+
+    onPushUndo();
+    const sel = pasteSelectionPixels(tc, pendingImport);
+    onSelectionChange(sel);
+    if (currentFrameId) {
+      const imgData = tc.ctx.getImageData(0, 0, width, height);
+      onFrameDataChange(currentFrameId, imgData);
+    }
+    onImportConsumed?.();
+  }, [pendingImport]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Selection tool keyboard shortcuts: copy, paste, delete, escape
+  useEffect(() => {
+    if (tool !== "selection") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+
+      const tc = getToolContext();
+      if (!tc) return;
+
+      // Ctrl+C: copy floating selection
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        const copied = copySelectionPixels();
+        if (copied) {
+          clipboardRef.current = copied;
+        }
+        return;
+      }
+
+      // Ctrl+X: cut floating selection (copy + delete)
+      if ((e.ctrlKey || e.metaKey) && e.key === "x") {
+        const ss = getSelectionState();
+        if (ss.floatingPixels) {
+          e.preventDefault();
+          clipboardRef.current = copySelectionPixels();
+          resetSelectionState();
+          tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+          onSelectionChange(null);
+          if (currentFrameId) {
+            const imgData = tc.ctx.getImageData(0, 0, width, height);
+            onFrameDataChange(currentFrameId, imgData);
+          }
+        }
+        return;
+      }
+
+      // Ctrl+V: paste from clipboard
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        if (!clipboardRef.current) return;
+        e.preventDefault();
+        onPushUndo();
+        const sel = pasteSelectionPixels(tc, clipboardRef.current);
+        onSelectionChange(sel);
+        if (currentFrameId) {
+          const imgData = tc.ctx.getImageData(0, 0, width, height);
+          onFrameDataChange(currentFrameId, imgData);
+        }
+        return;
+      }
+
+      // Delete/Backspace: delete floating selection
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const ss = getSelectionState();
+        if (ss.floatingPixels) {
+          e.preventDefault();
+          // Simply discard the floating pixels without committing
+          resetSelectionState();
+          tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+          onSelectionChange(null);
+          if (currentFrameId) {
+            const imgData = tc.ctx.getImageData(0, 0, width, height);
+            onFrameDataChange(currentFrameId, imgData);
+          }
+        }
+        return;
+      }
+
+      // Escape: commit floating selection and deselect
+      if (e.key === "Escape") {
+        const ss = getSelectionState();
+        if (ss.floatingPixels) {
+          e.preventDefault();
+          commitFloatingSelection(tc);
+          resetSelectionState();
+          tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+          onSelectionChange(null);
+          if (currentFrameId) {
+            const imgData = tc.ctx.getImageData(0, 0, width, height);
+            onFrameDataChange(currentFrameId, imgData);
+          }
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    tool,
+    width,
+    height,
+    currentFrameId,
+    getToolContext,
+    onPushUndo,
+    onSelectionChange,
+    onFrameDataChange,
+  ]);
+
+  // Convert mouse event to pixel coordinates
+  const toPixel = useCallback(
+    (e: React.MouseEvent): [number, number] => {
+      const canvas = canvasRef.current;
+      if (!canvas) return [0, 0];
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / zoom);
+      const y = Math.floor((e.clientY - rect.top) / zoom);
+      return [x, y];
+    },
+    [zoom],
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button === 1) return; // middle mouse = pan
@@ -191,42 +504,55 @@ export function ImageCanvas({
       }
 
       // Push undo snapshot before modifying
-      const needsUndo = tool !== "eyedropper" && tool !== "marquee";
-      if (needsUndo) {
-        onPushUndo();
-      }
+      onPushUndo();
 
       const [px, py] = toPixel(e as unknown as React.MouseEvent);
-      const pickedColor = dispatchDown(tool, tc, px, py, strokeRef.current);
-
-      if (tool === "eyedropper" && pickedColor) {
-        onColorPick(pickedColor);
-      }
+      dispatchDown(tool, tc, px, py, strokeRef.current);
 
       // Capture pointer for drag
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [
-      tool,
-      currentFrameId,
-      secondaryColor,
-      getToolContext,
-      toPixel,
-      onPushUndo,
-      onColorPick,
-    ],
+    [tool, currentFrameId, secondaryColor, getToolContext, toPixel, onPushUndo],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!strokeRef.current.active && tool !== "marquee") return;
+      const [px, py] = toPixel(e as unknown as React.MouseEvent);
+
+      // Update cursor for selection tool resize handles (even when not actively drawing)
+      if (tool === "selection" && !strokeRef.current.active) {
+        const ss = getSelectionState();
+        if (ss.floatingPixels) {
+          const handle = hitTestResizeHandle(px, py);
+          const canvas = canvasRef.current;
+          if (canvas) {
+            if (handle) {
+              canvas.style.cursor = getResizeHandleCursor(handle);
+            } else if (
+              px >= ss.floatingX &&
+              py >= ss.floatingY &&
+              px < ss.floatingX + ss.displayWidth &&
+              py < ss.floatingY + ss.displayHeight
+            ) {
+              canvas.style.cursor = "move";
+            } else {
+              canvas.style.cursor = "crosshair";
+            }
+          }
+        } else {
+          const canvas = canvasRef.current;
+          if (canvas) canvas.style.cursor = "crosshair";
+        }
+        return;
+      }
+
+      if (!strokeRef.current.active) return;
       const tc = getToolContext();
       if (!tc) return;
 
-      const [px, py] = toPixel(e as unknown as React.MouseEvent);
       const sel = dispatchMove(tool, tc, px, py, strokeRef.current);
 
-      if (tool === "marquee" && sel) {
+      if (tool === "selection" && sel) {
         onSelectionChange(sel);
       }
     },
@@ -241,10 +567,8 @@ export function ImageCanvas({
       const [px, py] = toPixel(e as unknown as React.MouseEvent);
       const sel = dispatchUp(tool, tc, px, py, strokeRef.current);
 
-      if (tool === "marquee") {
+      if (tool === "selection") {
         onSelectionChange(sel);
-        // Clear overlay
-        tc.overlayCtx.clearRect(0, 0, width, height);
       }
 
       // Save updated frame data back
@@ -341,18 +665,17 @@ export function ImageCanvas({
           }}
         />
 
-        {/* Selection overlay */}
-        {selection && (
-          <div
-            className="absolute pointer-events-none border border-dashed border-white mix-blend-difference"
-            style={{
-              left: selection.x * zoom,
-              top: selection.y * zoom,
-              width: selection.width * zoom,
-              height: selection.height * zoom,
-            }}
-          />
-        )}
+        {/* Screen-resolution selection border canvas (marching ants) */}
+        <canvas
+          ref={selBorderRef}
+          width={pixelW}
+          height={pixelH}
+          className="absolute top-0 left-0 pointer-events-none"
+          style={{
+            width: pixelW,
+            height: pixelH,
+          }}
+        />
       </div>
     </div>
   );

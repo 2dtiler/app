@@ -270,17 +270,524 @@ export function eraserUp(
 }
 
 // ---------------------------------------------------------------------------
-// Eyedropper tool
+// Selection tool
 // ---------------------------------------------------------------------------
 
-export function eyedropperDown(
+/**
+ * Extended stroke state for the selection tool.
+ * Stored in a module-level variable so it persists across stroke cycles.
+ */
+export type ResizeHandle =
+  | "nw"
+  | "n"
+  | "ne"
+  | "w"
+  | "e"
+  | "sw"
+  | "s"
+  | "se"
+  | null;
+
+export interface SelectionState {
+  /** The pixel data that has been "lifted" from the canvas */
+  floatingPixels: ImageData | null;
+  /** Current position of the floating selection */
+  floatingX: number;
+  floatingY: number;
+  /** Current display width/height (may differ from floatingPixels dimensions during resize) */
+  displayWidth: number;
+  displayHeight: number;
+  /** The original area that was cleared when lifting */
+  sourceRect: { x: number; y: number; width: number; height: number } | null;
+  /** Whether we are currently dragging the floating selection vs drawing a new selection */
+  draggingFloating: boolean;
+  /** Whether we are currently resizing the floating selection */
+  resizingHandle: ResizeHandle;
+  /** Starting point for resize operation */
+  resizeStartX: number;
+  resizeStartY: number;
+  /** Bounds at the start of resize */
+  resizeStartBounds: { x: number; y: number; w: number; h: number };
+  /** Snapshot before any modification (for undo) */
+  canvasSnapshot: ImageData | null;
+  /** The drag offset from the pointer to the floating top-left */
+  dragOffsetX: number;
+  dragOffsetY: number;
+  /** Whether the floating selection has been committed already */
+  committed: boolean;
+}
+
+let selectionState: SelectionState = {
+  floatingPixels: null,
+  floatingX: 0,
+  floatingY: 0,
+  displayWidth: 0,
+  displayHeight: 0,
+  sourceRect: null,
+  draggingFloating: false,
+  resizingHandle: null,
+  resizeStartX: 0,
+  resizeStartY: 0,
+  resizeStartBounds: { x: 0, y: 0, w: 0, h: 0 },
+  canvasSnapshot: null,
+  dragOffsetX: 0,
+  dragOffsetY: 0,
+  committed: false,
+};
+
+export function getSelectionState(): SelectionState {
+  return selectionState;
+}
+
+export function resetSelectionState(): void {
+  selectionState = {
+    floatingPixels: null,
+    floatingX: 0,
+    floatingY: 0,
+    displayWidth: 0,
+    displayHeight: 0,
+    sourceRect: null,
+    draggingFloating: false,
+    resizingHandle: null,
+    resizeStartX: 0,
+    resizeStartY: 0,
+    resizeStartBounds: { x: 0, y: 0, w: 0, h: 0 },
+    canvasSnapshot: null,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    committed: false,
+  };
+}
+
+/** Get the scaled floating selection as an ImageData at display dimensions. */
+function getScaledFloating(): ImageData | null {
+  const ss = selectionState;
+  if (!ss.floatingPixels) return null;
+
+  const dw = Math.max(1, Math.round(ss.displayWidth));
+  const dh = Math.max(1, Math.round(ss.displayHeight));
+
+  // If no resize needed, return original
+  if (dw === ss.floatingPixels.width && dh === ss.floatingPixels.height) {
+    return ss.floatingPixels;
+  }
+
+  // Nearest-neighbor scale using offscreen canvas
+  const srcCanvas = document.createElement("canvas");
+  srcCanvas.width = ss.floatingPixels.width;
+  srcCanvas.height = ss.floatingPixels.height;
+  const srcCtx = srcCanvas.getContext("2d")!;
+  srcCtx.putImageData(ss.floatingPixels, 0, 0);
+
+  const dstCanvas = document.createElement("canvas");
+  dstCanvas.width = dw;
+  dstCanvas.height = dh;
+  const dstCtx = dstCanvas.getContext("2d")!;
+  dstCtx.imageSmoothingEnabled = false;
+  dstCtx.drawImage(srcCanvas, 0, 0, dw, dh);
+
+  return dstCtx.getImageData(0, 0, dw, dh);
+}
+
+/** Commit the floating selection onto the main canvas. */
+export function commitFloatingSelection(tc: ToolContext): void {
+  const ss = selectionState;
+  if (!ss.floatingPixels) return;
+
+  const scaled = getScaledFloating();
+  if (!scaled) return;
+
+  const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
+  const fx = Math.round(ss.floatingX);
+  const fy = Math.round(ss.floatingY);
+
+  for (let py = 0; py < scaled.height; py++) {
+    for (let px = 0; px < scaled.width; px++) {
+      const si = (py * scaled.width + px) * 4;
+      const a = scaled.data[si + 3];
+      if (a === 0) continue;
+      const tx = fx + px;
+      const ty = fy + py;
+      if (tx < 0 || ty < 0 || tx >= tc.width || ty >= tc.height) continue;
+      const di = (ty * tc.width + tx) * 4;
+      imgData.data[di] = scaled.data[si];
+      imgData.data[di + 1] = scaled.data[si + 1];
+      imgData.data[di + 2] = scaled.data[si + 2];
+      imgData.data[di + 3] = scaled.data[si + 3];
+    }
+  }
+
+  tc.ctx.putImageData(imgData, 0, 0);
+  ss.committed = true;
+}
+
+/** Check if a point is inside the floating selection bounds */
+function isInsideFloating(x: number, y: number): boolean {
+  const ss = selectionState;
+  if (!ss.floatingPixels) return false;
+  const dw = ss.displayWidth;
+  const dh = ss.displayHeight;
+  return (
+    x >= ss.floatingX &&
+    y >= ss.floatingY &&
+    x < ss.floatingX + dw &&
+    y < ss.floatingY + dh
+  );
+}
+
+/** Detect which resize handle (if any) is under the given point. */
+const HANDLE_SIZE = 2; // pixels in canvas space
+
+export function hitTestResizeHandle(x: number, y: number): ResizeHandle {
+  const ss = selectionState;
+  if (!ss.floatingPixels) return null;
+
+  const fx = ss.floatingX;
+  const fy = ss.floatingY;
+  const dw = ss.displayWidth;
+  const dh = ss.displayHeight;
+  const hs = HANDLE_SIZE;
+
+  // Corners first (higher priority)
+  if (Math.abs(x - fx) <= hs && Math.abs(y - fy) <= hs) return "nw";
+  if (Math.abs(x - (fx + dw)) <= hs && Math.abs(y - fy) <= hs) return "ne";
+  if (Math.abs(x - fx) <= hs && Math.abs(y - (fy + dh)) <= hs) return "sw";
+  if (Math.abs(x - (fx + dw)) <= hs && Math.abs(y - (fy + dh)) <= hs)
+    return "se";
+
+  // Edges
+  if (Math.abs(y - fy) <= hs && x > fx + hs && x < fx + dw - hs) return "n";
+  if (Math.abs(y - (fy + dh)) <= hs && x > fx + hs && x < fx + dw - hs)
+    return "s";
+  if (Math.abs(x - fx) <= hs && y > fy + hs && y < fy + dh - hs) return "w";
+  if (Math.abs(x - (fx + dw)) <= hs && y > fy + hs && y < fy + dh - hs)
+    return "e";
+
+  return null;
+}
+
+/** Get cursor CSS name for a resize handle */
+export function getResizeHandleCursor(handle: ResizeHandle): string {
+  switch (handle) {
+    case "nw":
+    case "se":
+      return "nwse-resize";
+    case "ne":
+    case "sw":
+      return "nesw-resize";
+    case "n":
+    case "s":
+      return "ns-resize";
+    case "e":
+    case "w":
+      return "ew-resize";
+    default:
+      return "";
+  }
+}
+
+/** Draw the floating selection (scaled) on the overlay canvas with resize handles */
+export function drawFloatingOnOverlay(tc: ToolContext): void {
+  const ss = selectionState;
+  if (!ss.floatingPixels) return;
+
+  const dw = Math.max(1, Math.round(ss.displayWidth));
+  const dh = Math.max(1, Math.round(ss.displayHeight));
+  const fx = Math.round(ss.floatingX);
+  const fy = Math.round(ss.floatingY);
+
+  tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+
+  // Draw scaled floating pixels
+  const srcCanvas = document.createElement("canvas");
+  srcCanvas.width = ss.floatingPixels.width;
+  srcCanvas.height = ss.floatingPixels.height;
+  const srcCtx = srcCanvas.getContext("2d")!;
+  srcCtx.putImageData(ss.floatingPixels, 0, 0);
+
+  tc.overlayCtx.imageSmoothingEnabled = false;
+  tc.overlayCtx.drawImage(srcCanvas, fx, fy, dw, dh);
+
+  // NOTE: Marching ants border and resize handles are drawn by the
+  // screen-resolution selection canvas in ImageCanvas.tsx for crisp rendering.
+}
+
+export function selectionDown(
   tc: ToolContext,
   x: number,
   y: number,
-): Color | null {
+  ss: StrokeState,
+): void {
+  ss.active = true;
+
+  if (selectionState.floatingPixels) {
+    // Check for resize handle first
+    const handle = hitTestResizeHandle(x, y);
+    if (handle) {
+      selectionState.resizingHandle = handle;
+      selectionState.resizeStartX = x;
+      selectionState.resizeStartY = y;
+      selectionState.resizeStartBounds = {
+        x: selectionState.floatingX,
+        y: selectionState.floatingY,
+        w: selectionState.displayWidth,
+        h: selectionState.displayHeight,
+      };
+      selectionState.canvasSnapshot = tc.ctx.getImageData(
+        0,
+        0,
+        tc.width,
+        tc.height,
+      );
+      return;
+    }
+
+    // Click inside floating selection — start dragging
+    if (isInsideFloating(x, y)) {
+      selectionState.draggingFloating = true;
+      selectionState.dragOffsetX = x - selectionState.floatingX;
+      selectionState.dragOffsetY = y - selectionState.floatingY;
+      selectionState.canvasSnapshot = tc.ctx.getImageData(
+        0,
+        0,
+        tc.width,
+        tc.height,
+      );
+      return;
+    }
+
+    // Click outside — commit floating selection
+    commitFloatingSelection(tc);
+    resetSelectionState();
+  }
+
+  // Start drawing a new selection rectangle
+  ss.startX = x;
+  ss.startY = y;
+  selectionState.draggingFloating = false;
+  selectionState.resizingHandle = null;
+}
+
+export function selectionMove(
+  tc: ToolContext,
+  x: number,
+  y: number,
+  ss: StrokeState,
+): { x: number; y: number; width: number; height: number } | null {
+  if (!ss.active) return null;
+
+  // Resizing the floating selection
+  if (selectionState.resizingHandle && selectionState.floatingPixels) {
+    const dx = x - selectionState.resizeStartX;
+    const dy = y - selectionState.resizeStartY;
+    const b = selectionState.resizeStartBounds;
+    const handle = selectionState.resizingHandle;
+
+    let nx = b.x,
+      ny = b.y,
+      nw = b.w,
+      nh = b.h;
+
+    if (handle.includes("w")) {
+      nx = b.x + dx;
+      nw = b.w - dx;
+    }
+    if (handle.includes("e")) {
+      nw = b.w + dx;
+    }
+    if (handle.includes("n")) {
+      ny = b.y + dy;
+      nh = b.h - dy;
+    }
+    if (handle.includes("s")) {
+      nh = b.h + dy;
+    }
+
+    // Enforce minimum size
+    if (nw < 1) {
+      nw = 1;
+      if (handle.includes("w")) nx = b.x + b.w - 1;
+    }
+    if (nh < 1) {
+      nh = 1;
+      if (handle.includes("n")) ny = b.y + b.h - 1;
+    }
+
+    selectionState.floatingX = nx;
+    selectionState.floatingY = ny;
+    selectionState.displayWidth = nw;
+    selectionState.displayHeight = nh;
+
+    if (selectionState.canvasSnapshot) {
+      tc.ctx.putImageData(selectionState.canvasSnapshot, 0, 0);
+    }
+
+    drawFloatingOnOverlay(tc);
+
+    return { x: nx, y: ny, width: nw, height: nh };
+  }
+
+  // Dragging the floating selection
+  if (selectionState.draggingFloating && selectionState.floatingPixels) {
+    selectionState.floatingX = x - selectionState.dragOffsetX;
+    selectionState.floatingY = y - selectionState.dragOffsetY;
+
+    if (selectionState.canvasSnapshot) {
+      tc.ctx.putImageData(selectionState.canvasSnapshot, 0, 0);
+    }
+
+    drawFloatingOnOverlay(tc);
+
+    return {
+      x: selectionState.floatingX,
+      y: selectionState.floatingY,
+      width: selectionState.displayWidth,
+      height: selectionState.displayHeight,
+    };
+  }
+
+  // Drawing a new selection rectangle
+  // NOTE: marching ants drawn by screen-resolution canvas in ImageCanvas.tsx
+  const minX = Math.min(ss.startX, x);
+  const minY = Math.min(ss.startY, y);
+  const maxX = Math.max(ss.startX, x);
+  const maxY = Math.max(ss.startY, y);
+  const selW = maxX - minX;
+  const selH = maxY - minY;
+
+  tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+
+  return { x: minX, y: minY, width: selW, height: selH };
+}
+
+export function selectionUp(
+  tc: ToolContext,
+  x: number,
+  y: number,
+  ss: StrokeState,
+): { x: number; y: number; width: number; height: number } | null {
+  if (!ss.active) return null;
+  ss.active = false;
+
+  // Finished resizing
+  if (selectionState.resizingHandle && selectionState.floatingPixels) {
+    selectionState.resizingHandle = null;
+    if (selectionState.canvasSnapshot) {
+      tc.ctx.putImageData(selectionState.canvasSnapshot, 0, 0);
+    }
+    drawFloatingOnOverlay(tc);
+    return {
+      x: selectionState.floatingX,
+      y: selectionState.floatingY,
+      width: selectionState.displayWidth,
+      height: selectionState.displayHeight,
+    };
+  }
+
+  // Finished dragging floating selection
+  if (selectionState.draggingFloating && selectionState.floatingPixels) {
+    selectionState.draggingFloating = false;
+    if (selectionState.canvasSnapshot) {
+      tc.ctx.putImageData(selectionState.canvasSnapshot, 0, 0);
+    }
+    drawFloatingOnOverlay(tc);
+    return {
+      x: selectionState.floatingX,
+      y: selectionState.floatingY,
+      width: selectionState.displayWidth,
+      height: selectionState.displayHeight,
+    };
+  }
+
+  // Finished drawing a new selection rectangle
+  tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+
+  const minX = Math.min(ss.startX, x);
+  const minY = Math.min(ss.startY, y);
+  const maxX = Math.max(ss.startX, x);
+  const maxY = Math.max(ss.startY, y);
+  const selW = maxX - minX;
+  const selH = maxY - minY;
+
+  if (selW < 1 || selH < 1) return null;
+
+  // "Lift" the selected pixels into a floating selection
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  const c = getPixel(imgData.data, tc.width, tc.height, x, y);
-  return c;
+  const floatingPixels = new ImageData(selW, selH);
+
+  for (let py = 0; py < selH; py++) {
+    for (let px = 0; px < selW; px++) {
+      const sx = minX + px;
+      const sy = minY + py;
+      if (sx < 0 || sy < 0 || sx >= tc.width || sy >= tc.height) continue;
+      const si = (sy * tc.width + sx) * 4;
+      const di = (py * selW + px) * 4;
+      floatingPixels.data[di] = imgData.data[si];
+      floatingPixels.data[di + 1] = imgData.data[si + 1];
+      floatingPixels.data[di + 2] = imgData.data[si + 2];
+      floatingPixels.data[di + 3] = imgData.data[si + 3];
+
+      // Clear the source area
+      imgData.data[si] = 0;
+      imgData.data[si + 1] = 0;
+      imgData.data[si + 2] = 0;
+      imgData.data[si + 3] = 0;
+    }
+  }
+
+  tc.ctx.putImageData(imgData, 0, 0);
+
+  selectionState.floatingPixels = floatingPixels;
+  selectionState.floatingX = minX;
+  selectionState.floatingY = minY;
+  selectionState.displayWidth = selW;
+  selectionState.displayHeight = selH;
+  selectionState.sourceRect = { x: minX, y: minY, width: selW, height: selH };
+  selectionState.committed = false;
+
+  // Show floating on overlay with handles
+  drawFloatingOnOverlay(tc);
+
+  return { x: minX, y: minY, width: selW, height: selH };
+}
+
+/** Copy the current floating selection to a buffer (for Ctrl+C). Returns a scaled copy or null. */
+export function copySelectionPixels(): ImageData | null {
+  const scaled = getScaledFloating();
+  if (!scaled) return null;
+  return new ImageData(
+    new Uint8ClampedArray(scaled.data),
+    scaled.width,
+    scaled.height,
+  );
+}
+
+/** Paste pixels as a new floating selection (for Ctrl+V). */
+export function pasteSelectionPixels(
+  tc: ToolContext,
+  pixels: ImageData,
+): { x: number; y: number; width: number; height: number } {
+  // If there's an existing floating selection, commit it first
+  if (selectionState.floatingPixels) {
+    commitFloatingSelection(tc);
+    resetSelectionState();
+  }
+
+  selectionState.floatingPixels = new ImageData(
+    new Uint8ClampedArray(pixels.data),
+    pixels.width,
+    pixels.height,
+  );
+  selectionState.floatingX = 0;
+  selectionState.floatingY = 0;
+  selectionState.displayWidth = pixels.width;
+  selectionState.displayHeight = pixels.height;
+  selectionState.committed = false;
+
+  // Show on overlay with handles
+  drawFloatingOnOverlay(tc);
+
+  return { x: 0, y: 0, width: pixels.width, height: pixels.height };
 }
 
 // ---------------------------------------------------------------------------
@@ -714,73 +1221,6 @@ function applyBlurAt(tc: ToolContext, cx: number, cy: number): void {
 }
 
 // ---------------------------------------------------------------------------
-// Marquee tool
-// ---------------------------------------------------------------------------
-
-export function marqueeDown(
-  _tc: ToolContext,
-  x: number,
-  y: number,
-  ss: StrokeState,
-): void {
-  ss.active = true;
-  ss.startX = x;
-  ss.startY = y;
-}
-
-export function marqueeMove(
-  tc: ToolContext,
-  x: number,
-  y: number,
-  ss: StrokeState,
-): { x: number; y: number; width: number; height: number } | null {
-  if (!ss.active) return null;
-
-  const minX = Math.min(ss.startX, x);
-  const minY = Math.min(ss.startY, y);
-  const maxX = Math.max(ss.startX, x);
-  const maxY = Math.max(ss.startY, y);
-  const selW = maxX - minX;
-  const selH = maxY - minY;
-
-  // Draw marching ants on overlay
-  tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
-  tc.overlayCtx.setLineDash([2, 2]);
-  tc.overlayCtx.strokeStyle = "#000";
-  tc.overlayCtx.lineWidth = 1;
-  tc.overlayCtx.strokeRect(minX + 0.5, minY + 0.5, selW, selH);
-  tc.overlayCtx.strokeStyle = "#fff";
-  tc.overlayCtx.lineDashOffset = 2;
-  tc.overlayCtx.strokeRect(minX + 0.5, minY + 0.5, selW, selH);
-  tc.overlayCtx.setLineDash([]);
-  tc.overlayCtx.lineDashOffset = 0;
-
-  return { x: minX, y: minY, width: selW, height: selH };
-}
-
-export function marqueeUp(
-  _tc: ToolContext,
-  x: number,
-  y: number,
-  ss: StrokeState,
-): { x: number; y: number; width: number; height: number } | null {
-  if (!ss.active) return null;
-  ss.active = false;
-
-  const minX = Math.min(ss.startX, x);
-  const minY = Math.min(ss.startY, y);
-  const maxX = Math.max(ss.startX, x);
-  const maxY = Math.max(ss.startY, y);
-
-  const selW = maxX - minX;
-  const selH = maxY - minY;
-
-  if (selW < 1 || selH < 1) return null;
-
-  return { x: minX, y: minY, width: selW, height: selH };
-}
-
-// ---------------------------------------------------------------------------
 // Dispatch helpers
 // ---------------------------------------------------------------------------
 
@@ -790,16 +1230,17 @@ export function dispatchDown(
   x: number,
   y: number,
   ss: StrokeState,
-): Color | null {
+): null {
   switch (tool) {
+    case "selection":
+      selectionDown(tc, x, y, ss);
+      return null;
     case "pencil":
       pencilDown(tc, x, y, ss);
       return null;
     case "eraser":
       eraserDown(tc, x, y, ss);
       return null;
-    case "eyedropper":
-      return eyedropperDown(tc, x, y);
     case "move":
       moveDown(tc, x, y, ss);
       return null;
@@ -818,9 +1259,6 @@ export function dispatchDown(
     case "blur":
       blurDown(tc, x, y, ss);
       return null;
-    case "marquee":
-      marqueeDown(tc, x, y, ss);
-      return null;
   }
 }
 
@@ -832,6 +1270,8 @@ export function dispatchMove(
   ss: StrokeState,
 ): { x: number; y: number; width: number; height: number } | null {
   switch (tool) {
+    case "selection":
+      return selectionMove(tc, x, y, ss);
     case "pencil":
       pencilMove(tc, x, y, ss);
       return null;
@@ -853,8 +1293,6 @@ export function dispatchMove(
     case "blur":
       blurMove(tc, x, y, ss);
       return null;
-    case "marquee":
-      return marqueeMove(tc, x, y, ss);
     default:
       return null;
   }
@@ -868,6 +1306,8 @@ export function dispatchUp(
   ss: StrokeState,
 ): { x: number; y: number; width: number; height: number } | null {
   switch (tool) {
+    case "selection":
+      return selectionUp(tc, x, y, ss);
     case "pencil":
       pencilUp(tc, x, y, ss);
       return null;
@@ -891,8 +1331,6 @@ export function dispatchUp(
     case "blur":
       blurUp(tc, x, y, ss);
       return null;
-    case "marquee":
-      return marqueeUp(tc, x, y, ss);
     default:
       return null;
   }

@@ -7,13 +7,15 @@ import { EditorToolbar } from "./image-editor/EditorToolbar";
 import { PalettePanel } from "./image-editor/PalettePanel";
 import { FramesPanel } from "./image-editor/FramesPanel";
 import { ExportDialog } from "./image-editor/ExportDialog";
-import type { Color, ImageEditorTool } from "@/types/image-editor";
+import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
   const editor = useImageEditor();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
+  const [pendingImport, setPendingImport] = useState<ImageData | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {
@@ -41,14 +43,15 @@ export function ImageEditor() {
 
   const handleImport = useCallback(
     async (file: File) => {
-      await editor.importImage(file);
-    },
-    [editor],
-  );
-
-  const handleColorPick = useCallback(
-    (color: Color) => {
-      editor.setPrimaryColor(color);
+      setIsImporting(true);
+      try {
+        const imgData = await editor.importImage(file);
+        if (imgData) {
+          setPendingImport(imgData);
+        }
+      } finally {
+        setIsImporting(false);
+      }
     },
     [editor],
   );
@@ -56,15 +59,14 @@ export function ImageEditor() {
   // Keyboard shortcuts for tools
   useEffect(() => {
     const shortcuts: Record<string, ImageEditorTool> = {
+      s: "selection",
       b: "pencil",
       e: "eraser",
-      i: "eyedropper",
       v: "move",
       g: "paint-bucket",
       l: "line",
       r: "rectangle",
       u: "contour",
-      m: "marquee",
     };
 
     const handleKeyDown = (ev: KeyboardEvent) => {
@@ -171,25 +173,38 @@ export function ImageEditor() {
         <ToolSidebar currentTool={tool} onSelectTool={editor.setTool} />
 
         {/* Canvas */}
-        <ImageCanvas
-          width={width}
-          height={height}
-          zoom={zoom}
-          tool={tool}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          brushSize={brushSize}
-          currentFrameId={currentFrameId}
-          currentFrameData={currentFrameData}
-          previousFrameData={previousFrameData}
-          onionSkin={onionSkin}
-          selection={selection}
-          onZoom={editor.setZoom}
-          onPushUndo={editor.pushUndoSnapshot}
-          onColorPick={handleColorPick}
-          onSelectionChange={editor.setSelection}
-          onFrameDataChange={editor.setFrameData}
-        />
+        <div className="relative flex-1 min-w-0">
+          {isImporting && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-48 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full animate-[progress-bar_1.5s_ease-in-out_infinite]" />
+                </div>
+                <span className="text-sm text-white/80">Importing image…</span>
+              </div>
+            </div>
+          )}
+          <ImageCanvas
+            width={width}
+            height={height}
+            zoom={zoom}
+            tool={tool}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            brushSize={brushSize}
+            currentFrameId={currentFrameId}
+            currentFrameData={currentFrameData}
+            previousFrameData={previousFrameData}
+            onionSkin={onionSkin}
+            selection={selection}
+            onZoom={editor.setZoom}
+            onPushUndo={editor.pushUndoSnapshot}
+            onSelectionChange={editor.setSelection}
+            onFrameDataChange={editor.setFrameData}
+            pendingImport={pendingImport}
+            onImportConsumed={() => setPendingImport(null)}
+          />
+        </div>
 
         {/* Palette panel */}
         <PalettePanel

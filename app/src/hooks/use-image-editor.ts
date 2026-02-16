@@ -111,47 +111,44 @@ export function useImageEditor() {
   // Resize canvas (preserving existing pixel data, cropping or padding)
   // -----------------------------------------------------------------------
 
-  const resizeCanvas = useCallback(
-    (newWidth: number, newHeight: number) => {
-      if (!isImageEditorStoreReady()) return;
-      const store = getImageEditorStore();
-      const s = store.getState();
-      const oldW = s.width;
-      const oldH = s.height;
-      if (newWidth === oldW && newHeight === oldH) return;
+  const resizeCanvas = useCallback((newWidth: number, newHeight: number) => {
+    if (!isImageEditorStoreReady()) return;
+    const store = getImageEditorStore();
+    const s = store.getState();
+    const oldW = s.width;
+    const oldH = s.height;
+    if (newWidth === oldW && newHeight === oldH) return;
 
-      // Resize each frame's pixel data (top-left aligned copy)
-      for (const frame of s.frames) {
-        const oldData = moduleFrameData.get(frame.id);
-        const newData = new ImageData(newWidth, newHeight);
-        if (oldData) {
-          const copyW = Math.min(oldW, newWidth);
-          const copyH = Math.min(oldH, newHeight);
-          for (let y = 0; y < copyH; y++) {
-            for (let x = 0; x < copyW; x++) {
-              const oldIdx = (y * oldW + x) * 4;
-              const newIdx = (y * newWidth + x) * 4;
-              newData.data[newIdx] = oldData.data[oldIdx];
-              newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
-              newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
-              newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
-            }
+    // Resize each frame's pixel data (top-left aligned copy)
+    for (const frame of s.frames) {
+      const oldData = moduleFrameData.get(frame.id);
+      const newData = new ImageData(newWidth, newHeight);
+      if (oldData) {
+        const copyW = Math.min(oldW, newWidth);
+        const copyH = Math.min(oldH, newHeight);
+        for (let y = 0; y < copyH; y++) {
+          for (let x = 0; x < copyW; x++) {
+            const oldIdx = (y * oldW + x) * 4;
+            const newIdx = (y * newWidth + x) * 4;
+            newData.data[newIdx] = oldData.data[oldIdx];
+            newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
+            newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
+            newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
           }
         }
-        moduleFrameData.set(frame.id, newData);
       }
+      moduleFrameData.set(frame.id, newData);
+    }
 
-      // Update store dimensions
-      store.setState((draft) => {
-        draft.width = newWidth;
-        draft.height = newHeight;
-      });
+    // Update store dimensions
+    store.setState((draft) => {
+      draft.width = newWidth;
+      draft.height = newHeight;
+    });
 
-      // Clear undo history since frame data shapes changed
-      pixelHistory.clearAllHistory();
-    },
-    [],
-  );
+    // Clear undo history since frame data shapes changed
+    pixelHistory.clearAllHistory();
+  }, []);
 
   // Stop animation on unmount, but do NOT destroy the store
   // so the canvas persists when the drawer is closed and reopened.
@@ -518,39 +515,38 @@ export function useImageEditor() {
   // -----------------------------------------------------------------------
 
   const importImage = useCallback(
-    async (file: File) => {
+    async (file: File): Promise<ImageData | null> => {
       const img = new Image();
       const url = URL.createObjectURL(file);
 
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = url;
-      });
-
-      URL.revokeObjectURL(url);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Failed to load image"));
+          img.src = url;
+        });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
 
       const w = img.naturalWidth;
       const h = img.naturalHeight;
 
-      // Reinitialize with image dimensions
-      initProject(w, h);
-
-      // Draw the image onto frame 1
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
+      // Draw the image onto an offscreen canvas to get pixel data
+      const offscreen = document.createElement("canvas");
+      offscreen.width = w;
+      offscreen.height = h;
+      const ctx = offscreen.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
 
       const imgData = ctx.getImageData(0, 0, w, h);
-      const store = getImageEditorStore();
-      const s = store.getState();
-      if (s.frames.length > 0) {
-        moduleFrameData.set(s.frames[0].id, imgData);
-      }
+
+      // Switch to selection tool so the user can position the imported image
+      setTool("selection");
+
+      return imgData;
     },
-    [initProject],
+    [setTool],
   );
 
   // -----------------------------------------------------------------------

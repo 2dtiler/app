@@ -1,14 +1,13 @@
 import {
   Pencil,
   Eraser,
-  Pipette,
   Move,
   PaintBucket,
   Minus,
   Square,
   SquareDashed,
   Droplets,
-  BoxSelect,
+  MousePointer2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +29,9 @@ const TOOLS: {
   label: string;
   shortcut?: string;
 }[] = [
+  { id: "selection", icon: MousePointer2, label: "Selection", shortcut: "S" },
   { id: "pencil", icon: Pencil, label: "Pencil", shortcut: "B" },
   { id: "eraser", icon: Eraser, label: "Eraser", shortcut: "E" },
-  { id: "eyedropper", icon: Pipette, label: "Eyedropper", shortcut: "I" },
   { id: "move", icon: Move, label: "Move", shortcut: "V" },
   {
     id: "paint-bucket",
@@ -44,7 +43,6 @@ const TOOLS: {
   { id: "rectangle", icon: Square, label: "Rectangle", shortcut: "R" },
   { id: "contour", icon: SquareDashed, label: "Contour", shortcut: "U" },
   { id: "blur", icon: Droplets, label: "Blur" },
-  { id: "marquee", icon: BoxSelect, label: "Marquee", shortcut: "M" },
 ];
 
 export function ToolSidebar({ currentTool, onSelectTool }: ToolSidebarProps) {
@@ -59,6 +57,11 @@ export function ToolSidebar({ currentTool, onSelectTool }: ToolSidebarProps) {
                 size="icon-sm"
                 onClick={() => onSelectTool(id)}
                 aria-label={label}
+                className={
+                  currentTool === id
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 ring-1 ring-primary/50"
+                    : undefined
+                }
               >
                 <Icon className="size-4" />
               </Button>

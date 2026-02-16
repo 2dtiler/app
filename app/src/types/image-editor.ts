@@ -56,14 +56,13 @@ export interface Frame {
 export type ImageEditorTool =
   | "pencil"
   | "eraser"
-  | "eyedropper"
+  | "selection"
   | "move"
   | "paint-bucket"
   | "line"
   | "rectangle"
   | "contour"
-  | "blur"
-  | "marquee";
+  | "blur";
 
 // ---------------------------------------------------------------------------
 // Selection
