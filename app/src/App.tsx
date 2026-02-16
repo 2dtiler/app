@@ -38,6 +38,7 @@ import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
 import { ObjectsPanel } from "@/components/editor/ObjectsPanel";
+import { AdBanner } from "@/components/AdBanner";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (
@@ -439,7 +440,15 @@ function AppShell({
                       </Panel>
                     </Group>
                   ) : (
-                    <LayersPanel />
+                    <div className="flex flex-col h-full">
+                      <div className="flex-1 min-h-0 overflow-auto">
+                        <LayersPanel />
+                      </div>
+                      <AdBanner
+                        adSlot="YOUR_AD_SLOT_ID"
+                        className="shrink-0 p-1"
+                      />
+                    </div>
                   )}
                 </Panel>
               </Group>

@@ -52,68 +52,15 @@
 			<div class="bg-surface rounded-lg border border-border shadow-lg overflow-hidden">
 				<div class="flex items-center py-3 px-4 bg-[linear-gradient(180deg,#F8F4FC_0%,#F3EEF8_100%)] border-b border-border">
 					<div class="flex gap-[7px]">
-						<span class="w-[11px] h-[11px] rounded-full bg-rose"></span>
-						<span class="w-[11px] h-[11px] rounded-full bg-amber"></span>
-						<span class="w-[11px] h-[11px] rounded-full bg-mint"></span>
+						<span class="w-2.75 h-2.75 rounded-full bg-rose"></span>
+						<span class="w-2.75 h-2.75 rounded-full bg-amber"></span>
+						<span class="w-2.75 h-2.75 rounded-full bg-mint"></span>
 					</div>
 					<span class="font-display text-xs font-semibold text-subtle ml-4 tracking-[0.06em]">2D Tiler</span>
 					<span class="flex-1"></span>
 				</div>
-				<div class="flex h-[240px] md:h-[360px] bg-[#FDFBF9]">
-					<!-- Mock sidebar -->
-					<div class="w-[120px] shrink-0 p-3 border-r border-border bg-[rgba(243,237,247,0.3)] hidden md:block">
-						<div class="grid grid-cols-3 gap-1">
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-peach-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-mint-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-sky-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-rose-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-amber-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-pale)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-peach)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-mint-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-lavender-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-sky-light)"></span>
-							<span class="aspect-square rounded-[4px]" style="background: var(--color-rose-light)"></span>
-						</div>
-					</div>
-					<!-- Mock canvas -->
-					<div class="flex-1 relative overflow-hidden">
-						<div class="absolute inset-0 opacity-[0.06] bg-[linear-gradient(var(--color-foreground)_1px,transparent_1px),linear-gradient(90deg,var(--color-foreground)_1px,transparent_1px)] bg-[length:40px_40px]"></div>
-						<div class="absolute inset-0 grid grid-cols-[repeat(9,40px)] grid-rows-[repeat(9,40px)]">
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint-light); grid-area: 2/3/3/4;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint-light); grid-area: 2/4/3/5;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint); grid-area: 3/3/4/4; opacity:0.5;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-mint); grid-area: 3/4/4/5; opacity:0.5;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 4/5/5/6;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 4/6/5/7;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 5/5/6/6;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-lavender-light); grid-area: 5/6/6/7;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 6/2/7/3;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 6/3/7/4;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-peach-light); grid-area: 7/2/8/3;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-amber-light); grid-area: 3/7/4/8;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-amber-light); grid-area: 3/8/4/9;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-sky-light); grid-area: 5/2/6/3;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-rose-light); grid-area: 7/6/8/7;"></span>
-							<span class="rounded-[3px] m-0.5" style="background: var(--color-rose-light); grid-area: 7/7/8/8;"></span>
-						</div>
-						<p class="absolute bottom-5 left-1/2 -translate-x-1/2 font-display text-[13px] text-subtle bg-white/80 py-1.5 px-4 rounded-full border border-border whitespace-nowrap">Your screenshot here</p>
-					</div>
-					<!-- Mock right panel -->
-					<div class="w-[130px] shrink-0 p-3 border-l border-border bg-[rgba(243,237,247,0.3)] hidden md:block">
-						<div class="flex flex-col gap-1">
-							<div class="flex items-center gap-2 font-display text-[11px] py-1.5 px-2 rounded-[6px] bg-lavender-pale text-lavender font-semibold">
-								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-60"></span> Terrain
-							</div>
-							<div class="flex items-center gap-2 font-display text-[11px] text-subtle py-1.5 px-2 rounded-[6px] transition-colors duration-200">
-								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-35"></span> Objects
-							</div>
-							<div class="flex items-center gap-2 font-display text-[11px] text-subtle py-1.5 px-2 rounded-[6px] transition-colors duration-200">
-								<span class="w-2.5 h-2.5 rounded-[3px] bg-current opacity-35"></span> Background
-							</div>
-						</div>
-					</div>
+				<div class=" bg-[#FDFBF9]">
+					<img src="screenshot.png" class="w-full" alt="2D Tiler app screenshot" />
 				</div>
 			</div>
 		</div>

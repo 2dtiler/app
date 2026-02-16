@@ -1,8 +1,4 @@
-Check why bugs submitted by users are not showing up in sentry
-
 Add Google Ads
-Add google site analytics
-=======================================
 
 Performance Audit
 Tools:
