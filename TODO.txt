@@ -1,3 +1,5 @@
+Replace Pixi.js
+
 Right click on a map element to open in editor
 Rotate Left/Right/Flip Horizontal/Flip Vertical (Also add to right click)
 

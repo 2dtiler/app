@@ -1,3 +1,4 @@
+import type React from "react";
 import type {
   TileMapData,
   TileLayer,
@@ -9,6 +10,16 @@ import type {
   EditorState,
   MapSelection,
 } from "@/types";
+
+/** Imperative handle exposed by MapCanvas for zero-React-overhead tile drawing */
+export interface MapCanvasImperativeHandle {
+  /** Draw a single tile onto the paint canvas immediately (no React re-render) */
+  drawBufferTile: (gx: number, gy: number, ref: TileRef) => void;
+  /** Erase a cell on the paint canvas immediately */
+  eraseBufferTile: (gx: number, gy: number) => void;
+  /** Clear the entire paint canvas (called after buffer is flushed to store) */
+  clearPaintCanvas: () => void;
+}
 
 export type ResizeHandle = "nw" | "n" | "ne" | "w" | "e" | "sw" | "s" | "se";
 
@@ -31,6 +42,12 @@ export interface MapCanvasProps {
   paintBuffer: Map<string, TileRef | null>;
   /** Incremented to trigger re-render when buffer contents change */
   paintBufferVersion: number;
+  /**
+   * Ref that MapCanvas populates with imperative drawing callbacks so
+   * MapPanel can draw buffer tiles directly onto the paint canvas without
+   * any React state update or re-render.
+   */
+  imperativeRef?: React.RefObject<MapCanvasImperativeHandle | null>;
   /** Current selection rectangle (tile coords), null if none */
   mapSelection: MapSelection | null;
   /** Called when user creates/modifies the selection */

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,15 +29,6 @@ export function NewImageDialog({
 }: NewImageDialogProps) {
   const [width, setWidth] = useState(initialWidth ?? 32);
   const [height, setHeight] = useState(initialHeight ?? 32);
-
-  // Sync local state when the dialog opens with new initial values
-
-  useEffect(() => {
-    if (open) {
-      setWidth(initialWidth ?? 32);
-      setHeight(initialHeight ?? 32);
-    }
-  }, [open, initialWidth, initialHeight]);
 
   const handleCreate = () => {
     const w = Math.max(1, Math.min(1024, width));

@@ -1,4 +1,11 @@
-import { useRef, useState, useEffect, useCallback, memo, useSyncExternalStore } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  memo,
+  useSyncExternalStore,
+} from "react";
 import {
   Plus,
   ZoomIn,
@@ -16,6 +23,7 @@ import {
   Redo2,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
+import type { MapCanvasImperativeHandle } from "./MapCanvas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -129,27 +137,13 @@ export function MapPanel() {
   );
 
   // --- Paint buffer for instant visual feedback ---
-  // Tile changes are written here during a stroke and rendered immediately.
+  // Tile changes are written here during a stroke.
   // The buffer is flushed to the store (single undo step) on pointer-up.
-  // Using useState (not useRef) so the Map can be read safely during render.
+  // paintBufferVersion is only incremented on commit (pointer-up), not during stroke.
   const [paintBuffer] = useState(() => new Map<string, TileRef | null>());
   const [paintBufferVersion, setPaintBufferVersion] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  const schedulePaintRender = useCallback(() => {
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = 0;
-      setPaintBufferVersion((v) => v + 1);
-    });
-  }, []);
-
-  // Cleanup rAF on unmount
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
+  // Imperative handle to MapCanvas — bypasses React for per-tile drawing during strokes
+  const mapCanvasRef = useRef<MapCanvasImperativeHandle | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{
     type: "map" | "group";
@@ -212,9 +206,10 @@ export function MapPanel() {
               sw: ref.sw,
               sh: ref.sh,
             });
+            // Draw directly onto the paint canvas — no React re-render
+            mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
           }
         }
-        schedulePaintRender();
       } else if (state.currentTool === "erase") {
         const brushNum = parseInt(state.brushSize);
         for (let dy = 0; dy < brushNum; dy++) {
@@ -224,9 +219,10 @@ export function MapPanel() {
             if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
               continue;
             paintBuffer.set(`${tx},${ty}`, null);
+            // Erase directly on the paint canvas — no React re-render
+            mapCanvasRef.current?.eraseBufferTile(tx, ty);
           }
         }
-        schedulePaintRender();
       } else if (state.currentTool === "fill") {
         // ---------------------
         // Fill Tool — two modes:
@@ -340,7 +336,6 @@ export function MapPanel() {
       state.activeFillTerrain,
       state.activeLayerId,
       setState,
-      schedulePaintRender,
       paintBuffer,
       project?.layers,
       project?.layerGroups,
@@ -351,14 +346,11 @@ export function MapPanel() {
   const handlePaintEnd = useCallback(() => {
     if (paintBuffer.size === 0) return;
 
-    // Cancel any pending render frame
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = 0;
-    }
-
     const entries = Array.from(paintBuffer.entries());
     paintBuffer.clear();
+
+    // Clear the paint canvas imperatively — no lingering buffer visuals
+    mapCanvasRef.current?.clearPaintCanvas();
 
     setState((draft) => {
       const layer = draft.project?.layers.find(
@@ -374,7 +366,8 @@ export function MapPanel() {
       }
     });
 
-    // Trigger re-render to clear buffer visuals (now committed tiles)
+    // paintBufferVersion bump triggers the main draw effect so committed tiles
+    // replace what was on the paint canvas.
     setPaintBufferVersion((v) => v + 1);
   }, [setState, state.activeLayerId, paintBuffer]);
 
@@ -1598,6 +1591,7 @@ export function MapPanel() {
                 onPaintEnd={handlePaintEnd}
                 paintBuffer={paintBuffer}
                 paintBufferVersion={paintBufferVersion}
+                imperativeRef={mapCanvasRef}
                 mapSelection={state.mapSelection}
                 onSelectionChange={handleSelectionChange}
                 onMoveTiles={handleMoveTiles}

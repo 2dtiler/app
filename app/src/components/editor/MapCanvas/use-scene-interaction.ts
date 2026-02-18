@@ -5,7 +5,6 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Graphics } from "pixi.js";
 import type {
   ImageLayer,
   ObjectLayer,
@@ -18,6 +17,7 @@ import type {
 } from "@/types";
 import type { MapCanvasProps, ResizeHandle } from "./types";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
+import { getTileImage } from "./texture-cache";
 
 // ---------------------------------------------------------------------------
 // Internal action types (private to this hook)
@@ -114,16 +114,16 @@ interface UseSceneInteractionParams {
   onSelectObject: MapCanvasProps["onSelectObject"];
   onCancelPendingObject?: MapCanvasProps["onCancelPendingObject"];
   onDoubleClickObject?: MapCanvasProps["onDoubleClickObject"];
+  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   scaledTile: number;
   mapW: number;
   mapH: number;
+  selectedTile: TileRef | null;
 }
 
 export interface UseSceneInteractionReturn {
-  // Imperative hover graphics ref + stable noop draw prop
-  hoverGraphicsRef: React.RefObject<Graphics | null>;
-  hoverDrawNoop: (_g: Graphics) => void;
-  hoverTile: { x: number; y: number } | null;
+  // Overlay canvas ref for imperative hover drawing
+  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
 
   // Selection
   renderedSelection: MapSelection | null;
@@ -174,18 +174,12 @@ export interface UseSceneInteractionReturn {
   hoveredHandle: ResizeHandle | null;
   hoveredObjectCursor: string | null;
 
-  // Pointer handlers
-  handlePointerDown: (e: {
-    global: { x: number; y: number };
-    button?: number;
-  }) => void;
-  handlePointerMove: (e: { global: { x: number; y: number } }) => void;
+  // Pointer handlers (coordinates are canvas-relative pixels)
+  handlePointerDown: (e: { x: number; y: number; button?: number }) => void;
+  handlePointerMove: (e: { x: number; y: number }) => void;
   handlePointerUp: (e?: { button?: number }) => void;
   handlePointerLeave: () => void;
 }
-
-// Stable no-op so @pixi/react never overwrites imperative hover content
-const HOVER_DRAW_NOOP: (g: Graphics) => void = () => {};
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -216,15 +210,13 @@ export function useSceneInteraction({
   onSelectObject,
   onCancelPendingObject,
   onDoubleClickObject,
+  overlayCanvasRef,
   scaledTile,
   mapW,
   mapH,
+  selectedTile,
 }: UseSceneInteractionParams): UseSceneInteractionReturn {
   const isPaintingRef = useRef(false);
-  const hoverGraphicsRef = useRef<Graphics | null>(null);
-  const [hoverTile, setHoverTile] = useState<{ x: number; y: number } | null>(
-    null,
-  );
 
   // --- Selection state ---
   const selActionRef = useRef<SelectionAction | null>(null);
@@ -430,11 +422,14 @@ export function useSceneInteraction({
   }, [pendingObjectType]);
 
   // ---------------------------------------------------------------------------
-  // Clear hover box when switching tools
+  // Clear hover overlay when switching tools
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    hoverGraphicsRef.current?.clear();
-  }, [currentTool]);
+    const overlay = overlayCanvasRef.current;
+    if (!overlay) return;
+    const ctx = overlay.getContext("2d");
+    ctx?.clearRect(0, 0, overlay.width, overlay.height);
+  }, [currentTool, overlayCanvasRef]);
 
   // ---------------------------------------------------------------------------
   // Keyboard handler for polygon drawing (Escape / Enter)
@@ -487,7 +482,7 @@ export function useSceneInteraction({
   // ---------------------------------------------------------------------------
 
   const handlePointerDown = useCallback(
-    (e: { global: { x: number; y: number }; button?: number }) => {
+    (e: { x: number; y: number; button?: number }) => {
       // Ignore middle mouse button (1) — reserved for panning
       // Ignore right mouse button (2) — reserved for the context menu
       if (e.button === 1 || e.button === 2) return;
@@ -496,17 +491,17 @@ export function useSceneInteraction({
         // --- Object placement mode ---
         if (pendingObjectType) {
           if (pendingObjectType === "polygon") {
-            const px = e.global.x / zoom;
-            const py = e.global.y / zoom;
+            const px = e.x / zoom;
+            const py = e.y / zoom;
 
-            // Detect double-click manually (PixiJS doesn't support dblclick)
+            // Detect double-click manually
             const now = Date.now();
             const last = lastClickRef.current;
             const isDoubleClick =
               last !== null &&
               now - last.time < 400 &&
-              Math.hypot(e.global.x - last.x, e.global.y - last.y) < 12;
-            lastClickRef.current = { time: now, x: e.global.x, y: e.global.y };
+              Math.hypot(e.x - last.x, e.y - last.y) < 12;
+            lastClickRef.current = { time: now, x: e.x, y: e.y };
 
             if (!isDrawingPolygon) {
               setIsDrawingPolygon(true);
@@ -555,19 +550,19 @@ export function useSceneInteraction({
             return;
           }
           if (pendingObjectType === "point") {
-            const px = e.global.x / zoom;
-            const py = e.global.y / zoom;
+            const px = e.x / zoom;
+            const py = e.y / zoom;
             onCreateObject("point", px, py, 0, 0, []);
             return;
           }
           // Rectangle/Ellipse: start click-drag
           objectPlaceRef.current = {
             type: pendingObjectType,
-            startX: e.global.x,
-            startY: e.global.y,
+            startX: e.x,
+            startY: e.y,
           };
-          const px = e.global.x / zoom;
-          const py = e.global.y / zoom;
+          const px = e.x / zoom;
+          const py = e.y / zoom;
           setLiveObjectPlace({
             type: pendingObjectType,
             x: px,
@@ -606,15 +601,12 @@ export function useSceneInteraction({
           ];
           const hSize = 8;
           for (const [handle, cx, cy] of handles) {
-            if (
-              Math.abs(e.global.x - cx) <= hSize &&
-              Math.abs(e.global.y - cy) <= hSize
-            ) {
+            if (Math.abs(e.x - cx) <= hSize && Math.abs(e.y - cy) <= hSize) {
               objectResizeRef.current = {
                 objectId: activeObj.id,
                 handle,
-                startX: e.global.x,
-                startY: e.global.y,
+                startX: e.x,
+                startY: e.y,
                 origX: activeObj.x,
                 origY: activeObj.y,
                 origWidth: activeObj.width,
@@ -632,15 +624,12 @@ export function useSceneInteraction({
           for (let i = 0; i < activeObj.points.length; i++) {
             const vx = aox + activeObj.points[i].x * zoom;
             const vy = aoy + activeObj.points[i].y * zoom;
-            if (
-              Math.abs(e.global.x - vx) <= 8 &&
-              Math.abs(e.global.y - vy) <= 8
-            ) {
+            if (Math.abs(e.x - vx) <= 8 && Math.abs(e.y - vy) <= 8) {
               polyVertexDragRef.current = {
                 objectId: activeObj.id,
                 vertexIndex: i,
-                startX: e.global.x,
-                startY: e.global.y,
+                startX: e.x,
+                startY: e.y,
                 origPoint: { ...activeObj.points[i] },
               };
               return;
@@ -661,27 +650,17 @@ export function useSceneInteraction({
             const oh = obj.height * zoom;
             let hit = false;
             if (obj.type === "rectangle" || obj.type === "ellipse") {
-              hit =
-                e.global.x >= ox &&
-                e.global.x <= ox + ow &&
-                e.global.y >= oy &&
-                e.global.y <= oy + oh;
+              hit = e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
             } else if (obj.type === "point") {
               const ps = 8 * zoom;
-              hit =
-                Math.abs(e.global.x - ox) <= ps &&
-                Math.abs(e.global.y - oy) <= ps;
+              hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
             } else if (obj.type === "polygon" && obj.points.length >= 3) {
               const pts = obj.points;
               const minX = Math.min(...pts.map((p) => p.x)) * zoom + ox;
               const maxX = Math.max(...pts.map((p) => p.x)) * zoom + ox;
               const minY = Math.min(...pts.map((p) => p.y)) * zoom + oy;
               const maxY = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-              hit =
-                e.global.x >= minX &&
-                e.global.x <= maxX &&
-                e.global.y >= minY &&
-                e.global.y <= maxY;
+              hit = e.x >= minX && e.x <= maxX && e.y >= minY && e.y <= maxY;
             }
             if (hit) {
               const now = Date.now();
@@ -690,14 +669,11 @@ export function useSceneInteraction({
                 lastObjClick !== null &&
                 lastObjClick.objectId === obj.id &&
                 now - lastObjClick.time < 400 &&
-                Math.hypot(
-                  e.global.x - lastObjClick.x,
-                  e.global.y - lastObjClick.y,
-                ) < 12;
+                Math.hypot(e.x - lastObjClick.x, e.y - lastObjClick.y) < 12;
               lastObjectClickRef.current = {
                 time: now,
-                x: e.global.x,
-                y: e.global.y,
+                x: e.x,
+                y: e.y,
                 objectId: obj.id,
               };
 
@@ -711,8 +687,8 @@ export function useSceneInteraction({
               if (!obj.locked) {
                 objectDragRef.current = {
                   objectId: obj.id,
-                  startX: e.global.x,
-                  startY: e.global.y,
+                  startX: e.x,
+                  startY: e.y,
                   origX: obj.x,
                   origY: obj.y,
                 };
@@ -726,7 +702,7 @@ export function useSceneInteraction({
         }
 
         // --- Image layer resize handle hit test ---
-        const resizeHandle = hitTestResizeHandle(e.global.x, e.global.y);
+        const resizeHandle = hitTestResizeHandle(e.x, e.y);
         if (resizeHandle) {
           const resizeImgLayer = imageLayers.find(
             (l) => l.id === activeLayerId,
@@ -735,8 +711,8 @@ export function useSceneInteraction({
             imageResizeRef.current = {
               layerId: resizeImgLayer.id,
               handle: resizeHandle,
-              startX: e.global.x,
-              startY: e.global.y,
+              startX: e.x,
+              startY: e.y,
               origX: resizeImgLayer.x,
               origY: resizeImgLayer.y,
               origWidth: resizeImgLayer.width,
@@ -763,15 +739,15 @@ export function useSceneInteraction({
               ? liveImagePos.y * zoom
               : imgY;
           if (
-            e.global.x >= posX &&
-            e.global.x <= posX + imgW &&
-            e.global.y >= posY &&
-            e.global.y <= posY + imgH
+            e.x >= posX &&
+            e.x <= posX + imgW &&
+            e.y >= posY &&
+            e.y <= posY + imgH
           ) {
             imageDragRef.current = {
               layerId: activeImgLayer.id,
-              startX: e.global.x,
-              startY: e.global.y,
+              startX: e.x,
+              startY: e.y,
               origX:
                 liveImagePos?.layerId === activeImgLayer.id
                   ? liveImagePos.x
@@ -786,12 +762,12 @@ export function useSceneInteraction({
           }
         }
 
-        const gx = Math.floor(e.global.x / scaledTile);
-        const gy = Math.floor(e.global.y / scaledTile);
+        const gx = Math.floor(e.x / scaledTile);
+        const gy = Math.floor(e.y / scaledTile);
 
         if (
           renderedSelection &&
-          isInsideSelection(e.global.x, e.global.y, renderedSelection)
+          isInsideSelection(e.x, e.y, renderedSelection)
         ) {
           const activeLayer = layers.find((l) => l.id === activeLayerId);
           const tileSnapshot: { dx: number; dy: number; ref: TileRef }[] = [];
@@ -824,7 +800,7 @@ export function useSceneInteraction({
         return;
       }
 
-      const pos = getGridPos(e.global.x, e.global.y);
+      const pos = getGridPos(e.x, e.y);
       if (!pos) return;
       isPaintingRef.current = true;
       onPaintTile(pos.x, pos.y);
@@ -859,32 +835,60 @@ export function useSceneInteraction({
   );
 
   const handlePointerMove = useCallback(
-    (e: { global: { x: number; y: number } }) => {
-      const pos = getGridPos(e.global.x, e.global.y);
+    (e: { x: number; y: number }) => {
+      const pos = getGridPos(e.x, e.y);
 
-      // Draw the yellow hover box directly on the Pixi Graphics node — no
-      // React state update, no re-render.
-      const hg = hoverGraphicsRef.current;
-      if (hg) {
-        hg.clear();
-        if (pos && currentTool !== "select") {
-          const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
-          const hx = pos.x * scaledTile;
-          const hy = pos.y * scaledTile;
-          const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
-          const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
-          hg.rect(hx, hy, hw, hh);
-          hg.fill({ color: 0xffa500, alpha: 0.2 });
-          hg.setStrokeStyle({ width: 2, color: 0xffa500, alpha: 0.8 });
-          hg.rect(hx, hy, hw, hh);
-          hg.stroke();
+      // Draw the yellow hover box directly on the overlay canvas —
+      // no React state update, no re-render.
+      const overlay = overlayCanvasRef.current;
+      if (overlay) {
+        const ctx = overlay.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, overlay.width, overlay.height);
+          ctx.imageSmoothingEnabled = false;
+          if (pos && currentTool !== "select") {
+            const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
+            const hx = pos.x * scaledTile;
+            const hy = pos.y * scaledTile;
+            const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
+            const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
+            ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+            ctx.fillRect(hx, hy, hw, hh);
+            ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(hx, hy, hw, hh);
+            // Draw tile preview directly on overlay — no React state, no re-render
+            if (currentTool === "paint" && selectedTile) {
+              const tileImg = getTileImage(selectedTile);
+              if (tileImg) {
+                ctx.globalAlpha = 0.5;
+                for (let dy = 0; dy < brushNum; dy++) {
+                  for (let dx = 0; dx < brushNum; dx++) {
+                    const tx = pos.x + dx;
+                    const ty = pos.y + dy;
+                    if (tx >= mapW || ty >= mapH) continue;
+                    ctx.drawImage(
+                      tileImg,
+                      selectedTile.sx,
+                      selectedTile.sy,
+                      selectedTile.sw,
+                      selectedTile.sh,
+                      tx * scaledTile,
+                      ty * scaledTile,
+                      scaledTile,
+                      scaledTile,
+                    );
+                  }
+                }
+                ctx.globalAlpha = 1;
+              }
+            }
+          }
         }
       }
 
-      setHoverTile(pos);
-
       if (isDrawingPolygon) {
-        setPolygonCursorPos({ x: e.global.x / zoom, y: e.global.y / zoom });
+        setPolygonCursorPos({ x: e.x / zoom, y: e.y / zoom });
       }
 
       if (currentTool === "select") {
@@ -893,8 +897,8 @@ export function useSceneInteraction({
         if (placeAction) {
           const startPx = placeAction.startX / zoom;
           const startPy = placeAction.startY / zoom;
-          const curPx = e.global.x / zoom;
-          const curPy = e.global.y / zoom;
+          const curPx = e.x / zoom;
+          const curPy = e.y / zoom;
           setLiveObjectPlace({
             type: placeAction.type,
             x: Math.min(startPx, curPx),
@@ -908,8 +912,8 @@ export function useSceneInteraction({
         // Object resize
         const objResize = objectResizeRef.current;
         if (objResize) {
-          const rdx = (e.global.x - objResize.startX) / zoom;
-          const rdy = (e.global.y - objResize.startY) / zoom;
+          const rdx = (e.x - objResize.startX) / zoom;
+          const rdy = (e.y - objResize.startY) / zoom;
           const result = computeResize(
             objResize.handle,
             objResize.origX,
@@ -927,8 +931,8 @@ export function useSceneInteraction({
         // Polygon vertex drag
         const pvDrag = polyVertexDragRef.current;
         if (pvDrag) {
-          const dx = (e.global.x - pvDrag.startX) / zoom;
-          const dy = (e.global.y - pvDrag.startY) / zoom;
+          const dx = (e.x - pvDrag.startX) / zoom;
+          const dy = (e.y - pvDrag.startY) / zoom;
           setLivePolyVertex({
             objectId: pvDrag.objectId,
             vertexIndex: pvDrag.vertexIndex,
@@ -941,8 +945,8 @@ export function useSceneInteraction({
         // Object dragging
         const objDrag = objectDragRef.current;
         if (objDrag) {
-          const dx = (e.global.x - objDrag.startX) / zoom;
-          const dy = (e.global.y - objDrag.startY) / zoom;
+          const dx = (e.x - objDrag.startX) / zoom;
+          const dy = (e.y - objDrag.startY) / zoom;
           setLiveObjectPos({
             objectId: objDrag.objectId,
             x: Math.round(objDrag.origX + dx),
@@ -954,8 +958,8 @@ export function useSceneInteraction({
         // Image layer resize
         const resizeAction = imageResizeRef.current;
         if (resizeAction) {
-          const rdx = (e.global.x - resizeAction.startX) / zoom;
-          const rdy = (e.global.y - resizeAction.startY) / zoom;
+          const rdx = (e.x - resizeAction.startX) / zoom;
+          const rdy = (e.y - resizeAction.startY) / zoom;
           const result = computeResize(
             resizeAction.handle,
             resizeAction.origX,
@@ -973,8 +977,8 @@ export function useSceneInteraction({
         // Image layer dragging
         const imgDrag = imageDragRef.current;
         if (imgDrag) {
-          const dx = (e.global.x - imgDrag.startX) / zoom;
-          const dy = (e.global.y - imgDrag.startY) / zoom;
+          const dx = (e.x - imgDrag.startX) / zoom;
+          const dy = (e.y - imgDrag.startY) / zoom;
           setLiveImagePos({
             layerId: imgDrag.layerId,
             x: Math.round(imgDrag.origX + dx),
@@ -986,7 +990,7 @@ export function useSceneInteraction({
         const action = selActionRef.current;
         if (!action) {
           // Hover cursor feedback for image layer resize handles
-          const handle = hitTestResizeHandle(e.global.x, e.global.y);
+          const handle = hitTestResizeHandle(e.x, e.y);
           setHoveredHandle(handle);
 
           // Hover cursor feedback for object layer
@@ -1018,8 +1022,8 @@ export function useSceneInteraction({
               const hSize = 8;
               for (const [h, cx, cy] of objHandles) {
                 if (
-                  Math.abs(e.global.x - cx) <= hSize &&
-                  Math.abs(e.global.y - cy) <= hSize
+                  Math.abs(e.x - cx) <= hSize &&
+                  Math.abs(e.y - cy) <= hSize
                 ) {
                   objCursor = RESIZE_CURSORS[h];
                   break;
@@ -1033,10 +1037,7 @@ export function useSceneInteraction({
               for (const pt of activeObj.points) {
                 const vx = aox + pt.x * zoom;
                 const vy = aoy + pt.y * zoom;
-                if (
-                  Math.abs(e.global.x - vx) <= 8 &&
-                  Math.abs(e.global.y - vy) <= 8
-                ) {
+                if (Math.abs(e.x - vx) <= 8 && Math.abs(e.y - vy) <= 8) {
                   objCursor = "pointer";
                   break;
                 }
@@ -1055,15 +1056,10 @@ export function useSceneInteraction({
                 let hit = false;
                 if (obj.type === "rectangle" || obj.type === "ellipse") {
                   hit =
-                    e.global.x >= ox &&
-                    e.global.x <= ox + ow &&
-                    e.global.y >= oy &&
-                    e.global.y <= oy + oh;
+                    e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
                 } else if (obj.type === "point") {
                   const ps = 8 * zoom;
-                  hit =
-                    Math.abs(e.global.x - ox) <= ps &&
-                    Math.abs(e.global.y - oy) <= ps;
+                  hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
                 } else if (obj.type === "polygon" && obj.points.length >= 3) {
                   const pts = obj.points;
                   const minPx = Math.min(...pts.map((p) => p.x)) * zoom + ox;
@@ -1071,10 +1067,10 @@ export function useSceneInteraction({
                   const minPy = Math.min(...pts.map((p) => p.y)) * zoom + oy;
                   const maxPy = Math.max(...pts.map((p) => p.y)) * zoom + oy;
                   hit =
-                    e.global.x >= minPx &&
-                    e.global.x <= maxPx &&
-                    e.global.y >= minPy &&
-                    e.global.y <= maxPy;
+                    e.x >= minPx &&
+                    e.x <= maxPx &&
+                    e.y >= minPy &&
+                    e.y <= maxPy;
                 }
                 if (hit) {
                   objCursor = obj.locked ? "not-allowed" : "move";
@@ -1091,8 +1087,8 @@ export function useSceneInteraction({
           return;
         }
 
-        const gx = Math.floor(e.global.x / scaledTile);
-        const gy = Math.floor(e.global.y / scaledTile);
+        const gx = Math.floor(e.x / scaledTile);
+        const gy = Math.floor(e.y / scaledTile);
 
         if (action.type === "draw") {
           const x1 = Math.min(
@@ -1140,6 +1136,7 @@ export function useSceneInteraction({
       getGridPos,
       currentTool,
       brushSize,
+      selectedTile,
       onPaintTile,
       scaledTile,
       mapW,
@@ -1151,6 +1148,7 @@ export function useSceneInteraction({
       activeLayerId,
       activeObjectId,
       isDrawingPolygon,
+      overlayCanvasRef,
     ],
   );
 
@@ -1298,8 +1296,11 @@ export function useSceneInteraction({
   );
 
   const handlePointerLeave = useCallback(() => {
-    setHoverTile(null);
-    hoverGraphicsRef.current?.clear();
+    const overlay = overlayCanvasRef.current;
+    if (overlay) {
+      const ctx = overlay.getContext("2d");
+      ctx?.clearRect(0, 0, overlay.width, overlay.height);
+    }
 
     if (currentTool === "select" && objectPlaceRef.current) {
       objectPlaceRef.current = null;
@@ -1406,12 +1407,11 @@ export function useSceneInteraction({
     livePolyVertex,
     objects,
     onUpdatePolygonPoints,
+    overlayCanvasRef,
   ]);
 
   return {
-    hoverGraphicsRef,
-    hoverDrawNoop: HOVER_DRAW_NOOP,
-    hoverTile,
+    overlayCanvasRef,
     renderedSelection,
     liveSelection,
     moveTilesSnapshot,
