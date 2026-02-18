@@ -1,4 +1,11 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -82,6 +89,14 @@ const loadingScreen = (
   </div>
 );
 
+const savingOverlay = (
+  <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
+    <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
+      Saving Project…
+    </div>
+  </div>
+);
+
 const emptyProjectMessage = (
   <main className="flex flex-1 min-h-0 items-center justify-center text-muted-foreground text-sm">
     Open or create a project to get started
@@ -91,8 +106,13 @@ const emptyProjectMessage = (
 // Init-once guard: prevents double-init in React StrictMode (advanced-init-once)
 let storeInitStarted = false;
 
+const MIN_SAVE_DISPLAY_MS = 300;
+
 function App() {
   const [ready, setReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStartTimeRef = useRef<number>(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -157,6 +177,27 @@ function App() {
       window.removeEventListener("open-image-editor", handleOpenImageEditor);
   }, [setActiveTool]);
 
+  // Show saving overlay when project is being persisted
+  useEffect(() => {
+    function handleSaveStart() {
+      if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
+      saveStartTimeRef.current = Date.now();
+      setIsSaving(true);
+    }
+    function handleSaveEnd() {
+      const elapsed = Date.now() - saveStartTimeRef.current;
+      const remaining = Math.max(0, MIN_SAVE_DISPLAY_MS - elapsed);
+      savingTimerRef.current = setTimeout(() => setIsSaving(false), remaining);
+    }
+    window.addEventListener("project-save-start", handleSaveStart);
+    window.addEventListener("project-save-end", handleSaveEnd);
+    return () => {
+      window.removeEventListener("project-save-start", handleSaveStart);
+      window.removeEventListener("project-save-end", handleSaveEnd);
+      if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
+    };
+  }, []);
+
   if (!ready) {
     return loadingScreen;
   }
@@ -165,6 +206,7 @@ function App() {
     <TooltipProvider delayDuration={300}>
       <AppShell
         settingsOpen={settingsOpen}
+        isSaving={isSaving}
         setSettingsOpen={setSettingsOpen}
         projectModalOpen={projectModalOpen}
         setProjectModalOpen={setProjectModalOpen}
@@ -199,6 +241,7 @@ function AppShell({
   setBugReportOpen,
   activeTool,
   setActiveTool,
+  isSaving,
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
@@ -214,6 +257,7 @@ function AppShell({
   setBugReportOpen: (v: boolean) => void;
   activeTool: ToolName | null;
   setActiveTool: (v: ToolName | null) => void;
+  isSaving: boolean;
 }) {
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
@@ -558,6 +602,7 @@ function AppShell({
           />
         </Suspense>
       )}
+      {isSaving && savingOverlay}
     </div>
   );
 }

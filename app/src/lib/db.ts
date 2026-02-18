@@ -138,12 +138,17 @@ export async function getAssetUrl(id: AssetId): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 export async function saveProject(project: Project): Promise<void> {
-  await db.projects.put({
-    id: project.id,
-    name: project.name,
-    data: JSON.stringify(project),
-    updatedAt: Date.now(),
-  });
+  window.dispatchEvent(new CustomEvent("project-save-start"));
+  try {
+    await db.projects.put({
+      id: project.id,
+      name: project.name,
+      data: JSON.stringify(project),
+      updatedAt: Date.now(),
+    });
+  } finally {
+    window.dispatchEvent(new CustomEvent("project-save-end"));
+  }
 }
 
 export async function getProject(id: string): Promise<Project | null> {
