@@ -61,33 +61,21 @@ export function ImageEditor() {
         return;
       }
 
-      // Undo / redo
+      // Undo / redo — stop immediate propagation so the global map-editor
+      // keyboard handler doesn't also fire controls.back() for the same event.
       if ((ev.ctrlKey || ev.metaKey) && ev.key === "z" && !ev.shiftKey) {
         ev.preventDefault();
-        const restored = editor.undoPixels();
-        if (restored) {
-          const frameId = editor.getCurrentFrameId();
-          if (frameId) {
-            editor.setFrameData(frameId, restored);
-          }
-        } else {
-          // Nothing to undo in pixels — try undoing frame operation
-          editor.undoFrameOp();
-        }
+        ev.stopImmediatePropagation();
+        editor.performUndo();
         return;
       }
-      if ((ev.ctrlKey || ev.metaKey) && ev.key === "z" && ev.shiftKey) {
+      if (
+        (ev.ctrlKey || ev.metaKey) &&
+        (ev.key === "y" || (ev.key === "z" && ev.shiftKey))
+      ) {
         ev.preventDefault();
-        const restored = editor.redoPixels();
-        if (restored) {
-          const frameId = editor.getCurrentFrameId();
-          if (frameId) {
-            editor.setFrameData(frameId, restored);
-          }
-        } else {
-          // Nothing to redo in pixels — try redoing frame operation
-          editor.redoFrameOp();
-        }
+        ev.stopImmediatePropagation();
+        editor.performRedo();
         return;
       }
 
@@ -98,8 +86,11 @@ export function ImageEditor() {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    // Use capture phase so this fires before the global map-editor handler,
+    // and stopImmediatePropagation() prevents it from also calling controls.back().
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [editor]);
 
   // Not initialized yet — show dialog only
@@ -150,6 +141,8 @@ export function ImageEditor() {
         tool={tool}
         blurSize={blurSize}
         blurIntensity={blurIntensity}
+        canUndo={editor.canUndo}
+        canRedo={editor.canRedo}
         onZoom={editor.setZoom}
         onBrushSize={editor.setBrushSize}
         onBlurSize={editor.setBlurSize}
@@ -159,6 +152,8 @@ export function ImageEditor() {
         onExportPng={editor.exportPng}
         onExportGif={editor.exportGif}
         onExportSpriteSheet={() => setShowExportSheet(true)}
+        onUndo={editor.performUndo}
+        onRedo={editor.performRedo}
       />
 
       {/* Middle area: sidebar + canvas + palette */}

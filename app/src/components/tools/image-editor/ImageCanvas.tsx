@@ -93,6 +93,9 @@ export function ImageCanvas({
               color: primaryColor,
               brushSize,
               tool,
+              shiftKey: false,
+              blurSize,
+              blurIntensity,
             };
             commitFloatingSelection(tc);
             resetSelectionState();

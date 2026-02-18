@@ -1,10 +1,13 @@
+Conditionally render brush size
+
+================
+Palettes. You should be able to import and export the following palettes formats:
+
+================
+  
 Image Generator
-  Undo/Redo
-  Check .ase import, Export
-  Add dropdown to select tileset
+  Add dropdown to select palette set
   Add Layers. Each object placed should be in the layer
-  Is there anything we can do to make importing image faster
-  Add undo/redo buttons to toolbar
 
 Color picker should have some margins between rgb input values
 Color picker should have mouse wheel up/down

@@ -5,7 +5,13 @@
  * frame pixel data management, animation playback, and import/export.
  */
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   initImageEditorStore,
@@ -48,6 +54,35 @@ interface FrameOperation {
 
 const frameOpUndoStack: FrameOperation[] = [];
 const frameOpRedoStack: FrameOperation[] = [];
+
+// ---------------------------------------------------------------------------
+// Palette undo/redo history
+// ---------------------------------------------------------------------------
+
+interface PaletteSnapshot {
+  id: PaletteId;
+  name: string;
+  colors: Color[];
+}
+
+const paletteUndoStack: PaletteSnapshot[] = [];
+const paletteRedoStack: PaletteSnapshot[] = [];
+
+function snapshotPalette(s: ImageEditorState): PaletteSnapshot {
+  return {
+    id: s.palette.id,
+    name: s.palette.name,
+    colors: s.palette.colors.map((c) => ({ ...c })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Unified action ordering log (maintains chronological undo/redo order)
+// ---------------------------------------------------------------------------
+
+type UndoableActionType = "pixel" | "frame" | "palette";
+const actionLog: UndoableActionType[] = [];
+const redoLog: UndoableActionType[] = [];
 
 /**
  * Ensure the image editor store is initialized.
@@ -96,6 +131,10 @@ export function useImageEditor() {
 
   const state = useSyncExternalStore(subscribe, getSnapshot);
 
+  // Incremented whenever undo/redo stacks change to ensure canUndo/canRedo
+  // are recomputed on the next render without storing the value itself.
+  const [, forceHistoryUpdate] = useReducer((n: number) => n + 1, 0);
+
   const setState = useCallback((updater: (draft: ImageEditorState) => void) => {
     if (!isImageEditorStoreReady()) return;
     getImageEditorStore().setState(updater);
@@ -110,6 +149,12 @@ export function useImageEditor() {
     destroyImageEditorStore();
     pixelHistory.clearAllHistory();
     moduleFrameData.clear();
+    paletteUndoStack.length = 0;
+    paletteRedoStack.length = 0;
+    frameOpUndoStack.length = 0;
+    frameOpRedoStack.length = 0;
+    actionLog.length = 0;
+    redoLog.length = 0;
 
     initImageEditorStore(width, height);
 
@@ -209,8 +254,14 @@ export function useImageEditor() {
     const data = getCurrentFrameData();
     if (frameId && data) {
       pixelHistory.pushSnapshot(frameId, data);
+      // Clear all redo history — any new action voids redo
+      redoLog.length = 0;
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      actionLog.push("pixel");
+      forceHistoryUpdate();
     }
-  }, [getCurrentFrameId, getCurrentFrameData]);
+  }, [getCurrentFrameId, getCurrentFrameData, forceHistoryUpdate]);
 
   const undoPixels = useCallback((): ImageData | null => {
     const frameId = getCurrentFrameId();
@@ -257,6 +308,9 @@ export function useImageEditor() {
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
+    redoLog.length = 0;
+    paletteRedoStack.length = 0;
+    actionLog.push("frame");
 
     setState((d) => {
       d.frames.push(newFrame);
@@ -306,6 +360,9 @@ export function useImageEditor() {
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
+    redoLog.length = 0;
+    paletteRedoStack.length = 0;
+    actionLog.push("frame");
 
     setState((d) => {
       d.frames.splice(d.currentFrameIndex + 1, 0, newFrame);
@@ -335,6 +392,9 @@ export function useImageEditor() {
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
+    redoLog.length = 0;
+    paletteRedoStack.length = 0;
+    actionLog.push("frame");
 
     moduleFrameData.delete(frameToDelete.id);
     pixelHistory.clearFrameHistory(frameToDelete.id);
@@ -473,6 +533,81 @@ export function useImageEditor() {
   }, [setState]);
 
   // -----------------------------------------------------------------------
+  // Unified undo / redo
+  // -----------------------------------------------------------------------
+
+  const performUndo = useCallback(() => {
+    if (actionLog.length === 0) return;
+    const type = actionLog.pop()!;
+    redoLog.push(type);
+
+    if (type === "pixel") {
+      const frameId = getCurrentFrameId();
+      if (frameId) {
+        const current = moduleFrameData.get(frameId);
+        if (current) {
+          const restored = pixelHistory.undo(frameId, current);
+          if (restored) {
+            moduleFrameData.set(frameId, restored);
+          }
+        }
+      }
+    } else if (type === "frame") {
+      undoFrameOp();
+    } else if (type === "palette") {
+      const snap = paletteUndoStack.pop();
+      if (snap && isImageEditorStoreReady()) {
+        const s = getImageEditorStore().getState();
+        paletteRedoStack.push(snapshotPalette(s));
+        setState((d) => {
+          d.palette.id = snap.id;
+          d.palette.name = snap.name;
+          d.palette.colors = snap.colors.map((c) => ({ ...c }));
+        });
+      }
+    }
+
+    forceHistoryUpdate();
+  }, [getCurrentFrameId, undoFrameOp, setState, forceHistoryUpdate]);
+
+  const performRedo = useCallback(() => {
+    if (redoLog.length === 0) return;
+    const type = redoLog.pop()!;
+    actionLog.push(type);
+
+    if (type === "pixel") {
+      const frameId = getCurrentFrameId();
+      if (frameId) {
+        const current = moduleFrameData.get(frameId);
+        if (current) {
+          const restored = pixelHistory.redo(frameId, current);
+          if (restored) {
+            moduleFrameData.set(frameId, restored);
+          }
+        }
+      }
+    } else if (type === "frame") {
+      redoFrameOp();
+    } else if (type === "palette") {
+      const snap = paletteRedoStack.pop();
+      if (snap && isImageEditorStoreReady()) {
+        const s = getImageEditorStore().getState();
+        paletteUndoStack.push(snapshotPalette(s));
+        setState((d) => {
+          d.palette.id = snap.id;
+          d.palette.name = snap.name;
+          d.palette.colors = snap.colors.map((c) => ({ ...c }));
+        });
+      }
+    }
+
+    forceHistoryUpdate();
+  }, [getCurrentFrameId, redoFrameOp, setState, forceHistoryUpdate]);
+
+  const canUndo = actionLog.length > 0;
+  const canRedo = redoLog.length > 0;
+
+  // -----------------------------------------------------------------------
   // Tool / state setters
   // -----------------------------------------------------------------------
 
@@ -548,14 +683,6 @@ export function useImageEditor() {
     [setState],
   );
 
-  const setLoop = useCallback(
-    (on: boolean) =>
-      setState((d) => {
-        d.loop = on;
-      }),
-    [setState],
-  );
-
   const setFps = useCallback(
     (fps: number) =>
       setState((d) => {
@@ -575,20 +702,34 @@ export function useImageEditor() {
 
   const addPaletteColor = useCallback(
     (color: Color) => {
+      if (state) {
+        paletteUndoStack.push(snapshotPalette(state));
+        paletteRedoStack.length = 0;
+        frameOpRedoStack.length = 0;
+        redoLog.length = 0;
+        actionLog.push("palette");
+      }
       setState((d) => {
         d.palette.colors.push(color);
       });
     },
-    [setState],
+    [state, setState],
   );
 
   const removePaletteColor = useCallback(
     (index: number) => {
+      if (state) {
+        paletteUndoStack.push(snapshotPalette(state));
+        paletteRedoStack.length = 0;
+        frameOpRedoStack.length = 0;
+        redoLog.length = 0;
+        actionLog.push("palette");
+      }
       setState((d) => {
         d.palette.colors.splice(index, 1);
       });
     },
-    [setState],
+    [state, setState],
   );
 
   const updatePaletteColor = useCallback(
@@ -603,6 +744,13 @@ export function useImageEditor() {
   );
 
   const resetPalette = useCallback(() => {
+    if (state) {
+      paletteUndoStack.push(snapshotPalette(state));
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      redoLog.length = 0;
+      actionLog.push("palette");
+    }
     setState((d) => {
       d.palette = {
         id: uuidv4() as PaletteId,
@@ -610,13 +758,23 @@ export function useImageEditor() {
         colors: [...DEFAULT_PALETTE_COLORS],
       };
     });
-  }, [setState]);
+  }, [state, setState]);
 
   const importPalette = useCallback(
     async (file: File) => {
       const buffer = await file.arrayBuffer();
       const colors = parseAsePalette(buffer);
       if (colors.length === 0) return;
+
+      // Snapshot current palette before applying import
+      if (isImageEditorStoreReady()) {
+        const s = getImageEditorStore().getState();
+        paletteUndoStack.push(snapshotPalette(s));
+        paletteRedoStack.length = 0;
+        frameOpRedoStack.length = 0;
+        redoLog.length = 0;
+        actionLog.push("palette");
+      }
 
       setState((d) => {
         d.palette = {
@@ -834,6 +992,10 @@ export function useImageEditor() {
     pushUndoSnapshot,
     undoPixels,
     redoPixels,
+    performUndo,
+    performRedo,
+    canUndo,
+    canRedo,
 
     // Frame management
     addFrame,

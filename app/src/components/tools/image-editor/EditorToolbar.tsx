@@ -5,6 +5,8 @@ import {
   ZoomOut,
   ChevronDown,
   Scaling,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -29,6 +31,8 @@ interface EditorToolbarProps {
   tool: ImageEditorTool;
   blurSize: number;
   blurIntensity: number;
+  canUndo: boolean;
+  canRedo: boolean;
   onZoom: (z: number) => void;
   onBrushSize: (s: number) => void;
   onBlurSize: (s: number) => void;
@@ -38,6 +42,8 @@ interface EditorToolbarProps {
   onExportPng: () => void;
   onExportGif: () => void;
   onExportSpriteSheet: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export function EditorToolbar({
@@ -46,6 +52,8 @@ export function EditorToolbar({
   tool,
   blurSize,
   blurIntensity,
+  canUndo,
+  canRedo,
   onZoom,
   onBrushSize,
   onBlurSize,
@@ -55,6 +63,8 @@ export function EditorToolbar({
   onExportPng,
   onExportGif,
   onExportSpriteSheet,
+  onUndo,
+  onRedo,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider>
@@ -109,6 +119,39 @@ export function EditorToolbar({
 
         <div className="w-px h-5 bg-border" />
 
+        {/* Undo / Redo */}
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onUndo}
+                disabled={!canUndo}
+              >
+                <Undo2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onRedo}
+                disabled={!canRedo}
+              >
+                <Redo2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="w-px h-5 bg-border" />
+
         {/* Brush size */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -122,39 +165,6 @@ export function EditorToolbar({
             className="w-24"
           />
         </div>
-
-        {/* Blur settings (visible only when blur tool is active) */}
-        {tool === "blur" && (
-          <>
-            <div className="w-px h-5 bg-border" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Size: {blurSize}
-              </span>
-              <Slider
-                min={1}
-                max={8}
-                value={[blurSize]}
-                onValueChange={([v]) => onBlurSize(v)}
-                className="w-20"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Intensity: {blurIntensity}%
-              </span>
-              <Slider
-                min={1}
-                max={100}
-                value={[blurIntensity]}
-                onValueChange={([v]) => onBlurIntensity(v)}
-                className="w-20"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="w-px h-5 bg-border" />
 
         {/* Zoom */}
         <div className="flex items-center gap-1">
@@ -194,6 +204,39 @@ export function EditorToolbar({
             <TooltipContent>Zoom In</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* Blur settings (visible only when blur tool is active) */}
+        {tool === "blur" && (
+          <>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Size: {blurSize}
+              </span>
+              <Slider
+                min={1}
+                max={8}
+                value={[blurSize]}
+                onValueChange={([v]) => onBlurSize(v)}
+                className="w-20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Intensity: {blurIntensity}%
+              </span>
+              <Slider
+                min={1}
+                max={100}
+                value={[blurIntensity]}
+                onValueChange={([v]) => onBlurIntensity(v)}
+                className="w-20"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="w-px h-5 bg-border" />
       </div>
     </TooltipProvider>
   );
