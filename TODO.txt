@@ -1,4 +1,4 @@
-Add Ability to change size of Palette panel
+Right click on a tile or map element to open in editor
 
 Image Generator
   Add Layers. Each object placed should be in the layer
@@ -9,7 +9,6 @@ Color picker should have mouse wheel up/down
 Why does the color picker have this L: R: values
 Add ability to deploy from local
 Map. Allow selecting multiple tiles in tileset view. Allow Ctrl + C, Ctrl + V, Ctrl + X etc.
-Right click on a tile or map element to open in editor
 Get Lighthouse scores 100% with 0 errors/warnings
 Unslopify
 Make list of tiled advanced features

@@ -228,7 +228,7 @@ export function PalettePanel({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col w-44 border-l border-border bg-card shrink-0">
+      <div className="flex flex-col w-full border-l border-border bg-card shrink-0">
         {/* Palette selector row */}
         <div className="flex items-center gap-0.5 p-1.5 border-b border-border">
           {isRenaming ? (
@@ -325,7 +325,7 @@ export function PalettePanel({
 
         {/* Palette swatches */}
         <ScrollArea className="flex-1 min-h-0">
-          <div className="grid grid-cols-6 gap-0.5 p-1.5">
+          <div className="grid grid-cols-6 gap-0.5 p-1.5 w-44">
             {colors.map((color, i) => (
               <button
                 key={i}

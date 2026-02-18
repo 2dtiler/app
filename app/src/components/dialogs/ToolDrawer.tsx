@@ -10,14 +10,20 @@ import {
 } from "@/components/ui/drawer";
 import type { ToolName } from "@/components/layout/Toolbar";
 
-const ImageEditor = lazy(() => import("@/components/tools/ImageEditor").then(m => ({ default: m.ImageEditor })));
-const AiAssets = lazy(() => import("@/components/tools/AiAssets").then(m => ({ default: m.AiAssets })));
+const ImageEditor = lazy(() =>
+  import("@/components/tools/ImageEditor").then((m) => ({
+    default: m.ImageEditor,
+  })),
+);
+const AiAssets = lazy(() =>
+  import("@/components/tools/AiAssets").then((m) => ({ default: m.AiAssets })),
+);
 
 const TOOL_CONFIG: Record<
   ToolName,
   { label: string; component: ComponentType }
 > = {
-  "image-editor": { label: "Image Editor", component: ImageEditor },
+  "image-editor": { label: "Image/Sprite Editor", component: ImageEditor },
   "ai-assets": { label: "AI Assets", component: AiAssets },
 };
 
@@ -33,7 +39,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   return (
     <Drawer
       direction="right"
-      handleOnly
+      dismissible={false}
       open={activeTool !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -50,7 +56,11 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
             <span className="sr-only">Close</span>
           </DrawerClose>
         </DrawerHeader>
-        {ToolComponent && <Suspense><ToolComponent /></Suspense>}
+        {ToolComponent && (
+          <Suspense>
+            <ToolComponent />
+          </Suspense>
+        )}
       </DrawerContent>
     </Drawer>
   );

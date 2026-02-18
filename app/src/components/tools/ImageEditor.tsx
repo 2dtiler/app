@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Panel, Group, Separator } from "react-resizable-panels";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary } from "@/lib/db";
@@ -185,51 +186,67 @@ export function ImageEditor() {
         {/* Tool sidebar */}
         <ToolSidebar currentTool={tool} onSelectTool={editor.setTool} />
 
-        {/* Canvas */}
-        <div className="relative flex-1 min-w-0">
-          <ImageCanvas
-            width={width}
-            height={height}
-            zoom={zoom}
-            tool={tool}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            brushSize={brushSize}
-            blurSize={blurSize}
-            blurIntensity={blurIntensity}
-            currentFrameId={currentFrameId}
-            currentFrameData={currentFrameData}
-            previousFrameData={previousFrameData}
-            onionSkin={onionSkin}
-            selection={selection}
-            onZoom={editor.setZoom}
-            onPushUndo={editor.pushUndoSnapshot}
-            onSelectionChange={editor.setSelection}
-            onFrameDataChange={editor.setFrameData}
-          />
-        </div>
+        {/* Canvas + Palette with resizable divider */}
+        <Group
+          orientation="horizontal"
+          id="image-editor-layout"
+          className="flex-1 min-w-0"
+        >
+          {/* Canvas */}
+          <Panel defaultSize="75%" minSize="30%">
+            <div className="relative h-full w-full">
+              <ImageCanvas
+                width={width}
+                height={height}
+                zoom={zoom}
+                tool={tool}
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                brushSize={brushSize}
+                blurSize={blurSize}
+                blurIntensity={blurIntensity}
+                currentFrameId={currentFrameId}
+                currentFrameData={currentFrameData}
+                previousFrameData={previousFrameData}
+                onionSkin={onionSkin}
+                selection={selection}
+                onZoom={editor.setZoom}
+                onPushUndo={editor.pushUndoSnapshot}
+                onSelectionChange={editor.setSelection}
+                onFrameDataChange={editor.setFrameData}
+              />
+            </div>
+          </Panel>
 
-        {/* Palette panel */}
-        <PalettePanel
-          palettes={palettes}
-          activePaletteId={activePaletteId}
-          onSwitchPalette={editor.switchPalette}
-          onRenamePalette={editor.renamePalette}
-          onDeletePalette={editor.deletePalette}
-          onDuplicatePalette={editor.duplicatePalette}
-          colors={getActivePalette(editor.state).colors}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          onSelectPrimary={editor.setPrimaryColor}
-          onSelectSecondary={editor.setSecondaryColor}
-          onAddColor={editor.addPaletteColor}
-          onRemoveColor={editor.removePaletteColor}
-          onUpdateColor={editor.updatePaletteColor}
-          onReorderColors={editor.reorderPaletteColors}
-          onImport={editor.importPalette}
-          onExport={editor.exportPalette}
-          onReset={editor.resetPalette}
-        />
+          <Separator
+            className="w-1 bg-border hover:bg-primary/50 transition-colors"
+            data-vaul-no-drag
+          />
+
+          {/* Palette panel */}
+          <Panel defaultSize="25%" minSize="10%" maxSize="60%">
+            <PalettePanel
+              palettes={palettes}
+              activePaletteId={activePaletteId}
+              onSwitchPalette={editor.switchPalette}
+              onRenamePalette={editor.renamePalette}
+              onDeletePalette={editor.deletePalette}
+              onDuplicatePalette={editor.duplicatePalette}
+              colors={getActivePalette(editor.state).colors}
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+              onSelectPrimary={editor.setPrimaryColor}
+              onSelectSecondary={editor.setSecondaryColor}
+              onAddColor={editor.addPaletteColor}
+              onRemoveColor={editor.removePaletteColor}
+              onUpdateColor={editor.updatePaletteColor}
+              onReorderColors={editor.reorderPaletteColors}
+              onImport={editor.importPalette}
+              onExport={editor.exportPalette}
+              onReset={editor.resetPalette}
+            />
+          </Panel>
+        </Group>
       </div>
 
       {/* Frames panel at bottom */}
