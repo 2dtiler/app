@@ -257,6 +257,12 @@ export interface Project {
   objectLayers: ObjectLayer[];
   /** Map objects placed on object layers */
   objects: MapObject[];
+  /**
+   * Single-tile tilesets created when a map tile is edited in the image editor.
+   * These are NOT shown in the Tileset panel — they serve as per-tile overrides
+   * so that editing a tile from the map only affects that specific tile instance.
+   */
+  overrideTilesets: Tileset[];
 }
 
 // ---------------------------------------------------------------------------

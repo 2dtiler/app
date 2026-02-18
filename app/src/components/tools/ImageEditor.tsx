@@ -2,25 +2,99 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { loadPaletteLibrary, savePaletteLibrary } from "@/lib/db";
+import { loadPaletteLibrary, savePaletteLibrary, saveAsset } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
+import { generateAssetId, generateTilesetId } from "@/lib/ids";
+import {
+  consumeTileEditorContext,
+  type TileEditorContext,
+} from "@/lib/tile-editor-context";
+import {
+  tilesetImageCache,
+  loadTilesetImage,
+  evictTileset,
+} from "@/components/editor/MapCanvas/texture-cache";
+import {
+  isImageEditorStoreReady,
+  getImageEditorStore,
+} from "@/lib/image-editor-store";
 import { NewImageDialog } from "./ImageEditor/NewImageDialog";
 import { ImageCanvas } from "./ImageEditor/ImageCanvas";
 import { ToolSidebar } from "./ImageEditor/ToolSidebar";
 import { EditorToolbar } from "./ImageEditor/EditorToolbar";
 import { PalettePanel } from "./ImageEditor/PalettePanel";
 import { FramesPanel } from "./ImageEditor/FramesPanel";
-import { ExportDialog } from "./ImageEditor/ExportDialog";
+import { SaveFormatDialog } from "./ImageEditor/SaveFormatDialog";
 import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
   const editor = useImageEditor();
-  const { state: mainState } = useEditorStore();
+  const { state: mainState, setState: setMainState } = useEditorStore();
   const projectId = mainState.project?.id;
   const prevProjectIdRef = useRef<string | undefined>(undefined);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
-  const [showExportSheet, setShowExportSheet] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  /** Context set by MapPanel when opening a specific tile for editing. */
+  const [activeTileCtx, setActiveTileCtx] = useState<TileEditorContext | null>(
+    null,
+  );
+
+  // ---------------------------------------------------------------------------
+  // On mount: check if the editor was opened from a map tile and load it.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const ctx = consumeTileEditorContext();
+    if (!ctx) return;
+
+    async function loadTile() {
+      if (!ctx) return;
+      // Ensure the tileset image is in the cache (it should be if the tile was
+      // visible on the map, but load it if not).
+      let img = tilesetImageCache.get(ctx.tilesetId);
+      if (!img) {
+        img = (await loadTilesetImage(ctx.tilesetId, ctx.assetId)) ?? undefined;
+      }
+      if (!img) return;
+
+      // Extract the tile's pixel region
+      const tmpCanvas = document.createElement("canvas");
+      tmpCanvas.width = ctx.sw;
+      tmpCanvas.height = ctx.sh;
+      const tmpCtx = tmpCanvas.getContext("2d");
+      if (!tmpCtx) return;
+      tmpCtx.imageSmoothingEnabled = false;
+      tmpCtx.drawImage(
+        img,
+        ctx.sx,
+        ctx.sy,
+        ctx.sw,
+        ctx.sh,
+        0,
+        0,
+        ctx.sw,
+        ctx.sh,
+      );
+      const imageData = tmpCtx.getImageData(0, 0, ctx.sw, ctx.sh);
+
+      // Initialise the editor with the tile's dimensions
+      const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
+      editor.initProject(ctx.sw, ctx.sh, savedPalettes ?? undefined);
+
+      // Write the pixel data into the blank first frame created by initProject
+      if (isImageEditorStoreReady()) {
+        const s = getImageEditorStore().getState();
+        if (s.frames.length > 0) {
+          editor.setFrameData(s.frames[0].id, imageData);
+        }
+      }
+
+      setActiveTileCtx(ctx);
+    }
+
+    void loadTile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {
@@ -33,6 +107,8 @@ export function ImageEditor() {
 
   const handleNew = useCallback(() => {
     setShowNewDialog(true);
+    // Clear tile context so Save opens the format dialog, not a tileset write
+    setActiveTileCtx(null);
   }, []);
 
   const handleResize = useCallback(() => {
@@ -46,6 +122,101 @@ export function ImageEditor() {
     },
     [editor],
   );
+
+  // ---------------------------------------------------------------------------
+  // Save — writes changes back ONLY to the specific map tile instance by
+  // creating (or updating) a per-tile override tileset.  The source tileset is
+  // never modified.
+  // ---------------------------------------------------------------------------
+
+  const handleSaveTile = useCallback(
+    async (ctx: TileEditorContext) => {
+      const frameData = editor.getCurrentFrameData();
+      if (!frameData) return;
+
+      // Render the edited frame into a standalone canvas (tile dimensions only)
+      const canvas = document.createElement("canvas");
+      canvas.width = ctx.sw;
+      canvas.height = ctx.sh;
+      const canvasCtx = canvas.getContext("2d");
+      if (!canvasCtx) return;
+      canvasCtx.imageSmoothingEnabled = false;
+      canvasCtx.putImageData(frameData, 0, 0);
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/png");
+      });
+      if (!blob) return;
+
+      const buffer = await blob.arrayBuffer();
+      const newAssetId = generateAssetId();
+      await saveAsset(newAssetId, buffer, "image/png");
+
+      setMainState((draft) => {
+        if (!draft.project) return;
+
+        // Ensure overrideTilesets array exists
+        if (!draft.project.overrideTilesets)
+          draft.project.overrideTilesets = [];
+
+        // Check whether this tile already points to an existing override tileset
+        const existingOverride = draft.project.overrideTilesets.find(
+          (t) => t.id === ctx.tilesetId,
+        );
+
+        let overrideTilesetId = existingOverride?.id;
+
+        if (existingOverride) {
+          // Re-use the same override tileset, just swap the asset
+          existingOverride.assetId = newAssetId;
+        } else {
+          // Create a new single-tile override tileset
+          const newId = generateTilesetId();
+          overrideTilesetId = newId;
+          // Borrow groupId from the source tileset (or use existing group)
+          const sourceTileset = [
+            ...draft.project.tilesets,
+            ...draft.project.overrideTilesets,
+          ].find((t) => t.id === ctx.tilesetId);
+          draft.project.overrideTilesets.push({
+            id: newId,
+            name: `__override__`,
+            groupId:
+              sourceTileset?.groupId ?? draft.project.tilesetGroups[0]!.id,
+            assetId: newAssetId,
+            imageWidth: ctx.sw,
+            imageHeight: ctx.sh,
+            createdAt: Date.now(),
+          });
+        }
+
+        // Evict the stale cache entry for the override tileset so MapCanvas
+        // reloads from the new assetId on the next render.
+        if (overrideTilesetId) evictTileset(overrideTilesetId);
+
+        // Update ONLY the specific tile in the specific layer
+        const layer = draft.project.layers.find((l) => l.id === ctx.layerId);
+        if (layer && overrideTilesetId) {
+          layer.tiles[`${ctx.tileX},${ctx.tileY}`] = {
+            tilesetId: overrideTilesetId,
+            sx: 0,
+            sy: 0,
+            sw: ctx.sw,
+            sh: ctx.sh,
+          };
+        }
+      });
+    },
+    [editor, setMainState],
+  );
+
+  const handleSave = useCallback(() => {
+    if (activeTileCtx) {
+      void handleSaveTile(activeTileCtx);
+    } else {
+      setShowSaveDialog(true);
+    }
+  }, [activeTileCtx, handleSaveTile]);
 
   // Restore palette library when the active project changes
   useEffect(() => {
@@ -103,6 +274,14 @@ export function ImageEditor() {
         return;
       }
 
+      // Save
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        handleSave();
+        return;
+      }
+
       // Tool shortcuts
       const tool = shortcuts[ev.key.toLowerCase()];
       if (tool) {
@@ -115,7 +294,7 @@ export function ImageEditor() {
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () =>
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [editor]);
+  }, [editor, handleSave]);
 
   // Not initialized yet — show dialog only
   if (!editor.state) {
@@ -174,9 +353,7 @@ export function ImageEditor() {
         onBlurIntensity={editor.setBlurIntensity}
         onNew={handleNew}
         onResize={handleResize}
-        onExportPng={editor.exportPng}
-        onExportGif={editor.exportGif}
-        onExportSpriteSheet={() => setShowExportSheet(true)}
+        onSave={handleSave}
         onUndo={editor.performUndo}
         onRedo={editor.performRedo}
       />
@@ -282,11 +459,13 @@ export function ImageEditor() {
         initialWidth={width}
         initialHeight={height}
       />
-      <ExportDialog
-        open={showExportSheet}
+      <SaveFormatDialog
+        open={showSaveDialog}
         totalFrames={frames.length}
-        onClose={() => setShowExportSheet(false)}
-        onExportSpriteSheet={editor.exportSpriteSheet}
+        onClose={() => setShowSaveDialog(false)}
+        onSavePng={editor.exportPng}
+        onSaveGif={editor.exportGif}
+        onSaveSpriteSheet={editor.exportSpriteSheet}
       />
     </div>
   );

@@ -21,9 +21,11 @@ import {
   ClipboardPaste,
   Undo2,
   Redo2,
+  Pencil,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
 import type { MapCanvasImperativeHandle } from "./MapCanvas";
+import { tilesetImageCache } from "./MapCanvas/texture-cache";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -116,6 +118,7 @@ import {
   setClipboard,
   type TileClipboard,
 } from "@/lib/tile-clipboard";
+import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { zoomStore } from "@/lib/zoom-store";
 
 export function MapPanel() {
@@ -135,6 +138,11 @@ export function MapPanel() {
   const [hasClipboard, setHasClipboard] = useState(
     () => getClipboard() !== null,
   );
+  /**
+   * Tracks whether the right-clicked position has a tile (to enable
+   * "Open tile in Image Editor").
+   */
+  const [hasContextMenuTile, setHasContextMenuTile] = useState(false);
 
   // --- Paint buffer for instant visual feedback ---
   // Tile changes are written here during a stroke.
@@ -556,6 +564,45 @@ export function MapPanel() {
   );
 
   // ---------------------------------------------------------------------------
+  // Open tile in Image Editor
+  // ---------------------------------------------------------------------------
+
+  const handleOpenInImageEditor = useCallback(() => {
+    if (!contextMenuTileRef.current || !activeLayer || !activeMap || !project)
+      return;
+
+    const { x, y } = contextMenuTileRef.current;
+    const tileRef = activeLayer.tiles[`${x},${y}`];
+    if (!tileRef) return;
+
+    // Search both regular and override tilesets
+    const allTilesets = [
+      ...project.tilesets,
+      ...(project.overrideTilesets ?? []),
+    ];
+    const tileset = allTilesets.find((t) => t.id === tileRef.tilesetId);
+    if (!tileset) return;
+
+    // Only proceed if the tileset image is already cached (it should be visible
+    // on the map canvas at the time the user right-clicks it).
+    if (!tilesetImageCache.has(tileRef.tilesetId)) return;
+
+    setTileEditorContext({
+      tilesetId: tileRef.tilesetId,
+      assetId: tileset.assetId,
+      sx: tileRef.sx,
+      sy: tileRef.sy,
+      sw: tileRef.sw,
+      sh: tileRef.sh,
+      layerId: activeLayer.id,
+      tileX: x,
+      tileY: y,
+    });
+
+    window.dispatchEvent(new CustomEvent("open-image-editor"));
+  }, [contextMenuTileRef, activeLayer, activeMap, project]);
+
+  // ---------------------------------------------------------------------------
   // Copy / Cut / Paste tile operations
   // ---------------------------------------------------------------------------
 
@@ -592,9 +639,15 @@ export function MapPanel() {
   const handleMapContextMenu = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const tile = eventToTile(e);
-      if (tile) contextMenuTileRef.current = tile;
+      if (tile) {
+        contextMenuTileRef.current = tile;
+        const tileRef = activeLayer?.tiles[`${tile.x},${tile.y}`] ?? null;
+        setHasContextMenuTile(!!tileRef);
+      } else {
+        setHasContextMenuTile(false);
+      }
     },
-    [eventToTile],
+    [eventToTile, activeLayer],
   );
 
   /**
@@ -843,6 +896,7 @@ export function MapPanel() {
   const canCut = !!activeMap && isTileLayerActive;
   const canCutToolbar = canCut && !!state.mapSelection;
   const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
+  const canOpenInEditor = !!activeMap && !!activeLayer && hasContextMenuTile;
 
   if (!project) return null;
 
@@ -1581,7 +1635,10 @@ export function MapPanel() {
               <MapCanvas
                 map={flatMap as TileMapData}
                 layers={flatLayers}
-                tilesets={project.tilesets}
+                tilesets={[
+                  ...project.tilesets,
+                  ...(project.overrideTilesets ?? []),
+                ]}
                 zoom={mapZoom}
                 activeLayerId={state.activeLayerId}
                 currentTool={state.currentTool}
@@ -1648,6 +1705,14 @@ export function MapPanel() {
             <ClipboardPaste className="h-3.5 w-3.5" />
             Paste
             <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            disabled={!canOpenInEditor}
+            onSelect={handleOpenInImageEditor}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Open tile in Image Editor
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

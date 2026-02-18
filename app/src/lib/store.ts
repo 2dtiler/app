@@ -100,6 +100,10 @@ export async function initEditorStore(): Promise<EditorTravels> {
     if (restoredState.project && !restoredState.project.objects) {
       restoredState.project.objects = [];
     }
+    // Ensure overrideTilesets exists for older projects
+    if (restoredState.project && !restoredState.project.overrideTilesets) {
+      restoredState.project.overrideTilesets = [];
+    }
     // Migrate old string-only properties to { value, type } format
     if (restoredState.project) {
       for (const obj of restoredState.project.objects) {

@@ -68,6 +68,7 @@ function createNewProject(name: string): Project {
     terrains: [],
     objectLayers: [],
     objects: [],
+    overrideTilesets: [],
   };
 }
 

@@ -1,6 +1,4 @@
-Replace Pixi.js
-
-Right click on a map element to open in editor
+Save a project/reload a project doesnt work
 Rotate Left/Right/Flip Horizontal/Flip Vertical (Also add to right click)
 
 Image Generator
@@ -17,6 +15,7 @@ Unslopify
 Make list of tiled advanced features
   - Terrain brush
   - Map Custom Options
+  - Layer Custom Options
   - Select + Magic Wand
 Make list of aseprite advanced features
 AI Asset Generation

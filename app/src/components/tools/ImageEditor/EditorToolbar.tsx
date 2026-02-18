@@ -1,9 +1,8 @@
 import {
   FilePlus,
-  Download,
+  Save,
   ZoomIn,
   ZoomOut,
-  ChevronDown,
   Scaling,
   Undo2,
   Redo2,
@@ -16,12 +15,6 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import type { ImageEditorTool } from "@/types/image-editor";
 
@@ -39,9 +32,7 @@ interface EditorToolbarProps {
   onBlurIntensity: (i: number) => void;
   onNew: () => void;
   onResize: () => void;
-  onExportPng: () => void;
-  onExportGif: () => void;
-  onExportSpriteSheet: () => void;
+  onSave: () => void;
   onUndo: () => void;
   onRedo: () => void;
 }
@@ -60,9 +51,7 @@ export function EditorToolbar({
   onBlurIntensity,
   onNew,
   onResize,
-  onExportPng,
-  onExportGif,
-  onExportSpriteSheet,
+  onSave,
   onUndo,
   onRedo,
 }: EditorToolbarProps) {
@@ -89,32 +78,16 @@ export function EditorToolbar({
             <TooltipContent>Image Dimensions</TooltipContent>
           </Tooltip>
 
-          {/* Export dropdown */}
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="xs">
-                    <Download className="size-3.5 mr-1" />
-                    Export
-                    <ChevronDown className="size-3 ml-0.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Export image</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={onExportPng}>
-                Export as PNG
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportGif}>
-                Export as GIF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportSpriteSheet}>
-                Export as Sprite Sheet
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Save button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="xs" onClick={onSave}>
+                <Save className="size-3.5 mr-1" />
+                Save
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Save (Ctrl+S)</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="w-px h-5 bg-border" />

@@ -27,13 +27,41 @@ import type {
 } from "@/types";
 
 import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
-const SettingsDialog = lazy(() => import("@/components/dialogs/SettingsDialog").then(m => ({ default: m.SettingsDialog })));
-const ProjectModal = lazy(() => import("@/components/dialogs/ProjectModal").then(m => ({ default: m.ProjectModal })));
-const AboutDialog = lazy(() => import("@/components/dialogs/AboutDialog").then(m => ({ default: m.AboutDialog })));
-const KeyboardShortcutsDialog = lazy(() => import("@/components/dialogs/KeyboardShortcutsDialog").then(m => ({ default: m.KeyboardShortcutsDialog })));
-const FindReplaceDialog = lazy(() => import("@/components/dialogs/FindReplaceDialog").then(m => ({ default: m.FindReplaceDialog })));
-const BugReportDialog = lazy(() => import("@/components/dialogs/BugReportDialog").then(m => ({ default: m.BugReportDialog })));
-const ToolDrawer = lazy(() => import("@/components/dialogs/ToolDrawer").then(m => ({ default: m.ToolDrawer })));
+const SettingsDialog = lazy(() =>
+  import("@/components/dialogs/SettingsDialog").then((m) => ({
+    default: m.SettingsDialog,
+  })),
+);
+const ProjectModal = lazy(() =>
+  import("@/components/dialogs/ProjectModal").then((m) => ({
+    default: m.ProjectModal,
+  })),
+);
+const AboutDialog = lazy(() =>
+  import("@/components/dialogs/AboutDialog").then((m) => ({
+    default: m.AboutDialog,
+  })),
+);
+const KeyboardShortcutsDialog = lazy(() =>
+  import("@/components/dialogs/KeyboardShortcutsDialog").then((m) => ({
+    default: m.KeyboardShortcutsDialog,
+  })),
+);
+const FindReplaceDialog = lazy(() =>
+  import("@/components/dialogs/FindReplaceDialog").then((m) => ({
+    default: m.FindReplaceDialog,
+  })),
+);
+const BugReportDialog = lazy(() =>
+  import("@/components/dialogs/BugReportDialog").then((m) => ({
+    default: m.BugReportDialog,
+  })),
+);
+const ToolDrawer = lazy(() =>
+  import("@/components/dialogs/ToolDrawer").then((m) => ({
+    default: m.ToolDrawer,
+  })),
+);
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
@@ -109,6 +137,16 @@ function App() {
     return () =>
       window.removeEventListener("open-find-replace", handleOpenFindReplace);
   }, [setFindReplaceOpen]);
+
+  // Listen for map-tile "Open in Image Editor" event dispatched by MapPanel
+  useEffect(() => {
+    function handleOpenImageEditor() {
+      setActiveTool("image-editor");
+    }
+    window.addEventListener("open-image-editor", handleOpenImageEditor);
+    return () =>
+      window.removeEventListener("open-image-editor", handleOpenImageEditor);
+  }, [setActiveTool]);
 
   if (!ready) {
     return loadingScreen;
@@ -459,23 +497,57 @@ function AppShell({
         emptyProjectMessage
       )}
 
-      {settingsOpen && <Suspense><SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} /></Suspense>}
-      {projectModalOpen && <Suspense><ProjectModal
-        open={projectModalOpen}
-        onOpenChange={setProjectModalOpen}
-        onProjectLoaded={() => setProjectModalOpen(false)}
-      /></Suspense>}
-      {aboutOpen && <Suspense><AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} /></Suspense>}
-      {shortcutsOpen && <Suspense><KeyboardShortcutsDialog
-        open={shortcutsOpen}
-        onOpenChange={setShortcutsOpen}
-      /></Suspense>}
-      {findReplaceOpen && <Suspense><FindReplaceDialog
-        open={findReplaceOpen}
-        onOpenChange={setFindReplaceOpen}
-      /></Suspense>}
-      {bugReportOpen && <Suspense><BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} /></Suspense>}
-      {activeTool !== null && <Suspense><ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} /></Suspense>}
+      {settingsOpen && (
+        <Suspense>
+          <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+        </Suspense>
+      )}
+      {projectModalOpen && (
+        <Suspense>
+          <ProjectModal
+            open={projectModalOpen}
+            onOpenChange={setProjectModalOpen}
+            onProjectLoaded={() => setProjectModalOpen(false)}
+          />
+        </Suspense>
+      )}
+      {aboutOpen && (
+        <Suspense>
+          <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+        </Suspense>
+      )}
+      {shortcutsOpen && (
+        <Suspense>
+          <KeyboardShortcutsDialog
+            open={shortcutsOpen}
+            onOpenChange={setShortcutsOpen}
+          />
+        </Suspense>
+      )}
+      {findReplaceOpen && (
+        <Suspense>
+          <FindReplaceDialog
+            open={findReplaceOpen}
+            onOpenChange={setFindReplaceOpen}
+          />
+        </Suspense>
+      )}
+      {bugReportOpen && (
+        <Suspense>
+          <BugReportDialog
+            open={bugReportOpen}
+            onOpenChange={setBugReportOpen}
+          />
+        </Suspense>
+      )}
+      {activeTool !== null && (
+        <Suspense>
+          <ToolDrawer
+            activeTool={activeTool}
+            onClose={() => setActiveTool(null)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -50,6 +50,19 @@ export function evictUnusedTilesets(activeIds: Set<TilesetId>): void {
   }
 }
 
+/**
+ * Evict a single tileset from the cache (e.g. after its asset has been updated).
+ * Revokes the associated object URL so the browser releases the blob memory.
+ */
+export function evictTileset(tilesetId: TilesetId): void {
+  const url = tilesetBlobUrls.get(tilesetId);
+  if (url) {
+    URL.revokeObjectURL(url);
+    tilesetBlobUrls.delete(tilesetId);
+  }
+  tilesetImageCache.delete(tilesetId);
+}
+
 export function getTileImage(ref: TileRef): HTMLImageElement | null {
   return tilesetImageCache.get(ref.tilesetId) ?? null;
 }
