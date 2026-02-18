@@ -82,8 +82,10 @@ export function ImageCanvas({
         const canvas = canvasRef.current;
         const overlay = overlayRef.current;
         if (canvas && overlay) {
-          const ctx = canvas.getContext("2d");
-          const overlayCtx = overlay.getContext("2d");
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          const overlayCtx = overlay.getContext("2d", {
+            willReadFrequently: true,
+          });
           if (ctx && overlayCtx) {
             const tc: ToolContext = {
               ctx,
@@ -133,7 +135,7 @@ export function ImageCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !currentFrameData) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
     ctx.putImageData(currentFrameData, 0, 0);
   }, [currentFrameData, currentFrameId]);
@@ -219,8 +221,8 @@ export function ImageCanvas({
       const canvas = canvasRef.current;
       const overlay = overlayRef.current;
       if (!canvas || !overlay) return null;
-      const ctx = canvas.getContext("2d");
-      const overlayCtx = overlay.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const overlayCtx = overlay.getContext("2d", { willReadFrequently: true });
       if (!ctx || !overlayCtx) return null;
       return {
         ctx,

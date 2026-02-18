@@ -1,4 +1,4 @@
-import { type ComponentType, lazy, Suspense } from "react";
+import { type ComponentType, lazy, Suspense, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import {
   Drawer,
@@ -35,6 +35,18 @@ interface ToolDrawerProps {
 export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   const config = activeTool ? TOOL_CONFIG[activeTool] : null;
   const ToolComponent = config?.component ?? null;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Move focus to the drawer close button when it opens to prevent aria-hidden warning
+  useEffect(() => {
+    if (activeTool !== null && closeButtonRef.current) {
+      // Use setTimeout to ensure the drawer has rendered and focus can be moved
+      const timer = setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTool]);
 
   return (
     <Drawer
@@ -51,7 +63,10 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
           <DrawerDescription className="sr-only">
             {config?.label ?? "Tool panel"}
           </DrawerDescription>
-          <DrawerClose className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm opacity-70 hover:opacity-100 focus:outline-none">
+          <DrawerClose
+            ref={closeButtonRef}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
+          >
             <X className="h-5 w-5" />
             <span className="sr-only">Close</span>
           </DrawerClose>

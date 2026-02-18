@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
 import {
   Menubar,
   MenubarContent,
@@ -37,6 +37,9 @@ export const Toolbar = memo(function Toolbar({
 }: ToolbarProps) {
   // Get controls without subscribing to state — avoids re-renders on every state change
   const controls = useMemo(() => getEditorStore().getControls(), []);
+  // Track whether a tool item was selected so we can suppress focus-return to the
+  // menubar trigger (which would land inside vaul's aria-hidden root)
+  const toolOpeningRef = useRef(false);
 
   return (
     <header className="flex h-8 shrink-0 items-center border-b border-border bg-card px-1">
@@ -114,11 +117,29 @@ export const Toolbar = memo(function Toolbar({
           <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
             Tools
           </MenubarTrigger>
-          <MenubarContent className="min-w-45">
-            <MenubarItem onMouseDown={() => onOpenTool("image-editor")}>
+          <MenubarContent
+            className="min-w-45"
+            onCloseAutoFocus={(e) => {
+              if (toolOpeningRef.current) {
+                toolOpeningRef.current = false;
+                e.preventDefault();
+              }
+            }}
+          >
+            <MenubarItem
+              onMouseDown={() => {
+                toolOpeningRef.current = true;
+                onOpenTool("image-editor");
+              }}
+            >
               Image/Sprite Editor
             </MenubarItem>
-            <MenubarItem onMouseDown={() => onOpenTool("ai-assets")}>
+            <MenubarItem
+              onMouseDown={() => {
+                toolOpeningRef.current = true;
+                onOpenTool("ai-assets");
+              }}
+            >
               AI Assets Generator
             </MenubarItem>
           </MenubarContent>
