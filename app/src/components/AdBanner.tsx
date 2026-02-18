@@ -1,16 +1,13 @@
 import { useEffect, useRef } from "react";
+import type { AdBannerProps } from "@/types";
+
+// Re-export for backward compatibility
+export type { AdBannerProps } from "@/types";
 
 declare global {
   interface Window {
     adsbygoogle: unknown[];
   }
-}
-
-interface AdBannerProps {
-  adSlot: string;
-  adFormat?: string;
-  fullWidthResponsive?: boolean;
-  className?: string;
 }
 
 export function AdBanner({

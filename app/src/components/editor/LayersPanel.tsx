@@ -66,6 +66,8 @@ import type {
   LayerGroup,
   LayerType,
   MapObject,
+  GroupRowProps,
+  LayerRowProps,
 } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -808,8 +810,10 @@ export function LayersPanel() {
       // Build ID maps
       const layerIdMap = new Map<string, LayerId>();
       const groupIdMap = new Map<string, LayerGroupId>();
-      for (const id of childLayerIds) layerIdMap.set(id as string, generateLayerId());
-      for (const id of childGroupIds) groupIdMap.set(id as string, generateLayerGroupId());
+      for (const id of childLayerIds)
+        layerIdMap.set(id as string, generateLayerId());
+      for (const id of childGroupIds)
+        groupIdMap.set(id as string, generateLayerGroupId());
 
       const newGroupId = generateLayerGroupId();
       groupIdMap.set(groupId, newGroupId);
@@ -1169,7 +1173,9 @@ export function LayersPanel() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onMouseDown={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onMouseDown={handleDelete}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1180,39 +1186,6 @@ export function LayersPanel() {
 // ---------------------------------------------------------------------------
 // GroupRow component
 // ---------------------------------------------------------------------------
-
-interface GroupRowProps {
-  group: LayerGroup;
-  depth: number;
-  parentGroupId: LayerGroupId | null;
-  renamingId: string | null;
-  renameValue: string;
-  onRenameValueChange: (value: string) => void;
-  onDoubleClick: (id: string, name: string) => void;
-  onCommitRename: () => void;
-  onCancelRename: () => void;
-  onToggleExpand: (id: LayerGroupId) => void;
-  onToggleVisibility: (id: string, isGroup: boolean) => void;
-  onToggleLock: (id: string, isGroup: boolean) => void;
-  onMove: (
-    id: string,
-    dir: "up" | "down",
-    parentGroupId: LayerGroupId | null,
-  ) => void;
-  onDelete: (id: string, name: string) => void;
-  onDuplicate: (id: string) => void;
-  // Drag & Drop
-  isDragging: boolean;
-  dropIndicator: "above" | "below" | "inside" | null;
-  onDragStart: (id: string, isGroup: boolean) => void;
-  onDragEnd: () => void;
-  onDragOver: (
-    e: React.DragEvent,
-    targetId: string,
-    targetIsGroup: boolean,
-  ) => void;
-  onDrop: (e: React.DragEvent) => void;
-}
 
 const GroupRow = memo(function GroupRow({
   group,
@@ -1445,14 +1418,18 @@ const GroupRow = memo(function GroupRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onMouseDown={() => onDoubleClick(group.id, group.name)}>
+        <ContextMenuItem
+          onMouseDown={() => onDoubleClick(group.id, group.name)}
+        >
           Rename
         </ContextMenuItem>
         <ContextMenuItem onMouseDown={() => onDuplicate(group.id)}>
           <Copy className="h-4 w-4 mr-2" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onMouseDown={() => onMove(group.id, "up", parentGroupId)}>
+        <ContextMenuItem
+          onMouseDown={() => onMove(group.id, "up", parentGroupId)}
+        >
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
         </ContextMenuItem>
         <ContextMenuItem
@@ -1475,40 +1452,6 @@ const GroupRow = memo(function GroupRow({
 // ---------------------------------------------------------------------------
 // LayerRow component
 // ---------------------------------------------------------------------------
-
-interface LayerRowProps {
-  layer: TileLayer | ImageLayer | ObjectLayer;
-  depth: number;
-  parentGroupId: LayerGroupId | null;
-  isActive: boolean;
-  renamingId: string | null;
-  renameValue: string;
-  onRenameValueChange: (value: string) => void;
-  onDoubleClick: (id: string, name: string) => void;
-  onCommitRename: () => void;
-  onCancelRename: () => void;
-  onSelect: (id: LayerId) => void;
-  onToggleVisibility: (id: string, isGroup: boolean) => void;
-  onToggleLock: (id: string, isGroup: boolean) => void;
-  onMove: (
-    id: string,
-    dir: "up" | "down",
-    parentGroupId: LayerGroupId | null,
-  ) => void;
-  onDelete: (id: string, name: string) => void;
-  onDuplicate: (id: string) => void;
-  // Drag & Drop
-  isDragging: boolean;
-  dropIndicator: "above" | "below" | "inside" | null;
-  onDragStart: (id: string, isGroup: boolean) => void;
-  onDragEnd: () => void;
-  onDragOver: (
-    e: React.DragEvent,
-    targetId: string,
-    targetIsGroup: boolean,
-  ) => void;
-  onDrop: (e: React.DragEvent) => void;
-}
 
 const LayerRow = memo(function LayerRow({
   layer,
@@ -1715,7 +1658,9 @@ const LayerRow = memo(function LayerRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onMouseDown={() => onToggleVisibility(layer.id, false)}>
+        <ContextMenuItem
+          onMouseDown={() => onToggleVisibility(layer.id, false)}
+        >
           {layer.visible ? (
             <>
               <EyeOff className="h-4 w-4 mr-2" /> Hide Layer
@@ -1737,14 +1682,18 @@ const LayerRow = memo(function LayerRow({
             </>
           )}
         </ContextMenuItem>
-        <ContextMenuItem onMouseDown={() => onDoubleClick(layer.id, layer.name)}>
+        <ContextMenuItem
+          onMouseDown={() => onDoubleClick(layer.id, layer.name)}
+        >
           <TextCursorInput className="h-4 w-4 mr-2" /> Rename
         </ContextMenuItem>
         <ContextMenuItem onMouseDown={() => onDuplicate(layer.id)}>
           <Copy className="h-4 w-4 mr-2" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onMouseDown={() => onMove(layer.id, "up", parentGroupId)}>
+        <ContextMenuItem
+          onMouseDown={() => onMove(layer.id, "up", parentGroupId)}
+        >
           <ChevronUp className="h-4 w-4 mr-2" /> Move Up
         </ContextMenuItem>
         <ContextMenuItem

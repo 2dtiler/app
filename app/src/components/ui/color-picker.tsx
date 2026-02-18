@@ -6,7 +6,6 @@ import { Slider } from "radix-ui";
 import {
   type ComponentProps,
   createContext,
-  type HTMLAttributes,
   memo,
   useCallback,
   useContext,
@@ -25,19 +24,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import type {
+  ColorPickerContextValue,
+  ColorPickerProps,
+  ColorPickerSelectionProps,
+  ColorPickerHueProps,
+  ColorPickerAlphaProps,
+  ColorPickerEyeDropperProps,
+  ColorPickerOutputProps,
+  ColorPickerFormatProps,
+} from "@/types";
 
-type ColorPickerContextValue = {
-  hue: number;
-  saturation: number;
-  lightness: number;
-  alpha: number;
-  mode: string;
-  setHue: (hue: number) => void;
-  setSaturation: (saturation: number) => void;
-  setLightness: (lightness: number) => void;
-  setAlpha: (alpha: number) => void;
-  setMode: (mode: string) => void;
-};
+// Re-export for backward compatibility
+export type {
+  ColorPickerProps,
+  ColorPickerSelectionProps,
+  ColorPickerHueProps,
+  ColorPickerAlphaProps,
+  ColorPickerEyeDropperProps,
+  ColorPickerOutputProps,
+  ColorPickerFormatProps,
+} from "@/types";
 
 const ColorPickerContext = createContext<ColorPickerContextValue | undefined>(
   undefined,
@@ -51,12 +58,6 @@ const useColorPicker = () => {
   }
 
   return context;
-};
-
-export type ColorPickerProps = HTMLAttributes<HTMLDivElement> & {
-  value?: Parameters<typeof Color>[0];
-  defaultValue?: Parameters<typeof Color>[0];
-  onChange?: (value: Parameters<typeof Color.rgb>[0]) => void;
 };
 
 export const ColorPicker = ({
@@ -127,8 +128,6 @@ export const ColorPicker = ({
     </ColorPickerContext.Provider>
   );
 };
-
-export type ColorPickerSelectionProps = HTMLAttributes<HTMLDivElement>;
 
 export const ColorPickerSelection = memo(
   ({ className, ...props }: ColorPickerSelectionProps) => {
@@ -212,8 +211,6 @@ export const ColorPickerSelection = memo(
 
 ColorPickerSelection.displayName = "ColorPickerSelection";
 
-export type ColorPickerHueProps = ComponentProps<typeof Slider.Root>;
-
 export const ColorPickerHue = ({
   className,
   ...props
@@ -236,8 +233,6 @@ export const ColorPickerHue = ({
     </Slider.Root>
   );
 };
-
-export type ColorPickerAlphaProps = ComponentProps<typeof Slider.Root>;
 
 export const ColorPickerAlpha = ({
   className,
@@ -262,8 +257,6 @@ export const ColorPickerAlpha = ({
     </Slider.Root>
   );
 };
-
-export type ColorPickerEyeDropperProps = ComponentProps<typeof Button>;
 
 export const ColorPickerEyeDropper = ({
   className,
@@ -301,8 +294,6 @@ export const ColorPickerEyeDropper = ({
     </Button>
   );
 };
-
-export type ColorPickerOutputProps = ComponentProps<typeof SelectTrigger>;
 
 const formats = ["hex", "rgb", "css", "hsl"];
 
@@ -355,8 +346,6 @@ const PercentageInput = ({
     </div>
   );
 };
-
-export type ColorPickerFormatProps = HTMLAttributes<HTMLDivElement>;
 
 export const ColorPickerFormat = ({
   className,

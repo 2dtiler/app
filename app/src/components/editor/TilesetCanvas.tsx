@@ -18,50 +18,10 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { getAssetUrl } from "@/lib/db";
-import type { AssetId, TileSize, TilesetId } from "@/types";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/** Pixel region within a tileset (no tilesetId — the parent knows which tileset) */
-export interface TileRegion {
-  sx: number;
-  sy: number;
-  sw: number;
-  sh: number;
-}
-
-export interface TilesetCanvasProps {
-  /** The IndexedDB asset ID for the tileset image. Null hides the canvas. */
-  assetId: AssetId | null;
-  /** Tile size in pixels used to draw the grid */
-  tileSize: TileSize;
-  /** Current zoom level (0.5 – 4) */
-  zoom: number;
-  /** Called when the user changes zoom via Ctrl+Wheel */
-  onZoomChange: (zoom: number) => void;
-  /** Currently highlighted tile (orange border). Coordinates are in pixels. */
-  selectedTile: TileRegion | null;
-  /** Called when the user clicks a tile */
-  onTileSelect: (tile: TileRegion) => void;
-  /** Additional CSS classes for the outer container */
-  className?: string;
-  /** Placeholder text when no image is loaded */
-  placeholder?: string;
-  /**
-   * When set, enables native HTML drag on tiles. The dragged data will
-   * include the tilesetId so drop targets know which tileset the tile
-   * comes from. Used by the Find & Replace dialog.
-   */
-  dragTilesetId?: TilesetId;
-  /**
-   * Called when the user right-clicks a tile. Receives tile grid coordinates
-   * (column, row). If provided, right-clicks will NOT propagate a native
-   * context menu — the parent should handle that via ContextMenuTrigger.
-   */
-  onContextMenuTile?: (tx: number, ty: number) => void;
-}
+// Re-export for backward compatibility
+export type { TileRegion, TilesetCanvasProps } from "@/types";
+import type { TilesetCanvasProps } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Component

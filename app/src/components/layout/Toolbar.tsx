@@ -14,25 +14,10 @@ import {
 // rerender-defer-reads: use store directly for controls to avoid
 // subscribing to full state which would re-render on every change
 import { getEditorStore } from "@/lib/store";
+import type { ToolbarProps } from "@/types";
 
-export type ToolName = "image-editor" | "ai-assets";
-
-interface ToolbarProps {
-  onNewProject: () => void;
-  onSaveProject: () => void;
-  onImportProject: () => void;
-  onImportMap: () => void;
-  onImportTileset: () => void;
-  onExportProject: () => void;
-  onExportMap: () => void;
-  onExportTileset: () => void;
-  onOpenSettings: () => void;
-  onAbout: () => void;
-  onKeyboardShortcuts: () => void;
-  onSubmitBug: () => void;
-  onFindReplace: () => void;
-  onOpenTool: (tool: ToolName) => void;
-}
+// Re-export for backward compatibility
+export type { ToolName, ToolbarProps } from "@/types";
 
 export const Toolbar = memo(function Toolbar({
   onNewProject,
