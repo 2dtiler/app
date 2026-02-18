@@ -127,6 +127,12 @@ const textureCache = new Map<string, Texture>();
 const textureBlobUrls = new Map<string, string>();
 const loadingTextures = new Set<string>();
 
+// Sub-texture cache — reuses the same Texture object for identical tile frames.
+// Without this, getTileTexture creates a new Texture on every call, causing
+// @pixi/react's reconciler to see a changed `texture` prop on every sprite every
+// render, forcing all tile sprites to be re-uploaded even when nothing moved.
+const tileSubTextureCache = new Map<string, Texture>();
+
 async function loadTilesetTexture(
   tilesetId: TilesetId,
   assetId: AssetId,
@@ -203,6 +209,12 @@ function evictUnusedTextures(activeIds: Set<TilesetId>): void {
       const tex = textureCache.get(id);
       if (tex) tex.destroy(true);
       textureCache.delete(id);
+      // Evict sub-texture cache entries that came from this tileset so they
+      // don't hold stale references after the base texture is destroyed.
+      const prefix = `${id}:`;
+      for (const key of tileSubTextureCache.keys()) {
+        if (key.startsWith(prefix)) tileSubTextureCache.delete(key);
+      }
       const url = textureBlobUrls.get(id);
       if (url) {
         URL.revokeObjectURL(url);
@@ -216,10 +228,18 @@ function getTileTexture(ref: TileRef): Texture | null {
   const base = textureCache.get(ref.tilesetId);
   if (!base) return null;
 
-  // Create a sub-texture with the correct frame
+  // Return a cached sub-texture so that the same Texture object is reused
+  // across renders. This lets @pixi/react's reconciler detect that the
+  // `texture` prop is unchanged and skip updating unmodified sprites.
+  const cacheKey = `${ref.tilesetId}:${ref.sx},${ref.sy},${ref.sw},${ref.sh}`;
+  const cached = tileSubTextureCache.get(cacheKey);
+  if (cached) return cached;
+
   const frame = new Rectangle(ref.sx, ref.sy, ref.sw, ref.sh);
   try {
-    return new Texture({ source: base.source, frame });
+    const tex = new Texture({ source: base.source, frame });
+    tileSubTextureCache.set(cacheKey, tex);
+    return tex;
   } catch {
     return null;
   }
@@ -339,6 +359,13 @@ const MapScene = memo(function MapScene({
 }: MapCanvasProps & { texturesReady: number }) {
   const { app, isInitialised } = useApplication();
   const isPaintingRef = useRef(false);
+  // Ref to the hover Graphics node — drawn imperatively so the yellow hover
+  // box updates without triggering a React re-render on every pointer move.
+  const hoverGraphicsRef = useRef<Graphics | null>(null);
+  // Stable no-op passed as the required `draw` prop so @pixi/react never
+  // overwrites our imperative content (it only calls `draw` when the reference
+  // changes, and this one never changes after mount).
+  const hoverDrawNoop = useCallback((_g: Graphics) => {}, []);
   const [hoverTile, setHoverTile] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -994,6 +1021,28 @@ const MapScene = memo(function MapScene({
   const handlePointerMove = useCallback(
     (e: { global: { x: number; y: number } }) => {
       const pos = getGridPos(e.global.x, e.global.y);
+
+      // Draw the yellow hover box directly on the Pixi Graphics node — no
+      // React state update, no re-render. The box is always visible whether
+      // idle or mid-stroke at essentially zero cost.
+      const hg = hoverGraphicsRef.current;
+      if (hg) {
+        hg.clear();
+        if (pos && currentTool !== "select") {
+          const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
+          const hx = pos.x * scaledTile;
+          const hy = pos.y * scaledTile;
+          const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
+          const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
+          hg.rect(hx, hy, hw, hh);
+          hg.fill({ color: 0xffa500, alpha: 0.2 });
+          hg.setStrokeStyle({ width: 2, color: 0xffa500, alpha: 0.8 });
+          hg.rect(hx, hy, hw, hh);
+          hg.stroke();
+        }
+      }
+
+      // Update state for the tile ghost-preview sprites (cheap with sub-texture cache)
       setHoverTile(pos);
 
       // Track cursor for polygon drawing preview
@@ -1263,6 +1312,7 @@ const MapScene = memo(function MapScene({
     [
       getGridPos,
       currentTool,
+      brushSize,
       onPaintTile,
       scaledTile,
       mapW,
@@ -1431,6 +1481,7 @@ const MapScene = memo(function MapScene({
 
   const handlePointerLeave = useCallback(() => {
     setHoverTile(null);
+    hoverGraphicsRef.current?.clear();
     // Commit object placement on leave
     if (currentTool === "select" && objectPlaceRef.current) {
       objectPlaceRef.current = null;
@@ -1584,30 +1635,6 @@ const MapScene = memo(function MapScene({
       g.stroke();
     },
     [canvasW, canvasH, scaledTile],
-  );
-
-  // Draw hover highlight + brush size preview
-  const drawHover = useCallback(
-    (g: Graphics) => {
-      g.clear();
-      if (!hoverTile || currentTool === "select") return;
-
-      const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
-      const hx = hoverTile.x * scaledTile;
-      const hy = hoverTile.y * scaledTile;
-      const hw = Math.min(brushNum, mapW - hoverTile.x) * scaledTile;
-      const hh = Math.min(brushNum, mapH - hoverTile.y) * scaledTile;
-
-      // Semi-transparent highlight
-      g.rect(hx, hy, hw, hh);
-      g.fill({ color: 0xffa500, alpha: 0.2 });
-
-      // Border
-      g.setStrokeStyle({ width: 2, color: 0xffa500, alpha: 0.8 });
-      g.rect(hx, hy, hw, hh);
-      g.stroke();
-    },
-    [hoverTile, currentTool, brushSize, scaledTile, mapW, mapH],
   );
 
   // Draw selection rectangle (no resize handles)
@@ -1989,6 +2016,11 @@ const MapScene = memo(function MapScene({
     return () => window.removeEventListener("keydown", handleKey, true);
   }, [isDrawingPolygon, polygonPoints, onCreateObject, onCancelPendingObject]);
 
+  // Clear the hover box when switching tools (no pointer-move fires to trigger it)
+  useEffect(() => {
+    hoverGraphicsRef.current?.clear();
+  }, [currentTool]);
+
   // --- Reset polygon state when pendingObjectType changes away from polygon ---
   if (prevPendingObjectType !== pendingObjectType) {
     setPrevPendingObjectType(pendingObjectType);
@@ -2150,8 +2182,8 @@ const MapScene = memo(function MapScene({
           return <>{sprites}</>;
         })()}
 
-      {/* Hover highlight */}
-      <pixiGraphics draw={drawHover} />
+      {/* Hover highlight — drawn imperatively via ref, no React render needed */}
+      <pixiGraphics ref={hoverGraphicsRef} />
 
       {/* Selection overlay */}
       {currentTool === "select" && <pixiGraphics draw={drawSelection} />}
