@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import type {
   Color,
   ImageEditorTool,
@@ -123,6 +123,8 @@ export function ImageCanvas({
     primaryColor,
     brushSize,
     currentFrameId,
+    blurIntensity,
+    blurSize,
     onSelectionChange,
     onFrameDataChange,
   ]);
@@ -255,7 +257,9 @@ export function ImageCanvas({
 
   // Animated marching-ants selection border (screen-resolution canvas)
   const selectionRef = useRef(selection);
-  selectionRef.current = selection;
+  useLayoutEffect(() => {
+    selectionRef.current = selection;
+  });
 
   useEffect(() => {
     const c = selBorderRef.current;
