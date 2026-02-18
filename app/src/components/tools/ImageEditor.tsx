@@ -4,13 +4,13 @@ import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
-import { NewImageDialog } from "./image-editor/NewImageDialog";
-import { ImageCanvas } from "./image-editor/ImageCanvas";
-import { ToolSidebar } from "./image-editor/ToolSidebar";
-import { EditorToolbar } from "./image-editor/EditorToolbar";
-import { PalettePanel } from "./image-editor/PalettePanel";
-import { FramesPanel } from "./image-editor/FramesPanel";
-import { ExportDialog } from "./image-editor/ExportDialog";
+import { NewImageDialog } from "./ImageEditor/NewImageDialog";
+import { ImageCanvas } from "./ImageEditor/ImageCanvas";
+import { ToolSidebar } from "./ImageEditor/ToolSidebar";
+import { EditorToolbar } from "./ImageEditor/EditorToolbar";
+import { PalettePanel } from "./ImageEditor/PalettePanel";
+import { FramesPanel } from "./ImageEditor/FramesPanel";
+import { ExportDialog } from "./ImageEditor/ExportDialog";
 import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
