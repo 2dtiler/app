@@ -22,6 +22,7 @@ import {
   loadImageLayerImage,
   evictUnusedTilesets,
   getTileImage,
+  drawTileWithOrientation,
 } from "./texture-cache";
 import { useSceneInteraction } from "./use-scene-interaction";
 
@@ -152,15 +153,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         ctx.imageSmoothingEnabled = false;
         // Clear that cell first so erase/repaint is correct
         ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
-        ctx.drawImage(
+        drawTileWithOrientation(
+          ctx,
           img,
-          ref.sx,
-          ref.sy,
-          ref.sw,
-          ref.sh,
+          ref,
           gx * scaledTile,
           gy * scaledTile,
-          scaledTile,
           scaledTile,
         );
       },
@@ -322,15 +320,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           const img = getTileImage(ref);
           if (!img) continue;
           const [gx, gy] = key.split(",").map(Number);
-          offCtx.drawImage(
+          drawTileWithOrientation(
+            offCtx,
             img,
-            ref.sx,
-            ref.sy,
-            ref.sw,
-            ref.sh,
+            ref,
             gx * scaledTile,
             gy * scaledTile,
-            scaledTile,
             scaledTile,
           );
         }
@@ -410,15 +405,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             const img = getTileImage(ref);
             if (!img) continue;
             const [gx, gy] = key.split(",").map(Number);
-            ctx.drawImage(
+            drawTileWithOrientation(
+              ctx,
               img,
-              ref.sx,
-              ref.sy,
-              ref.sw,
-              ref.sh,
+              ref,
               gx * scaledTile,
               gy * scaledTile,
-              scaledTile,
               scaledTile,
             );
           }
@@ -754,15 +746,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const tx = moveDestSel.x + tdx;
         const ty = moveDestSel.y + tdy;
         if (tx >= mapW || ty >= mapH) continue;
-        ctx.drawImage(
+        drawTileWithOrientation(
+          ctx,
           img,
-          ref.sx,
-          ref.sy,
-          ref.sw,
-          ref.sh,
+          ref,
           tx * scaledTile,
           ty * scaledTile,
-          scaledTile,
           scaledTile,
         );
       }

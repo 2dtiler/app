@@ -1,5 +1,6 @@
-Rotate Left/Right/Flip Horizontal/Flip Vertical (Also add to right click)
-
+Re-organize map toolbar
+Disable auto saving triggering full modal
+Onload it should automatically load the previous project. Add project manager to File dropdown
 Image Generator
   Add Layers. Each object placed should be in the layer
   Allow direct importing from Lospec
@@ -17,10 +18,11 @@ Make list of tiled advanced features
   - Layer Custom Options
   - Select + Magic Wand
 Make list of aseprite advanced features
-AI Asset Generation
 Autotile. Like Spritefusion
 Export Options
 Import Options
+AI Asset Generation
+
 Get some ideas from: Keep Notes
 =======================================
 Ad Marketplace for selling/buying tilesets etc.

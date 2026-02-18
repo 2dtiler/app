@@ -22,6 +22,11 @@ import {
   Undo2,
   Redo2,
   Pencil,
+  RotateCcw,
+  RotateCw,
+  FlipHorizontal2,
+  FlipVertical2,
+  RefreshCw,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
 import type { MapCanvasImperativeHandle } from "./MapCanvas";
@@ -44,6 +49,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -70,6 +76,9 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
@@ -867,6 +876,81 @@ export function MapPanel() {
     [activeMap, activeLayer, state.mapSelection, state.activeLayerId, setState],
   );
 
+  // ---------------------------------------------------------------------------
+  // Orientation operations (rotate / flip) on a tile or selection
+  // ---------------------------------------------------------------------------
+
+  type OrientAction = "rotateLeft" | "rotateRight" | "flipH" | "flipV";
+
+  const handleOrientTiles = useCallback(
+    (action: OrientAction, fromContextMenu = false) => {
+      if (!activeLayer || !activeMap) return;
+      const effectivelyLocked = isLayerEffectivelyLocked(
+        activeLayer.id,
+        activeMap.layerOrder,
+        project?.layers ?? [],
+        project?.layerGroups ?? [],
+      );
+      if (effectivelyLocked) return;
+
+      let region: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      } | null = null;
+
+      if (state.mapSelection) {
+        region = state.mapSelection;
+      } else if (fromContextMenu && contextMenuTileRef.current) {
+        region = {
+          x: contextMenuTileRef.current.x,
+          y: contextMenuTileRef.current.y,
+          width: 1,
+          height: 1,
+        };
+      }
+
+      if (!region) return;
+
+      const r = region;
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (!layer) return;
+        for (let dy = 0; dy < r.height; dy++) {
+          for (let dx = 0; dx < r.width; dx++) {
+            const key = `${r.x + dx},${r.y + dy}`;
+            const tile = layer.tiles[key];
+            if (!tile) continue;
+            const rot = tile.rotation ?? 0;
+            const fX = tile.flipX ?? false;
+            const fY = tile.flipY ?? false;
+            if (action === "rotateLeft") {
+              tile.rotation = ((rot - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+            } else if (action === "rotateRight") {
+              tile.rotation = ((rot + 90) % 360) as 0 | 90 | 180 | 270;
+            } else if (action === "flipH") {
+              tile.flipX = !fX;
+            } else if (action === "flipV") {
+              tile.flipY = !fY;
+            }
+          }
+        }
+      });
+    },
+    [
+      activeLayer,
+      activeMap,
+      state.mapSelection,
+      state.activeLayerId,
+      setState,
+      project?.layers,
+      project?.layerGroups,
+    ],
+  );
+
   // Keep hasClipboard in sync when clipboard changes
   useEffect(() => {
     const onClipboardChange = () => setHasClipboard(getClipboard() !== null);
@@ -897,6 +981,13 @@ export function MapPanel() {
   const canCutToolbar = canCut && !!state.mapSelection;
   const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
   const canOpenInEditor = !!activeMap && !!activeLayer && hasContextMenuTile;
+  const isSelectTool = state.currentTool === "select";
+  /** Context-menu orient: only when select tool is active AND there's a tile or selection */
+  const canOrientContextMenu =
+    isSelectTool &&
+    !!activeLayer &&
+    !activeLayer.locked &&
+    (!!state.mapSelection || hasContextMenuTile);
 
   if (!project) return null;
 
@@ -1433,6 +1524,56 @@ export function MapPanel() {
           <TooltipContent>Cut Selection (Ctrl+X)</TooltipContent>
         </Tooltip>
 
+        {/* Orientation dropdown — active only when select tool is chosen */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  disabled={!isSelectTool}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Orientation (select tool only)</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              disabled={!state.mapSelection || !isTileLayerActive}
+              onMouseDown={() => handleOrientTiles("rotateLeft")}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Rotate Left 90°
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.mapSelection || !isTileLayerActive}
+              onMouseDown={() => handleOrientTiles("rotateRight")}
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+              Rotate Right 90°
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!state.mapSelection || !isTileLayerActive}
+              onMouseDown={() => handleOrientTiles("flipH")}
+            >
+              <FlipHorizontal2 className="h-3.5 w-3.5" />
+              Flip Horizontal
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.mapSelection || !isTileLayerActive}
+              onMouseDown={() => handleOrientTiles("flipV")}
+            >
+              <FlipVertical2 className="h-3.5 w-3.5" />
+              Flip Vertical
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <div className="w-px h-4 bg-border mx-0.5" />
 
         {/* Map options */}
@@ -1714,6 +1855,40 @@ export function MapPanel() {
             <Pencil className="h-3.5 w-3.5" />
             Open tile in Image Editor
           </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuSub>
+            <ContextMenuSubTrigger disabled={!canOrientContextMenu}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Orientation
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem
+                onSelect={() => handleOrientTiles("rotateLeft", true)}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Rotate Left 90°
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => handleOrientTiles("rotateRight", true)}
+              >
+                <RotateCw className="h-3.5 w-3.5" />
+                Rotate Right 90°
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onSelect={() => handleOrientTiles("flipH", true)}
+              >
+                <FlipHorizontal2 className="h-3.5 w-3.5" />
+                Flip Horizontal
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => handleOrientTiles("flipV", true)}
+              >
+                <FlipVertical2 className="h-3.5 w-3.5" />
+                Flip Vertical
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
         </ContextMenuContent>
       </ContextMenu>
 

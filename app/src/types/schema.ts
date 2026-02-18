@@ -150,6 +150,12 @@ export interface TileRef {
   sw: number;
   /** Height of the tile in pixels */
   sh: number;
+  /** Clockwise rotation in degrees (0, 90, 180, 270) */
+  rotation?: 0 | 90 | 180 | 270;
+  /** Flip horizontally (after rotation) */
+  flipX?: boolean;
+  /** Flip vertically (after rotation) */
+  flipY?: boolean;
 }
 
 // ---------------------------------------------------------------------------

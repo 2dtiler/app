@@ -67,6 +67,68 @@ export function getTileImage(ref: TileRef): HTMLImageElement | null {
   return tilesetImageCache.get(ref.tilesetId) ?? null;
 }
 
+/**
+ * Draw a tile onto `ctx` at destination (dx, dy) with size scaledTile,
+ * applying any orientation transforms stored in the TileRef
+ * (rotation + horizontal/vertical flip).
+ *
+ * Transforms are applied as: rotate first, then flip (in the rotated space).
+ * This gives intuitive behaviour where flip is always relative to the tile's
+ * own local axes and is independent of rotation.
+ */
+export function drawTileWithOrientation(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  ref: TileRef,
+  dx: number,
+  dy: number,
+  scaledTile: number,
+): void {
+  const rotation = ref.rotation ?? 0;
+  const flipX = ref.flipX ?? false;
+  const flipY = ref.flipY ?? false;
+
+  if (rotation === 0 && !flipX && !flipY) {
+    ctx.drawImage(
+      img,
+      ref.sx,
+      ref.sy,
+      ref.sw,
+      ref.sh,
+      dx,
+      dy,
+      scaledTile,
+      scaledTile,
+    );
+    return;
+  }
+
+  const cx = dx + scaledTile / 2;
+  const cy = dy + scaledTile / 2;
+  const half = scaledTile / 2;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (rotation !== 0) {
+    ctx.rotate((rotation * Math.PI) / 180);
+  }
+  if (flipX || flipY) {
+    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  }
+  ctx.drawImage(
+    img,
+    ref.sx,
+    ref.sy,
+    ref.sw,
+    ref.sh,
+    -half,
+    -half,
+    scaledTile,
+    scaledTile,
+  );
+  ctx.restore();
+}
+
 // ---------------------------------------------------------------------------
 // Image layer image cache — loads image layer assets as HTMLImageElements
 // ---------------------------------------------------------------------------
