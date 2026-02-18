@@ -31,7 +31,7 @@ export function NewImageDialog({
   const [height, setHeight] = useState(initialHeight ?? 32);
 
   // Sync local state when the dialog opens with new initial values
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+
   useEffect(() => {
     if (open) {
       setWidth(initialWidth ?? 32);
