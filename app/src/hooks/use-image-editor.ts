@@ -21,16 +21,40 @@ import {
 } from "@/lib/image-editor-store";
 import * as pixelHistory from "@/lib/image-editor-history";
 import { parseAsePalette, writeAsePalette } from "@/lib/ase-palette";
+import { parsePhotoshopAse, writePhotoshopAse } from "@/lib/photoshop-ase";
+import {
+  parseGpl,
+  parseJascPal,
+  parsePaintNetTxt,
+  parseHex,
+  parsePng,
+  writeGpl,
+  writeJascPal,
+  writePaintNetTxt,
+  writeHex,
+  writePng,
+} from "@/lib/palette-formats";
 import type {
   Frame,
   FrameId,
   Color,
+  Palette,
   ImageEditorTool,
   ImageEditorState,
   PaletteId,
   PixelSelection,
 } from "@/types/image-editor";
-import { DEFAULT_PALETTE_COLORS } from "@/types/image-editor";
+import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
+
+export type PaletteExportFormat =
+  | "ase"
+  | "aseprite"
+  | "gpl"
+  | "pal"
+  | "txt"
+  | "hex"
+  | "png";
+export type PngSwatchSize = 1 | 8 | 16 | 32;
 
 // ---------------------------------------------------------------------------
 // Module-level frame data — survives component unmount/remount so the
@@ -59,21 +83,27 @@ const frameOpRedoStack: FrameOperation[] = [];
 // Palette undo/redo history
 // ---------------------------------------------------------------------------
 
-interface PaletteSnapshot {
-  id: PaletteId;
-  name: string;
-  colors: Color[];
+interface PaletteLibrarySnapshot {
+  palettes: Palette[];
+  activePaletteId: PaletteId;
 }
 
-const paletteUndoStack: PaletteSnapshot[] = [];
-const paletteRedoStack: PaletteSnapshot[] = [];
+const paletteUndoStack: PaletteLibrarySnapshot[] = [];
+const paletteRedoStack: PaletteLibrarySnapshot[] = [];
 
-function snapshotPalette(s: ImageEditorState): PaletteSnapshot {
+function snapshotPaletteLibrary(s: ImageEditorState): PaletteLibrarySnapshot {
   return {
-    id: s.palette.id,
-    name: s.palette.name,
-    colors: s.palette.colors.map((c) => ({ ...c })),
+    palettes: s.palettes.map((p) => ({
+      ...p,
+      colors: p.colors.map((c) => ({ ...c })),
+    })),
+    activePaletteId: s.activePaletteId,
   };
+}
+
+function getActivePaletteIndex(s: ImageEditorState): number {
+  const idx = s.palettes.findIndex((p) => p.id === s.activePaletteId);
+  return idx >= 0 ? idx : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,29 +174,32 @@ export function useImageEditor() {
   // Initialize
   // -----------------------------------------------------------------------
 
-  const initProject = useCallback((width: number, height: number) => {
-    // Tear down any previous instance
-    destroyImageEditorStore();
-    pixelHistory.clearAllHistory();
-    moduleFrameData.clear();
-    paletteUndoStack.length = 0;
-    paletteRedoStack.length = 0;
-    frameOpUndoStack.length = 0;
-    frameOpRedoStack.length = 0;
-    actionLog.length = 0;
-    redoLog.length = 0;
+  const initProject = useCallback(
+    (width: number, height: number, initialPalettes?: Palette[]) => {
+      // Tear down any previous instance
+      destroyImageEditorStore();
+      pixelHistory.clearAllHistory();
+      moduleFrameData.clear();
+      paletteUndoStack.length = 0;
+      paletteRedoStack.length = 0;
+      frameOpUndoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      actionLog.length = 0;
+      redoLog.length = 0;
 
-    initImageEditorStore(width, height);
+      initImageEditorStore(width, height, initialPalettes);
 
-    // Create initial blank ImageData for frame 1
-    const store = getImageEditorStore();
-    const s = store.getState();
-    if (s.frames.length > 0) {
-      const frame = s.frames[0];
-      const imgData = new ImageData(width, height);
-      moduleFrameData.set(frame.id, imgData);
-    }
-  }, []);
+      // Create initial blank ImageData for frame 1
+      const store = getImageEditorStore();
+      const s = store.getState();
+      if (s.frames.length > 0) {
+        const frame = s.frames[0];
+        const imgData = new ImageData(width, height);
+        moduleFrameData.set(frame.id, imgData);
+      }
+    },
+    [],
+  );
 
   // -----------------------------------------------------------------------
   // Resize canvas (preserving existing pixel data, cropping or padding)
@@ -558,11 +591,13 @@ export function useImageEditor() {
       const snap = paletteUndoStack.pop();
       if (snap && isImageEditorStoreReady()) {
         const s = getImageEditorStore().getState();
-        paletteRedoStack.push(snapshotPalette(s));
+        paletteRedoStack.push(snapshotPaletteLibrary(s));
         setState((d) => {
-          d.palette.id = snap.id;
-          d.palette.name = snap.name;
-          d.palette.colors = snap.colors.map((c) => ({ ...c }));
+          d.palettes = snap.palettes.map((p) => ({
+            ...p,
+            colors: p.colors.map((c) => ({ ...c })),
+          }));
+          d.activePaletteId = snap.activePaletteId;
         });
       }
     }
@@ -592,11 +627,13 @@ export function useImageEditor() {
       const snap = paletteRedoStack.pop();
       if (snap && isImageEditorStoreReady()) {
         const s = getImageEditorStore().getState();
-        paletteUndoStack.push(snapshotPalette(s));
+        paletteUndoStack.push(snapshotPaletteLibrary(s));
         setState((d) => {
-          d.palette.id = snap.id;
-          d.palette.name = snap.name;
-          d.palette.colors = snap.colors.map((c) => ({ ...c }));
+          d.palettes = snap.palettes.map((p) => ({
+            ...p,
+            colors: p.colors.map((c) => ({ ...c })),
+          }));
+          d.activePaletteId = snap.activePaletteId;
         });
       }
     }
@@ -703,14 +740,14 @@ export function useImageEditor() {
   const addPaletteColor = useCallback(
     (color: Color) => {
       if (state) {
-        paletteUndoStack.push(snapshotPalette(state));
+        paletteUndoStack.push(snapshotPaletteLibrary(state));
         paletteRedoStack.length = 0;
         frameOpRedoStack.length = 0;
         redoLog.length = 0;
         actionLog.push("palette");
       }
       setState((d) => {
-        d.palette.colors.push(color);
+        d.palettes[getActivePaletteIndex(d)].colors.push(color);
       });
     },
     [state, setState],
@@ -719,14 +756,14 @@ export function useImageEditor() {
   const removePaletteColor = useCallback(
     (index: number) => {
       if (state) {
-        paletteUndoStack.push(snapshotPalette(state));
+        paletteUndoStack.push(snapshotPaletteLibrary(state));
         paletteRedoStack.length = 0;
         frameOpRedoStack.length = 0;
         redoLog.length = 0;
         actionLog.push("palette");
       }
       setState((d) => {
-        d.palette.colors.splice(index, 1);
+        d.palettes[getActivePaletteIndex(d)].colors.splice(index, 1);
       });
     },
     [state, setState],
@@ -735,8 +772,9 @@ export function useImageEditor() {
   const updatePaletteColor = useCallback(
     (index: number, color: Color) => {
       setState((d) => {
-        if (d.palette.colors[index]) {
-          d.palette.colors[index] = color;
+        const palette = d.palettes[getActivePaletteIndex(d)];
+        if (palette.colors[index]) {
+          palette.colors[index] = color;
         }
       });
     },
@@ -745,59 +783,244 @@ export function useImageEditor() {
 
   const resetPalette = useCallback(() => {
     if (state) {
-      paletteUndoStack.push(snapshotPalette(state));
+      paletteUndoStack.push(snapshotPaletteLibrary(state));
       paletteRedoStack.length = 0;
       frameOpRedoStack.length = 0;
       redoLog.length = 0;
       actionLog.push("palette");
     }
     setState((d) => {
-      d.palette = {
-        id: uuidv4() as PaletteId,
-        name: "Default",
-        colors: [...DEFAULT_PALETTE_COLORS],
-      };
+      const palette = d.palettes[getActivePaletteIndex(d)];
+      palette.colors = [...DEFAULT_PALETTE_COLORS];
     });
   }, [state, setState]);
 
   const importPalette = useCallback(
     async (file: File) => {
-      const buffer = await file.arrayBuffer();
-      const colors = parseAsePalette(buffer);
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      let colors: Color[] = [];
+
+      if (ext === "aseprite") {
+        colors = parseAsePalette(await file.arrayBuffer());
+      } else if (ext === "ase") {
+        // Auto-detect: Adobe ASE starts with "ASEF" (0x41534546);
+        // Aseprite files have magic 0xa5e0 at offset 4.
+        const buf = await file.arrayBuffer();
+        const sig = new DataView(buf).getUint32(0, false);
+        if (sig === 0x41534546) {
+          colors = parsePhotoshopAse(buf);
+        } else {
+          colors = parseAsePalette(buf);
+        }
+      } else if (ext === "gpl") {
+        colors = parseGpl(await file.text());
+      } else if (ext === "pal") {
+        colors = parseJascPal(await file.text());
+      } else if (ext === "txt") {
+        colors = parsePaintNetTxt(await file.text());
+      } else if (ext === "hex") {
+        colors = parseHex(await file.text());
+      } else if (ext === "png") {
+        colors = await parsePng(await file.arrayBuffer());
+      }
+
       if (colors.length === 0) return;
 
-      // Snapshot current palette before applying import
+      // Snapshot current palette library before applying import
       if (isImageEditorStoreReady()) {
         const s = getImageEditorStore().getState();
-        paletteUndoStack.push(snapshotPalette(s));
+        paletteUndoStack.push(snapshotPaletteLibrary(s));
         paletteRedoStack.length = 0;
         frameOpRedoStack.length = 0;
         redoLog.length = 0;
         actionLog.push("palette");
       }
 
+      const paletteName = file.name.replace(/\.[^.]+$/, "");
+      const newId = uuidv4() as PaletteId;
       setState((d) => {
-        d.palette = {
-          id: uuidv4() as PaletteId,
-          name: file.name.replace(/\.(ase|aseprite)$/i, ""),
+        d.palettes.push({
+          id: newId,
+          name: paletteName,
           colors,
-        };
+        });
+        d.activePaletteId = newId;
       });
     },
     [setState],
   );
 
-  const exportPalette = useCallback(() => {
-    if (!state) return;
-    const buffer = writeAsePalette(state.palette.colors);
-    const blob = new Blob([buffer], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${state.palette.name || "palette"}.ase`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [state]);
+  const exportPalette = useCallback(
+    async (
+      format: PaletteExportFormat = "ase",
+      swatchSize: PngSwatchSize = 16,
+    ) => {
+      if (!state) return;
+      const activePalette = getActivePalette(state);
+      const baseName = activePalette.name || "palette";
+      const colors = activePalette.colors;
+
+      let blob: Blob;
+      let filename: string;
+
+      if (format === "ase") {
+        const buffer = writePhotoshopAse(colors);
+        blob = new Blob([buffer], { type: "application/octet-stream" });
+        filename = `${baseName}.ase`;
+      } else if (format === "aseprite") {
+        const buffer = writeAsePalette(colors);
+        blob = new Blob([buffer], { type: "application/octet-stream" });
+        filename = `${baseName}.aseprite`;
+      } else if (format === "gpl") {
+        blob = new Blob([writeGpl(colors, baseName)], { type: "text/plain" });
+        filename = `${baseName}.gpl`;
+      } else if (format === "pal") {
+        blob = new Blob([writeJascPal(colors)], { type: "text/plain" });
+        filename = `${baseName}.pal`;
+      } else if (format === "txt") {
+        blob = new Blob([writePaintNetTxt(colors, baseName)], {
+          type: "text/plain",
+        });
+        filename = `${baseName}.txt`;
+      } else if (format === "hex") {
+        blob = new Blob([writeHex(colors)], { type: "text/plain" });
+        filename = `${baseName}.hex`;
+      } else {
+        // png
+        blob = await writePng(colors, swatchSize);
+        filename = `${baseName}-${swatchSize}px.png`;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [state],
+  );
+
+  const switchPalette = useCallback(
+    (id: PaletteId) => {
+      setState((d) => {
+        if (d.palettes.some((p) => p.id === id)) {
+          d.activePaletteId = id;
+        }
+      });
+    },
+    [setState],
+  );
+
+  const renamePalette = useCallback(
+    (id: PaletteId, name: string) => {
+      if (state) {
+        paletteUndoStack.push(snapshotPaletteLibrary(state));
+        paletteRedoStack.length = 0;
+        frameOpRedoStack.length = 0;
+        redoLog.length = 0;
+        actionLog.push("palette");
+      }
+      setState((d) => {
+        const p = d.palettes.find((p) => p.id === id);
+        if (p) p.name = name;
+      });
+    },
+    [state, setState],
+  );
+
+  const deletePalette = useCallback(
+    (id: PaletteId) => {
+      if (!state || state.palettes.length <= 1) return;
+      paletteUndoStack.push(snapshotPaletteLibrary(state));
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      redoLog.length = 0;
+      actionLog.push("palette");
+      setState((d) => {
+        const idx = d.palettes.findIndex((p) => p.id === id);
+        if (idx < 0) return;
+        d.palettes.splice(idx, 1);
+        if (d.activePaletteId === id) {
+          d.activePaletteId =
+            d.palettes[Math.min(idx, d.palettes.length - 1)].id;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const duplicatePalette = useCallback(
+    (id: PaletteId) => {
+      if (!state) return;
+      const src = state.palettes.find((p) => p.id === id);
+      if (!src) return;
+      paletteUndoStack.push(snapshotPaletteLibrary(state));
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      redoLog.length = 0;
+      actionLog.push("palette");
+      const newId = uuidv4() as PaletteId;
+      const srcName = src.name;
+      const srcColors = src.colors.map((c) => ({ ...c }));
+      setState((d) => {
+        const srcIdx = d.palettes.findIndex((p) => p.id === id);
+        const copy = {
+          id: newId,
+          name: `${srcName} (copy)`,
+          colors: srcColors,
+        };
+        d.palettes.splice(srcIdx + 1, 0, copy);
+        d.activePaletteId = newId;
+      });
+    },
+    [state, setState],
+  );
+
+  const reorderPaletteColors = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (!state || fromIndex === toIndex) return;
+      paletteUndoStack.push(snapshotPaletteLibrary(state));
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      redoLog.length = 0;
+      actionLog.push("palette");
+      setState((d) => {
+        const palette = d.palettes[getActivePaletteIndex(d)];
+        const colors = palette.colors;
+        if (
+          fromIndex < 0 ||
+          fromIndex >= colors.length ||
+          toIndex < 0 ||
+          toIndex >= colors.length
+        )
+          return;
+        const [moved] = colors.splice(fromIndex, 1);
+        colors.splice(toIndex, 0, moved);
+      });
+    },
+    [state, setState],
+  );
+
+  /**
+   * Restore the full palette library (e.g. from saved project).
+   * Clears palette undo/redo since this is an external load, not a user edit.
+   */
+  const restorePaletteLibrary = useCallback(
+    (palettes: Palette[]) => {
+      if (!isImageEditorStoreReady() || palettes.length === 0) return;
+      paletteUndoStack.length = 0;
+      paletteRedoStack.length = 0;
+      setState((d) => {
+        d.palettes = palettes.map((p) => ({
+          ...p,
+          colors: p.colors.map((c) => ({ ...c })),
+        }));
+        d.activePaletteId = palettes[0].id;
+      });
+    },
+    [setState],
+  );
 
   // -----------------------------------------------------------------------
   // Animation playback
@@ -1025,6 +1248,12 @@ export function useImageEditor() {
     resetPalette,
     importPalette,
     exportPalette,
+    switchPalette,
+    renamePalette,
+    deletePalette,
+    duplicatePalette,
+    reorderPaletteColors,
+    restorePaletteLibrary,
 
     // Playback
     playAnimation,

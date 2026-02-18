@@ -1,6 +1,33 @@
 import { useRef, useCallback, useState } from "react";
-import { Plus, Trash2, FileDown, FileUp, RotateCcw } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  FileDown,
+  FileUp,
+  RotateCcw,
+  Pencil,
+  Copy,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type {
+  PaletteExportFormat,
+  PngSwatchSize,
+} from "@/hooks/use-image-editor";
 import {
   Tooltip,
   TooltipContent,
@@ -22,9 +49,17 @@ import {
   ColorPickerOutput,
   ColorPickerFormat,
 } from "@/components/ui/color-picker";
-import type { Color } from "@/types/image-editor";
+import type { Color, Palette, PaletteId } from "@/types/image-editor";
 
 interface PalettePanelProps {
+  // Palette library
+  palettes: Palette[];
+  activePaletteId: PaletteId;
+  onSwitchPalette: (id: PaletteId) => void;
+  onRenamePalette: (id: PaletteId, name: string) => void;
+  onDeletePalette: (id: PaletteId) => void;
+  onDuplicatePalette: (id: PaletteId) => void;
+  // Active palette colors
   colors: Color[];
   primaryColor: Color;
   secondaryColor: Color;
@@ -33,8 +68,9 @@ interface PalettePanelProps {
   onAddColor: (color: Color) => void;
   onRemoveColor: (index: number) => void;
   onUpdateColor: (index: number, color: Color) => void;
+  onReorderColors: (fromIndex: number, toIndex: number) => void;
   onImport: (file: File) => void;
-  onExport: () => void;
+  onExport: (format: PaletteExportFormat, swatchSize?: PngSwatchSize) => void;
   onReset: () => void;
 }
 
@@ -50,6 +86,12 @@ function colorsMatch(a: Color, b: Color): boolean {
 }
 
 export function PalettePanel({
+  palettes,
+  activePaletteId,
+  onSwitchPalette,
+  onRenamePalette,
+  onDeletePalette,
+  onDuplicatePalette,
   colors,
   primaryColor,
   secondaryColor,
@@ -58,16 +100,63 @@ export function PalettePanel({
   onAddColor,
   onRemoveColor,
   onUpdateColor,
+  onReorderColors,
   onImport,
   onExport,
   onReset,
 }: PalettePanelProps) {
   const importRef = useRef<HTMLInputElement>(null);
 
+  // Rename inline state
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+
   // Color picker popover state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const pickedColorRef = useRef<Color | null>(null);
+
+  // Drag-and-drop swatch reorder state
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+
+  // -----------------------------------------------------------------------
+  // Rename handlers
+  // -----------------------------------------------------------------------
+
+  const handleRenameStart = useCallback(() => {
+    const current = palettes.find((p) => p.id === activePaletteId);
+    setRenameDraft(current?.name ?? "");
+    setIsRenaming(true);
+  }, [palettes, activePaletteId]);
+
+  const handleRenameCommit = useCallback(() => {
+    const trimmed = renameDraft.trim();
+    if (trimmed) {
+      onRenamePalette(activePaletteId, trimmed);
+    }
+    setIsRenaming(false);
+  }, [renameDraft, activePaletteId, onRenamePalette]);
+
+  const handleRenameCancel = useCallback(() => {
+    setIsRenaming(false);
+  }, []);
+
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleRenameCommit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleRenameCancel();
+      }
+    },
+    [handleRenameCommit, handleRenameCancel],
+  );
+
+  // -----------------------------------------------------------------------
+  // Color picker handlers
+  // -----------------------------------------------------------------------
 
   const getInitialHex = useCallback(() => {
     if (editingIndex !== null) return colorToHex(colors[editingIndex]);
@@ -115,6 +204,10 @@ export function PalettePanel({
     setEditingIndex(null);
   }, []);
 
+  // -----------------------------------------------------------------------
+  // Swatch click handlers
+  // -----------------------------------------------------------------------
+
   const handleSwatchClick = useCallback(
     (color: Color, e: React.MouseEvent) => {
       e.preventDefault();
@@ -136,6 +229,76 @@ export function PalettePanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col w-44 border-l border-border bg-card shrink-0">
+        {/* Palette selector row */}
+        <div className="flex items-center gap-0.5 p-1.5 border-b border-border">
+          {isRenaming ? (
+            <input
+              autoFocus
+              className="flex-1 h-6 min-w-0 text-xs px-1.5 bg-background border border-input rounded focus:outline-none focus:ring-1 focus:ring-ring"
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={handleRenameKeyDown}
+              onBlur={handleRenameCommit}
+            />
+          ) : (
+            <Select value={activePaletteId} onValueChange={onSwitchPalette}>
+              <SelectTrigger
+                className="flex-1 h-6 min-w-0 text-xs px-1.5 py-0"
+                size="sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {palettes.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleRenameStart}
+              >
+                <Pencil className="size-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Rename Palette</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onDuplicatePalette(activePaletteId)}
+              >
+                <Copy className="size-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Duplicate Palette</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onDeletePalette(activePaletteId)}
+                disabled={palettes.length <= 1}
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete Palette</TooltipContent>
+          </Tooltip>
+        </div>
+
         {/* Primary / Secondary color preview */}
         <div className="p-2 border-b border-border">
           <div className="flex items-center gap-2">
@@ -166,16 +329,33 @@ export function PalettePanel({
             {colors.map((color, i) => (
               <button
                 key={i}
-                className={`w-5 h-5 rounded-sm border cursor-pointer hover:ring-1 hover:ring-white/50 transition-shadow ${
+                draggable
+                className={`w-5 h-5 rounded-sm border cursor-grab hover:ring-1 hover:ring-white/50 transition-shadow ${
                   i === selectedIndex
                     ? "ring-2 ring-white border-white"
                     : "border-border"
-                }`}
+                } ${draggingIndex === i ? "opacity-40" : ""}`}
                 style={{ backgroundColor: colorToHex(color) }}
                 onClick={(e) => handleSwatchClick(color, e)}
                 onContextMenu={(e) => handleSwatchContextMenu(color, e)}
                 onDoubleClick={() => openPickerForEdit(i)}
-                title={`${colorToHex(color)} (dbl-click to edit)`}
+                title={`${colorToHex(color)} (dbl-click to edit, drag to reorder)`}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingIndex(i);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggingIndex !== null && draggingIndex !== i) {
+                    onReorderColors(draggingIndex, i);
+                  }
+                  setDraggingIndex(null);
+                }}
+                onDragEnd={() => setDraggingIndex(null)}
               />
             ))}
           </div>
@@ -268,17 +448,90 @@ export function PalettePanel({
                 <FileUp className="size-3" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Import .ase Palette</TooltipContent>
+            <TooltipContent>Import Palette File</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" onClick={onExport}>
-                <FileDown className="size-3" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export .ase Palette</TooltipContent>
-          </Tooltip>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-xs">
+                    <FileDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Export Palette File</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent side="left" align="end" className="w-44">
+              <DropdownMenuLabel className="text-xs">
+                PNG Image
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("png", 1)}
+              >
+                PNG (1 px)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("png", 8)}
+              >
+                PNG (8 px)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("png", 16)}
+              >
+                PNG (16 px)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("png", 32)}
+              >
+                PNG (32 px)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs">
+                Palette File
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("pal")}
+              >
+                JASC PAL (.pal)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("ase")}
+              >
+                Photoshop ASE (.ase)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("aseprite")}
+              >
+                Aseprite (.aseprite)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("txt")}
+              >
+                Paint.NET (.txt)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("gpl")}
+              >
+                GIMP (.gpl)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs"
+                onSelect={() => onExport("hex")}
+              >
+                HEX (.hex)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -286,15 +539,15 @@ export function PalettePanel({
                 <RotateCcw className="size-3" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset to Default Palette</TooltipContent>
+            <TooltipContent>Reset Active Palette to Default</TooltipContent>
           </Tooltip>
         </div>
 
-        {/* Hidden inputs */}
+        {/* Hidden import input */}
         <input
           ref={importRef}
           type="file"
-          accept=".ase,.aseprite"
+          accept=".ase,.aseprite,.gpl,.pal,.txt,.hex,.png"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

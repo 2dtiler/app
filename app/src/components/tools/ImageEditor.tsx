@@ -1,5 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useImageEditor } from "@/hooks/use-image-editor";
+import { useEditorStore } from "@/hooks/use-editor-store";
+import { loadPaletteLibrary, savePaletteLibrary } from "@/lib/db";
+import { getActivePalette } from "@/types/image-editor";
 import { NewImageDialog } from "./image-editor/NewImageDialog";
 import { ImageCanvas } from "./image-editor/ImageCanvas";
 import { ToolSidebar } from "./image-editor/ToolSidebar";
@@ -11,16 +14,20 @@ import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
   const editor = useImageEditor();
+  const { state: mainState } = useEditorStore();
+  const projectId = mainState.project?.id;
+  const prevProjectIdRef = useRef<string | undefined>(undefined);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {
-      editor.initProject(w, h);
+      const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
+      editor.initProject(w, h, savedPalettes ?? undefined);
       setShowNewDialog(false);
     },
-    [editor],
+    [editor, projectId],
   );
 
   const handleNew = useCallback(() => {
@@ -38,6 +45,22 @@ export function ImageEditor() {
     },
     [editor],
   );
+
+  // Restore palette library when the active project changes
+  useEffect(() => {
+    if (!projectId || projectId === prevProjectIdRef.current) return;
+    prevProjectIdRef.current = projectId;
+    const savedPalettes = loadPaletteLibrary(projectId);
+    if (savedPalettes && savedPalettes.length > 0) {
+      editor.restorePaletteLibrary(savedPalettes);
+    }
+  }, [projectId, editor]);
+
+  // Persist palette library to localStorage whenever it changes
+  useEffect(() => {
+    if (!projectId || !editor.state?.palettes) return;
+    savePaletteLibrary(projectId, editor.state.palettes);
+  }, [editor.state?.palettes, projectId]);
 
   // Keyboard shortcuts for tools
   useEffect(() => {
@@ -121,7 +144,8 @@ export function ImageEditor() {
     blurIntensity,
     frames,
     currentFrameIndex,
-    palette,
+    palettes,
+    activePaletteId,
     isPlaying,
     fps,
     onionSkin,
@@ -187,7 +211,13 @@ export function ImageEditor() {
 
         {/* Palette panel */}
         <PalettePanel
-          colors={palette.colors}
+          palettes={palettes}
+          activePaletteId={activePaletteId}
+          onSwitchPalette={editor.switchPalette}
+          onRenamePalette={editor.renamePalette}
+          onDeletePalette={editor.deletePalette}
+          onDuplicatePalette={editor.duplicatePalette}
+          colors={getActivePalette(editor.state).colors}
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
           onSelectPrimary={editor.setPrimaryColor}
@@ -195,6 +225,7 @@ export function ImageEditor() {
           onAddColor={editor.addPaletteColor}
           onRemoveColor={editor.removePaletteColor}
           onUpdateColor={editor.updatePaletteColor}
+          onReorderColors={editor.reorderPaletteColors}
           onImport={editor.importPalette}
           onExport={editor.exportPalette}
           onReset={editor.resetPalette}

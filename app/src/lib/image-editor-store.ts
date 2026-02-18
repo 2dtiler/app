@@ -13,6 +13,8 @@ import {
   type ImageEditorState,
   type FrameId,
   type Frame,
+  type Palette,
+  type PaletteId,
 } from "@/types/image-editor";
 import { v4 as uuidv4 } from "uuid";
 
@@ -31,6 +33,7 @@ let instance: ImageEditorTravels | null = null;
 export function initImageEditorStore(
   width: number,
   height: number,
+  initialPalettes?: Palette[],
 ): ImageEditorTravels {
   const firstFrameId = uuidv4() as FrameId;
   const firstFrame: Frame = {
@@ -39,6 +42,13 @@ export function initImageEditorStore(
     duration: 100,
   };
 
+  const palettes =
+    initialPalettes && initialPalettes.length > 0
+      ? initialPalettes
+      : DEFAULT_IMAGE_EDITOR_STATE.palettes;
+  const activePaletteId: PaletteId =
+    palettes[0]?.id ?? DEFAULT_IMAGE_EDITOR_STATE.activePaletteId;
+
   instance = createTravels<ImageEditorState>(
     {
       ...DEFAULT_IMAGE_EDITOR_STATE,
@@ -46,6 +56,8 @@ export function initImageEditorStore(
       height,
       frames: [firstFrame],
       currentFrameIndex: 0,
+      palettes,
+      activePaletteId,
     },
     { maxHistory: 50 },
   );

@@ -91,8 +91,10 @@ export interface ImageEditorState {
   /** Index of the currently displayed/edited frame */
   currentFrameIndex: number;
 
-  /** Active color palette */
-  palette: Palette;
+  /** All saved palettes */
+  palettes: Palette[];
+  /** ID of the currently active palette */
+  activePaletteId: PaletteId;
 
   /** Currently selected tool */
   tool: ImageEditorTool;
@@ -153,16 +155,26 @@ export const DEFAULT_PALETTE_COLORS: Color[] = [
   { r: 0, g: 128, b: 128, a: 255 }, // teal
 ];
 
+export const DEFAULT_PALETTE: Palette = {
+  id: "default-palette" as PaletteId,
+  name: "Default",
+  colors: DEFAULT_PALETTE_COLORS,
+};
+
+export function getActivePalette(state: ImageEditorState): Palette {
+  return (
+    state.palettes.find((p) => p.id === state.activePaletteId) ??
+    state.palettes[0]
+  );
+}
+
 export const DEFAULT_IMAGE_EDITOR_STATE: ImageEditorState = {
   width: 32,
   height: 32,
   frames: [],
   currentFrameIndex: 0,
-  palette: {
-    id: "default-palette" as PaletteId,
-    name: "Default",
-    colors: DEFAULT_PALETTE_COLORS,
-  },
+  palettes: [DEFAULT_PALETTE],
+  activePaletteId: "default-palette" as PaletteId,
   tool: "pencil",
   primaryColor: { r: 0, g: 0, b: 0, a: 255 },
   secondaryColor: { r: 255, g: 255, b: 255, a: 255 },

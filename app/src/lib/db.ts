@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Project, AppSettings, AssetId } from "@/types";
+import type { Palette } from "@/types/image-editor";
 
 // ---------------------------------------------------------------------------
 // Asset record — stores binary blobs (tileset images) separately
@@ -224,4 +225,42 @@ export async function getSettings(): Promise<AppSettings> {
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
   await db.settings.put({ id: SETTINGS_KEY, ...settings });
+}
+
+// ---------------------------------------------------------------------------
+// Per-project palette library (localStorage)
+// ---------------------------------------------------------------------------
+
+const PALETTE_LIBRARY_PREFIX = "palette-library-";
+
+export function savePaletteLibrary(
+  projectId: string,
+  palettes: Palette[],
+): void {
+  try {
+    localStorage.setItem(
+      PALETTE_LIBRARY_PREFIX + projectId,
+      JSON.stringify(palettes),
+    );
+  } catch {
+    // Silently fail if localStorage is full or unavailable
+  }
+}
+
+export function loadPaletteLibrary(projectId: string): Palette[] | null {
+  try {
+    const raw = localStorage.getItem(PALETTE_LIBRARY_PREFIX + projectId);
+    if (!raw) return null;
+    return JSON.parse(raw) as Palette[];
+  } catch {
+    return null;
+  }
+}
+
+export function deletePaletteLibrary(projectId: string): void {
+  try {
+    localStorage.removeItem(PALETTE_LIBRARY_PREFIX + projectId);
+  } catch {
+    // Silently fail
+  }
 }
