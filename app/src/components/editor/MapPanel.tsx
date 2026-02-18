@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, memo } from "react";
+import { useRef, useState, useEffect, useCallback, memo, useSyncExternalStore } from "react";
 import {
   Plus,
   ZoomIn,
@@ -12,6 +12,8 @@ import {
   Copy,
   Scissors,
   ClipboardPaste,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
 import { Button } from "@/components/ui/button";
@@ -106,9 +108,14 @@ import {
   setClipboard,
   type TileClipboard,
 } from "@/lib/tile-clipboard";
+import { zoomStore } from "@/lib/zoom-store";
 
 export function MapPanel() {
-  const { state, setState } = useEditorStore();
+  const { state, setState, controls } = useEditorStore();
+  const { mapZoom } = useSyncExternalStore(
+    zoomStore.subscribe,
+    zoomStore.getSnapshot,
+  );
   const project = state.project;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -163,15 +170,10 @@ export function MapPanel() {
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Ctrl+Wheel zoom and middle-mouse pan
-  const handleSetMapZoom = useCallback(
-    (newZoom: number) => {
-      setState((draft) => {
-        draft.mapZoom = newZoom;
-      });
-    },
-    [setState],
-  );
-  useCanvasNavigation(containerRef, state.mapZoom, handleSetMapZoom);
+  const handleSetMapZoom = useCallback((newZoom: number) => {
+    zoomStore.setMapZoom(newZoom);
+  }, []);
+  useCanvasNavigation(containerRef, mapZoom, handleSetMapZoom);
 
   // Derived values needed by hooks (computed before early return)
   const activeMap = project?.maps.find((m) => m.id === state.activeMapId);
@@ -575,7 +577,7 @@ export function MapPanel() {
       const rect = el.getBoundingClientRect();
       const rawX = e.clientX - rect.left + el.scrollLeft;
       const rawY = e.clientY - rect.top + el.scrollTop;
-      const scaledTile = activeMap.tileSize * state.mapZoom;
+      const scaledTile = activeMap.tileSize * mapZoom;
       return {
         x: Math.max(
           0,
@@ -587,7 +589,7 @@ export function MapPanel() {
         ),
       };
     },
-    [activeMap, state.mapZoom],
+    [activeMap, mapZoom],
   );
 
   /**
@@ -846,6 +848,7 @@ export function MapPanel() {
   const isTileLayerActive = !!activeLayer && !activeLayer.locked;
   const canCopy = !!activeMap && !!activeLayer;
   const canCut = !!activeMap && isTileLayerActive;
+  const canCutToolbar = canCut && !!state.mapSelection;
   const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
 
   if (!project) return null;
@@ -890,10 +893,7 @@ export function MapPanel() {
   const flatMap = activeMap ? { ...activeMap, layerOrder: flatAllIds } : null;
 
   function handleZoom(direction: 1 | -1) {
-    setState((draft) => {
-      const next = draft.mapZoom + direction * 0.5;
-      draft.mapZoom = Math.max(0.5, Math.min(4, next));
-    });
+    zoomStore.setMapZoom(mapZoom + direction * 0.5);
   }
 
   function handleAddMap() {
@@ -1323,7 +1323,7 @@ export function MapPanel() {
             <TooltipContent>Zoom Out</TooltipContent>
           </Tooltip>
           <span className="text-[10px] text-muted-foreground w-8 text-center">
-            {Math.round(state.mapZoom * 100)}%
+            {Math.round(mapZoom * 100)}%
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1339,6 +1339,52 @@ export function MapPanel() {
             <TooltipContent>Zoom In</TooltipContent>
           </Tooltip>
         </div>
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        {/* Undo / Redo / Cut */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!controls.canBack()}
+              onMouseDown={() => controls.back()}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!controls.canForward()}
+              onMouseDown={() => controls.forward()}
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!canCutToolbar}
+              onMouseDown={() => handleCutTiles(false)}
+            >
+              <Scissors className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Cut Selection (Ctrl+X)</TooltipContent>
+        </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
@@ -1543,7 +1589,7 @@ export function MapPanel() {
                 map={flatMap as TileMapData}
                 layers={flatLayers}
                 tilesets={project.tilesets}
-                zoom={state.mapZoom}
+                zoom={mapZoom}
                 activeLayerId={state.activeLayerId}
                 currentTool={state.currentTool}
                 brushSize={state.brushSize}

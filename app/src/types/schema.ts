@@ -347,10 +347,6 @@ export interface EditorState {
 
   /** Current selection rectangle on the map (tile units), null if none */
   mapSelection: MapSelection | null;
-
-  // -- Viewport --
-  tilesetZoom: number;
-  mapZoom: number;
 }
 
 export const DEFAULT_EDITOR_STATE: EditorState = {
@@ -369,6 +365,4 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   fillMode: "fill",
   activeFillTerrain: null,
   mapSelection: null,
-  tilesetZoom: 1,
-  mapZoom: 1,
 };

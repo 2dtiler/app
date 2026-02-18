@@ -16,6 +16,7 @@
 
 import { useEffect } from "react";
 import { getEditorStore } from "@/lib/store";
+import { zoomStore } from "@/lib/zoom-store";
 import { saveProject } from "@/lib/db";
 import type { BrushSize } from "@/types";
 
@@ -134,15 +135,11 @@ export function useKeyboardShortcuts() {
         case "=":
         case "+":
           e.preventDefault();
-          store.setState((draft) => {
-            draft.mapZoom = Math.min(4, draft.mapZoom + 0.5);
-          });
+          zoomStore.setMapZoom(zoomStore.getSnapshot().mapZoom + 0.5);
           break;
         case "-":
           e.preventDefault();
-          store.setState((draft) => {
-            draft.mapZoom = Math.max(0.5, draft.mapZoom - 0.5);
-          });
+          zoomStore.setMapZoom(zoomStore.getSnapshot().mapZoom - 0.5);
           break;
         default:
           // Brush sizes 1-5

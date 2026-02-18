@@ -1,10 +1,5 @@
-import { useRef, useState, useCallback } from "react";
-import {
-  Plus,
-  ZoomIn,
-  ZoomOut,
-  Trash2,
-} from "lucide-react";
+import { useRef, useState, useCallback, useSyncExternalStore } from "react";
+import { Plus, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,6 +41,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { zoomStore } from "@/lib/zoom-store";
 import { saveAsset, getAsset, deleteAsset } from "@/lib/db";
 import {
   generateTilesetId,
@@ -63,6 +59,10 @@ import {
 
 export function TilesetPanel() {
   const { state, setState } = useEditorStore();
+  const { tilesetZoom } = useSyncExternalStore(
+    zoomStore.subscribe,
+    zoomStore.getSnapshot,
+  );
   const project = state.project;
 
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -116,14 +116,9 @@ export function TilesetPanel() {
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const handleSetTilesetZoom = useCallback(
-    (newZoom: number) => {
-      setState((draft) => {
-        draft.tilesetZoom = newZoom;
-      });
-    },
-    [setState],
-  );
+  const handleSetTilesetZoom = useCallback((newZoom: number) => {
+    zoomStore.setTilesetZoom(newZoom);
+  }, []);
 
   async function handleAddTileset() {
     fileInputRef.current?.click();
@@ -295,10 +290,7 @@ export function TilesetPanel() {
   }
 
   function handleZoom(direction: 1 | -1) {
-    setState((draft) => {
-      const next = draft.tilesetZoom + direction * 0.5;
-      draft.tilesetZoom = Math.max(0.5, Math.min(4, next));
-    });
+    zoomStore.setTilesetZoom(tilesetZoom + direction * 0.5);
   }
 
   return (
@@ -337,7 +329,7 @@ export function TilesetPanel() {
             <TooltipContent>Zoom Out</TooltipContent>
           </Tooltip>
           <span className="text-[10px] text-muted-foreground w-8 text-center">
-            {Math.round(state.tilesetZoom * 100)}%
+            {Math.round(tilesetZoom * 100)}%
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -509,7 +501,7 @@ export function TilesetPanel() {
         <TilesetCanvas
           assetId={activeTileset?.assetId ?? null}
           tileSize={state.tileSize}
-          zoom={state.tilesetZoom}
+          zoom={tilesetZoom}
           onZoomChange={handleSetTilesetZoom}
           selectedTile={canvasSelectedTile}
           onTileSelect={handleTileSelect}
