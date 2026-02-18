@@ -1,8 +1,14 @@
-Conditionally render brush size
+In the image/sprite edtor, you should be able to import and export the following formats:
 
-================
-Palettes. You should be able to import and export the following palettes formats:
-
+- PNG Image (1 px)
+- PNG Image (8 px)
+- PNG Image (16 px)
+- PNG Image (32 px)
+- PAL File (JASC)
+- Photoshop .ASE
+- Paint.net .TXT
+- GIMP .GPL
+- .HEX File
 ================
   
 Image Generator
@@ -13,8 +19,7 @@ Color picker should have some margins between rgb input values
 Color picker should have mouse wheel up/down
 Why does the color picker have this L: R: values
 Add ability to deploy from local
-Map. Selection Tool. Allow Ctrl + C, Ctrl + V, Ctrl + X
-Allow selecting multiple tiles in tileset view
+Map. Allow selecting multiple tiles in tileset view. Allow Ctrl + C, Ctrl + V, Ctrl + X etc.
 Right click on a tile or map element to open in editor
 Get Lighthouse scores 100% with 0 errors/warnings
 Make list of tiled advanced features
