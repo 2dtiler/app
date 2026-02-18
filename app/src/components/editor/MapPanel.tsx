@@ -114,6 +114,8 @@ export function MapPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   /** Tile grid position captured on the most recent right-click (context menu). */
   const contextMenuTileRef = useRef<{ x: number; y: number } | null>(null);
+  /** Tile grid position under the mouse cursor, updated on every mouse move over the map. */
+  const hoverTileRef = useRef<{ x: number; y: number } | null>(null);
   /** Tracks whether the tile clipboard has content so Paste can be enabled. */
   const [hasClipboard, setHasClipboard] = useState(
     () => getClipboard() !== null,
@@ -563,29 +565,53 @@ export function MapPanel() {
   // ---------------------------------------------------------------------------
 
   /**
+   * Shared helper: convert a MouseEvent position to a clamped tile coordinate.
+   */
+  const eventToTile = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!activeMap) return null;
+      const el = containerRef.current;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      const rawX = e.clientX - rect.left + el.scrollLeft;
+      const rawY = e.clientY - rect.top + el.scrollTop;
+      const scaledTile = activeMap.tileSize * state.mapZoom;
+      return {
+        x: Math.max(
+          0,
+          Math.min(Math.floor(rawX / scaledTile), activeMap.widthInTiles - 1),
+        ),
+        y: Math.max(
+          0,
+          Math.min(Math.floor(rawY / scaledTile), activeMap.heightInTiles - 1),
+        ),
+      };
+    },
+    [activeMap, state.mapZoom],
+  );
+
+  /**
    * Capture tile position from a right-click on the map canvas container.
    * The div handles scrolling so we subtract the scroll offset from client coords.
    */
   const handleMapContextMenu = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeMap) return;
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const rawX = e.clientX - rect.left + el.scrollLeft;
-      const rawY = e.clientY - rect.top + el.scrollTop;
-      const scaledTile = activeMap.tileSize * state.mapZoom;
-      const gx = Math.max(
-        0,
-        Math.min(Math.floor(rawX / scaledTile), activeMap.widthInTiles - 1),
-      );
-      const gy = Math.max(
-        0,
-        Math.min(Math.floor(rawY / scaledTile), activeMap.heightInTiles - 1),
-      );
-      contextMenuTileRef.current = { x: gx, y: gy };
+      const tile = eventToTile(e);
+      if (tile) contextMenuTileRef.current = tile;
     },
-    [activeMap, state.mapZoom],
+    [eventToTile],
+  );
+
+  /**
+   * Track the cursor tile position so keyboard paste (Ctrl+V) can paste at
+   * the mouse location rather than always at the copy origin.
+   */
+  const handleMapMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const tile = eventToTile(e);
+      hoverTileRef.current = tile;
+    },
+    [eventToTile],
   );
 
   /**
@@ -757,9 +783,11 @@ export function MapPanel() {
       const destPos =
         fromContextMenu && contextMenuTileRef.current
           ? contextMenuTileRef.current
-          : state.mapSelection
-            ? { x: state.mapSelection.x, y: state.mapSelection.y }
-            : { x: 0, y: 0 };
+          : hoverTileRef.current
+            ? hoverTileRef.current
+            : state.mapSelection
+              ? { x: state.mapSelection.x, y: state.mapSelection.y }
+              : { x: 0, y: 0 };
 
       setState((draft) => {
         const layer = draft.project?.layers.find(
@@ -1505,6 +1533,10 @@ export function MapPanel() {
             ref={containerRef}
             className="flex-1 overflow-auto min-h-0"
             onContextMenu={handleMapContextMenu}
+            onMouseMove={handleMapMouseMove}
+            onMouseLeave={() => {
+              hoverTileRef.current = null;
+            }}
           >
             {activeMap && flatMap ? (
               <MapCanvas

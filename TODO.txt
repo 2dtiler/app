@@ -1,4 +1,3 @@
-Right click menu in tileset canvas doesnt make sense.
 Right click on a map element to open in editor
 Map. Allow selecting multiple tiles in tileset view. Allow Ctrl + C, Ctrl + V, Ctrl + X etc.
 

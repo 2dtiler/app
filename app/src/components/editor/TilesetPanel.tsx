@@ -4,9 +4,6 @@ import {
   ZoomIn,
   ZoomOut,
   Trash2,
-  Copy,
-  Scissors,
-  ClipboardPaste,
 } from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/button";
@@ -45,8 +42,6 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
@@ -64,9 +59,7 @@ import {
   type TilesetId,
   type Tileset,
   type TilesetGroup,
-  type TileRef,
 } from "@/types";
-import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
 
 export function TilesetPanel() {
   const { state, setState } = useEditorStore();
@@ -83,8 +76,6 @@ export function TilesetPanel() {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** Tile grid position of the most recent right-click on the canvas */
-  const contextMenuTileRef = useRef<{ tx: number; ty: number } | null>(null);
 
   if (!project) return null;
 
@@ -109,48 +100,6 @@ export function TilesetPanel() {
           sh: state.selectedTile.sh,
         }
       : null;
-
-  /**
-   * Copy brush-sized tile region starting at the right-clicked tile position.
-   * Each tile is a distinct sub-region of the tileset image, so pasting onto
-   * the map creates a pattern matching the tileset layout.
-   */
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const handleCopyFromTileset = useCallback(
-    (tx: number, ty: number) => {
-      if (!activeTileset) return;
-      const brushNum = parseInt(state.brushSize);
-      const ts = state.tileSize;
-      const tiles: { dx: number; dy: number; ref: TileRef }[] = [];
-      for (let dy = 0; dy < brushNum; dy++) {
-        for (let dx = 0; dx < brushNum; dx++) {
-          const pixelX = (tx + dx) * ts;
-          const pixelY = (ty + dy) * ts;
-          if (
-            pixelX + ts > activeTileset.imageWidth ||
-            pixelY + ts > activeTileset.imageHeight
-          )
-            continue;
-          tiles.push({
-            dx,
-            dy,
-            ref: {
-              tilesetId: activeTileset.id,
-              sx: pixelX,
-              sy: pixelY,
-              sw: ts,
-              sh: ts,
-            },
-          });
-        }
-      }
-      setClipboard({ tiles, width: brushNum, height: brushNum });
-    },
-    [activeTileset, state.brushSize, state.tileSize],
-  );
-
-  /** Whether there is anything in the clipboard to paste (for UI enablement) */
-  const hasClipboard = getClipboard() !== null;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const handleTileSelect = useCallback(
@@ -553,53 +502,25 @@ export function TilesetPanel() {
       </div>
 
       {/* Tileset canvas area — uses the shared TilesetCanvas component */}
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TilesetCanvas
-              assetId={activeTileset?.assetId ?? null}
-              tileSize={state.tileSize}
-              zoom={state.tilesetZoom}
-              onZoomChange={handleSetTilesetZoom}
-              selectedTile={canvasSelectedTile}
-              onTileSelect={handleTileSelect}
-              className="flex-1 min-h-0"
-              placeholder={
-                groupTilesets.length === 0
-                  ? "Click 'Add Tileset' to add a tileset"
-                  : "Select a tileset tab"
-              }
-              onContextMenuTile={(tx, ty) => {
-                contextMenuTileRef.current = { tx, ty };
-              }}
-            />
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            disabled={!activeTileset}
-            onSelect={() => {
-              const pos = contextMenuTileRef.current;
-              if (pos) handleCopyFromTileset(pos.tx, pos.ty);
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy
-            <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem disabled>
-            <Scissors className="h-3.5 w-3.5" />
-            Cut
-            <ContextMenuShortcut>Ctrl+X</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem disabled={!hasClipboard}>
-            <ClipboardPaste className="h-3.5 w-3.5" />
-            Paste
-            <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+      <div
+        className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        <TilesetCanvas
+          assetId={activeTileset?.assetId ?? null}
+          tileSize={state.tileSize}
+          zoom={state.tilesetZoom}
+          onZoomChange={handleSetTilesetZoom}
+          selectedTile={canvasSelectedTile}
+          onTileSelect={handleTileSelect}
+          className="flex-1 min-h-0"
+          placeholder={
+            groupTilesets.length === 0
+              ? "Click 'Add Tileset' to add a tileset"
+              : "Select a tileset tab"
+          }
+        />
+      </div>
 
       {/* Hidden file input */}
       <input

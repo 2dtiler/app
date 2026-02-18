@@ -2184,7 +2184,7 @@ const MapScene = memo(function MapScene({
         })()}
 
       {/* Hover highlight — drawn imperatively via ref, no React render needed */}
-      <pixiGraphics ref={hoverGraphicsRef} />
+      <pixiGraphics ref={hoverGraphicsRef} draw={hoverDrawNoop} />
 
       {/* Selection overlay */}
       {currentTool === "select" && <pixiGraphics draw={drawSelection} />}
