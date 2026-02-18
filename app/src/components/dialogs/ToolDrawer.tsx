@@ -39,7 +39,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   return (
     <Drawer
       direction="right"
-      dismissible={false}
+      handleOnly={true}
       open={activeTool !== null}
       onOpenChange={(open) => {
         if (!open) onClose();

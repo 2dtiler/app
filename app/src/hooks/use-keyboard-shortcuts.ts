@@ -84,6 +84,23 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Copy / Cut / Paste — dispatch to whichever panel is listening
+      if (isCtrlOrCmd && e.key === "c") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("tile-copy"));
+        return;
+      }
+      if (isCtrlOrCmd && e.key === "x") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("tile-cut"));
+        return;
+      }
+      if (isCtrlOrCmd && e.key === "v") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("tile-paste"));
+        return;
+      }
+
       // Don't process tool shortcuts if modifier keys are held
       if (isCtrlOrCmd || e.altKey) return;
 

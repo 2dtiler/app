@@ -55,6 +55,12 @@ export interface TilesetCanvasProps {
    * comes from. Used by the Find & Replace dialog.
    */
   dragTilesetId?: TilesetId;
+  /**
+   * Called when the user right-clicks a tile. Receives tile grid coordinates
+   * (column, row). If provided, right-clicks will NOT propagate a native
+   * context menu — the parent should handle that via ContextMenuTrigger.
+   */
+  onContextMenuTile?: (tx: number, ty: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +77,7 @@ export function TilesetCanvas({
   className = "",
   placeholder = "No tileset selected",
   dragTilesetId,
+  onContextMenuTile,
 }: TilesetCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -239,6 +246,25 @@ export function TilesetCanvas({
   );
 
   // -----------------------------------------------------------------------
+  // Step 6: Handle right-click — report tile grid coords without showing
+  // the browser's default context menu (parent handles the ContextMenu).
+  // -----------------------------------------------------------------------
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!onContextMenuTile || !tilesetImage) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
+      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
+      onContextMenuTile(x, y);
+      // Do NOT prevent default here — the ContextMenuTrigger in the parent
+      // relies on the contextmenu event bubbling up to it.
+    },
+    [onContextMenuTile, tilesetImage, tileSize, zoom],
+  );
+
+  // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
   return (
@@ -255,6 +281,7 @@ export function TilesetCanvas({
           onMouseDown={handleClick}
           onMouseMove={handleMouseMove}
           onDragStart={dragTilesetId ? handleDragStart : undefined}
+          onContextMenu={onContextMenuTile ? handleContextMenu : undefined}
         />
       ) : (
         <div className="flex items-center justify-center h-full text-muted-foreground text-xs">

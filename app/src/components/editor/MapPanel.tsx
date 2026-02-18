@@ -9,6 +9,9 @@ import {
   Eraser,
   Settings,
   Trash2,
+  Copy,
+  Scissors,
+  ClipboardPaste,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
 import { Button } from "@/components/ui/button";
@@ -53,6 +56,8 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
@@ -96,12 +101,23 @@ import {
 } from "@/types";
 import { generateObjectId } from "@/lib/ids";
 import { pickWeightedTile } from "@/lib/terrain";
+import {
+  getClipboard,
+  setClipboard,
+  type TileClipboard,
+} from "@/lib/tile-clipboard";
 
 export function MapPanel() {
   const { state, setState } = useEditorStore();
   const project = state.project;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Tile grid position captured on the most recent right-click (context menu). */
+  const contextMenuTileRef = useRef<{ x: number; y: number } | null>(null);
+  /** Tracks whether the tile clipboard has content so Paste can be enabled. */
+  const [hasClipboard, setHasClipboard] = useState(
+    () => getClipboard() !== null,
+  );
 
   // --- Paint buffer for instant visual feedback ---
   // Tile changes are written here during a stroke and rendered immediately.
@@ -541,6 +557,268 @@ export function MapPanel() {
     },
     [setState],
   );
+
+  // ---------------------------------------------------------------------------
+  // Copy / Cut / Paste tile operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Capture tile position from a right-click on the map canvas container.
+   * The div handles scrolling so we subtract the scroll offset from client coords.
+   */
+  const handleMapContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!activeMap) return;
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const rawX = e.clientX - rect.left + el.scrollLeft;
+      const rawY = e.clientY - rect.top + el.scrollTop;
+      const scaledTile = activeMap.tileSize * state.mapZoom;
+      const gx = Math.max(
+        0,
+        Math.min(Math.floor(rawX / scaledTile), activeMap.widthInTiles - 1),
+      );
+      const gy = Math.max(
+        0,
+        Math.min(Math.floor(rawY / scaledTile), activeMap.heightInTiles - 1),
+      );
+      contextMenuTileRef.current = { x: gx, y: gy };
+    },
+    [activeMap, state.mapZoom],
+  );
+
+  /**
+   * Copy tiles to the clipboard.
+   * - If a map selection exists, copies the full selection.
+   * - If called from the context menu with no selection, copies a brush-sized
+   *   region at the right-clicked tile.
+   * - If neither applies (keyboard shortcut, no selection), falls back to
+   *   copying the currently selected tileset tile(s) with the brush size.
+   */
+  const handleCopyTiles = useCallback(
+    (fromContextMenu = false) => {
+      // Priority 1: active map selection
+      if (state.mapSelection && activeLayer) {
+        const sel = state.mapSelection;
+        const tiles: TileClipboard["tiles"] = [];
+        for (let dy = 0; dy < sel.height; dy++) {
+          for (let dx = 0; dx < sel.width; dx++) {
+            const ref = activeLayer.tiles[`${sel.x + dx},${sel.y + dy}`];
+            if (ref) tiles.push({ dx, dy, ref: { ...ref } });
+          }
+        }
+        setClipboard({ tiles, width: sel.width, height: sel.height });
+        return;
+      }
+
+      // Priority 2: context menu position + brush size
+      if (
+        fromContextMenu &&
+        contextMenuTileRef.current &&
+        activeLayer &&
+        activeMap
+      ) {
+        const { x, y } = contextMenuTileRef.current;
+        const brushNum = parseInt(state.brushSize);
+        const tiles: TileClipboard["tiles"] = [];
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const ref = activeLayer.tiles[`${x + dx},${y + dy}`];
+            if (ref) tiles.push({ dx, dy, ref: { ...ref } });
+          }
+        }
+        setClipboard({ tiles, width: brushNum, height: brushNum });
+        return;
+      }
+
+      // Priority 3 (keyboard fallback): copy from selected tileset tile
+      if (!fromContextMenu && state.selectedTile && project) {
+        const brushNum = parseInt(state.brushSize);
+        const ts = state.tileSize;
+        const tileset = project.tilesets.find(
+          (t) => t.id === state.selectedTile!.tilesetId,
+        );
+        if (!tileset) return;
+        const startTx = state.selectedTile.sx / ts;
+        const startTy = state.selectedTile.sy / ts;
+        const tiles: TileClipboard["tiles"] = [];
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const px = (startTx + dx) * ts;
+            const py = (startTy + dy) * ts;
+            if (px + ts > tileset.imageWidth || py + ts > tileset.imageHeight)
+              continue;
+            tiles.push({
+              dx,
+              dy,
+              ref: {
+                tilesetId: state.selectedTile!.tilesetId,
+                sx: px,
+                sy: py,
+                sw: ts,
+                sh: ts,
+              },
+            });
+          }
+        }
+        setClipboard({ tiles, width: brushNum, height: brushNum });
+      }
+    },
+    [
+      state.mapSelection,
+      state.brushSize,
+      state.selectedTile,
+      state.tileSize,
+      activeLayer,
+      activeMap,
+      project,
+    ],
+  );
+
+  /**
+   * Cut tiles from the active layer (copy + erase source).
+   * When no selection, uses the brush-sized region at the right-clicked tile.
+   * Not usable without a map/tile context.
+   */
+  const handleCutTiles = useCallback(
+    (fromContextMenu = false) => {
+      if (!activeLayer || !activeMap) return;
+      if (activeLayer.locked) return;
+
+      let region: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      } | null = null;
+
+      if (state.mapSelection) {
+        region = state.mapSelection;
+      } else if (fromContextMenu && contextMenuTileRef.current) {
+        const brushNum = parseInt(state.brushSize);
+        region = {
+          x: contextMenuTileRef.current.x,
+          y: contextMenuTileRef.current.y,
+          width: brushNum,
+          height: brushNum,
+        };
+      }
+
+      if (!region) return;
+
+      // Snapshot for clipboard
+      const tiles: TileClipboard["tiles"] = [];
+      for (let dy = 0; dy < region.height; dy++) {
+        for (let dx = 0; dx < region.width; dx++) {
+          const ref = activeLayer.tiles[`${region.x + dx},${region.y + dy}`];
+          if (ref) tiles.push({ dx, dy, ref: { ...ref } });
+        }
+      }
+      setClipboard({ tiles, width: region.width, height: region.height });
+
+      // Erase source
+      const r = region;
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (!layer) return;
+        for (let dy = 0; dy < r.height; dy++) {
+          for (let dx = 0; dx < r.width; dx++) {
+            delete layer.tiles[`${r.x + dx},${r.y + dy}`];
+          }
+        }
+      });
+    },
+    [
+      activeLayer,
+      activeMap,
+      state.mapSelection,
+      state.brushSize,
+      state.activeLayerId,
+      setState,
+    ],
+  );
+
+  /**
+   * Paste clipboard tiles onto the active tile layer.
+   * - Context menu paste: places at the right-clicked tile position.
+   * - Keyboard paste: places at the current selection's top-left, or (0, 0).
+   * After pasting, switches to the select tool and creates a selection over
+   * the pasted region so the result is immediately visible.
+   */
+  const handlePasteTiles = useCallback(
+    (fromContextMenu = false) => {
+      const clipboard = getClipboard();
+      if (!clipboard || !activeMap || !activeLayer) return;
+      if (activeLayer.locked) return;
+
+      const destPos =
+        fromContextMenu && contextMenuTileRef.current
+          ? contextMenuTileRef.current
+          : state.mapSelection
+            ? { x: state.mapSelection.x, y: state.mapSelection.y }
+            : { x: 0, y: 0 };
+
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (!layer) return;
+        for (const { dx, dy, ref } of clipboard.tiles) {
+          const tx = destPos.x + dx;
+          const ty = destPos.y + dy;
+          if (
+            tx < 0 ||
+            ty < 0 ||
+            tx >= activeMap.widthInTiles ||
+            ty >= activeMap.heightInTiles
+          )
+            continue;
+          layer.tiles[`${tx},${ty}`] = { ...ref };
+        }
+        // Show pasted region as active selection
+        draft.mapSelection = {
+          x: destPos.x,
+          y: destPos.y,
+          width: clipboard.width,
+          height: clipboard.height,
+        };
+        draft.currentTool = "select";
+      });
+    },
+    [activeMap, activeLayer, state.mapSelection, state.activeLayerId, setState],
+  );
+
+  // Keep hasClipboard in sync when clipboard changes
+  useEffect(() => {
+    const onClipboardChange = () => setHasClipboard(getClipboard() !== null);
+    window.addEventListener("tile-clipboard-change", onClipboardChange);
+    return () =>
+      window.removeEventListener("tile-clipboard-change", onClipboardChange);
+  }, []);
+
+  // Listen for keyboard shortcut events dispatched by use-keyboard-shortcuts
+  useEffect(() => {
+    const onCopy = () => handleCopyTiles(false);
+    const onCut = () => handleCutTiles(false);
+    const onPaste = () => handlePasteTiles(false);
+    window.addEventListener("tile-copy", onCopy);
+    window.addEventListener("tile-cut", onCut);
+    window.addEventListener("tile-paste", onPaste);
+    return () => {
+      window.removeEventListener("tile-copy", onCopy);
+      window.removeEventListener("tile-cut", onCut);
+      window.removeEventListener("tile-paste", onPaste);
+    };
+  }, [handleCopyTiles, handleCutTiles, handlePasteTiles]);
+
+  // Derived flags for context menu item enablement
+  const isTileLayerActive = !!activeLayer && !activeLayer.locked;
+  const canCopy = !!activeMap && !!activeLayer;
+  const canCut = !!activeMap && isTileLayerActive;
+  const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
 
   if (!project) return null;
 
@@ -1221,51 +1499,86 @@ export function MapPanel() {
       </div>
 
       {/* Map canvas area — PixiJS renderer */}
-      <div ref={containerRef} className="flex-1 overflow-auto min-h-0">
-        {activeMap && flatMap ? (
-          <MapCanvas
-            map={flatMap as TileMapData}
-            layers={flatLayers}
-            tilesets={project.tilesets}
-            zoom={state.mapZoom}
-            activeLayerId={state.activeLayerId}
-            currentTool={state.currentTool}
-            brushSize={state.brushSize}
-            selectedTile={state.selectedTile}
-            onPaintTile={handlePaintTile}
-            onPaintEnd={handlePaintEnd}
-            paintBuffer={paintBuffer}
-            paintBufferVersion={paintBufferVersion}
-            mapSelection={state.mapSelection}
-            onSelectionChange={handleSelectionChange}
-            onMoveTiles={handleMoveTiles}
-            imageLayers={flatImageLayers}
-            onMoveImageLayer={handleMoveImageLayer}
-            onResizeImageLayer={handleResizeImageLayer}
-            objectLayers={flatObjectLayers}
-            objects={flatObjects}
-            activeObjectId={state.activeObjectId}
-            pendingObjectType={state.pendingObjectType}
-            onCreateObject={handleCreateObject}
-            onCancelPendingObject={handleCancelPendingObject}
-            onMoveObject={handleMoveObject}
-            onResizeObject={handleResizeObject}
-            onUpdatePolygonPoints={handleUpdatePolygonPoints}
-            onSelectObject={(id) =>
-              setState((draft) => {
-                draft.activeObjectId = id as ObjectId | null;
-              })
-            }
-            onDoubleClickObject={(id) => setPropsObjectId(id as ObjectId)}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-            {groupMaps.length === 0
-              ? "Click + to create a map"
-              : "Select a map tab"}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-auto min-h-0"
+            onContextMenu={handleMapContextMenu}
+          >
+            {activeMap && flatMap ? (
+              <MapCanvas
+                map={flatMap as TileMapData}
+                layers={flatLayers}
+                tilesets={project.tilesets}
+                zoom={state.mapZoom}
+                activeLayerId={state.activeLayerId}
+                currentTool={state.currentTool}
+                brushSize={state.brushSize}
+                selectedTile={state.selectedTile}
+                onPaintTile={handlePaintTile}
+                onPaintEnd={handlePaintEnd}
+                paintBuffer={paintBuffer}
+                paintBufferVersion={paintBufferVersion}
+                mapSelection={state.mapSelection}
+                onSelectionChange={handleSelectionChange}
+                onMoveTiles={handleMoveTiles}
+                imageLayers={flatImageLayers}
+                onMoveImageLayer={handleMoveImageLayer}
+                onResizeImageLayer={handleResizeImageLayer}
+                objectLayers={flatObjectLayers}
+                objects={flatObjects}
+                activeObjectId={state.activeObjectId}
+                pendingObjectType={state.pendingObjectType}
+                onCreateObject={handleCreateObject}
+                onCancelPendingObject={handleCancelPendingObject}
+                onMoveObject={handleMoveObject}
+                onResizeObject={handleResizeObject}
+                onUpdatePolygonPoints={handleUpdatePolygonPoints}
+                onSelectObject={(id) =>
+                  setState((draft) => {
+                    draft.activeObjectId = id as ObjectId | null;
+                  })
+                }
+                onDoubleClickObject={(id) => setPropsObjectId(id as ObjectId)}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+                {groupMaps.length === 0
+                  ? "Click + to create a map"
+                  : "Select a map tab"}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            disabled={!canCopy}
+            onSelect={() => handleCopyTiles(true)}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy
+            <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!canCut}
+            onSelect={() => handleCutTiles(true)}
+          >
+            <Scissors className="h-3.5 w-3.5" />
+            Cut
+            <ContextMenuShortcut>Ctrl+X</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            disabled={!canPaste}
+            onSelect={() => handlePasteTiles(true)}
+          >
+            <ClipboardPaste className="h-3.5 w-3.5" />
+            Paste
+            <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* Add map dialog */}
       <Dialog open={addMapOpen} onOpenChange={setAddMapOpen}>

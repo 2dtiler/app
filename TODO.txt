@@ -1,6 +1,5 @@
-Right click menus on tilesets and maps
-Currently it's impossible to close the Image/Sprite editor
-Right click on a tile or map element to open in editor
+Right click menu in tileset canvas doesnt make sense.
+Right click on a map element to open in editor
 Map. Allow selecting multiple tiles in tileset view. Allow Ctrl + C, Ctrl + V, Ctrl + X etc.
 
 Image Generator
@@ -17,7 +16,7 @@ Unslopify
 Make list of tiled advanced features
   - Terrain brush
   - Map Custom Options
-  - Rotate Left/Right/Flip Horizontal/Flip Vertical
+  - Rotate Left/Right/Flip Horizontal/Flip Vertical (Also add to right click)
   - Select + Magic Wand
 Make list of aseprite advanced features
 AI Asset Generation
@@ -27,7 +26,6 @@ Import Options
 Get some ideas from: Keep Notes
 
 =======================================
-Google Ads
 Ad Marketplace for selling/buying tilesets etc.
 Performance Audit
 Drive some traffic to it: 2dtiler.com

@@ -631,7 +631,8 @@ const MapScene = memo(function MapScene({
   const handlePointerDown = useCallback(
     (e: { global: { x: number; y: number }; button?: number }) => {
       // Ignore middle mouse button (1) — reserved for panning
-      if (e.button === 1) return;
+      // Ignore right mouse button (2) — reserved for the context menu
+      if (e.button === 1 || e.button === 2) return;
 
       if (currentTool === "select") {
         // --- Object placement mode ---
