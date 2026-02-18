@@ -66,6 +66,22 @@ async function persistHistory(
 }
 
 // ---------------------------------------------------------------------------
+// Dirty (unsaved changes) tracking
+// ---------------------------------------------------------------------------
+
+let _isDirty = false;
+
+/** Mark the current project state as saved (clears the unsaved-changes flag). */
+export function markEditorSaved(): void {
+  _isDirty = false;
+}
+
+/** Returns true if there are unsaved changes since the last markEditorSaved() call. */
+export function hasUnsavedChanges(): boolean {
+  return _isDirty;
+}
+
+// ---------------------------------------------------------------------------
 // Travels instance
 // ---------------------------------------------------------------------------
 
@@ -135,6 +151,10 @@ export async function initEditorStore(): Promise<EditorTravels> {
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   travelsInstance.subscribe((state, patches, position) => {
+    // Mark dirty whenever the project is loaded and state changes
+    if (state.project) {
+      _isDirty = true;
+    }
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       void persistHistory(state, patches as TravelPatches, position);

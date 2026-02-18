@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useSyncExternalStore } from "react";
-import { Plus, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
+import { Plus, Save, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,7 +42,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/lib/zoom-store";
-import { saveAsset, getAsset, deleteAsset } from "@/lib/db";
+import { saveAsset, getAsset, deleteAsset, saveProject } from "@/lib/db";
+import { markEditorSaved } from "@/lib/store";
 import {
   generateTilesetId,
   generateTilesetGroupId,
@@ -297,6 +298,25 @@ export function TilesetPanel() {
     <div className="flex flex-col h-full">
       {/* Tileset toolbar */}
       <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0 flex-wrap">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onMouseDown={() => {
+                if (project) {
+                  markEditorSaved();
+                  void saveProject({ ...project, updatedAt: Date.now() });
+                }
+              }}
+            >
+              <Save className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Save Project (Ctrl+S)</TooltipContent>
+        </Tooltip>
+
         {/* Tile size selector */}
         <Select
           value={String(state.tileSize)}

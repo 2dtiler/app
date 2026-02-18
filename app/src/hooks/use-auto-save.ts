@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { getEditorStore } from "@/lib/store";
+import { getEditorStore, markEditorSaved } from "@/lib/store";
 import { saveProject, getSettings, cleanOrphanedAssets } from "@/lib/db";
 
 const AUTO_SAVE_INTERVAL_MS = 60_000; // 1 minute
@@ -34,6 +34,7 @@ export function useAutoSave() {
               ...state.project,
               updatedAt: Date.now(),
             });
+            markEditorSaved();
             // Clean up any orphaned assets (e.g. from trimmed undo history)
             await cleanOrphanedAssets(state.project);
           }

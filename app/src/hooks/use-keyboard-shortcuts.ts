@@ -15,7 +15,7 @@
  */
 
 import { useEffect } from "react";
-import { getEditorStore } from "@/lib/store";
+import { getEditorStore, markEditorSaved } from "@/lib/store";
 import { zoomStore } from "@/lib/zoom-store";
 import { saveProject } from "@/lib/db";
 import type { BrushSize } from "@/types";
@@ -73,6 +73,7 @@ export function useKeyboardShortcuts() {
         const store = getEditorStore();
         const project = store.getState().project;
         if (project) {
+          markEditorSaved();
           void saveProject({ ...project, updatedAt: Date.now() });
         }
         return;

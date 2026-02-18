@@ -1,7 +1,12 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { initEditorStore, getEditorStore } from "@/lib/store";
+import {
+  initEditorStore,
+  getEditorStore,
+  markEditorSaved,
+  hasUnsavedChanges,
+} from "@/lib/store";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -105,9 +110,10 @@ function App() {
   useAutoSave();
   useKeyboardShortcuts();
 
-  // Save project UI preferences on page unload so they persist across refreshes
+  // Save project UI preferences on page unload so they persist across refreshes.
+  // Also warn the user if there are unsaved changes.
   useEffect(() => {
-    function handleBeforeUnload() {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
       try {
         const store = getEditorStore();
         const s = store.getState();
@@ -122,6 +128,9 @@ function App() {
         }
       } catch {
         // Store may not be initialized yet
+      }
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
       }
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -428,6 +437,7 @@ function AppShell({
         onSaveProject={() => {
           const project = state.project;
           if (project) {
+            markEditorSaved();
             void saveProject({ ...project, updatedAt: Date.now() });
           }
         }}

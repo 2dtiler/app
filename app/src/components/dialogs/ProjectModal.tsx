@@ -36,7 +36,7 @@ import {
   deleteProjectPrefs,
 } from "@/lib/db";
 import type { ProjectRecord } from "@/lib/db";
-import { getEditorStore } from "@/lib/store";
+import { getEditorStore, markEditorSaved } from "@/lib/store";
 import {
   generateProjectId,
   generateTilesetGroupId,
@@ -187,6 +187,7 @@ export function ProjectModal({
         draft.activeLayerId = null;
       }
     });
+    markEditorSaved();
     onOpenChange(false);
     onProjectLoaded();
   }

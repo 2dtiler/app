@@ -1,11 +1,11 @@
-Save a project/reload a project doesnt work
+Add some loading indicator 
 Rotate Left/Right/Flip Horizontal/Flip Vertical (Also add to right click)
 
 Image Generator
   Add Layers. Each object placed should be in the layer
   Allow direct importing from Lospec
   Frame looping is a bit a funny
-=======================================
+
 Color picker should have some margins between rgb input values
 Color picker should have mouse wheel up/down
 Why does the color picker have this L: R: values
@@ -23,7 +23,6 @@ Autotile. Like Spritefusion
 Export Options
 Import Options
 Get some ideas from: Keep Notes
-
 =======================================
 Ad Marketplace for selling/buying tilesets etc.
 Performance Audit
