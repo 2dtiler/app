@@ -119,7 +119,7 @@ export function FramesPanel({
 }: FramesPanelProps) {
   return (
     <TooltipProvider>
-      <div className="flex flex-col border-t border-border bg-card shrink-0">
+      <div className="flex flex-col border-t border-border bg-card h-full overflow-hidden">
         {/* Frame thumbnails strip */}
         <div className="flex items-center gap-1 px-2 py-1.5 overflow-x-auto">
           {frames.map((frame, i) => (

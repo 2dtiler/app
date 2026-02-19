@@ -33,10 +33,17 @@ interface ImageCanvasProps {
   blurSize: number;
   blurIntensity: number;
   currentFrameId: FrameId | null;
-  currentFrameData: ImageData | null;
+  /** Raw pixels of the active layer only (drawn by tools). */
+  activeLayerData: ImageData | null;
+  /** Composite of all visible layers below the active layer. */
+  belowComposite: ImageData | null;
+  /** Composite of all visible layers above the active layer. */
+  aboveComposite: ImageData | null;
   previousFrameData: ImageData | null;
   onionSkin: boolean;
   selection: PixelSelection | null;
+  /** If true, prevent drawing on this layer. */
+  isLayerLocked: boolean;
   onZoom: (zoom: number) => void;
   onPushUndo: () => void;
   onSelectionChange: (sel: PixelSelection | null) => void;
@@ -54,10 +61,13 @@ export function ImageCanvas({
   blurSize,
   blurIntensity,
   currentFrameId,
-  currentFrameData,
+  activeLayerData,
+  belowComposite,
+  aboveComposite,
   previousFrameData,
   onionSkin,
   selection,
+  isLayerLocked,
   onZoom,
   onPushUndo,
   onSelectionChange,
@@ -65,6 +75,8 @@ export function ImageCanvas({
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bgCompositeRef = useRef<HTMLCanvasElement>(null);
+  const fgCompositeRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const onionRef = useRef<HTMLCanvasElement>(null);
   const selBorderRef = useRef<HTMLCanvasElement>(null);
@@ -134,18 +146,37 @@ export function ImageCanvas({
     onFrameDataChange,
   ]);
 
-  // Sync frame data onto main canvas whenever it changes.
-  // Skip while a stroke is active: the canvas is already being modified by the
-  // drawing path and a mid-stroke re-render (triggered by pushUndoSnapshot's
-  // forceHistoryUpdate) would overwrite those in-progress pixels.
+  // Sync active layer data onto main (drawing) canvas whenever it changes.
+  // Skip while a stroke is active to avoid overwriting in-progress pixels.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !currentFrameData) return;
+    if (!canvas || !activeLayerData) return;
     if (strokeRef.current.active) return;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    ctx.putImageData(currentFrameData, 0, 0);
-  }, [currentFrameData, currentFrameId]);
+    ctx.clearRect(0, 0, width, height);
+    ctx.putImageData(activeLayerData, 0, 0);
+  }, [activeLayerData, currentFrameId, width, height]);
+
+  // Sync below-composite canvas (layers rendered behind the active layer)
+  useEffect(() => {
+    const canvas = bgCompositeRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, width, height);
+    if (belowComposite) ctx.putImageData(belowComposite, 0, 0);
+  }, [belowComposite, currentFrameId, width, height]);
+
+  // Sync above-composite canvas (layers rendered in front of the active layer)
+  useEffect(() => {
+    const canvas = fgCompositeRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, width, height);
+    if (aboveComposite) ctx.putImageData(aboveComposite, 0, 0);
+  }, [aboveComposite, currentFrameId, width, height]);
 
   // Draw onion skin
   useEffect(() => {
@@ -530,6 +561,7 @@ export function ImageCanvas({
     (e: React.PointerEvent) => {
       if (e.button === 1) return; // middle mouse = pan
       if (!currentFrameId) return;
+      if (isLayerLocked) return; // locked layer — no drawing allowed
 
       const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
@@ -548,7 +580,15 @@ export function ImageCanvas({
       // Capture pointer for drag
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [tool, currentFrameId, secondaryColor, getToolContext, toPixel, onPushUndo],
+    [
+      tool,
+      currentFrameId,
+      isLayerLocked,
+      secondaryColor,
+      getToolContext,
+      toPixel,
+      onPushUndo,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -683,7 +723,20 @@ export function ImageCanvas({
           }}
         />
 
-        {/* Main drawing canvas */}
+        {/* Layers below the active layer (background composite) */}
+        <canvas
+          ref={bgCompositeRef}
+          width={width}
+          height={height}
+          className="absolute top-0 left-0 pointer-events-none"
+          style={{
+            width: pixelW,
+            height: pixelH,
+            imageRendering: "pixelated",
+          }}
+        />
+
+        {/* Main drawing canvas — only holds active layer pixels */}
         <canvas
           ref={canvasRef}
           width={width}
@@ -693,10 +746,25 @@ export function ImageCanvas({
             width: pixelW,
             height: pixelH,
             imageRendering: "pixelated",
+            cursor: isLayerLocked ? "not-allowed" : undefined,
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+        />
+
+        {/* Layers above the active layer (foreground composite) */}
+        <canvas
+          ref={fgCompositeRef}
+          width={width}
+          height={height}
+          className="absolute top-0 left-0 pointer-events-none"
+          style={{
+            width: pixelW,
+            height: pixelH,
+            imageRendering: "pixelated",
+            opacity: 0.5,
+          }}
         />
 
         {/* Overlay canvas (tool previews) */}

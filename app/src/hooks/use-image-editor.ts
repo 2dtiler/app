@@ -62,11 +62,169 @@ export type PaletteExportFormat =
 export type PngSwatchSize = 1 | 8 | 16 | 32;
 
 // ---------------------------------------------------------------------------
-// Module-level frame data — survives component unmount/remount so the
-// editor remembers what you had open when you close and reopen the drawer.
+// Module-level per-layer pixel data — survives component unmount/remount.
+// Key format: "${frameId}:${layerId}"
 // ---------------------------------------------------------------------------
 
-const moduleFrameData: Map<FrameId, ImageData> = new Map();
+const moduleLayerFrameData: Map<string, ImageData> = new Map();
+
+/** Build the map key for a frame + layer combination. */
+function layerDataKey(frameId: string, layerId: string): string {
+  return `${frameId}:${layerId}`;
+}
+
+/**
+ * Return all leaf (non-group) layer IDs in bottom-to-top render order,
+ * respecting group visibility. Pass `ignoreVisibility = true` to include
+ * hidden layers (needed for resize, delete, etc.).
+ */
+function getLeafLayerIds(
+  order: readonly (ImageEditorLayerId | ImageEditorGroupId)[],
+  layers: readonly ImageEditorRasterLayer[],
+  imageLayers: readonly ImageEditorImageLayer[],
+  groups: readonly ImageEditorLayerGroup[],
+  ignoreVisibility = false,
+  parentVisible = true,
+): string[] {
+  const result: string[] = [];
+  for (const id of order) {
+    const group = groups.find((g) => (g.id as string) === (id as string));
+    if (group) {
+      const childVis = ignoreVisibility || (parentVisible && group.visible);
+      result.push(
+        ...getLeafLayerIds(
+          group.childOrder,
+          layers,
+          imageLayers,
+          groups,
+          ignoreVisibility,
+          childVis,
+        ),
+      );
+    } else {
+      const layer =
+        layers.find((l) => (l.id as string) === (id as string)) ??
+        imageLayers.find((l) => (l.id as string) === (id as string));
+      if (layer) {
+        if (ignoreVisibility || (parentVisible && layer.visible)) {
+          result.push(id as string);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Composite all visible layers for the given frame into a single ImageData.
+ * Layers are blended bottom-to-top (index 0 = bottom, last = top).
+ */
+function computeComposite(frameId: string, state: ImageEditorState): ImageData {
+  const { width, height } = state;
+  const visibleIds = getLeafLayerIds(
+    state.layerOrder,
+    state.layers,
+    state.imageLayers,
+    state.layerGroups,
+  );
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  for (const layerId of visibleIds) {
+    const data = moduleLayerFrameData.get(layerDataKey(frameId, layerId));
+    if (!data) continue;
+    const tmp = document.createElement("canvas");
+    tmp.width = width;
+    tmp.height = height;
+    const tCtx = tmp.getContext("2d")!;
+    tCtx.putImageData(data, 0, 0);
+    ctx.drawImage(tmp, 0, 0);
+  }
+
+  return ctx.getImageData(0, 0, width, height);
+}
+
+/**
+ * Composite all visible layers BELOW `activeLayerId` into one ImageData.
+ * Used to render the background reference canvas in the image editor.
+ */
+function computeCompositeBelowLayer(
+  frameId: string,
+  activeLayerId: string,
+  state: ImageEditorState,
+): ImageData {
+  const { width, height } = state;
+  const allVisible = getLeafLayerIds(
+    state.layerOrder,
+    state.layers,
+    state.imageLayers,
+    state.layerGroups,
+  );
+  const activeIdx = allVisible.indexOf(activeLayerId);
+  const belowIds = activeIdx > 0 ? allVisible.slice(0, activeIdx) : [];
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  for (const layerId of belowIds) {
+    const data = moduleLayerFrameData.get(layerDataKey(frameId, layerId));
+    if (!data) continue;
+    const tmp = document.createElement("canvas");
+    tmp.width = width;
+    tmp.height = height;
+    const tCtx = tmp.getContext("2d")!;
+    tCtx.putImageData(data, 0, 0);
+    ctx.drawImage(tmp, 0, 0);
+  }
+
+  return ctx.getImageData(0, 0, width, height);
+}
+
+/**
+ * Composite all visible layers ABOVE `activeLayerId` into one ImageData.
+ * Used to render the foreground overlay canvas in the image editor.
+ */
+function computeCompositeAboveLayer(
+  frameId: string,
+  activeLayerId: string,
+  state: ImageEditorState,
+): ImageData {
+  const { width, height } = state;
+  const allVisible = getLeafLayerIds(
+    state.layerOrder,
+    state.layers,
+    state.imageLayers,
+    state.layerGroups,
+  );
+  const activeIdx = allVisible.indexOf(activeLayerId);
+  const aboveIds =
+    activeIdx >= 0 && activeIdx < allVisible.length - 1
+      ? allVisible.slice(activeIdx + 1)
+      : [];
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  for (const layerId of aboveIds) {
+    const data = moduleLayerFrameData.get(layerDataKey(frameId, layerId));
+    if (!data) continue;
+    const tmp = document.createElement("canvas");
+    tmp.width = width;
+    tmp.height = height;
+    const tCtx = tmp.getContext("2d")!;
+    tCtx.putImageData(data, 0, 0);
+    ctx.drawImage(tmp, 0, 0);
+  }
+
+  return ctx.getImageData(0, 0, width, height);
+}
 
 // ---------------------------------------------------------------------------
 // Frame operation undo/redo stacks
@@ -77,7 +235,8 @@ interface FrameOperation {
   frameId: FrameId;
   frame: Frame;
   index: number;
-  pixelData: ImageData;
+  /** Per-layer pixel data: layerId → ImageData snapshot */
+  layerData: Map<string, ImageData>;
   prevFrameIndex: number;
 }
 
@@ -162,8 +321,12 @@ function ensureStoreReady() {
 
   const store = getImageEditorStore();
   const s = store.getState();
-  if (s.frames.length > 0 && !moduleFrameData.has(s.frames[0].id)) {
-    moduleFrameData.set(s.frames[0].id, new ImageData(w, h));
+  // Initialize blank pixel data for the first layer of the first frame
+  if (s.frames.length > 0 && s.layers.length > 0) {
+    const key = layerDataKey(s.frames[0].id, s.layers[0].id);
+    if (!moduleLayerFrameData.has(key)) {
+      moduleLayerFrameData.set(key, new ImageData(w, h));
+    }
   }
 }
 
@@ -213,7 +376,7 @@ export function useImageEditor() {
       // Tear down any previous instance
       destroyImageEditorStore();
       pixelHistory.clearAllHistory();
-      moduleFrameData.clear();
+      moduleLayerFrameData.clear();
       paletteUndoStack.length = 0;
       paletteRedoStack.length = 0;
       frameOpUndoStack.length = 0;
@@ -223,13 +386,12 @@ export function useImageEditor() {
 
       initImageEditorStore(width, height, initialPalettes);
 
-      // Create initial blank ImageData for frame 1
+      // Create initial blank ImageData for the first layer of frame 1
       const store = getImageEditorStore();
       const s = store.getState();
-      if (s.frames.length > 0) {
-        const frame = s.frames[0];
-        const imgData = new ImageData(width, height);
-        moduleFrameData.set(frame.id, imgData);
+      if (s.frames.length > 0 && s.layers.length > 0) {
+        const key = layerDataKey(s.frames[0].id, s.layers[0].id as string);
+        moduleLayerFrameData.set(key, new ImageData(width, height));
       }
     },
     [],
@@ -247,25 +409,36 @@ export function useImageEditor() {
     const oldH = s.height;
     if (newWidth === oldW && newHeight === oldH) return;
 
-    // Resize each frame's pixel data (top-left aligned copy)
+    // Resize each layer's pixel data for every frame (top-left aligned copy)
+    const allLayerIds = getLeafLayerIds(
+      s.layerOrder,
+      s.layers,
+      s.imageLayers,
+      s.layerGroups,
+      true, // include all layers regardless of visibility
+    );
+
     for (const frame of s.frames) {
-      const oldData = moduleFrameData.get(frame.id);
-      const newData = new ImageData(newWidth, newHeight);
-      if (oldData) {
-        const copyW = Math.min(oldW, newWidth);
-        const copyH = Math.min(oldH, newHeight);
-        for (let y = 0; y < copyH; y++) {
-          for (let x = 0; x < copyW; x++) {
-            const oldIdx = (y * oldW + x) * 4;
-            const newIdx = (y * newWidth + x) * 4;
-            newData.data[newIdx] = oldData.data[oldIdx];
-            newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
-            newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
-            newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
+      for (const layerId of allLayerIds) {
+        const k = layerDataKey(frame.id, layerId);
+        const oldData = moduleLayerFrameData.get(k);
+        const newData = new ImageData(newWidth, newHeight);
+        if (oldData) {
+          const copyW = Math.min(oldW, newWidth);
+          const copyH = Math.min(oldH, newHeight);
+          for (let y = 0; y < copyH; y++) {
+            for (let x = 0; x < copyW; x++) {
+              const oldIdx = (y * oldW + x) * 4;
+              const newIdx = (y * newWidth + x) * 4;
+              newData.data[newIdx] = oldData.data[oldIdx];
+              newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
+              newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
+              newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
+            }
           }
         }
+        moduleLayerFrameData.set(k, newData);
       }
-      moduleFrameData.set(frame.id, newData);
     }
 
     // Update store dimensions
@@ -300,17 +473,77 @@ export function useImageEditor() {
 
   const getCurrentFrameData = useCallback((): ImageData | null => {
     const frameId = getCurrentFrameId();
-    if (!frameId) return null;
-    return moduleFrameData.get(frameId) ?? null;
-  }, [getCurrentFrameId]);
+    if (!frameId || !state) return null;
+    return computeComposite(frameId, state);
+  }, [getCurrentFrameId, state]);
 
-  const getFrameData = useCallback((frameId: FrameId): ImageData | null => {
-    return moduleFrameData.get(frameId) ?? null;
-  }, []);
+  const getFrameData = useCallback(
+    (frameId: FrameId): ImageData | null => {
+      if (!state) return null;
+      return computeComposite(frameId, state);
+    },
+    [state],
+  );
 
-  const setFrameData = useCallback((frameId: FrameId, data: ImageData) => {
-    moduleFrameData.set(frameId, data);
-  }, []);
+  /** Return the raw pixels for a specific layer + frame (not composited). */
+  const getLayerFrameData = useCallback(
+    (frameId: FrameId, layerId: string): ImageData | null => {
+      return moduleLayerFrameData.get(layerDataKey(frameId, layerId)) ?? null;
+    },
+    [],
+  );
+
+  /**
+   * Save `data` as the active layer's pixel data for the given frame.
+   * This is called by ImageCanvas after every stroke.
+   */
+  const setFrameData = useCallback(
+    (frameId: FrameId, data: ImageData) => {
+      if (!state?.activeLayerId) return;
+      const key = layerDataKey(frameId, state.activeLayerId as string);
+      moduleLayerFrameData.set(key, data);
+    },
+    [state?.activeLayerId],
+  );
+
+  /** Return the raw pixels of the active layer for the current frame. */
+  const getActiveLayerData = useCallback((): ImageData | null => {
+    const frameId = getCurrentFrameId();
+    if (!frameId || !state?.activeLayerId) return null;
+    return (
+      moduleLayerFrameData.get(
+        layerDataKey(frameId, state.activeLayerId as string),
+      ) ?? null
+    );
+  }, [getCurrentFrameId, state?.activeLayerId]);
+
+  /**
+   * Composite of all visible layers BELOW the active layer
+   * (renders behind the drawing canvas).
+   */
+  const getCompositeBelowActiveLayer = useCallback((): ImageData | null => {
+    const frameId = getCurrentFrameId();
+    if (!frameId || !state?.activeLayerId) return null;
+    return computeCompositeBelowLayer(
+      frameId,
+      state.activeLayerId as string,
+      state,
+    );
+  }, [getCurrentFrameId, state]);
+
+  /**
+   * Composite of all visible layers ABOVE the active layer
+   * (renders in front of the drawing canvas).
+   */
+  const getCompositeAboveActiveLayer = useCallback((): ImageData | null => {
+    const frameId = getCurrentFrameId();
+    if (!frameId || !state?.activeLayerId) return null;
+    return computeCompositeAboveLayer(
+      frameId,
+      state.activeLayerId as string,
+      state,
+    );
+  }, [getCurrentFrameId, state]);
 
   // -----------------------------------------------------------------------
   // Pixel history — undo / redo for the canvas
@@ -318,9 +551,11 @@ export function useImageEditor() {
 
   const pushUndoSnapshot = useCallback(() => {
     const frameId = getCurrentFrameId();
-    const data = getCurrentFrameData();
-    if (frameId && data) {
-      pixelHistory.pushSnapshot(frameId, data);
+    if (!frameId || !state?.activeLayerId) return;
+    const key = layerDataKey(frameId, state.activeLayerId as string);
+    const data = moduleLayerFrameData.get(key);
+    if (data) {
+      pixelHistory.pushSnapshot(key, data);
       // Clear all redo history — any new action voids redo
       redoLog.length = 0;
       paletteRedoStack.length = 0;
@@ -328,21 +563,25 @@ export function useImageEditor() {
       actionLog.push("pixel");
       forceHistoryUpdate();
     }
-  }, [getCurrentFrameId, getCurrentFrameData, forceHistoryUpdate]);
+  }, [getCurrentFrameId, state?.activeLayerId, forceHistoryUpdate]);
 
   const undoPixels = useCallback((): ImageData | null => {
     const frameId = getCurrentFrameId();
-    const data = getCurrentFrameData();
-    if (!frameId || !data) return null;
-    return pixelHistory.undo(frameId, data);
-  }, [getCurrentFrameId, getCurrentFrameData]);
+    if (!frameId || !state?.activeLayerId) return null;
+    const key = layerDataKey(frameId, state.activeLayerId as string);
+    const data = moduleLayerFrameData.get(key);
+    if (!data) return null;
+    return pixelHistory.undo(key, data);
+  }, [getCurrentFrameId, state?.activeLayerId]);
 
   const redoPixels = useCallback((): ImageData | null => {
     const frameId = getCurrentFrameId();
-    const data = getCurrentFrameData();
-    if (!frameId || !data) return null;
-    return pixelHistory.redo(frameId, data);
-  }, [getCurrentFrameId, getCurrentFrameData]);
+    if (!frameId || !state?.activeLayerId) return null;
+    const key = layerDataKey(frameId, state.activeLayerId as string);
+    const data = moduleLayerFrameData.get(key);
+    if (!data) return null;
+    return pixelHistory.redo(key, data);
+  }, [getCurrentFrameId, state?.activeLayerId]);
 
   // -----------------------------------------------------------------------
   // Frame management
@@ -357,9 +596,27 @@ export function useImageEditor() {
       duration: 100,
     };
 
-    // Create blank ImageData
-    const blankData = new ImageData(state.width, state.height);
-    moduleFrameData.set(newId, blankData);
+    // Create blank pixel data for every leaf layer in the new frame
+    const allLayerIds = getLeafLayerIds(
+      state.layerOrder,
+      state.layers,
+      state.imageLayers,
+      state.layerGroups,
+      true,
+    );
+    const savedLayerData = new Map<string, ImageData>();
+    for (const layerId of allLayerIds) {
+      const blank = new ImageData(state.width, state.height);
+      moduleLayerFrameData.set(layerDataKey(newId, layerId), blank);
+      savedLayerData.set(
+        layerId,
+        new ImageData(
+          new Uint8ClampedArray(blank.data),
+          blank.width,
+          blank.height,
+        ),
+      );
+    }
 
     // Record for undo
     frameOpUndoStack.push({
@@ -367,11 +624,7 @@ export function useImageEditor() {
       frameId: newId,
       frame: { ...newFrame },
       index: state.frames.length,
-      pixelData: new ImageData(
-        new Uint8ClampedArray(blankData.data),
-        blankData.width,
-        blankData.height,
-      ),
+      layerData: savedLayerData,
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
@@ -397,19 +650,36 @@ export function useImageEditor() {
       duration: srcFrame.duration,
     };
 
-    // Deep copy pixel data
-    const srcData = moduleFrameData.get(srcFrame.id);
-    let copyData: ImageData;
-    if (srcData) {
-      copyData = new ImageData(
-        new Uint8ClampedArray(srcData.data),
-        srcData.width,
-        srcData.height,
+    // Deep copy per-layer pixel data from the source frame
+    const allLayerIds = getLeafLayerIds(
+      state.layerOrder,
+      state.layers,
+      state.imageLayers,
+      state.layerGroups,
+      true,
+    );
+    const savedLayerData = new Map<string, ImageData>();
+    for (const layerId of allLayerIds) {
+      const srcData = moduleLayerFrameData.get(
+        layerDataKey(srcFrame.id, layerId),
       );
-    } else {
-      copyData = new ImageData(state.width, state.height);
+      const copyData = srcData
+        ? new ImageData(
+            new Uint8ClampedArray(srcData.data),
+            srcData.width,
+            srcData.height,
+          )
+        : new ImageData(state.width, state.height);
+      moduleLayerFrameData.set(layerDataKey(newId, layerId), copyData);
+      savedLayerData.set(
+        layerId,
+        new ImageData(
+          new Uint8ClampedArray(copyData.data),
+          copyData.width,
+          copyData.height,
+        ),
+      );
     }
-    moduleFrameData.set(newId, copyData);
 
     const insertIndex = state.currentFrameIndex + 1;
 
@@ -419,11 +689,7 @@ export function useImageEditor() {
       frameId: newId,
       frame: { ...newFrame },
       index: insertIndex,
-      pixelData: new ImageData(
-        new Uint8ClampedArray(copyData.data),
-        copyData.width,
-        copyData.height,
-      ),
+      layerData: savedLayerData,
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
@@ -442,20 +708,39 @@ export function useImageEditor() {
     const frameToDelete = state.frames[state.currentFrameIndex];
     if (!frameToDelete) return;
 
-    // Save undo record before deleting
-    const pixelData = moduleFrameData.get(frameToDelete.id);
+    // Save per-layer pixel data before deleting
+    const allLayerIds = getLeafLayerIds(
+      state.layerOrder,
+      state.layers,
+      state.imageLayers,
+      state.layerGroups,
+      true,
+    );
+    const savedLayerData = new Map<string, ImageData>();
+    for (const layerId of allLayerIds) {
+      const data = moduleLayerFrameData.get(
+        layerDataKey(frameToDelete.id, layerId),
+      );
+      if (data) {
+        savedLayerData.set(
+          layerId,
+          new ImageData(
+            new Uint8ClampedArray(data.data),
+            data.width,
+            data.height,
+          ),
+        );
+      } else {
+        savedLayerData.set(layerId, new ImageData(state.width, state.height));
+      }
+    }
+
     frameOpUndoStack.push({
       type: "delete",
       frameId: frameToDelete.id,
       frame: { ...frameToDelete },
       index: state.currentFrameIndex,
-      pixelData: pixelData
-        ? new ImageData(
-            new Uint8ClampedArray(pixelData.data),
-            pixelData.width,
-            pixelData.height,
-          )
-        : new ImageData(state.width, state.height),
+      layerData: savedLayerData,
       prevFrameIndex: state.currentFrameIndex,
     });
     frameOpRedoStack.length = 0;
@@ -463,8 +748,11 @@ export function useImageEditor() {
     paletteRedoStack.length = 0;
     actionLog.push("frame");
 
-    moduleFrameData.delete(frameToDelete.id);
-    pixelHistory.clearFrameHistory(frameToDelete.id);
+    // Delete all layer entries for this frame
+    for (const layerId of allLayerIds) {
+      moduleLayerFrameData.delete(layerDataKey(frameToDelete.id, layerId));
+    }
+    pixelHistory.clearAllHistoryForFrame(frameToDelete.id);
 
     setState((d) => {
       d.frames.splice(d.currentFrameIndex, 1);
@@ -501,20 +789,26 @@ export function useImageEditor() {
     switch (op.type) {
       case "add":
       case "duplicate": {
-        // Undo add/duplicate: remove the frame that was added
-        const currentPixelData = moduleFrameData.get(op.frameId);
-        frameOpRedoStack.push({
-          ...op,
-          pixelData: currentPixelData
-            ? new ImageData(
-                new Uint8ClampedArray(currentPixelData.data),
-                currentPixelData.width,
-                currentPixelData.height,
-              )
-            : op.pixelData,
-        });
-        moduleFrameData.delete(op.frameId);
-        pixelHistory.clearFrameHistory(op.frameId);
+        // Undo add/duplicate: capture current layer data then remove the frame
+        const savedLayerData = new Map<string, ImageData>();
+        for (const [layerId, imgData] of op.layerData) {
+          const current = moduleLayerFrameData.get(
+            layerDataKey(op.frameId, layerId),
+          );
+          savedLayerData.set(
+            layerId,
+            current
+              ? new ImageData(
+                  new Uint8ClampedArray(current.data),
+                  current.width,
+                  current.height,
+                )
+              : imgData,
+          );
+          moduleLayerFrameData.delete(layerDataKey(op.frameId, layerId));
+        }
+        frameOpRedoStack.push({ ...op, layerData: savedLayerData });
+        pixelHistory.clearAllHistoryForFrame(op.frameId);
         setState((d) => {
           const idx = d.frames.findIndex((f) => f.id === op.frameId);
           if (idx >= 0) d.frames.splice(idx, 1);
@@ -526,15 +820,17 @@ export function useImageEditor() {
         return true;
       }
       case "delete": {
-        // Undo delete: re-insert the frame with its pixel data
-        moduleFrameData.set(
-          op.frameId,
-          new ImageData(
-            new Uint8ClampedArray(op.pixelData.data),
-            op.pixelData.width,
-            op.pixelData.height,
-          ),
-        );
+        // Undo delete: re-insert the frame with its layer data
+        for (const [layerId, imgData] of op.layerData) {
+          moduleLayerFrameData.set(
+            layerDataKey(op.frameId, layerId),
+            new ImageData(
+              new Uint8ClampedArray(imgData.data),
+              imgData.width,
+              imgData.height,
+            ),
+          );
+        }
         frameOpRedoStack.push(op);
         setState((d) => {
           const idx = Math.min(op.index, d.frames.length);
@@ -553,15 +849,17 @@ export function useImageEditor() {
     switch (op.type) {
       case "add":
       case "duplicate": {
-        // Redo add/duplicate: re-insert the frame
-        moduleFrameData.set(
-          op.frameId,
-          new ImageData(
-            new Uint8ClampedArray(op.pixelData.data),
-            op.pixelData.width,
-            op.pixelData.height,
-          ),
-        );
+        // Redo add/duplicate: re-insert the frame with its layer data
+        for (const [layerId, imgData] of op.layerData) {
+          moduleLayerFrameData.set(
+            layerDataKey(op.frameId, layerId),
+            new ImageData(
+              new Uint8ClampedArray(imgData.data),
+              imgData.width,
+              imgData.height,
+            ),
+          );
+        }
         frameOpUndoStack.push(op);
         setState((d) => {
           const idx = Math.min(op.index, d.frames.length);
@@ -572,19 +870,25 @@ export function useImageEditor() {
       }
       case "delete": {
         // Redo delete: re-remove the frame
-        const currentPixelData = moduleFrameData.get(op.frameId);
-        frameOpUndoStack.push({
-          ...op,
-          pixelData: currentPixelData
-            ? new ImageData(
-                new Uint8ClampedArray(currentPixelData.data),
-                currentPixelData.width,
-                currentPixelData.height,
-              )
-            : op.pixelData,
-        });
-        moduleFrameData.delete(op.frameId);
-        pixelHistory.clearFrameHistory(op.frameId);
+        const savedLayerData = new Map<string, ImageData>();
+        for (const [layerId, imgData] of op.layerData) {
+          const current = moduleLayerFrameData.get(
+            layerDataKey(op.frameId, layerId),
+          );
+          savedLayerData.set(
+            layerId,
+            current
+              ? new ImageData(
+                  new Uint8ClampedArray(current.data),
+                  current.width,
+                  current.height,
+                )
+              : imgData,
+          );
+          moduleLayerFrameData.delete(layerDataKey(op.frameId, layerId));
+        }
+        frameOpUndoStack.push({ ...op, layerData: savedLayerData });
+        pixelHistory.clearAllHistoryForFrame(op.frameId);
         setState((d) => {
           const idx = d.frames.findIndex((f) => f.id === op.frameId);
           if (idx >= 0) {
@@ -610,12 +914,16 @@ export function useImageEditor() {
 
     if (type === "pixel") {
       const frameId = getCurrentFrameId();
-      if (frameId) {
-        const current = moduleFrameData.get(frameId);
+      const activeLayerId = isImageEditorStoreReady()
+        ? getImageEditorStore().getState().activeLayerId
+        : null;
+      if (frameId && activeLayerId) {
+        const key = layerDataKey(frameId, activeLayerId as string);
+        const current = moduleLayerFrameData.get(key);
         if (current) {
-          const restored = pixelHistory.undo(frameId, current);
+          const restored = pixelHistory.undo(key, current);
           if (restored) {
-            moduleFrameData.set(frameId, restored);
+            moduleLayerFrameData.set(key, restored);
           }
         }
       }
@@ -646,12 +954,16 @@ export function useImageEditor() {
 
     if (type === "pixel") {
       const frameId = getCurrentFrameId();
-      if (frameId) {
-        const current = moduleFrameData.get(frameId);
+      const activeLayerId = isImageEditorStoreReady()
+        ? getImageEditorStore().getState().activeLayerId
+        : null;
+      if (frameId && activeLayerId) {
+        const key = layerDataKey(frameId, activeLayerId as string);
+        const current = moduleLayerFrameData.get(key);
         if (current) {
-          const restored = pixelHistory.redo(frameId, current);
+          const restored = pixelHistory.redo(key, current);
           if (restored) {
-            moduleFrameData.set(frameId, restored);
+            moduleLayerFrameData.set(key, restored);
           }
         }
       }
@@ -1121,8 +1433,7 @@ export function useImageEditor() {
     if (!state) return;
     const frameId = getCurrentFrameId();
     if (!frameId) return;
-    const data = moduleFrameData.get(frameId);
-    if (!data) return;
+    const data = computeComposite(frameId, state);
 
     const canvas = document.createElement("canvas");
     canvas.width = state.width;
@@ -1154,8 +1465,7 @@ export function useImageEditor() {
     const gif = GIFEncoder();
 
     for (const frame of state.frames) {
-      const data = moduleFrameData.get(frame.id);
-      if (!data) continue;
+      const data = computeComposite(frame.id, state);
 
       // gifenc expects RGBA Uint8Array
       const rgba = new Uint8Array(data.data.buffer);
@@ -1200,8 +1510,7 @@ export function useImageEditor() {
       const ctx = canvas.getContext("2d")!;
 
       state.frames.forEach((frame, i) => {
-        const data = moduleFrameData.get(frame.id);
-        if (!data) return;
+        const data = computeComposite(frame.id, state);
         const col = i % cols;
         const row = Math.floor(i / cols);
         ctx.putImageData(data, col * state.width, row * state.height);
@@ -1228,7 +1537,7 @@ export function useImageEditor() {
     if (!state || state.currentFrameIndex === 0) return null;
     const prevFrame = state.frames[state.currentFrameIndex - 1];
     if (!prevFrame) return null;
-    return moduleFrameData.get(prevFrame.id) ?? null;
+    return computeComposite(prevFrame.id, state);
   }, [state]);
 
   // -----------------------------------------------------------------------
@@ -1241,6 +1550,15 @@ export function useImageEditor() {
       const newId = uuidv4() as ImageEditorLayerId;
       const layerCount = state.layers.length + state.imageLayers.length;
       const layerName = name ?? `Layer ${layerCount + 1}`;
+
+      // Create blank pixel data for this layer across all existing frames
+      for (const frame of state.frames) {
+        moduleLayerFrameData.set(
+          layerDataKey(frame.id, newId),
+          new ImageData(state.width, state.height),
+        );
+      }
+
       setState((draft) => {
         const newLayer: ImageEditorRasterLayer = {
           id: newId,
@@ -1269,32 +1587,84 @@ export function useImageEditor() {
   const addImageEditorImageLayer = useCallback(
     (name?: string) => {
       if (!state) return;
-      const newId = uuidv4() as ImageEditorLayerId;
-      const layerCount = state.layers.length + state.imageLayers.length;
-      const layerName = name ?? `Image ${layerCount + 1}`;
-      setState((draft) => {
-        const newLayer: ImageEditorImageLayer = {
-          id: newId,
-          name: layerName,
-          visible: true,
-          locked: false,
-          type: "image",
+
+      // Open file picker — the actual layer creation happens after file load
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/png,image/jpeg,image/webp,image/gif";
+
+      fileInput.onchange = () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+
+          // Get fresh state in case things changed while file picker was open
+          if (!isImageEditorStoreReady()) return;
+          const s = getImageEditorStore().getState();
+
+          // Render image at canvas dimensions (scale to fit)
+          const canvas = document.createElement("canvas");
+          canvas.width = s.width;
+          canvas.height = s.height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, 0, 0, s.width, s.height);
+          const imageData = ctx.getImageData(0, 0, s.width, s.height);
+
+          const newId = uuidv4() as ImageEditorLayerId;
+          const baseName =
+            name ?? file.name.replace(/\.[^/.]+$/, "") ?? "Image";
+
+          // Store pixel data for all existing frames
+          for (const frame of s.frames) {
+            moduleLayerFrameData.set(
+              layerDataKey(frame.id, newId),
+              new ImageData(
+                new Uint8ClampedArray(imageData.data),
+                imageData.width,
+                imageData.height,
+              ),
+            );
+          }
+
+          getImageEditorStore().setState((draft) => {
+            const newLayer: ImageEditorImageLayer = {
+              id: newId,
+              name: baseName,
+              visible: true,
+              locked: false,
+              type: "image",
+            };
+            draft.imageLayers.push(newLayer);
+            if (draft.activeLayerId) {
+              insertAfterInOrder(
+                draft.activeLayerId as string,
+                newId,
+                draft.layerOrder,
+                draft.layerGroups,
+              );
+            } else {
+              draft.layerOrder.push(newId);
+            }
+            draft.activeLayerId = newId;
+          });
         };
-        draft.imageLayers.push(newLayer);
-        if (draft.activeLayerId) {
-          insertAfterInOrder(
-            draft.activeLayerId as string,
-            newId,
-            draft.layerOrder,
-            draft.layerGroups,
-          );
-        } else {
-          draft.layerOrder.push(newId);
-        }
-        draft.activeLayerId = newId;
-      });
+
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+        };
+
+        img.src = url;
+      };
+
+      fileInput.click();
     },
-    [state, setState],
+    [state],
   );
 
   const addImageEditorLayerGroup = useCallback(
@@ -1320,6 +1690,11 @@ export function useImageEditor() {
   const deleteImageEditorLayer = useCallback(
     (id: string) => {
       if (!state) return;
+      // Clean up pixel data for all frames
+      for (const frame of state.frames) {
+        moduleLayerFrameData.delete(layerDataKey(frame.id, id));
+      }
+      pixelHistory.clearAllHistoryForFrame(id);
       setState((draft) => {
         draft.layerOrder = draft.layerOrder.filter(
           (o) => (o as string) !== id,
@@ -1531,6 +1906,22 @@ export function useImageEditor() {
     (id: string) => {
       if (!state) return;
       const newId = uuidv4() as ImageEditorLayerId;
+
+      // Copy pixel data for all frames
+      for (const frame of state.frames) {
+        const srcData = moduleLayerFrameData.get(layerDataKey(frame.id, id));
+        moduleLayerFrameData.set(
+          layerDataKey(frame.id, newId),
+          srcData
+            ? new ImageData(
+                new Uint8ClampedArray(srcData.data),
+                srcData.width,
+                srcData.height,
+              )
+            : new ImageData(state.width, state.height),
+        );
+      }
+
       setState((draft) => {
         const layer = draft.layers.find((l) => (l.id as string) === id);
         if (layer) {
@@ -1650,7 +2041,11 @@ export function useImageEditor() {
     // Frame data
     getCurrentFrameId,
     getCurrentFrameData,
+    getActiveLayerData,
+    getCompositeBelowActiveLayer,
+    getCompositeAboveActiveLayer,
     getFrameData,
+    getLayerFrameData,
     setFrameData,
     getPreviousFrameData,
 

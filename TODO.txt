@@ -1,8 +1,19 @@
-Image Generator Layers not working.
+Image Editor Layers.
+  Right click duplicate frame
+  Change Opacity
+=====================================
 AI Asset Generation: Pixelab
+
+When you click on the Tools -> AI Assets Generator, it opens op a drawer. Inside the drawer I want to build the following application:
+
+- On startup, if the user hasn't entered a Pixellab.ai secret yet it should prompt them for their secret. It should store the secret in localStorage encrypted. Please inform the user that they can get an API secret here: https://www.pixellab.ai/account and that they get 40 fast generations for free, and after that, 5 daily slower generations (store up to 20). No credit card required.
+- 
+
+=====================================
 Export Options
 Import Options
 =======================================
+Get some ideas from pixelorama (Installed)
 Palettes: Allow to select amount of columns per row
 Add opacity to image objects. Can be selected from palette menu
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes

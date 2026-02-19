@@ -9,8 +9,6 @@
  * rather than full ImageData (which can't be structured-cloned cheaply).
  */
 
-import type { FrameId } from "@/types/image-editor";
-
 const MAX_SNAPSHOTS = 50;
 
 interface FrameHistory {
@@ -23,27 +21,31 @@ interface FrameHistory {
   height: number;
 }
 
-const historyMap = new Map<FrameId, FrameHistory>();
+/**
+ * Key is either a bare FrameId (legacy single-layer) or
+ * "${frameId}:${layerId}" for multi-layer editing.
+ */
+const historyMap = new Map<string, FrameHistory>();
 
 function ensureHistory(
-  frameId: FrameId,
+  key: string,
   width: number,
   height: number,
 ): FrameHistory {
-  let h = historyMap.get(frameId);
+  let h = historyMap.get(key);
   if (!h) {
     h = { undoStack: [], redoStack: [], width, height };
-    historyMap.set(frameId, h);
+    historyMap.set(key, h);
   }
   return h;
 }
 
 /**
  * Push a snapshot of the current pixel state *before* an operation.
- * Call this before the tool modifies the canvas.
+ * @param key  Either a bare FrameId or "${frameId}:${layerId}" for multi-layer.
  */
-export function pushSnapshot(frameId: FrameId, imageData: ImageData): void {
-  const h = ensureHistory(frameId, imageData.width, imageData.height);
+export function pushSnapshot(key: string, imageData: ImageData): void {
+  const h = ensureHistory(key, imageData.width, imageData.height);
 
   // Deep-copy the pixel buffer
   const copy = new Uint8ClampedArray(imageData.data);
@@ -65,10 +67,10 @@ export function pushSnapshot(frameId: FrameId, imageData: ImageData): void {
  * @param currentImageData The canvas state *right now* (before undo).
  */
 export function undo(
-  frameId: FrameId,
+  key: string,
   currentImageData: ImageData,
 ): ImageData | null {
-  const h = historyMap.get(frameId);
+  const h = historyMap.get(key);
   if (!h || h.undoStack.length === 0) return null;
 
   // Save current state to redo stack
@@ -84,10 +86,10 @@ export function undo(
  * @param currentImageData The canvas state *right now* (before redo).
  */
 export function redo(
-  frameId: FrameId,
+  key: string,
   currentImageData: ImageData,
 ): ImageData | null {
-  const h = historyMap.get(frameId);
+  const h = historyMap.get(key);
   if (!h || h.redoStack.length === 0) return null;
 
   // Save current state to undo stack
@@ -98,26 +100,39 @@ export function redo(
 }
 
 /**
- * Check if undo is possible for a frame.
+ * Check if undo is possible for a key.
  */
-export function canUndo(frameId: FrameId): boolean {
-  const h = historyMap.get(frameId);
+export function canUndo(key: string): boolean {
+  const h = historyMap.get(key);
   return !!h && h.undoStack.length > 0;
 }
 
 /**
- * Check if redo is possible for a frame.
+ * Check if redo is possible for a key.
  */
-export function canRedo(frameId: FrameId): boolean {
-  const h = historyMap.get(frameId);
+export function canRedo(key: string): boolean {
+  const h = historyMap.get(key);
   return !!h && h.redoStack.length > 0;
 }
 
 /**
- * Clear history for a specific frame.
+ * Clear history for a specific key (frame or frame:layer).
  */
-export function clearFrameHistory(frameId: FrameId): void {
-  historyMap.delete(frameId);
+export function clearFrameHistory(key: string): void {
+  historyMap.delete(key);
+}
+
+/**
+ * Clear all history entries whose key starts with "${frameId}:".
+ * Call this when deleting a frame in multi-layer mode.
+ */
+export function clearAllHistoryForFrame(frameId: string): void {
+  const prefix = `${frameId}:`;
+  for (const key of historyMap.keys()) {
+    if (key === frameId || key.startsWith(prefix)) {
+      historyMap.delete(key);
+    }
+  }
 }
 
 /**

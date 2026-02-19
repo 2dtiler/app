@@ -23,9 +23,8 @@ import { ImageCanvas } from "./ImageEditor/ImageCanvas";
 import { ToolSidebar } from "./ImageEditor/ToolSidebar";
 import { EditorToolbar } from "./ImageEditor/EditorToolbar";
 import { PalettePanel } from "./ImageEditor/PalettePanel";
-import { FramesPanel } from "./ImageEditor/FramesPanel";
+import { TimelinePanel } from "./ImageEditor/TimelinePanel";
 import { SaveFormatDialog } from "./ImageEditor/SaveFormatDialog";
-import { ImageEditorLayersPanel } from "./ImageEditor/LayersPanel";
 import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
@@ -334,8 +333,27 @@ export function ImageEditor() {
   } = editor.state;
 
   const currentFrameId = editor.getCurrentFrameId();
-  const currentFrameData = editor.getCurrentFrameData();
+  const activeLayerData = editor.getActiveLayerData();
+  const belowComposite = editor.getCompositeBelowActiveLayer();
+  const aboveComposite = editor.getCompositeAboveActiveLayer();
   const previousFrameData = editor.getPreviousFrameData();
+
+  // Determine whether the active layer is locked
+  const activeLayerId = editor.state?.activeLayerId as
+    | string
+    | null
+    | undefined;
+  const isLayerLocked = (() => {
+    if (!activeLayerId || !editor.state) return false;
+    const layer = editor.state.layers.find(
+      (l) => (l.id as string) === activeLayerId,
+    );
+    if (layer) return layer.locked;
+    const imgLayer = editor.state.imageLayers.find(
+      (l) => (l.id as string) === activeLayerId,
+    );
+    return imgLayer?.locked ?? false;
+  })();
 
   return (
     <div className="flex flex-col h-full">
@@ -359,53 +377,57 @@ export function ImageEditor() {
         onRedo={editor.performRedo}
       />
 
-      {/* Middle area: sidebar + canvas + palette */}
-      <div className="flex flex-1 min-h-0">
-        {/* Tool sidebar */}
-        <ToolSidebar currentTool={tool} onSelectTool={editor.setTool} />
+      {/* Main resizable area: top (canvas+sidebar+palette) / bottom (layers+frames) */}
+      <Group
+        orientation="vertical"
+        id="image-editor-vertical"
+        className="flex-1 min-h-0"
+      >
+        {/* Top section: sidebar + canvas + palette */}
+        <Panel defaultSize="70%" minSize="40%">
+          <div className="flex h-full min-h-0">
+            {/* Tool sidebar */}
+            <ToolSidebar currentTool={tool} onSelectTool={editor.setTool} />
 
-        {/* Canvas + Palette with resizable divider */}
-        <Group
-          orientation="horizontal"
-          id="image-editor-layout"
-          className="flex-1 min-w-0"
-        >
-          {/* Canvas */}
-          <Panel defaultSize="75%" minSize="30%">
-            <div className="relative h-full w-full flex">
-              <ImageCanvas
-                width={width}
-                height={height}
-                zoom={zoom}
-                tool={tool}
-                primaryColor={primaryColor}
-                secondaryColor={secondaryColor}
-                brushSize={brushSize}
-                blurSize={blurSize}
-                blurIntensity={blurIntensity}
-                currentFrameId={currentFrameId}
-                currentFrameData={currentFrameData}
-                previousFrameData={previousFrameData}
-                onionSkin={onionSkin}
-                selection={selection}
-                onZoom={editor.setZoom}
-                onPushUndo={editor.pushUndoSnapshot}
-                onSelectionChange={editor.setSelection}
-                onFrameDataChange={editor.setFrameData}
-              />
-            </div>
-          </Panel>
-
-          <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-
-          {/* Right-side panel: Palette (top) + Layers (bottom) */}
-          <Panel defaultSize="25%" minSize="10%" maxSize="60%">
+            {/* Canvas + Palette with resizable divider */}
             <Group
-              orientation="vertical"
-              id="image-editor-right-panel"
-              className="h-full"
+              orientation="horizontal"
+              id="image-editor-layout"
+              className="flex-1 min-w-0"
             >
-              <Panel defaultSize="60%" minSize="20%">
+              {/* Canvas */}
+              <Panel defaultSize="75%" minSize="30%">
+                <div className="relative h-full w-full flex">
+                  <ImageCanvas
+                    width={width}
+                    height={height}
+                    zoom={zoom}
+                    tool={tool}
+                    primaryColor={primaryColor}
+                    secondaryColor={secondaryColor}
+                    brushSize={brushSize}
+                    blurSize={blurSize}
+                    blurIntensity={blurIntensity}
+                    currentFrameId={currentFrameId}
+                    activeLayerData={activeLayerData}
+                    belowComposite={belowComposite}
+                    aboveComposite={aboveComposite}
+                    previousFrameData={previousFrameData}
+                    onionSkin={onionSkin}
+                    selection={selection}
+                    isLayerLocked={isLayerLocked}
+                    onZoom={editor.setZoom}
+                    onPushUndo={editor.pushUndoSnapshot}
+                    onSelectionChange={editor.setSelection}
+                    onFrameDataChange={editor.setFrameData}
+                  />
+                </div>
+              </Panel>
+
+              <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+
+              {/* Right-side panel: Palette */}
+              <Panel defaultSize="25%" minSize="10%" maxSize="60%">
                 <PalettePanel
                   palettes={palettes}
                   activePaletteId={activePaletteId}
@@ -427,36 +449,33 @@ export function ImageEditor() {
                   onReset={editor.resetPalette}
                 />
               </Panel>
-
-              <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors" />
-
-              <Panel defaultSize="40%" minSize="15%">
-                <ImageEditorLayersPanel />
-              </Panel>
             </Group>
-          </Panel>
-        </Group>
-      </div>
+          </div>
+        </Panel>
 
-      {/* Frames panel at bottom */}
-      <FramesPanel
-        frames={frames}
-        currentFrameIndex={currentFrameIndex}
-        isPlaying={isPlaying}
-        fps={fps}
-        onionSkin={onionSkin}
-        canvasWidth={width}
-        canvasHeight={height}
-        getFrameData={editor.getFrameData}
-        onSelectFrame={editor.setCurrentFrame}
-        onAddFrame={editor.addFrame}
-        onDuplicateFrame={editor.duplicateFrame}
-        onDeleteFrame={editor.deleteFrame}
-        onPlay={editor.playAnimation}
-        onStop={editor.stopAnimation}
-        onSetFps={editor.setFps}
-        onSetOnionSkin={editor.setOnionSkin}
-      />
+        <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+
+        {/* Bottom section: unified layers + frames timeline */}
+        <Panel defaultSize="30%" minSize="15%">
+          <TimelinePanel
+            frames={frames}
+            currentFrameIndex={currentFrameIndex}
+            isPlaying={isPlaying}
+            fps={fps}
+            onionSkin={onionSkin}
+            canvasWidth={width}
+            canvasHeight={height}
+            onSelectFrame={editor.setCurrentFrame}
+            onAddFrame={editor.addFrame}
+            onDuplicateFrame={editor.duplicateFrame}
+            onDeleteFrame={editor.deleteFrame}
+            onPlay={editor.playAnimation}
+            onStop={editor.stopAnimation}
+            onSetFps={editor.setFps}
+            onSetOnionSkin={editor.setOnionSkin}
+          />
+        </Panel>
+      </Group>
 
       {/* Dialogs */}
       <NewImageDialog
