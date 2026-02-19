@@ -5,7 +5,7 @@
  *   [sticky layer name]  [frame cell] [frame cell] …
  *   [sticky layer name]  [frame cell] [frame cell] …
  *   ─────────────────────────────────────────────────
- *   [+ Add Layer]     │  [copy][del][▶] FPS [12] onion
+ *   [+ Add Layer]     │  [copy][del][▶] FPS [6] onion
  *
  * A single `overflow: auto` container holds every row. Each layer-name cell
  * is `position: sticky; left: 0` so it never scrolls away horizontally, and
@@ -13,7 +13,7 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { Plus, Copy, Trash2, Play, Pause } from "lucide-react";
+import { Plus, Copy, Trash2, Play, Pause, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -24,6 +24,13 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,8 +56,8 @@ import type { Frame, FrameId } from "@/types/image-editor";
 
 /** Pixel height of every timeline row. Must match frame-cell height. */
 const ROW_H = 64;
-/** Pixel width reserved for the sticky layer-name column. */
-const NAME_W = 160;
+/** Default pixel width of the sticky layer-name column. User can drag to resize. */
+const DEFAULT_NAME_W = 160;
 /** Thumbnail size rendered inside each frame cell. */
 const THUMB = 40;
 
@@ -61,23 +68,33 @@ function FrameCell({
   isGroup,
   frame,
   frameIndex,
+  frameCount,
   isActiveFrame,
   isActiveLayer,
   canvasWidth,
   canvasHeight,
   getLayerFrameData,
   onSelect,
+  onDelete,
+  onDuplicate,
+  onMoveLeft,
+  onMoveRight,
 }: {
   layerId: string;
   isGroup: boolean;
   frame: Frame;
   frameIndex: number;
+  frameCount: number;
   isActiveFrame: boolean;
   isActiveLayer: boolean;
   canvasWidth: number;
   canvasHeight: number;
   getLayerFrameData: (frameId: FrameId, layerId: string) => ImageData | null;
   onSelect: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -113,38 +130,70 @@ function FrameCell({
   const isCurrent = isActiveFrame && isActiveLayer;
 
   return (
-    <button
-      onClick={onSelect}
-      style={{ width: ROW_H, height: ROW_H }}
-      className={cn(
-        "shrink-0 flex flex-col items-center justify-center gap-0.5 transition-colors border-r border-b border-border/30",
-        isCurrent
-          ? "bg-primary/20 ring-1 ring-inset ring-primary"
-          : isActiveFrame
-            ? "bg-primary/10"
-            : isActiveLayer
-              ? "bg-accent/30"
-              : "hover:bg-accent/20",
-      )}
-    >
-      {isGroup ? (
-        <div
-          style={{ width: THUMB, height: THUMB }}
-          className="rounded border border-border/30 bg-muted/20"
-        />
-      ) : (
-        <canvas
-          ref={canvasRef}
-          width={THUMB}
-          height={THUMB}
-          className="rounded border border-border bg-neutral-800"
-          style={{ imageRendering: "pixelated" }}
-        />
-      )}
-      <span className="text-[9px] text-muted-foreground leading-none">
-        {frameIndex + 1}
-      </span>
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={onSelect}
+          onContextMenu={onSelect}
+          style={{ width: ROW_H, height: ROW_H }}
+          className={cn(
+            "shrink-0 flex flex-col items-center justify-center gap-0.5 transition-colors border-r border-b border-border/30",
+            isCurrent
+              ? "bg-primary/20 ring-1 ring-inset ring-primary"
+              : isActiveFrame
+                ? "bg-primary/10"
+                : isActiveLayer
+                  ? "bg-accent/30"
+                  : "hover:bg-accent/20",
+          )}
+        >
+          {isGroup ? (
+            <div
+              style={{ width: THUMB, height: THUMB }}
+              className="rounded border border-border/30 bg-muted/20"
+            />
+          ) : (
+            <canvas
+              ref={canvasRef}
+              width={THUMB}
+              height={THUMB}
+              className="rounded border border-border bg-neutral-800"
+              style={{ imageRendering: "pixelated" }}
+            />
+          )}
+          <span className="text-[9px] text-muted-foreground leading-none">
+            {frameIndex + 1}
+          </span>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onDuplicate}>
+          <Copy className="size-3 mr-2" />
+          Duplicate Frame
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled={frameIndex === 0} onClick={onMoveLeft}>
+          <ChevronLeft className="size-3 mr-2" />
+          Move Frame Left
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={frameIndex === frameCount - 1}
+          onClick={onMoveRight}
+        >
+          <ChevronRight className="size-3 mr-2" />
+          Move Frame Right
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          disabled={frameCount <= 1}
+          onClick={onDelete}
+        >
+          <Trash2 className="size-3 mr-2" />
+          Delete Frame
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -162,6 +211,7 @@ export interface TimelinePanelProps {
   onAddFrame: () => void;
   onDuplicateFrame: () => void;
   onDeleteFrame: () => void;
+  onMoveFrame: (direction: "left" | "right") => void;
   onPlay: () => void;
   onStop: () => void;
   onSetFps: (fps: number) => void;
@@ -180,6 +230,7 @@ export function TimelinePanel({
   onAddFrame,
   onDuplicateFrame,
   onDeleteFrame,
+  onMoveFrame,
   onPlay,
   onStop,
   onSetFps,
@@ -203,6 +254,34 @@ export function TimelinePanel({
     targetId: string;
     position: "above" | "below" | "inside";
   } | null>(null);
+
+  // ── resizable layer-name column ─────────────────────────────────────────────
+  const [nameW, setNameW] = useState(DEFAULT_NAME_W);
+  const dividerDragRef = useRef<{
+    active: boolean;
+    startX: number;
+    startW: number;
+  }>({ active: false, startX: 0, startW: DEFAULT_NAME_W });
+
+  function handleDividerMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    dividerDragRef.current = { active: true, startX: e.clientX, startW: nameW };
+
+    function onMouseMove(ev: MouseEvent) {
+      if (!dividerDragRef.current.active) return;
+      const delta = ev.clientX - dividerDragRef.current.startX;
+      setNameW(Math.max(100, Math.min(400, dividerDragRef.current.startW + delta)));
+    }
+
+    function onMouseUp() {
+      dividerDragRef.current.active = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
 
   if (!state) return null;
 
@@ -309,7 +388,13 @@ export function TimelinePanel({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full border-t border-border bg-card overflow-hidden">
+      <div className="relative flex flex-col h-full border-t border-border bg-card overflow-hidden">
+        {/* Draggable vertical divider between the layer-name column and frames */}
+        <div
+          className="absolute top-0 bottom-0 z-20 w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+          style={{ left: nameW - 2 }}
+          onMouseDown={handleDividerMouseDown}
+        />
         {/* ── Scrollable grid ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-auto min-h-0">
           {treeNodes.map((node) => {
@@ -329,10 +414,13 @@ export function TimelinePanel({
               >
                 {/* Sticky layer-name cell */}
                 <div
-                  className="shrink-0 bg-card border-r border-border z-10 flex items-center overflow-hidden"
+                  className={cn(
+                    "shrink-0 border-r border-border z-10 flex items-center overflow-hidden",
+                    isActiveLayer ? "bg-accent" : "bg-card",
+                  )}
                   style={{
-                    width: NAME_W,
-                    minWidth: NAME_W,
+                    width: nameW,
+                    minWidth: nameW,
                     position: "sticky",
                     left: 0,
                   }}
@@ -409,6 +497,7 @@ export function TimelinePanel({
                     isGroup={isGroup}
                     frame={frame}
                     frameIndex={i}
+                    frameCount={frames.length}
                     isActiveFrame={i === currentFrameIndex}
                     isActiveLayer={isActiveLayer}
                     canvasWidth={canvasWidth}
@@ -417,6 +506,22 @@ export function TimelinePanel({
                     onSelect={() => {
                       if (!isGroup) editor.setActiveImageEditorLayer(rowId);
                       onSelectFrame(i);
+                    }}
+                    onDelete={() => {
+                      onSelectFrame(i);
+                      onDeleteFrame();
+                    }}
+                    onDuplicate={() => {
+                      onSelectFrame(i);
+                      onDuplicateFrame();
+                    }}
+                    onMoveLeft={() => {
+                      onSelectFrame(i);
+                      onMoveFrame("left");
+                    }}
+                    onMoveRight={() => {
+                      onSelectFrame(i);
+                      onMoveFrame("right");
                     }}
                   />
                 ))}
@@ -430,7 +535,7 @@ export function TimelinePanel({
           {/* Layer actions — same width as the sticky name column */}
           <div
             className="shrink-0 border-r border-border flex items-center px-2"
-            style={{ width: NAME_W, minWidth: NAME_W }}
+            style={{ width: nameW, minWidth: nameW }}
           >
             <Button
               variant="default"

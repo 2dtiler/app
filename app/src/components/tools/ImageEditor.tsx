@@ -469,6 +469,7 @@ export function ImageEditor() {
             onAddFrame={editor.addFrame}
             onDuplicateFrame={editor.duplicateFrame}
             onDeleteFrame={editor.deleteFrame}
+            onMoveFrame={editor.moveFrame}
             onPlay={editor.playAnimation}
             onStop={editor.stopAnimation}
             onSetFps={editor.setFps}

@@ -502,8 +502,13 @@ export function useImageEditor() {
       if (!state?.activeLayerId) return;
       const key = layerDataKey(frameId, state.activeLayerId as string);
       moduleLayerFrameData.set(key, data);
+      // Bump the version counter so all useSyncExternalStore subscribers
+      // (including the TimelinePanel) re-render and refresh frame thumbnails.
+      setState((d) => {
+        d.pixelDataVersion = (d.pixelDataVersion ?? 0) + 1;
+      });
     },
-    [state?.activeLayerId],
+    [state?.activeLayerId, setState],
   );
 
   /** Return the raw pixels of the active layer for the current frame. */
@@ -762,6 +767,27 @@ export function useImageEditor() {
     });
   }, [state, setState]);
 
+  /**
+   * Move the current frame one position left or right in the frames array.
+   * The currentFrameIndex follows the moved frame.
+   */
+  const moveFrame = useCallback(
+    (direction: "left" | "right") => {
+      if (!state) return;
+      const { currentFrameIndex, frames } = state;
+      const targetIndex =
+        direction === "left" ? currentFrameIndex - 1 : currentFrameIndex + 1;
+      if (targetIndex < 0 || targetIndex >= frames.length) return;
+      setState((d) => {
+        const temp = d.frames[currentFrameIndex];
+        d.frames[currentFrameIndex] = d.frames[targetIndex];
+        d.frames[targetIndex] = temp;
+        d.currentFrameIndex = targetIndex;
+      });
+    },
+    [state, setState],
+  );
+
   const setCurrentFrame = useCallback(
     (index: number) => {
       setState((d) => {
@@ -924,6 +950,9 @@ export function useImageEditor() {
           const restored = pixelHistory.undo(key, current);
           if (restored) {
             moduleLayerFrameData.set(key, restored);
+            setState((d) => {
+              d.pixelDataVersion = (d.pixelDataVersion ?? 0) + 1;
+            });
           }
         }
       }
@@ -964,6 +993,9 @@ export function useImageEditor() {
           const restored = pixelHistory.redo(key, current);
           if (restored) {
             moduleLayerFrameData.set(key, restored);
+            setState((d) => {
+              d.pixelDataVersion = (d.pixelDataVersion ?? 0) + 1;
+            });
           }
         }
       }
@@ -2062,6 +2094,7 @@ export function useImageEditor() {
     addFrame,
     duplicateFrame,
     deleteFrame,
+    moveFrame,
     undoFrameOp,
     redoFrameOp,
     setCurrentFrame,

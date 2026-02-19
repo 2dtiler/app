@@ -173,6 +173,12 @@ export interface ImageEditorState {
   /** Whether animation should loop */
   loop: boolean;
 
+  /**
+   * Monotonically increasing counter bumped after every pixel-data write.
+   * Subscribers use this to detect when frame thumbnails should be repainted.
+   */
+  pixelDataVersion?: number;
+
   // ---- Layers ----
 
   /** All raster (pixel art) drawing layers */
@@ -242,9 +248,10 @@ export const DEFAULT_IMAGE_EDITOR_STATE: ImageEditorState = {
   zoom: 8,
   selection: null,
   isPlaying: false,
-  fps: 12,
+  fps: 6,
   onionSkin: false,
   loop: true,
+  pixelDataVersion: 0,
   layers: [],
   imageLayers: [],
   layerGroups: [],
