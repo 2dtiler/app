@@ -586,19 +586,29 @@ export function ImageCanvas({
       const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
 
+      // Preserve secondary color for right-click drags
+      if (e.buttons & 2) {
+        tc.color = secondaryColor;
+      }
+
       const sel = dispatchMove(tool, tc, px, py, strokeRef.current);
 
       if (tool === "selection" && sel) {
         onSelectionChange(sel);
       }
     },
-    [tool, getToolContext, toPixel, onSelectionChange],
+    [tool, secondaryColor, getToolContext, toPixel, onSelectionChange],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
+
+      // Preserve secondary color if right mouse button was released
+      if (e.button === 2) {
+        tc.color = secondaryColor;
+      }
 
       const [px, py] = toPixel(e as unknown as React.MouseEvent);
       const sel = dispatchUp(tool, tc, px, py, strokeRef.current);
@@ -618,6 +628,7 @@ export function ImageCanvas({
       currentFrameId,
       width,
       height,
+      secondaryColor,
       getToolContext,
       toPixel,
       onSelectionChange,

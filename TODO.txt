@@ -1,6 +1,3 @@
-In the Image/Sprite editor. There is a L: value I can assign with left click, and a R: value I can assign with right click. It works when I draw with the pencil with left click, but right click is always the same color as left click.
-
-=========
 Image Generator Layers not working.
 AI Asset Generation: Pixelab
 Export Options
