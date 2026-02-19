@@ -33,78 +33,92 @@ interface ToolDrawerProps {
   onClose: () => void;
 }
 
+const SLIDE_DURATION = 350;
+
 export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   const config = activeTool ? TOOL_CONFIG[activeTool] : null;
   const ToolComponent = config?.component ?? null;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
 
-  // `isOpen` drives the CSS transition; `isMounted` keeps the DOM node alive
-  // during the exit animation. Always start closed so the open animation plays.
+  // CSS keyframe animations (drawer-enter / drawer-exit) auto-play when the
+  // class is applied — no before/after state flip needed, no flushSync.
   const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isContentVisible, setIsContentVisible] = useState(false);
+  const rafRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    clearTimeout(timerRef.current);
+
     if (activeTool !== null) {
-      // First RAF: mount the element so it's in the DOM with translate-x-full.
-      // Second RAF: flip isOpen so the CSS transition plays.
-      let raf2 = 0;
-      const raf1 = requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(() => {
         setIsMounted(true);
-        raf2 = requestAnimationFrame(() => {
-          setIsOpen(true);
-          setTimeout(() => closeButtonRef.current?.focus(), 50);
-        });
+        setIsClosing(false);
+        setIsContentVisible(false);
+        setTimeout(() => closeButtonRef.current?.focus(), 50);
+        // Reveal content after slide-in completes.
+        timerRef.current = setTimeout(
+          () => setIsContentVisible(true),
+          SLIDE_DURATION + 30,
+        );
       });
-      return () => {
-        cancelAnimationFrame(raf1);
-        cancelAnimationFrame(raf2);
-      };
     } else {
-      // Wrap in RAF to avoid synchronous setState-in-effect lint error.
-      const raf = requestAnimationFrame(() => setIsOpen(false));
-      return () => cancelAnimationFrame(raf);
+      rafRef.current = requestAnimationFrame(() => {
+        setIsContentVisible(false);
+        setIsClosing(true);
+      });
     }
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      clearTimeout(timerRef.current);
+    };
   }, [activeTool]);
 
   // Keyboard: Escape closes the drawer.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isMounted || isClosing) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isMounted, isClosing, onClose]);
 
-  function handleTransitionEnd() {
-    if (!isOpen) setIsMounted(false);
+  function handleAnimationEnd(e: React.AnimationEvent) {
+    // Ignore bubbled events from child elements.
+    if (e.target !== e.currentTarget) return;
+    if (isClosing) {
+      setIsMounted(false);
+      setIsClosing(false);
+    }
   }
 
   if (!isMounted) return null;
 
   return createPortal(
     <>
-      {/* Backdrop – click to close */}
+      {/* Backdrop */}
       <div
         aria-hidden="true"
         className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-[350ms] ease-out ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          isClosing ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — drawer-enter/drawer-exit keyframes defined in index.css */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-[translate,opacity] duration-[350ms] ${
-          isOpen
-            ? "translate-x-0 opacity-100 ease-[cubic-bezier(0.32,0.72,0,1)]"
-            : "translate-x-full opacity-0 ease-[cubic-bezier(0.72,0,0.84,0)]"
+        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl ${
+          isClosing ? "drawer-exit" : "drawer-enter"
         }`}
-        onTransitionEnd={handleTransitionEnd}
+        onAnimationEnd={handleAnimationEnd}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b p-4">
@@ -121,8 +135,12 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="min-h-0 flex-1 overflow-hidden">
+        {/* Content – hidden while sliding to avoid layout thrash */}
+        <div
+          className={`min-h-0 flex-1 overflow-hidden transition-opacity duration-150 ${
+            isContentVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
           {ToolComponent && (
             <Suspense>
               <ToolComponent />

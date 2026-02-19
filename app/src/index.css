@@ -146,3 +146,31 @@ body,
     margin-left: 100%;
   }
 }
+
+/* Tool drawer slide animations */
+@keyframes drawer-slide-in {
+  from {
+    translate: 100% 0;
+    opacity: 0;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+@keyframes drawer-slide-out {
+  from {
+    translate: 0 0;
+    opacity: 1;
+  }
+  to {
+    translate: 100% 0;
+    opacity: 0;
+  }
+}
+.drawer-enter {
+  animation: drawer-slide-in 350ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.drawer-exit {
+  animation: drawer-slide-out 350ms cubic-bezier(0.72, 0, 0.84, 0) forwards;
+}
