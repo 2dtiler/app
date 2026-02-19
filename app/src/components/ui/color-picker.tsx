@@ -67,8 +67,8 @@ export const ColorPicker = ({
   className,
   ...props
 }: ColorPickerProps) => {
-  const selectedColor = Color(value);
-  const defaultColor = Color(defaultValue);
+  const selectedColor = Color(value as Parameters<typeof Color>[0]);
+  const defaultColor = Color(defaultValue as Parameters<typeof Color>[0]);
 
   const [hue, setHue] = useState(
     selectedColor.hue() || defaultColor.hue() || 0,

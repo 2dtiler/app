@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "deploy": "bun run build && wrangler pages deploy dist --project-name 2dtiler-website"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

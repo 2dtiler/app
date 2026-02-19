@@ -3,7 +3,7 @@
  * Component-specific prop types and context types.
  */
 
-import type { HTMLAttributes } from "react";
+import type { CSSProperties, HTMLAttributes } from "react";
 import type {
   TileLayer,
   ImageLayer,
@@ -86,19 +86,33 @@ export type ColorPickerSelectionProps = HTMLAttributes<HTMLDivElement>;
 
 export type ColorPickerHueProps = {
   value?: number[];
+  defaultValue?: number[];
   onValueChange?: (value: number[]) => void;
   max?: number;
   step?: number;
+  dir?: "ltr" | "rtl";
   className?: string;
-} & HTMLAttributes<HTMLDivElement>;
+  disabled?: boolean;
+  orientation?: "horizontal" | "vertical";
+  inverted?: boolean;
+  minStepsBetweenThumbs?: number;
+  style?: CSSProperties;
+};
 
 export type ColorPickerAlphaProps = {
   value?: number[];
+  defaultValue?: number[];
   onValueChange?: (value: number[]) => void;
   max?: number;
   step?: number;
+  dir?: "ltr" | "rtl";
   className?: string;
-} & HTMLAttributes<HTMLDivElement>;
+  disabled?: boolean;
+  orientation?: "horizontal" | "vertical";
+  inverted?: boolean;
+  minStepsBetweenThumbs?: number;
+  style?: CSSProperties;
+};
 
 export type ColorPickerEyeDropperProps = {
   onClick?: () => void;
@@ -110,7 +124,7 @@ export type ColorPickerOutputProps = {
   value?: string;
   onValueChange?: (value: string) => void;
   className?: string;
-} & HTMLAttributes<HTMLDivElement>;
+} & HTMLAttributes<HTMLButtonElement>;
 
 export type ColorPickerFormatProps = HTMLAttributes<HTMLDivElement>;
 

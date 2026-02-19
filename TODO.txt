@@ -1,5 +1,21 @@
-Re-organize map toolbar
-Disable auto saving triggering full modal
+Disable auto saving triggering full modal. Currently when saving the project, it brings up a full screen "Saving Project" screen that times out after 300ms. This is quite distracting and not really what I want. Instead I want to use the shadcn sonner component: https://ui.shadcn.com/docs/components/radix/sonner. It is already installed, I just want a quick tiny success "Project Saved" when the project is saved instead of this big full screen.
+=============
+I currently have a toolbar in my 2d tiler app. It has options for:
+
+- Select
+- Paint
+- Erase
+- Fill
+- Zoom
+- Undo
+- Redo
+- Cut
+- Orientation (Flip, Rotate)
+- Map Options
+
+From a UI/UX perspective, what is the best order these items should be displayed in?
+
+=============
 Onload it should automatically load the previous project. Add project manager to File dropdown
 Image Generator
   Add Layers. Each object placed should be in the layer
@@ -9,7 +25,8 @@ Image Generator
 Color picker should have some margins between rgb input values
 Color picker should have mouse wheel up/down
 Why does the color picker have this L: R: values
-Add ability to deploy from local
+=======================================
+
 Get Lighthouse scores 100% with 0 errors/warnings
 Unslopify
 Make list of tiled advanced features
