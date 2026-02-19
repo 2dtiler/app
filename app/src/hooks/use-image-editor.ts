@@ -43,6 +43,11 @@ import type {
   ImageEditorState,
   PaletteId,
   PixelSelection,
+  ImageEditorLayerId,
+  ImageEditorGroupId,
+  ImageEditorRasterLayer,
+  ImageEditorImageLayer,
+  ImageEditorLayerGroup,
 } from "@/types/image-editor";
 import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
 
@@ -113,6 +118,35 @@ function getActivePaletteIndex(s: ImageEditorState): number {
 type UndoableActionType = "pixel" | "frame" | "palette";
 const actionLog: UndoableActionType[] = [];
 const redoLog: UndoableActionType[] = [];
+
+// ---------------------------------------------------------------------------
+// Layer helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert newId immediately after refId in whichever order array contains refId.
+ * Falls back to appending at the top level if refId is not found.
+ */
+function insertAfterInOrder(
+  refId: string,
+  newId: ImageEditorLayerId | ImageEditorGroupId,
+  topOrder: (ImageEditorLayerId | ImageEditorGroupId)[],
+  groups: ImageEditorLayerGroup[],
+) {
+  const topIdx = (topOrder as string[]).indexOf(refId);
+  if (topIdx !== -1) {
+    topOrder.splice(topIdx + 1, 0, newId);
+    return;
+  }
+  for (const g of groups) {
+    const idx = (g.childOrder as string[]).indexOf(refId);
+    if (idx !== -1) {
+      g.childOrder.splice(idx + 1, 0, newId);
+      return;
+    }
+  }
+  topOrder.push(newId);
+}
 
 /**
  * Ensure the image editor store is initialized.
@@ -1197,6 +1231,415 @@ export function useImageEditor() {
     return moduleFrameData.get(prevFrame.id) ?? null;
   }, [state]);
 
+  // -----------------------------------------------------------------------
+  // Layer management
+  // -----------------------------------------------------------------------
+
+  const addRasterLayer = useCallback(
+    (name?: string) => {
+      if (!state) return;
+      const newId = uuidv4() as ImageEditorLayerId;
+      const layerCount = state.layers.length + state.imageLayers.length;
+      const layerName = name ?? `Layer ${layerCount + 1}`;
+      setState((draft) => {
+        const newLayer: ImageEditorRasterLayer = {
+          id: newId,
+          name: layerName,
+          visible: true,
+          locked: false,
+          type: "tile",
+        };
+        draft.layers.push(newLayer);
+        if (draft.activeLayerId) {
+          insertAfterInOrder(
+            draft.activeLayerId as string,
+            newId,
+            draft.layerOrder,
+            draft.layerGroups,
+          );
+        } else {
+          draft.layerOrder.push(newId);
+        }
+        draft.activeLayerId = newId;
+      });
+    },
+    [state, setState],
+  );
+
+  const addImageEditorImageLayer = useCallback(
+    (name?: string) => {
+      if (!state) return;
+      const newId = uuidv4() as ImageEditorLayerId;
+      const layerCount = state.layers.length + state.imageLayers.length;
+      const layerName = name ?? `Image ${layerCount + 1}`;
+      setState((draft) => {
+        const newLayer: ImageEditorImageLayer = {
+          id: newId,
+          name: layerName,
+          visible: true,
+          locked: false,
+          type: "image",
+        };
+        draft.imageLayers.push(newLayer);
+        if (draft.activeLayerId) {
+          insertAfterInOrder(
+            draft.activeLayerId as string,
+            newId,
+            draft.layerOrder,
+            draft.layerGroups,
+          );
+        } else {
+          draft.layerOrder.push(newId);
+        }
+        draft.activeLayerId = newId;
+      });
+    },
+    [state, setState],
+  );
+
+  const addImageEditorLayerGroup = useCallback(
+    (name?: string) => {
+      if (!state) return;
+      const newId = uuidv4() as ImageEditorGroupId;
+      setState((draft) => {
+        const newGroup: ImageEditorLayerGroup = {
+          id: newId,
+          name: name ?? "Group",
+          visible: true,
+          locked: false,
+          expanded: true,
+          childOrder: [],
+        };
+        draft.layerGroups.push(newGroup);
+        draft.layerOrder.push(newId);
+      });
+    },
+    [state, setState],
+  );
+
+  const deleteImageEditorLayer = useCallback(
+    (id: string) => {
+      if (!state) return;
+      setState((draft) => {
+        draft.layerOrder = draft.layerOrder.filter(
+          (o) => (o as string) !== id,
+        ) as typeof draft.layerOrder;
+        for (const g of draft.layerGroups) {
+          g.childOrder = g.childOrder.filter(
+            (o) => (o as string) !== id,
+          ) as typeof g.childOrder;
+        }
+        draft.layers = draft.layers.filter((l) => (l.id as string) !== id);
+        draft.imageLayers = draft.imageLayers.filter(
+          (l) => (l.id as string) !== id,
+        );
+        if ((draft.activeLayerId as string) === id) {
+          const remaining = draft.layerOrder;
+          draft.activeLayerId =
+            remaining.length > 0
+              ? (remaining[remaining.length - 1] as ImageEditorLayerId)
+              : null;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const deleteImageEditorGroup = useCallback(
+    (groupId: string) => {
+      if (!state) return;
+      setState((draft) => {
+        const group = draft.layerGroups.find(
+          (g) => (g.id as string) === groupId,
+        );
+        if (!group) return;
+
+        // Collect all descendant IDs
+        function collectDescendants(
+          order: (ImageEditorLayerId | ImageEditorGroupId)[],
+        ): { layerIds: string[]; groupIds: string[] } {
+          const layerIds: string[] = [];
+          const groupIds: string[] = [];
+          for (const id of order) {
+            const g = draft.layerGroups.find(
+              (x) => (x.id as string) === (id as string),
+            );
+            if (g) {
+              groupIds.push(g.id as string);
+              const child = collectDescendants(g.childOrder);
+              layerIds.push(...child.layerIds);
+              groupIds.push(...child.groupIds);
+            } else {
+              layerIds.push(id as string);
+            }
+          }
+          return { layerIds, groupIds };
+        }
+
+        const { layerIds, groupIds } = collectDescendants(group.childOrder);
+        const allGroupIds = [groupId, ...groupIds];
+
+        draft.layers = draft.layers.filter(
+          (l) => !layerIds.includes(l.id as string),
+        );
+        draft.imageLayers = draft.imageLayers.filter(
+          (l) => !layerIds.includes(l.id as string),
+        );
+        draft.layerGroups = draft.layerGroups.filter(
+          (g) => !allGroupIds.includes(g.id as string),
+        );
+        draft.layerOrder = draft.layerOrder.filter(
+          (o) => !allGroupIds.includes(o as string),
+        ) as typeof draft.layerOrder;
+        for (const g of draft.layerGroups) {
+          g.childOrder = g.childOrder.filter(
+            (o) => !allGroupIds.includes(o as string),
+          ) as typeof g.childOrder;
+        }
+
+        if (
+          draft.activeLayerId &&
+          layerIds.includes(draft.activeLayerId as string)
+        ) {
+          const remaining = draft.layerOrder;
+          draft.activeLayerId =
+            remaining.length > 0
+              ? (remaining[remaining.length - 1] as ImageEditorLayerId)
+              : null;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const renameImageEditorLayer = useCallback(
+    (id: string, name: string) => {
+      if (!state || !name.trim()) return;
+      setState((draft) => {
+        const layer = draft.layers.find((l) => (l.id as string) === id);
+        if (layer) {
+          layer.name = name;
+          return;
+        }
+        const imgLayer = draft.imageLayers.find((l) => (l.id as string) === id);
+        if (imgLayer) {
+          imgLayer.name = name;
+          return;
+        }
+        const group = draft.layerGroups.find((g) => (g.id as string) === id);
+        if (group) group.name = name;
+      });
+    },
+    [state, setState],
+  );
+
+  const toggleImageEditorLayerVisible = useCallback(
+    (id: string, isGroup: boolean) => {
+      if (!state) return;
+      setState((draft) => {
+        if (isGroup) {
+          const group = draft.layerGroups.find((g) => (g.id as string) === id);
+          if (group) group.visible = !group.visible;
+        } else {
+          const layer = draft.layers.find((l) => (l.id as string) === id);
+          if (layer) {
+            layer.visible = !layer.visible;
+            return;
+          }
+          const imgLayer = draft.imageLayers.find(
+            (l) => (l.id as string) === id,
+          );
+          if (imgLayer) imgLayer.visible = !imgLayer.visible;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const toggleImageEditorLayerLocked = useCallback(
+    (id: string, isGroup: boolean) => {
+      if (!state) return;
+      setState((draft) => {
+        if (isGroup) {
+          const group = draft.layerGroups.find((g) => (g.id as string) === id);
+          if (group) group.locked = !group.locked;
+        } else {
+          const layer = draft.layers.find((l) => (l.id as string) === id);
+          if (layer) {
+            layer.locked = !layer.locked;
+            return;
+          }
+          const imgLayer = draft.imageLayers.find(
+            (l) => (l.id as string) === id,
+          );
+          if (imgLayer) imgLayer.locked = !imgLayer.locked;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const setActiveImageEditorLayer = useCallback(
+    (id: string) => {
+      if (!state) return;
+      setState((draft) => {
+        draft.activeLayerId = id as ImageEditorLayerId;
+      });
+    },
+    [state, setState],
+  );
+
+  const toggleImageEditorGroupExpanded = useCallback(
+    (id: string) => {
+      if (!state) return;
+      setState((draft) => {
+        const group = draft.layerGroups.find((g) => (g.id as string) === id);
+        if (group) group.expanded = !group.expanded;
+      });
+    },
+    [state, setState],
+  );
+
+  const moveImageEditorLayerItem = useCallback(
+    (id: string, direction: "up" | "down", parentGroupId: string | null) => {
+      if (!state) return;
+      setState((draft) => {
+        let order: (ImageEditorLayerId | ImageEditorGroupId)[];
+        if (parentGroupId) {
+          const group = draft.layerGroups.find(
+            (g) => (g.id as string) === parentGroupId,
+          );
+          if (!group) return;
+          order = group.childOrder;
+        } else {
+          order = draft.layerOrder;
+        }
+        const idx = (order as string[]).indexOf(id);
+        if (idx === -1) return;
+        // "up" = higher position visually = higher index in data
+        const targetIdx = direction === "up" ? idx + 1 : idx - 1;
+        if (targetIdx < 0 || targetIdx >= order.length) return;
+        const temp = order[idx]!;
+        order[idx] = order[targetIdx]!;
+        order[targetIdx] = temp;
+      });
+    },
+    [state, setState],
+  );
+
+  const duplicateImageEditorLayer = useCallback(
+    (id: string) => {
+      if (!state) return;
+      const newId = uuidv4() as ImageEditorLayerId;
+      setState((draft) => {
+        const layer = draft.layers.find((l) => (l.id as string) === id);
+        if (layer) {
+          const copy: ImageEditorRasterLayer = {
+            ...layer,
+            id: newId,
+            name: `${layer.name} copy`,
+          };
+          draft.layers.push(copy);
+          insertAfterInOrder(id, newId, draft.layerOrder, draft.layerGroups);
+          draft.activeLayerId = newId;
+          return;
+        }
+        const imgLayer = draft.imageLayers.find((l) => (l.id as string) === id);
+        if (imgLayer) {
+          const copy: ImageEditorImageLayer = {
+            ...imgLayer,
+            id: newId,
+            name: `${imgLayer.name} copy`,
+          };
+          draft.imageLayers.push(copy);
+          insertAfterInOrder(id, newId, draft.layerOrder, draft.layerGroups);
+          draft.activeLayerId = newId;
+        }
+      });
+    },
+    [state, setState],
+  );
+
+  const duplicateImageEditorGroup = useCallback(
+    (id: string) => {
+      if (!state) return;
+      const newGroupId = uuidv4() as ImageEditorGroupId;
+      setState((draft) => {
+        const srcGroup = draft.layerGroups.find((g) => (g.id as string) === id);
+        if (!srcGroup) return;
+        const copy: ImageEditorLayerGroup = {
+          ...srcGroup,
+          id: newGroupId,
+          name: `${srcGroup.name} copy`,
+          childOrder: [...srcGroup.childOrder],
+        };
+        draft.layerGroups.push(copy);
+        insertAfterInOrder(id, newGroupId, draft.layerOrder, draft.layerGroups);
+      });
+    },
+    [state, setState],
+  );
+
+  const moveImageEditorLayerIntoOrder = useCallback(
+    (
+      dragId: string,
+      targetId: string,
+      position: "above" | "below" | "inside",
+    ) => {
+      if (!state) return;
+      setState((draft) => {
+        const removeFromOrder = (
+          order: (ImageEditorLayerId | ImageEditorGroupId)[],
+        ) => {
+          const idx = (order as string[]).indexOf(dragId);
+          if (idx !== -1) order.splice(idx, 1);
+        };
+        removeFromOrder(draft.layerOrder);
+        for (const g of draft.layerGroups) {
+          removeFromOrder(g.childOrder);
+        }
+
+        if (position === "inside") {
+          const targetGroup = draft.layerGroups.find(
+            (g) => (g.id as string) === targetId,
+          );
+          if (targetGroup) {
+            targetGroup.childOrder.push(
+              dragId as ImageEditorLayerId | ImageEditorGroupId,
+            );
+            targetGroup.expanded = true;
+          }
+        } else {
+          let targetOrder: (ImageEditorLayerId | ImageEditorGroupId)[] | null =
+            null;
+          if ((draft.layerOrder as string[]).includes(targetId)) {
+            targetOrder = draft.layerOrder;
+          } else {
+            for (const g of draft.layerGroups) {
+              if ((g.childOrder as string[]).includes(targetId)) {
+                targetOrder = g.childOrder;
+                break;
+              }
+            }
+          }
+          if (targetOrder) {
+            const targetIdx = (targetOrder as string[]).indexOf(targetId);
+            if (targetIdx !== -1) {
+              const insertIdx =
+                position === "above" ? targetIdx + 1 : targetIdx;
+              targetOrder.splice(
+                insertIdx,
+                0,
+                dragId as ImageEditorLayerId | ImageEditorGroupId,
+              );
+            }
+          }
+        }
+      });
+    },
+    [state, setState],
+  );
+
   return {
     state,
     setState,
@@ -1263,5 +1706,21 @@ export function useImageEditor() {
     exportPng,
     exportGif,
     exportSpriteSheet,
+
+    // Layers
+    addRasterLayer,
+    addImageEditorImageLayer,
+    addImageEditorLayerGroup,
+    deleteImageEditorLayer,
+    deleteImageEditorGroup,
+    renameImageEditorLayer,
+    toggleImageEditorLayerVisible,
+    toggleImageEditorLayerLocked,
+    setActiveImageEditorLayer,
+    toggleImageEditorGroupExpanded,
+    moveImageEditorLayerItem,
+    duplicateImageEditorLayer,
+    duplicateImageEditorGroup,
+    moveImageEditorLayerIntoOrder,
   };
 }

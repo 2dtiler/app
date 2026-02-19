@@ -65,6 +65,11 @@ interface AddLayerDialogProps {
   onCreateLayer: (name: string, type: LayerType) => void;
   /** Called when the user selects "Image Layer" — parent handles file picking */
   onRequestImageLayer?: () => void;
+  /**
+   * If provided, only these layer types will be shown in the dialog.
+   * Defaults to all types.
+   */
+  allowedTypes?: LayerType[];
 }
 
 export function AddLayerDialog({
@@ -73,6 +78,7 @@ export function AddLayerDialog({
   defaultName,
   onCreateLayer,
   onRequestImageLayer,
+  allowedTypes,
 }: AddLayerDialogProps) {
   const [step, setStep] = useState<"select" | "name">("select");
   const [selectedType, setSelectedType] = useState<LayerType>("tile");
@@ -120,7 +126,9 @@ export function AddLayerDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 gap-2 py-2">
-              {LAYER_TYPES.map((opt) => (
+              {LAYER_TYPES.filter(
+                (opt) => !allowedTypes || allowedTypes.includes(opt.type),
+              ).map((opt) => (
                 <button
                   key={opt.type}
                   disabled={opt.disabled}

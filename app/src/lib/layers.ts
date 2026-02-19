@@ -13,6 +13,13 @@ import type {
   ImageLayer,
   ObjectLayer,
 } from "@/types";
+import type {
+  ImageEditorLayerId,
+  ImageEditorGroupId,
+  ImageEditorRasterLayer,
+  ImageEditorImageLayer,
+  ImageEditorLayerGroup,
+} from "@/types/image-editor";
 
 // ---------------------------------------------------------------------------
 // Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())
@@ -517,6 +524,119 @@ function buildDisplayTreeImpl(
               parentGroupId,
             });
           }
+        }
+      }
+    }
+  }
+  return nodes;
+}
+// ---------------------------------------------------------------------------
+// Image Editor Display Tree
+// ---------------------------------------------------------------------------
+
+export type ImageEditorLayerTreeNode =
+  | {
+      type: "rasterLayer";
+      layer: ImageEditorRasterLayer;
+      depth: number;
+      parentGroupId: ImageEditorGroupId | null;
+    }
+  | {
+      type: "imageLayer";
+      layer: ImageEditorImageLayer;
+      depth: number;
+      parentGroupId: ImageEditorGroupId | null;
+    }
+  | {
+      type: "group";
+      group: ImageEditorLayerGroup;
+      depth: number;
+      parentGroupId: ImageEditorGroupId | null;
+    };
+
+/**
+ * Check whether `ancestorId` is an ancestor of `descendantId` in an
+ * image-editor layer group tree. Used to prevent dropping a group into itself.
+ */
+export function isImageEditorAncestorOf(
+  ancestorId: string,
+  descendantId: string,
+  groups: readonly ImageEditorLayerGroup[],
+): boolean {
+  if (ancestorId === descendantId) return true;
+  const group = groups.find((g) => g.id === ancestorId);
+  if (!group) return false;
+  for (const childId of group.childOrder) {
+    if (isImageEditorAncestorOf(childId as string, descendantId, groups))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Build a flat list of tree nodes for rendering the image editor layers panel.
+ * Returns nodes in display order (top-to-bottom = reversed render order).
+ */
+export function buildImageEditorDisplayTree(
+  order: readonly (ImageEditorLayerId | ImageEditorGroupId)[],
+  layers: readonly ImageEditorRasterLayer[],
+  imageLayers: readonly ImageEditorImageLayer[],
+  groups: readonly ImageEditorLayerGroup[],
+  depth = 0,
+  parentGroupId: ImageEditorGroupId | null = null,
+): ImageEditorLayerTreeNode[] {
+  const layerMap = new Map(layers.map((l) => [l.id as string, l]));
+  const imageLayerMap = new Map(imageLayers.map((l) => [l.id as string, l]));
+  const groupMap = new Map(groups.map((g) => [g.id as string, g]));
+  return buildImageEditorDisplayTreeImpl(
+    order,
+    layerMap,
+    imageLayerMap,
+    groupMap,
+    depth,
+    parentGroupId,
+  );
+}
+
+function buildImageEditorDisplayTreeImpl(
+  order: readonly (ImageEditorLayerId | ImageEditorGroupId)[],
+  layerMap: Map<string, ImageEditorRasterLayer>,
+  imageLayerMap: Map<string, ImageEditorImageLayer>,
+  groupMap: Map<string, ImageEditorLayerGroup>,
+  depth: number,
+  parentGroupId: ImageEditorGroupId | null,
+): ImageEditorLayerTreeNode[] {
+  const nodes: ImageEditorLayerTreeNode[] = [];
+  // Display top-to-bottom = reverse of bottom-to-top render order
+  for (const id of [...order].reverse()) {
+    const group = groupMap.get(id as string);
+    if (group) {
+      nodes.push({ type: "group", group, depth, parentGroupId });
+      if (group.expanded) {
+        nodes.push(
+          ...buildImageEditorDisplayTreeImpl(
+            group.childOrder,
+            layerMap,
+            imageLayerMap,
+            groupMap,
+            depth + 1,
+            group.id,
+          ),
+        );
+      }
+    } else {
+      const layer = layerMap.get(id as string);
+      if (layer) {
+        nodes.push({ type: "rasterLayer", layer, depth, parentGroupId });
+      } else {
+        const imgLayer = imageLayerMap.get(id as string);
+        if (imgLayer) {
+          nodes.push({
+            type: "imageLayer",
+            layer: imgLayer,
+            depth,
+            parentGroupId,
+          });
         }
       }
     }

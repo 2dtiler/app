@@ -616,7 +616,7 @@ export function LayersPanel() {
     });
   }
 
-  function handleToggleExpand(groupId: LayerGroupId) {
+  function handleToggleExpand(groupId: string) {
     setState((draft) => {
       const group = (draft.project?.layerGroups ?? []).find(
         (g) => g.id === groupId,
@@ -628,7 +628,7 @@ export function LayersPanel() {
   function handleMoveItem(
     id: string,
     direction: "up" | "down",
-    parentGroupId: LayerGroupId | null,
+    parentGroupId: string | null,
   ) {
     setState((draft) => {
       if (!draft.project) return;
@@ -660,9 +660,9 @@ export function LayersPanel() {
     });
   }
 
-  function handleSelectLayer(layerId: LayerId) {
+  function handleSelectLayer(layerId: string) {
     setState((draft) => {
-      draft.activeLayerId = layerId;
+      draft.activeLayerId = layerId as LayerId;
     });
   }
 

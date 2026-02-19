@@ -7,31 +7,44 @@ import type { AssetId, TilesetId, TileRef } from "@/types";
 
 export const tilesetImageCache = new Map<TilesetId, HTMLImageElement>();
 const tilesetBlobUrls = new Map<TilesetId, string>();
-const loadingTilesets = new Set<TilesetId>();
+// Promise deduplication: if a tileset is already being loaded, all callers
+// share the same promise so none silently returns null mid-flight.
+const loadingTilesetPromises = new Map<
+  TilesetId,
+  Promise<HTMLImageElement | null>
+>();
 
-export async function loadTilesetImage(
+export function loadTilesetImage(
   tilesetId: TilesetId,
   assetId: AssetId,
 ): Promise<HTMLImageElement | null> {
   if (tilesetImageCache.has(tilesetId))
-    return tilesetImageCache.get(tilesetId)!;
-  if (loadingTilesets.has(tilesetId)) return null;
+    return Promise.resolve(tilesetImageCache.get(tilesetId)!);
 
-  loadingTilesets.add(tilesetId);
-  try {
-    const url = await getAssetUrl(assetId);
-    if (!url) return null;
-    tilesetBlobUrls.set(tilesetId, url);
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    tilesetImageCache.set(tilesetId, img);
-    return img;
-  } catch {
-    return null;
-  } finally {
-    loadingTilesets.delete(tilesetId);
-  }
+  // If already in-flight, all callers share the same promise and will all
+  // receive the result once it resolves — no more silent null returns.
+  const inflight = loadingTilesetPromises.get(tilesetId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    try {
+      const url = await getAssetUrl(assetId);
+      if (!url) return null;
+      tilesetBlobUrls.set(tilesetId, url);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      tilesetImageCache.set(tilesetId, img);
+      return img;
+    } catch {
+      return null;
+    } finally {
+      loadingTilesetPromises.delete(tilesetId);
+    }
+  })();
+
+  loadingTilesetPromises.set(tilesetId, promise);
+  return promise;
 }
 
 /**
@@ -135,28 +148,38 @@ export function drawTileWithOrientation(
 
 export const imageLayerImageCache = new Map<AssetId, HTMLImageElement>();
 const imageLayerBlobUrls = new Map<AssetId, string>();
-const loadingImageLayers = new Set<AssetId>();
+// Same promise-deduplication pattern as tilesets.
+const loadingImageLayerPromises = new Map<
+  AssetId,
+  Promise<HTMLImageElement | null>
+>();
 
-export async function loadImageLayerImage(
+export function loadImageLayerImage(
   assetId: AssetId,
 ): Promise<HTMLImageElement | null> {
   if (imageLayerImageCache.has(assetId))
-    return imageLayerImageCache.get(assetId)!;
-  if (loadingImageLayers.has(assetId)) return null;
+    return Promise.resolve(imageLayerImageCache.get(assetId)!);
 
-  loadingImageLayers.add(assetId);
-  try {
-    const url = await getAssetUrl(assetId);
-    if (!url) return null;
-    imageLayerBlobUrls.set(assetId, url);
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    imageLayerImageCache.set(assetId, img);
-    return img;
-  } catch {
-    return null;
-  } finally {
-    loadingImageLayers.delete(assetId);
-  }
+  const inflight = loadingImageLayerPromises.get(assetId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    try {
+      const url = await getAssetUrl(assetId);
+      if (!url) return null;
+      imageLayerBlobUrls.set(assetId, url);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      imageLayerImageCache.set(assetId, img);
+      return img;
+    } catch {
+      return null;
+    } finally {
+      loadingImageLayerPromises.delete(assetId);
+    }
+  })();
+
+  loadingImageLayerPromises.set(assetId, promise);
+  return promise;
 }

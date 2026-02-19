@@ -15,6 +15,12 @@ export type ImageEditorProjectId = string & {
 };
 export type FrameId = string & { readonly __brand: "FrameId" };
 export type PaletteId = string & { readonly __brand: "PaletteId" };
+export type ImageEditorLayerId = string & {
+  readonly __brand: "ImageEditorLayerId";
+};
+export type ImageEditorGroupId = string & {
+  readonly __brand: "ImageEditorGroupId";
+};
 
 // ---------------------------------------------------------------------------
 // Color
@@ -77,6 +83,42 @@ export interface PixelSelection {
 }
 
 // ---------------------------------------------------------------------------
+// Image Editor Layer Types
+// ---------------------------------------------------------------------------
+
+/** A regular raster (pixel art) drawing layer */
+export interface ImageEditorRasterLayer {
+  id: ImageEditorLayerId;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Always "tile" — identifies this as a raster drawing layer */
+  type: "tile";
+}
+
+/** An imported PNG image overlay layer (organisational metadata for now) */
+export interface ImageEditorImageLayer {
+  id: ImageEditorLayerId;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Always "image" */
+  type: "image";
+}
+
+/** A group that can contain raster or image layers */
+export interface ImageEditorLayerGroup {
+  id: ImageEditorGroupId;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Whether the group is expanded in the layers panel */
+  expanded: boolean;
+  /** Bottom-to-top render order of children */
+  childOrder: (ImageEditorLayerId | ImageEditorGroupId)[];
+}
+
+// ---------------------------------------------------------------------------
 // Editor State  (tracked by travels for undo/redo)
 // ---------------------------------------------------------------------------
 
@@ -130,6 +172,22 @@ export interface ImageEditorState {
 
   /** Whether animation should loop */
   loop: boolean;
+
+  // ---- Layers ----
+
+  /** All raster (pixel art) drawing layers */
+  layers: ImageEditorRasterLayer[];
+  /** All imported image overlay layers */
+  imageLayers: ImageEditorImageLayer[];
+  /** All layer groups */
+  layerGroups: ImageEditorLayerGroup[];
+  /**
+   * Top-level layer order (bottom-to-top rendering order).
+   * End of array = visually topmost layer.
+   */
+  layerOrder: (ImageEditorLayerId | ImageEditorGroupId)[];
+  /** ID of the currently active/selected layer, or null if none */
+  activeLayerId: ImageEditorLayerId | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,4 +245,9 @@ export const DEFAULT_IMAGE_EDITOR_STATE: ImageEditorState = {
   fps: 12,
   onionSkin: false,
   loop: true,
+  layers: [],
+  imageLayers: [],
+  layerGroups: [],
+  layerOrder: [],
+  activeLayerId: null,
 };

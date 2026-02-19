@@ -15,6 +15,8 @@ import {
   type Frame,
   type Palette,
   type PaletteId,
+  type ImageEditorLayerId,
+  type ImageEditorRasterLayer,
 } from "@/types/image-editor";
 import { v4 as uuidv4 } from "uuid";
 
@@ -49,6 +51,16 @@ export function initImageEditorStore(
   const activePaletteId: PaletteId =
     palettes[0]?.id ?? DEFAULT_IMAGE_EDITOR_STATE.activePaletteId;
 
+  // Create default "Layer 1" raster layer
+  const firstLayerId = uuidv4() as ImageEditorLayerId;
+  const firstLayer: ImageEditorRasterLayer = {
+    id: firstLayerId,
+    name: "Layer 1",
+    visible: true,
+    locked: false,
+    type: "tile",
+  };
+
   instance = createTravels<ImageEditorState>(
     {
       ...DEFAULT_IMAGE_EDITOR_STATE,
@@ -58,6 +70,11 @@ export function initImageEditorStore(
       currentFrameIndex: 0,
       palettes,
       activePaletteId,
+      layers: [firstLayer],
+      imageLayers: [],
+      layerGroups: [],
+      layerOrder: [firstLayerId],
+      activeLayerId: firstLayerId,
     },
     { maxHistory: 50 },
   );

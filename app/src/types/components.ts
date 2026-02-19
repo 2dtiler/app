@@ -4,17 +4,7 @@
  */
 
 import type { CSSProperties, HTMLAttributes } from "react";
-import type {
-  TileLayer,
-  ImageLayer,
-  ObjectLayer,
-  LayerGroup,
-  LayerGroupId,
-  LayerId,
-  TilesetId,
-  TileSize,
-  AssetId,
-} from "./schema";
+import type { TilesetId, TileSize, AssetId } from "./schema";
 
 // ---------------------------------------------------------------------------
 // Tileset Canvas
@@ -163,26 +153,55 @@ export interface AdBannerProps {
 }
 
 // ---------------------------------------------------------------------------
+// Layers Panel - Base Types (generic enough for both map and image editor)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum shape that both map layers and image-editor layers satisfy.
+ * Used by LayerRow so it can render layers from either context.
+ */
+export interface BaseLayerItem {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Optional type string — used for the icon ("image", "object", etc.) */
+  type?: string;
+}
+
+/**
+ * Minimum shape that both map layer groups and image-editor layer groups satisfy.
+ * Used by GroupRow so it can render groups from either context.
+ */
+export interface BaseLayerGroupItem {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  expanded: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Layers Panel - Layer Row
 // ---------------------------------------------------------------------------
 
 export interface GroupRowProps {
-  group: LayerGroup;
+  group: BaseLayerGroupItem;
   depth: number;
-  parentGroupId: LayerGroupId | null;
+  parentGroupId: string | null;
   renamingId: string | null;
   renameValue: string;
   onRenameValueChange: (value: string) => void;
   onDoubleClick: (id: string, name: string) => void;
   onCommitRename: () => void;
   onCancelRename: () => void;
-  onToggleExpand: (id: LayerGroupId) => void;
+  onToggleExpand: (id: string) => void;
   onToggleVisibility: (id: string, isGroup: boolean) => void;
   onToggleLock: (id: string, isGroup: boolean) => void;
   onMove: (
     id: string,
     dir: "up" | "down",
-    parentGroupId: LayerGroupId | null,
+    parentGroupId: string | null,
   ) => void;
   onDelete: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
@@ -200,9 +219,9 @@ export interface GroupRowProps {
 }
 
 export interface LayerRowProps {
-  layer: TileLayer | ImageLayer | ObjectLayer;
+  layer: BaseLayerItem;
   depth: number;
-  parentGroupId: LayerGroupId | null;
+  parentGroupId: string | null;
   isActive: boolean;
   renamingId: string | null;
   renameValue: string;
@@ -210,13 +229,13 @@ export interface LayerRowProps {
   onDoubleClick: (id: string, name: string) => void;
   onCommitRename: () => void;
   onCancelRename: () => void;
-  onSelect: (id: LayerId) => void;
+  onSelect: (id: string) => void;
   onToggleVisibility: (id: string, isGroup: boolean) => void;
   onToggleLock: (id: string, isGroup: boolean) => void;
   onMove: (
     id: string,
     dir: "up" | "down",
-    parentGroupId: LayerGroupId | null,
+    parentGroupId: string | null,
   ) => void;
   onDelete: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;

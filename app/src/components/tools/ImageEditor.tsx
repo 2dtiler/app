@@ -25,6 +25,7 @@ import { EditorToolbar } from "./ImageEditor/EditorToolbar";
 import { PalettePanel } from "./ImageEditor/PalettePanel";
 import { FramesPanel } from "./ImageEditor/FramesPanel";
 import { SaveFormatDialog } from "./ImageEditor/SaveFormatDialog";
+import { ImageEditorLayersPanel } from "./ImageEditor/LayersPanel";
 import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {
@@ -397,28 +398,42 @@ export function ImageEditor() {
 
           <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-          {/* Palette panel */}
+          {/* Right-side panel: Palette (top) + Layers (bottom) */}
           <Panel defaultSize="25%" minSize="10%" maxSize="60%">
-            <PalettePanel
-              palettes={palettes}
-              activePaletteId={activePaletteId}
-              onSwitchPalette={editor.switchPalette}
-              onRenamePalette={editor.renamePalette}
-              onDeletePalette={editor.deletePalette}
-              onDuplicatePalette={editor.duplicatePalette}
-              colors={getActivePalette(editor.state).colors}
-              primaryColor={primaryColor}
-              secondaryColor={secondaryColor}
-              onSelectPrimary={editor.setPrimaryColor}
-              onSelectSecondary={editor.setSecondaryColor}
-              onAddColor={editor.addPaletteColor}
-              onRemoveColor={editor.removePaletteColor}
-              onUpdateColor={editor.updatePaletteColor}
-              onReorderColors={editor.reorderPaletteColors}
-              onImport={editor.importPalette}
-              onExport={editor.exportPalette}
-              onReset={editor.resetPalette}
-            />
+            <Group
+              orientation="vertical"
+              id="image-editor-right-panel"
+              className="h-full"
+            >
+              <Panel defaultSize="60%" minSize="20%">
+                <PalettePanel
+                  palettes={palettes}
+                  activePaletteId={activePaletteId}
+                  onSwitchPalette={editor.switchPalette}
+                  onRenamePalette={editor.renamePalette}
+                  onDeletePalette={editor.deletePalette}
+                  onDuplicatePalette={editor.duplicatePalette}
+                  colors={getActivePalette(editor.state).colors}
+                  primaryColor={primaryColor}
+                  secondaryColor={secondaryColor}
+                  onSelectPrimary={editor.setPrimaryColor}
+                  onSelectSecondary={editor.setSecondaryColor}
+                  onAddColor={editor.addPaletteColor}
+                  onRemoveColor={editor.removePaletteColor}
+                  onUpdateColor={editor.updatePaletteColor}
+                  onReorderColors={editor.reorderPaletteColors}
+                  onImport={editor.importPalette}
+                  onExport={editor.exportPalette}
+                  onReset={editor.resetPalette}
+                />
+              </Panel>
+
+              <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+
+              <Panel defaultSize="40%" minSize="15%">
+                <ImageEditorLayersPanel />
+              </Panel>
+            </Group>
           </Panel>
         </Group>
       </div>
