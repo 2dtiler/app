@@ -1,4 +1,5 @@
 AI Asset Generation
+  When generating > 1 image, all images are the same
   Get list of models
   Add forms -> prompt (Get parameters from pixellab)
   Ability to download/add to tileset/open in image Editor

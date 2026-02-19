@@ -75,11 +75,11 @@ const LS_KEY = "hf_token_enc";
 // Models + options
 // ---------------------------------------------------------------------------
 const MODELS = [
+  { id: "Tongyi-MAI/Z-Image-Turbo", label: "Z-Image-Turbo" },
   { id: "black-forest-labs/FLUX.1-schnell", label: "FLUX.1 Schnell (fast)" },
-  { id: "stabilityai/stable-diffusion-xl-base-1.0", label: "SDXL Base" },
-  { id: "runwayml/stable-diffusion-v1-5", label: "SD 1.5 (lightweight)" },
-  { id: "Lykon/dreamshaper-8", label: "DreamShaper 8" },
-  { id: "nerijs/pixel-art-xl", label: "Pixel Art XL" },
+  // { id: "runwayml/stable-diffusion-v1-5", label: "SD 1.5 (lightweight)" },
+  // { id: "Lykon/dreamshaper-8", label: "DreamShaper 8" },
+  // { id: "nerijs/pixel-art-xl", label: "Pixel Art XL" },
 ];
 const COUNT_OPTIONS = [1, 2, 3, 4, 6, 8];
 
