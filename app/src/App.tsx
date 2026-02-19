@@ -738,14 +738,12 @@ function AppShell({
           />
         </Suspense>
       )}
-      {activeTool !== null && (
-        <Suspense>
-          <ToolDrawer
-            activeTool={activeTool}
-            onClose={() => setActiveTool(null)}
-          />
-        </Suspense>
-      )}
+      <Suspense>
+        <ToolDrawer
+          activeTool={activeTool}
+          onClose={() => setActiveTool(null)}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-Drawers open/close instantly. Add a slide + blur background effect
 Pencil tool you have to drag, you can't put a single point
 Why does the color picker have this L: R: values
 

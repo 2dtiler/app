@@ -40,9 +40,9 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   const titleId = useId();
 
   // `isOpen` drives the CSS transition; `isMounted` keeps the DOM node alive
-  // during the exit animation.
-  const [isMounted, setIsMounted] = useState(activeTool !== null);
-  const [isOpen, setIsOpen] = useState(activeTool !== null);
+  // during the exit animation. Always start closed so the open animation plays.
+  const [isMounted, setIsMounted] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (activeTool !== null) {
@@ -99,7 +99,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-[transform,opacity] duration-[350ms] ${
+        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-[translate,opacity] duration-[350ms] ${
           isOpen
             ? "translate-x-0 opacity-100 ease-[cubic-bezier(0.32,0.72,0,1)]"
             : "translate-x-full opacity-0 ease-[cubic-bezier(0.72,0,0.84,0)]"
