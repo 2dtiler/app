@@ -134,10 +134,14 @@ export function ImageCanvas({
     onFrameDataChange,
   ]);
 
-  // Sync frame data onto main canvas whenever it changes
+  // Sync frame data onto main canvas whenever it changes.
+  // Skip while a stroke is active: the canvas is already being modified by the
+  // drawing path and a mid-stroke re-render (triggered by pushUndoSnapshot's
+  // forceHistoryUpdate) would overwrite those in-progress pixels.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !currentFrameData) return;
+    if (strokeRef.current.active) return;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
     ctx.putImageData(currentFrameData, 0, 0);

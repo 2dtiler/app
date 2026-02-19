@@ -317,8 +317,8 @@ export function PalettePanel({
               />
             </div>
             <div className="text-[10px] text-muted-foreground leading-tight">
-              <div>L: {colorToHex(primaryColor)}</div>
-              <div>R: {colorToHex(secondaryColor)}</div>
+              <div>Left Click: {colorToHex(primaryColor)}</div>
+              <div>Right Click: {colorToHex(secondaryColor)}</div>
             </div>
           </div>
         </div>
