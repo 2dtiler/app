@@ -1,4 +1,9 @@
-AI Asset Generation: Huggingface
+AI Asset Generation
+  Get list of models
+  Add forms -> prompt (Get parameters from pixellab)
+  Ability to download/add to tileset/open in image Editor
+  History
+  Scheduler
 
 Layer styling is a bit off in Image/sprite Editor
 Add frame should be a primary button
