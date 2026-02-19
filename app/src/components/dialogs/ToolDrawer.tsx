@@ -88,7 +88,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
       {/* Backdrop – click to close */}
       <div
         aria-hidden="true"
-        className={`fixed inset-0 z-50 bg-black/50 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-[350ms] ease-out ${
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
@@ -99,8 +99,10 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-[transform,opacity] duration-[350ms] ${
+          isOpen
+            ? "translate-x-0 opacity-100 ease-[cubic-bezier(0.32,0.72,0,1)]"
+            : "translate-x-full opacity-0 ease-[cubic-bezier(0.72,0,0.84,0)]"
         }`}
         onTransitionEnd={handleTransitionEnd}
       >

@@ -11,6 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "script-defer",
       manifest: {
         name: "2D Tiler",
         short_name: "2D Tiler",
@@ -32,7 +33,34 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    headers: {
+      "Strict-Transport-Security":
+        "max-age=63072000; includeSubDomains; preload",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Permissions-Policy":
+        "camera=(), microphone=(), geolocation=(), payment=()",
+      "Content-Security-Policy":
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.gstatic.com https://static.doubleclick.net https://static.cloudflareinsights.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob: https:; " +
+        "font-src 'self' data:; " +
+        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com; " +
+        "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; " +
+        "worker-src 'self' blob:; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none'; " +
+        "upgrade-insecure-requests",
+    },
+  },
   build: {
+    sourcemap: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -45,6 +73,11 @@ export default defineConfig({
             "@radix-ui/react-tabs",
             "@radix-ui/react-slot",
           ],
+          sentry: ["@sentry/react"],
+          db: ["dexie", "dexie-react-hooks"],
+          gif: ["gifenc"],
+          color: ["color"],
+          panels: ["react-resizable-panels"],
         },
       },
     },

@@ -352,7 +352,17 @@ export const ColorPickerFormat = ({
   className,
   ...props
 }: ColorPickerFormatProps) => {
-  const { hue, saturation, lightness, alpha, mode, setHue, setSaturation, setLightness, setAlpha } = useColorPicker();
+  const {
+    hue,
+    saturation,
+    lightness,
+    alpha,
+    mode,
+    setHue,
+    setSaturation,
+    setLightness,
+    setAlpha,
+  } = useColorPicker();
   const color = Color.hsl(hue, saturation, lightness, alpha / 100);
 
   if (mode === "hex") {
@@ -360,10 +370,7 @@ export const ColorPickerFormat = ({
 
     return (
       <div
-        className={cn(
-          "flex w-full items-center gap-1",
-          className,
-        )}
+        className={cn("flex w-full items-center gap-1", className)}
         {...props}
       >
         <Input
@@ -402,10 +409,7 @@ export const ColorPickerFormat = ({
 
     return (
       <div
-        className={cn(
-          "flex w-full items-center gap-1",
-          className,
-        )}
+        className={cn("flex w-full items-center gap-1", className)}
         {...props}
       >
         {rgb.map((value, index) => (
@@ -466,10 +470,7 @@ export const ColorPickerFormat = ({
 
     return (
       <div
-        className={cn(
-          "flex w-full items-center gap-1",
-          className,
-        )}
+        className={cn("flex w-full items-center gap-1", className)}
         {...props}
       >
         {hsl.map((value, index) => (

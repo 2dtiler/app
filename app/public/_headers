@@ -1,0 +1,36 @@
+/*
+  # Strong HSTS policy (2 years, include subdomains, preload-eligible)
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # Block clickjacking (redundant with frame-ancestors in CSP, kept as legacy fallback)
+  X-Frame-Options: DENY
+
+  # Prevent MIME-type sniffing
+  X-Content-Type-Options: nosniff
+
+  # Limit referrer info on cross-origin navigations
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Origin isolation: allow popups so AdSense landing pages still get opener info
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+  # Restrict powerful features not used by this app
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+  # ── Content Security Policy ────────────────────────────────────────────────
+  # default-src: fall-back for anything not listed explicitly
+  # script-src:  self + Google AdSense / Ad Manager domains
+  # style-src:   unsafe-inline required for Radix UI / Tailwind inline styles
+  # img-src:     data: / blob: for canvas exports; https: for ad images
+  # font-src:    self only (no remote fonts currently used)
+  # connect-src: Sentry ingest + AdSense reporting
+  # frame-src:   Google Ad iframes
+  # worker-src:  blob: for Vite-generated web workers
+  # object-src:  none (no Flash / plugins)
+  # base-uri:    self (prevent base-tag injection)
+  # form-action: self (no external form submissions)
+  # frame-ancestors: none (blocks clickjacking; supersedes X-Frame-Options)
+  # upgrade-insecure-requests: force HTTP→HTTPS for sub-resources
+  # script-src: self + Google AdSense / Ad Manager + Cloudflare Insights beacon
+  # connect-src: Sentry ingest + AdSense reporting + Cloudflare Insights RUM endpoint
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.gstatic.com https://static.doubleclick.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com; frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

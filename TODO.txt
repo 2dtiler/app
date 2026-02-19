@@ -1,5 +1,4 @@
-Color picker should have mouse wheel up/down
-Drawers open/close instantly - add a little slide effect
+Drawers open/close instantly. Add a slide + blur background effect
 Pencil tool you have to drag, you can't put a single point
 Why does the color picker have this L: R: values
 
@@ -11,7 +10,6 @@ Import Options
 Palettes: Allow to select amount of columns per row
 Add opacity to image objects. Can be selected from palette menu
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-Get Lighthouse scores 100% with 0 errors/warnings
 Unslopify
 Make list of tiled advanced features
   - Terrain brush

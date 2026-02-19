@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/react";
 
-// Initialize Sentry as early as possible
+// Sentry is loaded lazily (via requestIdleCallback in main.tsx) to avoid
+// blocking the critical render path. Early startup errors won't be captured,
+// but performance impact is eliminated.
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 // Only enable Sentry in production (e.g. Cloudflare Pages builds)
 // This prevents alerts from local development (vite dev)
