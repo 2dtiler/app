@@ -30,10 +30,10 @@ export function useAutoSave() {
           const store = getEditorStore();
           const state = store.getState();
           if (state.project) {
-            await saveProject({
-              ...state.project,
-              updatedAt: Date.now(),
-            });
+            await saveProject(
+              { ...state.project, updatedAt: Date.now() },
+              { silent: true },
+            );
             markEditorSaved();
             // Clean up any orphaned assets (e.g. from trimmed undo history)
             await cleanOrphanedAssets(state.project);

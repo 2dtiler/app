@@ -34,6 +34,7 @@ import {
   saveProjectPrefs,
   loadProjectPrefs,
   deleteProjectPrefs,
+  saveLastProjectId,
 } from "@/lib/db";
 import type { ProjectRecord } from "@/lib/db";
 import { getEditorStore, markEditorSaved } from "@/lib/store";
@@ -188,6 +189,7 @@ export function ProjectModal({
       }
     });
     markEditorSaved();
+    saveLastProjectId(project.id);
     onOpenChange(false);
     onProjectLoaded();
   }

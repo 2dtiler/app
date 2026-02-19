@@ -137,8 +137,11 @@ export async function getAssetUrl(id: AssetId): Promise<string | null> {
 // Project helpers
 // ---------------------------------------------------------------------------
 
-export async function saveProject(project: Project): Promise<void> {
-  window.dispatchEvent(new CustomEvent("project-save-start"));
+export async function saveProject(
+  project: Project,
+  { silent = false }: { silent?: boolean } = {},
+): Promise<void> {
+  if (!silent) window.dispatchEvent(new CustomEvent("project-save-start"));
   try {
     await db.projects.put({
       id: project.id,
@@ -147,7 +150,7 @@ export async function saveProject(project: Project): Promise<void> {
       updatedAt: Date.now(),
     });
   } finally {
-    window.dispatchEvent(new CustomEvent("project-save-end"));
+    if (!silent) window.dispatchEvent(new CustomEvent("project-save-end"));
   }
 }
 
@@ -211,6 +214,28 @@ export function deleteProjectPrefs(projectId: string): void {
     localStorage.removeItem(PROJECT_PREFS_PREFIX + projectId);
   } catch {
     // Silently fail
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Last opened project (localStorage)
+// ---------------------------------------------------------------------------
+
+const LAST_PROJECT_KEY = "last-project-id";
+
+export function saveLastProjectId(projectId: string): void {
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, projectId);
+  } catch {
+    // Silently fail
+  }
+}
+
+export function loadLastProjectId(): string | null {
+  try {
+    return localStorage.getItem(LAST_PROJECT_KEY);
+  } catch {
+    return null;
   }
 }
 

@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useState,
-  useCallback,
-  useRef,
-  lazy,
-  Suspense,
-} from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -17,7 +10,14 @@ import {
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { saveProject, saveProjectPrefs } from "@/lib/db";
+import {
+  saveProject,
+  saveProjectPrefs,
+  listProjects,
+  getProject,
+  loadProjectPrefs,
+  loadLastProjectId,
+} from "@/lib/db";
 import {
   exportProject,
   exportMap,
@@ -38,6 +38,8 @@ import type {
   ObjectId,
 } from "@/types";
 
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
 const SettingsDialog = lazy(() =>
   import("@/components/dialogs/SettingsDialog").then((m) => ({
@@ -89,14 +91,6 @@ const loadingScreen = (
   </div>
 );
 
-const savingOverlay = (
-  <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
-    <div className="text-primary text-sm tracking-widest uppercase animate-pulse">
-      Saving Project…
-    </div>
-  </div>
-);
-
 const emptyProjectMessage = (
   <main className="flex flex-1 min-h-0 items-center justify-center text-muted-foreground text-sm">
     Open or create a project to get started
@@ -106,15 +100,10 @@ const emptyProjectMessage = (
 // Init-once guard: prevents double-init in React StrictMode (advanced-init-once)
 let storeInitStarted = false;
 
-const MIN_SAVE_DISPLAY_MS = 300;
-
 function App() {
   const [ready, setReady] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const savingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveStartTimeRef = useRef<number>(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [projectModalOpen, setProjectModalOpen] = useState(true);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
@@ -124,8 +113,103 @@ function App() {
   useEffect(() => {
     if (storeInitStarted) return;
     storeInitStarted = true;
-    initEditorStore().then(() => setReady(true));
-  }, []);
+    initEditorStore().then(async () => {
+      // If the store already has a project restored from history, open it directly
+      const restoredState = getEditorStore().getState();
+      if (restoredState.project) {
+        setReady(true);
+        return;
+      }
+
+      // No project in history — try to auto-open the last used project
+      const lastId = loadLastProjectId();
+      let autoOpened = false;
+
+      if (lastId) {
+        const project = await getProject(lastId);
+        if (project) {
+          const prefs = loadProjectPrefs(project.id);
+          getEditorStore().setState((draft) => {
+            draft.project = project;
+            draft.tileSize = project.tileSize;
+            if (prefs) {
+              const tilesetGroupIds = new Set(
+                project.tilesetGroups.map((g) => g.id as string),
+              );
+              const tilesetIds = new Set(
+                project.tilesets.map((t) => t.id as string),
+              );
+              const mapGroupIds = new Set(
+                project.mapGroups.map((g) => g.id as string),
+              );
+              const mapIds = new Set(project.maps.map((m) => m.id as string));
+              const layerIds = new Set(
+                project.layers.map((l) => l.id as string),
+              );
+              draft.activeTilesetGroupId =
+                prefs.activeTilesetGroupId &&
+                tilesetGroupIds.has(prefs.activeTilesetGroupId)
+                  ? (prefs.activeTilesetGroupId as typeof draft.activeTilesetGroupId)
+                  : (project.tilesetGroups[0]?.id ?? null);
+              draft.activeTilesetId =
+                prefs.activeTilesetId && tilesetIds.has(prefs.activeTilesetId)
+                  ? (prefs.activeTilesetId as typeof draft.activeTilesetId)
+                  : null;
+              draft.activeMapGroupId =
+                prefs.activeMapGroupId &&
+                mapGroupIds.has(prefs.activeMapGroupId)
+                  ? (prefs.activeMapGroupId as typeof draft.activeMapGroupId)
+                  : (project.mapGroups[0]?.id ?? null);
+              draft.activeMapId =
+                prefs.activeMapId && mapIds.has(prefs.activeMapId)
+                  ? (prefs.activeMapId as typeof draft.activeMapId)
+                  : null;
+              draft.activeLayerId =
+                prefs.activeLayerId && layerIds.has(prefs.activeLayerId)
+                  ? (prefs.activeLayerId as typeof draft.activeLayerId)
+                  : null;
+            } else {
+              draft.activeTilesetGroupId = project.tilesetGroups[0]?.id ?? null;
+              draft.activeMapGroupId = project.mapGroups[0]?.id ?? null;
+              draft.activeTilesetId = null;
+              draft.activeMapId = null;
+              draft.activeLayerId = null;
+            }
+          });
+          markEditorSaved();
+          autoOpened = true;
+        }
+      }
+
+      // No last project found — check if any projects exist and open the most recent
+      if (!autoOpened) {
+        const projects = await listProjects();
+        if (projects.length > 0) {
+          const project = await getProject(projects[0].id);
+          if (project) {
+            getEditorStore().setState((draft) => {
+              draft.project = project;
+              draft.tileSize = project.tileSize;
+              draft.activeTilesetGroupId = project.tilesetGroups[0]?.id ?? null;
+              draft.activeMapGroupId = project.mapGroups[0]?.id ?? null;
+              draft.activeTilesetId = null;
+              draft.activeMapId = null;
+              draft.activeLayerId = null;
+            });
+            markEditorSaved();
+            autoOpened = true;
+          }
+        }
+      }
+
+      // No projects at all — show the project modal
+      if (!autoOpened) {
+        setProjectModalOpen(true);
+      }
+
+      setReady(true);
+    });
+  }, [setProjectModalOpen]);
 
   useAutoSave();
   useKeyboardShortcuts();
@@ -177,25 +261,13 @@ function App() {
       window.removeEventListener("open-image-editor", handleOpenImageEditor);
   }, [setActiveTool]);
 
-  // Show saving overlay when project is being persisted
+  // Show toast when project is saved
   useEffect(() => {
-    function handleSaveStart() {
-      if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
-      saveStartTimeRef.current = Date.now();
-      setIsSaving(true);
-    }
     function handleSaveEnd() {
-      const elapsed = Date.now() - saveStartTimeRef.current;
-      const remaining = Math.max(0, MIN_SAVE_DISPLAY_MS - elapsed);
-      savingTimerRef.current = setTimeout(() => setIsSaving(false), remaining);
+      toast.success("Project saved");
     }
-    window.addEventListener("project-save-start", handleSaveStart);
     window.addEventListener("project-save-end", handleSaveEnd);
-    return () => {
-      window.removeEventListener("project-save-start", handleSaveStart);
-      window.removeEventListener("project-save-end", handleSaveEnd);
-      if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
-    };
+    return () => window.removeEventListener("project-save-end", handleSaveEnd);
   }, []);
 
   if (!ready) {
@@ -204,9 +276,9 @@ function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
+      <Toaster />
       <AppShell
         settingsOpen={settingsOpen}
-        isSaving={isSaving}
         setSettingsOpen={setSettingsOpen}
         projectModalOpen={projectModalOpen}
         setProjectModalOpen={setProjectModalOpen}
@@ -241,7 +313,6 @@ function AppShell({
   setBugReportOpen,
   activeTool,
   setActiveTool,
-  isSaving,
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
@@ -257,7 +328,6 @@ function AppShell({
   setBugReportOpen: (v: boolean) => void;
   activeTool: ToolName | null;
   setActiveTool: (v: ToolName | null) => void;
-  isSaving: boolean;
 }) {
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
@@ -602,7 +672,6 @@ function AppShell({
           />
         </Suspense>
       )}
-      {isSaving && savingOverlay}
     </div>
   );
 }

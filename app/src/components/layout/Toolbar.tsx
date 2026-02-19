@@ -50,7 +50,7 @@ export const Toolbar = memo(function Toolbar({
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem onMouseDown={onNewProject}>
-              New Project
+              Manage Projects
               <MenubarShortcut>⌘N</MenubarShortcut>
             </MenubarItem>
             <MenubarItem onMouseDown={onSaveProject}>

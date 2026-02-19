@@ -1352,8 +1352,8 @@ export function MapPanel() {
           <TooltipContent>Select Tool (S)</TooltipContent>
         </Tooltip>
 
-        {/* Tool selector with brush size */}
-        {(["paint", "erase"] as EditorTool[]).map((tool) => {
+        {/* Paint tool with brush size dropdown */}
+        {(["paint"] as EditorTool[]).map((tool) => {
           const Icon = toolIcons[tool];
           const isActive = state.currentTool === tool;
           return (
@@ -1443,72 +1443,53 @@ export function MapPanel() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Erase tool with brush size dropdown */}
+        {(["erase"] as EditorTool[]).map((tool) => {
+          const Icon = toolIcons[tool];
+          const isActive = state.currentTool === tool;
+          return (
+            <DropdownMenu key={tool}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={isActive ? "default" : "ghost"}
+                      size="icon"
+                      className="h-6 w-6"
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {tool.charAt(0).toUpperCase() + tool.slice(1)} Tool
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent>
+                {BRUSH_SIZES.map((size) => (
+                  <DropdownMenuItem
+                    key={size}
+                    onMouseDown={() =>
+                      setState((draft) => {
+                        draft.currentTool = tool;
+                        draft.brushSize = size;
+                      })
+                    }
+                  >
+                    {size}
+                    {state.currentTool === tool &&
+                      state.brushSize === size &&
+                      " ✓"}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })}
+
         <div className="w-px h-4 bg-border mx-0.5" />
 
-        {/* Zoom */}
-        <div className="flex items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onMouseDown={() => handleZoom(-1)}
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom Out</TooltipContent>
-          </Tooltip>
-          <span className="text-[10px] text-muted-foreground w-8 text-center">
-            {Math.round(mapZoom * 100)}%
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onMouseDown={() => handleZoom(1)}
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom In</TooltipContent>
-          </Tooltip>
-        </div>
-
-        <div className="w-px h-4 bg-border mx-0.5" />
-
-        {/* Undo / Redo / Cut */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              disabled={!controls.canBack()}
-              onMouseDown={() => controls.back()}
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              disabled={!controls.canForward()}
-              onMouseDown={() => controls.forward()}
-            >
-              <Redo2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
-        </Tooltip>
+        {/* Cut */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -1573,6 +1554,73 @@ export function MapPanel() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        {/* Zoom */}
+        <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onMouseDown={() => handleZoom(-1)}
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Zoom Out</TooltipContent>
+          </Tooltip>
+          <span className="text-[10px] text-muted-foreground w-8 text-center">
+            {Math.round(mapZoom * 100)}%
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onMouseDown={() => handleZoom(1)}
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Zoom In</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        {/* Undo / Redo */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!controls.canBack()}
+              onMouseDown={() => controls.back()}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!controls.canForward()}
+              onMouseDown={() => controls.forward()}
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
+        </Tooltip>
 
         <div className="w-px h-4 bg-border mx-0.5" />
 
