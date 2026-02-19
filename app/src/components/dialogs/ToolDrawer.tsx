@@ -1,13 +1,14 @@
-import { type ComponentType, lazy, Suspense, useEffect, useRef } from "react";
-import { X } from "lucide-react";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-} from "@/components/ui/drawer";
+  type ComponentType,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useId,
+} from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import type { ToolName } from "@/components/layout/Toolbar";
 
 const ImageEditor = lazy(() =>
@@ -36,47 +37,98 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   const config = activeTool ? TOOL_CONFIG[activeTool] : null;
   const ToolComponent = config?.component ?? null;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
 
-  // Move focus to the drawer close button when it opens to prevent aria-hidden warning
+  // `isOpen` drives the CSS transition; `isMounted` keeps the DOM node alive
+  // during the exit animation.
+  const [isMounted, setIsMounted] = useState(activeTool !== null);
+  const [isOpen, setIsOpen] = useState(activeTool !== null);
+
   useEffect(() => {
-    if (activeTool !== null && closeButtonRef.current) {
-      // Use setTimeout to ensure the drawer has rendered and focus can be moved
-      const timer = setTimeout(() => {
-        closeButtonRef.current?.focus();
-      }, 0);
-      return () => clearTimeout(timer);
+    if (activeTool !== null) {
+      // First RAF: mount the element so it's in the DOM with translate-x-full.
+      // Second RAF: flip isOpen so the CSS transition plays.
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        setIsMounted(true);
+        raf2 = requestAnimationFrame(() => {
+          setIsOpen(true);
+          setTimeout(() => closeButtonRef.current?.focus(), 50);
+        });
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(raf2);
+      };
+    } else {
+      // Wrap in RAF to avoid synchronous setState-in-effect lint error.
+      const raf = requestAnimationFrame(() => setIsOpen(false));
+      return () => cancelAnimationFrame(raf);
     }
   }, [activeTool]);
 
-  return (
-    <Drawer
-      direction="right"
-      handleOnly={true}
-      open={activeTool !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DrawerContent className="w-[90%] sm:max-w-none">
-        <DrawerHeader className="relative">
-          <DrawerTitle className="text-lg">{config?.label ?? ""}</DrawerTitle>
-          <DrawerDescription className="sr-only">
-            {config?.label ?? "Tool panel"}
-          </DrawerDescription>
-          <DrawerClose
+  // Keyboard: Escape closes the drawer.
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  function handleTransitionEnd() {
+    if (!isOpen) setIsMounted(false);
+  }
+
+  if (!isMounted) return null;
+
+  return createPortal(
+    <>
+      {/* Backdrop – click to close */}
+      <div
+        aria-hidden="true"
+        className={`fixed inset-0 z-50 bg-black/50 transition-opacity duration-300 ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`fixed inset-y-0 right-0 z-50 flex h-full w-[90%] flex-col bg-background border-l shadow-xl transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b p-4">
+          <h2 id={titleId} className="text-lg font-semibold">
+            {config?.label ?? ""}
+          </h2>
+          <button
             ref={closeButtonRef}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
+            onClick={onClose}
+            className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
-          </DrawerClose>
-        </DrawerHeader>
-        {ToolComponent && (
-          <Suspense>
-            <ToolComponent />
-          </Suspense>
-        )}
-      </DrawerContent>
-    </Drawer>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {ToolComponent && (
+            <Suspense>
+              <ToolComponent />
+            </Suspense>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body,
   );
 }

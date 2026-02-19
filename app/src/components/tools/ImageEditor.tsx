@@ -395,10 +395,7 @@ export function ImageEditor() {
             </div>
           </Panel>
 
-          <Separator
-            className="w-1 bg-border hover:bg-primary/50 transition-colors"
-            data-vaul-no-drag
-          />
+          <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
           {/* Palette panel */}
           <Panel defaultSize="25%" minSize="10%" maxSize="60%">

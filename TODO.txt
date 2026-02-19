@@ -1,13 +1,15 @@
-Allow palette importing from Lospec
+Image Generator: Add Layers. Each object placed should be in the layer
 
-Image Generator
-  Add Layers. Each object placed should be in the layer
+AI Asset Generation: Pixelab
 
+Export Options
+Import Options
+=======================================
 Color picker should have some margins between rgb input values
 Color picker should have mouse wheel up/down
+Palettes: Allow to select amount of columns per row
 Why does the color picker have this L: R: values
-=======================================
-
+Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
 Get Lighthouse scores 100% with 0 errors/warnings
 Unslopify
 Make list of tiled advanced features
@@ -17,9 +19,6 @@ Make list of tiled advanced features
   - Select + Magic Wand
 Make list of aseprite advanced features
 Autotile. Like Spritefusion
-Export Options
-Import Options
-AI Asset Generation
 
 Get some ideas from: Keep Notes
 =======================================
