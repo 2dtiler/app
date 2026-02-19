@@ -372,7 +372,7 @@ export function ImageEditor() {
         >
           {/* Canvas */}
           <Panel defaultSize="75%" minSize="30%">
-            <div className="relative h-full w-full">
+            <div className="relative h-full w-full flex">
               <ImageCanvas
                 width={width}
                 height={height}

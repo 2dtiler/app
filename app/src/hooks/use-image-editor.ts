@@ -151,13 +151,13 @@ function insertAfterInOrder(
 /**
  * Ensure the image editor store is initialized.
  * If it's already ready, this is a no-op.
- * Otherwise creates a default 32×32 canvas.
+ * Otherwise creates a default 16×16 canvas.
  */
 function ensureStoreReady() {
   if (isImageEditorStoreReady()) return;
 
-  const w = 32;
-  const h = 32;
+  const w = 16;
+  const h = 16;
   initImageEditorStore(w, h);
 
   const store = getImageEditorStore();

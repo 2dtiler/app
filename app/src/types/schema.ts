@@ -284,18 +284,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 // ---------------------------------------------------------------------------
-// AI Provider Config
-// ---------------------------------------------------------------------------
-
-export interface AIProviderConfig {
-  id: string;
-  name: string;
-  enabled: boolean;
-  apiKey: string;
-  baseUrl?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Editor State (in-memory, used by travels for undo/redo)
 // ---------------------------------------------------------------------------
 

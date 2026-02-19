@@ -27,8 +27,8 @@ export function NewImageDialog({
   initialWidth,
   initialHeight,
 }: NewImageDialogProps) {
-  const [width, setWidth] = useState(initialWidth ?? 32);
-  const [height, setHeight] = useState(initialHeight ?? 32);
+  const [width, setWidth] = useState(initialWidth ?? 16);
+  const [height, setHeight] = useState(initialHeight ?? 16);
 
   const handleCreate = () => {
     const w = Math.max(1, Math.min(1024, width));

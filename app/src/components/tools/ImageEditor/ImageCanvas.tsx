@@ -73,6 +73,9 @@ export function ImageCanvas({
   const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const clipboardRef = useRef<ImageData | null>(null);
   const prevToolRef = useRef<ImageEditorTool>(tool);
+  // Tracks which "WxH" we've already auto-zoomed for, so we only fire once per
+  // new image dimensions regardless of how many ResizeObserver callbacks arrive.
+  const autoZoomedForRef = useRef<string>("");
 
   // When switching away from selection tool, commit any floating selection
   useEffect(() => {
@@ -172,6 +175,36 @@ export function ImageCanvas({
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [zoom, onZoom]);
+
+  // Auto-zoom: use a ResizeObserver so we read the container's real laid-out
+  // size (the rAF trick is unreliable because the Panel hasn't settled yet).
+  // We fire once per unique image size; after that the user controls zoom.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const tryAutoZoom = (cw: number, ch: number) => {
+      const key = `${width}x${height}`;
+      if (autoZoomedForRef.current === key) return;
+      if (cw === 0 || ch === 0) return;
+      autoZoomedForRef.current = key;
+      const raw = Math.min((cw * 0.8) / width, (ch * 0.8) / height);
+      const newZoom = Math.max(1, Math.min(64, Math.floor(raw)));
+      onZoom(newZoom);
+    };
+
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) tryAutoZoom(rect.width, rect.height);
+    });
+
+    ro.observe(container);
+    // Also try immediately in case the container is already sized
+    tryAutoZoom(container.clientWidth, container.clientHeight);
+
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height]); // new ResizeObserver when image dimensions change
 
   // Middle-mouse pan
   useEffect(() => {

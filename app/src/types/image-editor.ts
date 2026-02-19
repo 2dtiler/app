@@ -227,8 +227,8 @@ export function getActivePalette(state: ImageEditorState): Palette {
 }
 
 export const DEFAULT_IMAGE_EDITOR_STATE: ImageEditorState = {
-  width: 32,
-  height: 32,
+  width: 16,
+  height: 16,
   frames: [],
   currentFrameIndex: 0,
   palettes: [DEFAULT_PALETTE],

@@ -332,15 +332,16 @@ const PercentageInput = ({
   return (
     <div className={cn("relative", WrapperClassName)}>
       <Input
-        readOnly
-        type="text"
+        type="number"
+        min={0}
+        max={100}
         {...props}
         className={cn(
-          "h-8 w-full rounded-l-none bg-secondary px-2 text-xs shadow-none",
+          "h-8 w-full bg-secondary px-2 pr-6 text-xs shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto",
           className,
         )}
       />
-      <span className="-translate-y-1/2 absolute top-1/2 right-2 text-muted-foreground text-xs">
+      <span className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 text-muted-foreground text-xs">
         %
       </span>
     </div>
@@ -351,7 +352,7 @@ export const ColorPickerFormat = ({
   className,
   ...props
 }: ColorPickerFormatProps) => {
-  const { hue, saturation, lightness, alpha, mode } = useColorPicker();
+  const { hue, saturation, lightness, alpha, mode, setHue, setSaturation, setLightness, setAlpha } = useColorPicker();
   const color = Color.hsl(hue, saturation, lightness, alpha / 100);
 
   if (mode === "hex") {
@@ -360,18 +361,25 @@ export const ColorPickerFormat = ({
     return (
       <div
         className={cn(
-          "-space-x-px relative flex w-full items-center rounded-md shadow-sm",
+          "flex w-full items-center gap-1",
           className,
         )}
         {...props}
       >
         <Input
-          className="h-8 flex-1 min-w-0 rounded-r-none bg-secondary px-2 text-xs shadow-none"
+          className="h-8 flex-1 min-w-0 bg-secondary px-2 text-xs shadow-none"
           readOnly
           type="text"
           value={hex}
         />
-        <PercentageInput value={alpha} WrapperClassName="flex-1 min-w-0" />
+        <PercentageInput
+          value={alpha}
+          WrapperClassName="flex-1 min-w-0"
+          onChange={(e) => {
+            const v = Math.max(0, Math.min(100, Number(e.target.value)));
+            setAlpha(v);
+          }}
+        />
       </div>
     );
   }
@@ -382,28 +390,43 @@ export const ColorPickerFormat = ({
       .array()
       .map((value) => Math.round(value));
 
+    const handleRgbChange = (index: number, newValue: number) => {
+      const current = color.rgb().array().map(Math.round);
+      current[index] = Math.max(0, Math.min(255, newValue));
+      const updated = Color.rgb(current[0], current[1], current[2]);
+      const [h, s, l] = updated.hsl().array();
+      setHue(h);
+      setSaturation(s);
+      setLightness(l);
+    };
+
     return (
       <div
         className={cn(
-          "-space-x-px flex w-full items-center rounded-md shadow-sm",
+          "flex w-full items-center gap-1",
           className,
         )}
         {...props}
       >
         {rgb.map((value, index) => (
           <Input
-            className={cn(
-              "h-8 flex-1 min-w-0 rounded-r-none bg-secondary px-2 text-xs shadow-none",
-              index && "rounded-l-none",
-              className,
-            )}
+            className="h-8 flex-1 min-w-0 bg-secondary px-2 text-xs shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto"
             key={index}
-            readOnly
-            type="text"
+            min={0}
+            max={255}
+            type="number"
             value={value}
+            onChange={(e) => handleRgbChange(index, Number(e.target.value))}
           />
         ))}
-        <PercentageInput value={alpha} WrapperClassName="flex-1 min-w-0" />
+        <PercentageInput
+          value={alpha}
+          WrapperClassName="flex-1 min-w-0"
+          onChange={(e) => {
+            const v = Math.max(0, Math.min(100, Number(e.target.value)));
+            setAlpha(v);
+          }}
+        />
       </div>
     );
   }
@@ -433,28 +456,41 @@ export const ColorPickerFormat = ({
       .array()
       .map((value) => Math.round(value));
 
+    const handleHslChange = (index: number, newValue: number) => {
+      const limits = [360, 100, 100];
+      const clamped = Math.max(0, Math.min(limits[index], newValue));
+      if (index === 0) setHue(clamped);
+      else if (index === 1) setSaturation(clamped);
+      else setLightness(clamped);
+    };
+
     return (
       <div
         className={cn(
-          "-space-x-px flex w-full items-center rounded-md shadow-sm",
+          "flex w-full items-center gap-1",
           className,
         )}
         {...props}
       >
         {hsl.map((value, index) => (
           <Input
-            className={cn(
-              "h-8 flex-1 min-w-0 rounded-r-none bg-secondary px-2 text-xs shadow-none",
-              index && "rounded-l-none",
-              className,
-            )}
+            className="h-8 flex-1 min-w-0 bg-secondary px-2 text-xs shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto"
             key={index}
-            readOnly
-            type="text"
+            min={0}
+            max={index === 0 ? 360 : 100}
+            type="number"
             value={value}
+            onChange={(e) => handleHslChange(index, Number(e.target.value))}
           />
         ))}
-        <PercentageInput value={alpha} WrapperClassName="flex-1 min-w-0" />
+        <PercentageInput
+          value={alpha}
+          WrapperClassName="flex-1 min-w-0"
+          onChange={(e) => {
+            const v = Math.max(0, Math.min(100, Number(e.target.value)));
+            setAlpha(v);
+          }}
+        />
       </div>
     );
   }

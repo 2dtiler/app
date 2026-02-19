@@ -1,18 +1,15 @@
-Currently when reloading the page, the map is always blank. You need to click on a tile in the tileset or select a tool from the map toolbar or click on a layer in order to show the map. I want the last map you worked on to be visible the moment the page is loaded.
-======================================
+Color picker should have mouse wheel up/down
+Drawers open/close instantly - add a little slide effect
+Pencil tool you have to drag, you can't put a single point
+Why does the color picker have this L: R: values
+
 Image Generator Layers not working.
-Default image generator size:16px and zoom should be reflective of image size
-Remove AI Providers from Settings menu
 AI Asset Generation: Pixelab
 Export Options
 Import Options
 =======================================
-Color picker should have some margins between rgb input values
-Color picker should have mouse wheel up/down
 Palettes: Allow to select amount of columns per row
 Add opacity to image objects. Can be selected from palette menu
-Why does the color picker have this L: R: values
-Drawers open/close instantly - add a little slide effect
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
 Get Lighthouse scores 100% with 0 errors/warnings
 Unslopify
@@ -25,6 +22,7 @@ Make list of aseprite advanced features
 Autotile. Like Spritefusion
 Write documentation for website
 Get some ideas from: Keep Notes
+Royalty free packs
 =======================================
 Ad Marketplace for selling/buying tilesets etc.
 Performance Audit
