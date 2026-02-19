@@ -27,7 +27,12 @@ async function deriveKey(): Promise<CryptoKey> {
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: enc.encode(ENC_SALT), iterations: 100_000, hash: "SHA-256" },
+    {
+      name: "PBKDF2",
+      salt: enc.encode(ENC_SALT),
+      iterations: 100_000,
+      hash: "SHA-256",
+    },
     km,
     { name: "AES-GCM", length: 256 },
     false,
@@ -117,7 +122,8 @@ function TokenSetup({ onSave }: { onSave: (token: string) => void }) {
             <h3 className="text-lg font-semibold">Hugging Face Access Token</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            To use AI image generation, you need a free Hugging Face access token.
+            To use AI image generation, you need a free Hugging Face access
+            token.
           </p>
           <div className="rounded-md bg-muted/50 p-3 text-sm space-y-2 text-muted-foreground">
             <p>
@@ -134,8 +140,10 @@ function TokenSetup({ onSave }: { onSave: (token: string) => void }) {
             </p>
             <p>
               Sign up is free — no credit card required. Create a token with{" "}
-              <strong className="text-foreground">Inference API (serverless)</strong> read
-              access to start generating images immediately.
+              <strong className="text-foreground">
+                Inference API (serverless)
+              </strong>{" "}
+              read access to start generating images immediately.
             </p>
           </div>
         </div>
@@ -163,7 +171,11 @@ function TokenSetup({ onSave }: { onSave: (token: string) => void }) {
               tabIndex={-1}
               aria-label={show ? "Hide token" : "Show token"}
             >
-              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {show ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -185,7 +197,9 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted/30 flex items-center justify-center">
       {state.status === "idle" && (
-        <span className="text-xs text-muted-foreground select-none">#{index + 1}</span>
+        <span className="text-xs text-muted-foreground select-none">
+          #{index + 1}
+        </span>
       )}
 
       {state.status === "loading" && (
@@ -212,7 +226,9 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
       {state.status === "error" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
           <X className="h-5 w-5 text-destructive shrink-0" />
-          <p className="text-xs text-destructive leading-snug">{state.message}</p>
+          <p className="text-xs text-destructive leading-snug">
+            {state.message}
+          </p>
         </div>
       )}
     </div>
@@ -222,7 +238,13 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
 // ---------------------------------------------------------------------------
 // Generator (main UI once token is available)
 // ---------------------------------------------------------------------------
-function Generator({ token, onResetToken }: { token: string; onResetToken: () => void }) {
+function Generator({
+  token,
+  onResetToken,
+}: {
+  token: string;
+  onResetToken: () => void;
+}) {
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
   const [count, setCount] = useState(4);
@@ -242,7 +264,9 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
     if (!prompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
-    setImages(Array.from({ length: count }, () => ({ status: "loading" as const })));
+    setImages(
+      Array.from({ length: count }, () => ({ status: "loading" as const })),
+    );
 
     const results = await Promise.all(
       Array.from({ length: count }, async (_, i) => {
@@ -270,7 +294,8 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
                 index: i,
                 state: {
                   status: "error" as const,
-                  message: "Rate limit exceeded. Please wait a moment and try again.",
+                  message:
+                    "Rate limit exceeded. Please wait a moment and try again.",
                 },
               };
             }
@@ -279,14 +304,18 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
                 index: i,
                 state: {
                   status: "error" as const,
-                  message: "Invalid or unauthorized token. Please reset your access token.",
+                  message:
+                    "Invalid or unauthorized token. Please reset your access token.",
                 },
               };
             }
             if (res.status === 503) {
               let wait = "";
-              const json = await res.json().catch(() => ({})) as { estimated_time?: number };
-              if (json?.estimated_time) wait = ` (~${Math.ceil(json.estimated_time)}s)`;
+              const json = (await res.json().catch(() => ({}))) as {
+                estimated_time?: number;
+              };
+              if (json?.estimated_time)
+                wait = ` (~${Math.ceil(json.estimated_time)}s)`;
               return {
                 index: i,
                 state: {
@@ -315,30 +344,47 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
           }
 
           // Some models return JSON with base64
-          type HFJsonResponse = { generated_image?: string } | Array<{ generated_image?: string }>;
-          const json = await res.json() as HFJsonResponse;
-          const b64 = Array.isArray(json) ? json[0]?.generated_image : json?.generated_image;
+          type HFJsonResponse =
+            | { generated_image?: string }
+            | Array<{ generated_image?: string }>;
+          const json = (await res.json()) as HFJsonResponse;
+          const b64 = Array.isArray(json)
+            ? json[0]?.generated_image
+            : json?.generated_image;
           if (b64) {
             return {
               index: i,
-              state: { status: "done" as const, url: `data:image/png;base64,${b64}` },
+              state: {
+                status: "done" as const,
+                url: `data:image/png;base64,${b64}`,
+              },
             };
           }
 
           return {
             index: i,
-            state: { status: "error" as const, message: "Unexpected response format from API." },
+            state: {
+              status: "error" as const,
+              message: "Unexpected response format from API.",
+            },
           };
         } catch (err) {
           clearTimeout(timeoutId);
           if (err instanceof Error && err.name === "AbortError") {
             return {
               index: i,
-              state: { status: "error" as const, message: "Request timed out after 60 seconds." },
+              state: {
+                status: "error" as const,
+                message: "Request timed out after 60 seconds.",
+              },
             };
           }
-          const msg = err instanceof Error ? err.message : "Unknown error occurred.";
-          return { index: i, state: { status: "error" as const, message: msg } };
+          const msg =
+            err instanceof Error ? err.message : "Unknown error occurred.";
+          return {
+            index: i,
+            state: { status: "error" as const, message: msg },
+          };
         }
       }),
     );
@@ -352,7 +398,8 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
   }, [prompt, model, count, token, isGenerating]);
 
   const cols = count <= 1 ? 1 : count <= 4 ? 2 : 3;
-  const gridColClass = cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
+  const gridColClass =
+    cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
   const hasImages = images.length > 0;
 
   return (
@@ -388,7 +435,10 @@ function Generator({ token, onResetToken }: { token: string; onResetToken: () =>
 
         <div className="space-y-1.5">
           <Label>Number of images</Label>
-          <Select value={String(count)} onValueChange={(v) => setCount(Number(v))}>
+          <Select
+            value={String(count)}
+            onValueChange={(v) => setCount(Number(v))}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>

@@ -13,7 +13,15 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { Plus, Copy, Trash2, Play, Pause, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  Copy,
+  Trash2,
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -270,7 +278,9 @@ export function TimelinePanel({
     function onMouseMove(ev: MouseEvent) {
       if (!dividerDragRef.current.active) return;
       const delta = ev.clientX - dividerDragRef.current.startX;
-      setNameW(Math.max(100, Math.min(400, dividerDragRef.current.startW + delta)));
+      setNameW(
+        Math.max(100, Math.min(400, dividerDragRef.current.startW + delta)),
+      );
     }
 
     function onMouseUp() {
