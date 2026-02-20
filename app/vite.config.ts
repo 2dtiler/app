@@ -40,6 +40,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/hf/, "/hf-inference"),
       },
+      "/api/fal": {
+        target: "https://queue.fal.run",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/fal/, ""),
+      },
     },
     headers: {
       "Strict-Transport-Security":

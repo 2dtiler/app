@@ -1,6 +1,4 @@
 AI Asset Generation
-  When generating > 1 image, all images are the same
-  Get list of models
   Add forms -> prompt (Get parameters from pixellab)
   Ability to download/add to tileset/open in image Editor
   History
@@ -25,9 +23,9 @@ Autotile. Like Spritefusion
 Write documentation for website
 Get some ideas from: Keep Notes
 Royalty free packs
-=======================================
+High touch animations
 Ad Marketplace for selling/buying tilesets etc.
 Performance Audit
+Add tutorial video
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
-Add tutorial video
