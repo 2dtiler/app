@@ -1,16 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Eye,
-  EyeOff,
-  ExternalLink,
-  Key,
-  Loader2,
-  Settings,
-  X,
-  Upload,
-} from "lucide-react";
+import { useState } from "react";
+import { Loader2, X, Upload } from "lucide-react";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - puter.js ships its own types but bundler moduleResolution may not resolve them
+import puter from "@heyputer/puter.js";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,134 +18,30 @@ import {
 } from "@/components/ui/select";
 
 // ---------------------------------------------------------------------------
-// AES-GCM encryption helpers (Web Crypto API) — key derived from fixed salt
-// ---------------------------------------------------------------------------
-const ENC_MATERIAL = "2dtiler-hf-v1";
-const ENC_SALT = "2dtiler-salt-hf";
-
-async function deriveKey(): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  const km = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(ENC_MATERIAL),
-    "PBKDF2",
-    false,
-    ["deriveKey"],
-  );
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: enc.encode(ENC_SALT),
-      iterations: 100_000,
-      hash: "SHA-256",
-    },
-    km,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-async function encryptToken(token: string): Promise<string> {
-  const key = await deriveKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(token),
-  );
-  const buf = new Uint8Array(iv.byteLength + ct.byteLength);
-  buf.set(iv, 0);
-  buf.set(new Uint8Array(ct), iv.byteLength);
-  return btoa(String.fromCharCode(...buf));
-}
-
-async function decryptToken(encoded: string): Promise<string | null> {
-  try {
-    const key = await deriveKey();
-    const buf = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
-    const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: buf.slice(0, 12) },
-      key,
-      buf.slice(12),
-    );
-    return new TextDecoder().decode(plain);
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Provider + model definitions
-// ---------------------------------------------------------------------------
-type ProviderId = "hf-inference";
-type TokenMap = Partial<Record<ProviderId, string>>;
-
-interface ProviderMeta {
-  id: ProviderId;
-  name: string;
-  lsKey: string;
-  /** HTTP Authorization header prefix */
-  authScheme: "Bearer";
-  freeNote: string;
-  keysUrl: string;
-  description: string;
-}
-
-const PROVIDERS: ProviderMeta[] = [
-  {
-    id: "hf-inference",
-    name: "Hugging Face",
-    lsKey: "hf_token_enc",
-    authScheme: "Bearer",
-    freeNote: "Rate-limited free tier (free account)",
-    keysUrl: "https://huggingface.co/settings/tokens",
-    description:
-      "FLUX.1 Schnell/Dev, SDXL, SD 3. Create a fine-grained token with Inference API (serverless) read access.",
-  },
-];
-
-interface ModelDef {
-  label: string;
-  provider: ProviderId;
-  /** Provider-specific model identifier used in the API path */
-  providerId: string;
-  /** Optional trigger word to prepend to the prompt */
-  triggerWord?: string;
-}
-
-// Only models verified live on each provider as of Feb 2026.
-const MODELS: ModelDef[] = [
-  // ── Hugging Face (hf-inference) ─────────────────────────────────────────
-  {
-    label: "FLUX.1 Schnell (fast)",
-    provider: "hf-inference",
-    providerId: "black-forest-labs/FLUX.1-schnell",
-  },
-  {
-    label: "FLUX.1 Dev (quality)",
-    provider: "hf-inference",
-    providerId: "black-forest-labs/FLUX.1-dev",
-  },
-  {
-    label: "SDXL Base 1.0",
-    provider: "hf-inference",
-    providerId: "stabilityai/stable-diffusion-xl-base-1.0",
-  },
-  {
-    label: "Stable Diffusion 3 Medium",
-    provider: "hf-inference",
-    providerId: "stabilityai/stable-diffusion-3-medium-diffusers",
-  },
-];
-
-const COUNT_OPTIONS = [1, 2];
-
-const modelKey = (m: ModelDef) => `${m.provider}:${m.providerId}`;
-
-// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+type Ratio = "1:1" | "4:3" | "16:9" | "3:4";
+
+interface ModelDef {
+  id: string;
+  label: string;
+  /** puter.js provider string */
+  provider: "openai-image-generation" | "gemini" | "together" | "xai";
+  /** Model identifier passed to puter.ai.txt2img */
+  puterModel: string;
+  /** Whether this model accepts an input image (img2img) */
+  supportsImg2Img: boolean;
+  /** Aspect ratios this model supports; undefined = all; empty array = none */
+  supportedRatios?: Ratio[];
+}
+
+interface RatioDef {
+  value: Ratio;
+  label: string;
+  w: number;
+  h: number;
+}
+
 type ImageState =
   | { status: "idle" }
   | { status: "loading" }
@@ -160,38 +49,75 @@ type ImageState =
   | { status: "error"; message: string };
 
 // ---------------------------------------------------------------------------
-// Image Upload Helpers
+// Constants
 // ---------------------------------------------------------------------------
-async function resizeImage(
-  file: File,
-  maxSize: number = 1280,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("No canvas context"));
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL(file.type));
-    };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
-}
+const MODELS: ModelDef[] = [
+  {
+    id: "gpt-image-1-mini",
+    label: "GPT Image 1 Mini (fast)",
+    provider: "openai-image-generation",
+    puterModel: "gpt-image-1-mini",
+    supportsImg2Img: false,
+  },
+  {
+    id: "gpt-image-1",
+    label: "GPT Image 1 (quality)",
+    provider: "openai-image-generation",
+    puterModel: "gpt-image-1",
+    supportsImg2Img: false,
+  },
+  {
+    id: "dall-e-3",
+    label: "DALL-E 3",
+    provider: "openai-image-generation",
+    puterModel: "dall-e-3",
+    supportsImg2Img: false,
+  },
+  {
+    id: "gemini-img",
+    label: "Gemini 3 Pro Image",
+    provider: "gemini",
+    puterModel: "gemini-3-pro-image-preview",
+    supportsImg2Img: true,
+    supportedRatios: ["1:1"],
+  },
+  {
+    id: "grok-image",
+    label: "Grok Image (xAI)",
+    provider: "xai",
+    puterModel: "grok-2-image",
+    supportsImg2Img: false,
+    supportedRatios: [],
+  },
+  {
+    id: "flux-schnell",
+    label: "FLUX.1 Schnell (Together)",
+    provider: "together",
+    puterModel: "black-forest-labs/FLUX.1-schnell-Free",
+    supportsImg2Img: true,
+  },
+];
 
+/** Provider display names for grouping the model select */
+const PROVIDER_LABELS: Record<string, string> = {
+  "openai-image-generation": "OpenAI",
+  gemini: "Google",
+  xai: "xAI",
+  together: "Together AI",
+};
+
+const ALL_RATIOS: RatioDef[] = [
+  { value: "1:1", label: "Square (1:1)", w: 1024, h: 1024 },
+  { value: "4:3", label: "Landscape (4:3)", w: 1024, h: 768 },
+  { value: "16:9", label: "Wide (16:9)", w: 1280, h: 720 },
+  { value: "3:4", label: "Portrait (3:4)", w: 768, h: 1024 },
+];
+
+const COUNT_OPTIONS = [1, 2];
+
+// ---------------------------------------------------------------------------
+// Image Upload helper component
+// ---------------------------------------------------------------------------
 function ImageUpload({
   value,
   onChange,
@@ -249,7 +175,7 @@ function ImageUpload({
             <img
               src={value}
               alt="Upload preview"
-              className="max-h-[120px] w-full object-contain"
+              className="max-h-30 w-full object-contain"
             />
             <Button
               size="icon"
@@ -265,8 +191,8 @@ function ImageUpload({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
-            <Upload className="h-6 w-6 mb-1 opacity-50" />
-            <p>Drag & drop an image here, or click to select</p>
+            <Upload className="mb-1 h-6 w-6 opacity-50" />
+            <p>Drag &amp; drop an image here, or click to select</p>
           </div>
         )}
       </div>
@@ -274,169 +200,41 @@ function ImageUpload({
   );
 }
 
-// ---------------------------------------------------------------------------
-// TokenSetup screen
-// ---------------------------------------------------------------------------
-interface ProviderPanelState {
-  value: string;
-  show: boolean;
-  error: string | null;
+async function resizeImage(
+  file: File,
+  maxSize: number = 1280,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("No canvas context"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL(file.type));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
 }
 
-function TokenSetup({
-  currentTokens,
-  onSave,
-}: {
-  currentTokens: TokenMap;
-  onSave: (tokens: TokenMap) => void;
-}) {
-  const [panels, setPanels] = useState<Record<ProviderId, ProviderPanelState>>(
-    () =>
-      Object.fromEntries(
-        PROVIDERS.map((p) => [
-          p.id,
-          { value: currentTokens[p.id] ?? "", show: false, error: null },
-        ]),
-      ) as Record<ProviderId, ProviderPanelState>,
-  );
-  const [saving, setSaving] = useState(false);
-  const [globalError, setGlobalError] = useState<string | null>(null);
-
-  const setField = (id: ProviderId, patch: Partial<ProviderPanelState>) => {
-    setPanels((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-    setGlobalError(null);
-  };
-
-  const hasAny = PROVIDERS.some((p) => panels[p.id].value.trim() !== "");
-
-  async function handleSave() {
-    if (!hasAny) {
-      setGlobalError("Enter at least one API key to continue.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const newTokens: TokenMap = {};
-      await Promise.all(
-        PROVIDERS.map(async (p) => {
-          const v = panels[p.id].value.trim();
-          if (v) {
-            const enc = await encryptToken(v);
-            localStorage.setItem(p.lsKey, enc);
-            newTokens[p.id] = v;
-          } else {
-            localStorage.removeItem(p.lsKey);
-          }
-        }),
-      );
-      onSave(newTokens);
-    } catch {
-      setGlobalError("Failed to save tokens. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="flex h-full items-start justify-center overflow-y-auto p-6">
-      <div className="w-full max-w-xl space-y-6 py-2">
-        {/* Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">AI Generation Providers</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Enter an API key for at least one provider. Only models for
-            providers you&apos;ve configured will appear in the generator.
-          </p>
-        </div>
-
-        {/* Provider cards */}
-        {PROVIDERS.map((p) => {
-          const panel = panels[p.id];
-          return (
-            <div
-              key={p.id}
-              className="rounded-lg border bg-card p-4 space-y-3 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-0.5">
-                  <p className="font-medium text-sm">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.description}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary whitespace-nowrap">
-                  {p.freeNote}
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs" htmlFor={`token-${p.id}`}>
-                    API Key
-                  </Label>
-                  <a
-                    href={p.keysUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:opacity-80"
-                  >
-                    Get key
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                </div>
-                <div className="relative">
-                  <Input
-                    id={`token-${p.id}`}
-                    type={panel.show ? "text" : "password"}
-                    placeholder={p.id === "hf-inference" ? "hf_…" : "…"}
-                    value={panel.value}
-                    onChange={(e) =>
-                      setField(p.id, { value: e.target.value, error: null })
-                    }
-                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                    className="pr-9 text-sm"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setField(p.id, { show: !panel.show })}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                    aria-label={panel.show ? "Hide key" : "Show key"}
-                  >
-                    {panel.show ? (
-                      <EyeOff className="h-3.5 w-3.5" />
-                    ) : (
-                      <Eye className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </div>
-                {panel.error && (
-                  <p className="text-xs text-destructive">{panel.error}</p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {globalError && (
-          <p className="text-sm text-destructive">{globalError}</p>
-        )}
-
-        <Button
-          onClick={handleSave}
-          disabled={saving || !hasAny}
-          className="w-full"
-        >
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save &amp; Continue
-        </Button>
-      </div>
-    </div>
-  );
+/** Strip the "data:<mime>;base64," prefix, return base64 string and mime type */
+function parseDataUrl(dataUrl: string): { b64: string; mime: string } {
+  const [header, b64] = dataUrl.split(",");
+  const mimeMatch = header.match(/data:([^;]+)/);
+  return { b64: b64 ?? "", mime: mimeMatch?.[1] ?? "image/png" };
 }
 
 // ---------------------------------------------------------------------------
@@ -454,13 +252,7 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
       {state.status === "loading" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <div className="w-full overflow-hidden rounded-full bg-muted h-1.5">
-            <div
-              className="h-full rounded-full bg-primary/70"
-              style={{ animation: "progress-bar 1.8s ease-in-out infinite" }}
-            />
-          </div>
-          <span className="text-xs text-muted-foreground">Generating…</span>
+          <span className="text-xs text-muted-foreground">Generating...</span>
         </div>
       )}
 
@@ -485,78 +277,9 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Provider-specific generation helpers
+// Generator (main UI)
 // ---------------------------------------------------------------------------
-
-async function generateHfInference(
-  model: ModelDef,
-  token: string,
-  prompt: string,
-  imageUrl: string | null,
-  signal: AbortSignal,
-): Promise<string> {
-  const res = await fetch(`/api/hf/models/${model.providerId}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ inputs: prompt }),
-    signal,
-  });
-
-  if (!res.ok) {
-    if (res.status === 429)
-      throw new Error(
-        "Rate limit exceeded. Please wait a moment and try again.",
-      );
-    if (res.status === 401 || res.status === 403)
-      throw new Error(
-        "Invalid or unauthorized Hugging Face token. Please reset it.",
-      );
-    if (res.status === 503) {
-      const json = (await res.json().catch(() => ({}))) as {
-        estimated_time?: number;
-      };
-      const wait = json?.estimated_time
-        ? ` (~${Math.ceil(json.estimated_time)}s)`
-        : "";
-      throw new Error(`Model is loading, please retry${wait}.`);
-    }
-    const text = await res.text().catch(() => "Unknown error");
-    throw new Error(`Error ${res.status}: ${text.slice(0, 120)}`);
-  }
-
-  const contentType = res.headers.get("content-type") ?? "";
-  if (contentType.startsWith("image/")) {
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
-  }
-
-  type HFJson =
-    | { generated_image?: string }
-    | Array<{ generated_image?: string }>;
-  const json = (await res.json()) as HFJson;
-  const b64 = Array.isArray(json)
-    ? json[0]?.generated_image
-    : json?.generated_image;
-  if (b64) return `data:image/png;base64,${b64}`;
-
-  throw new Error("Unexpected response format from Hugging Face API.");
-}
-
-// ---------------------------------------------------------------------------
-// Generator (main UI once at least one token is available)
-// ---------------------------------------------------------------------------
-function Generator({
-  tokens,
-  onManageTokens,
-}: {
-  tokens: TokenMap;
-  onManageTokens: () => void;
-}) {
-  const availableModels = MODELS.filter((m) => !!tokens[m.provider]);
-
+function Generator() {
   const [mode, setMode] = useState<"simple" | "pixel">("simple");
 
   // Simple mode state
@@ -564,71 +287,70 @@ function Generator({
   const [view, setView] = useState("None");
   const [direction, setDirection] = useState("None");
   const [initImage, setInitImage] = useState<string | null>(null);
-  const [width, setWidth] = useState("64px");
-  const [height, setHeight] = useState("64px");
+  const [ratio, setRatio] = useState<Ratio>("1:1");
   const [transparent, setTransparent] = useState(false);
 
   // Pixel mode state
   const [sourceImage, setSourceImage] = useState<string | null>(null);
 
-  const [selectedKey, setSelectedKey] = useState(() =>
-    availableModels.length > 0 ? modelKey(availableModels[0]) : "",
-  );
+  const [selectedId, setSelectedId] = useState(MODELS[0].id);
   const [count, setCount] = useState(2);
   const [images, setImages] = useState<ImageState[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  // Track blob object URLs (HF-inference) for cleanup on unmount
-  const blobUrlsRef = useRef<string[]>([]);
 
-  useEffect(() => {
-    const urls = blobUrlsRef.current;
-    return () => {
-      urls.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, []);
+  const selectedModel = MODELS.find((m) => m.id === selectedId) ?? MODELS[0];
 
-  const selectedModel =
-    availableModels.find((m) => modelKey(m) === selectedKey) ??
-    availableModels[0];
+  // Ratios available for the current model
+  const availableRatios =
+    selectedModel.supportedRatios !== undefined
+      ? ALL_RATIOS.filter((r) =>
+          (selectedModel.supportedRatios as Ratio[]).includes(r.value),
+        )
+      : ALL_RATIOS;
+
+  // Fall back to first available ratio when the current one is not supported
+  const effectiveRatio =
+    availableRatios.find((r) => r.value === ratio) ??
+    availableRatios[0] ??
+    ALL_RATIOS[0];
+
+  const showRatioSelector = availableRatios.length > 0;
+  const showInitImage = mode === "simple" && selectedModel.supportsImg2Img;
+  const pixelModeSupported = selectedModel.supportsImg2Img;
 
   const canGenerate =
     !isGenerating &&
-    selectedModel &&
-    (mode === "simple" ? prompt.trim().length > 0 : sourceImage !== null);
+    selectedModel !== undefined &&
+    (mode === "simple"
+      ? prompt.trim().length > 0
+      : pixelModeSupported && sourceImage !== null);
 
-  const generate = useCallback(async () => {
+  const generate = async () => {
+    if (isGenerating || !selectedModel) return;
+
     let finalPrompt = "";
-    let imageToUse: string | null = null;
+    let initImgB64: string | null = null;
+    let initImgMime: string | null = null;
 
     if (mode === "simple") {
       if (!prompt.trim()) return;
       finalPrompt = prompt.trim();
-      if (selectedModel?.triggerWord) {
-        finalPrompt = `${selectedModel.triggerWord}, ${finalPrompt}`;
+      if (view !== "None") finalPrompt += `, ${view} view`;
+      if (direction !== "None") finalPrompt += `, facing ${direction}`;
+      finalPrompt += ", pixel art, 8-bit, retro game art";
+      if (transparent) finalPrompt += ", transparent background";
+      if (initImage && selectedModel.supportsImg2Img) {
+        const parsed = parseDataUrl(initImage);
+        initImgB64 = parsed.b64;
+        initImgMime = parsed.mime;
       }
-      if (view !== "None") {
-        finalPrompt += `, ${view} view`;
-      }
-      if (direction !== "None") {
-        finalPrompt += `, facing ${direction}`;
-      }
-      finalPrompt += `, ${width} x ${height} pixel art`;
-      if (transparent) {
-        finalPrompt += `, transparent background`;
-      }
-      imageToUse = initImage;
     } else {
-      if (!sourceImage) return;
+      if (!sourceImage || !selectedModel.supportsImg2Img) return;
       finalPrompt = "pixel art, 8-bit, retro game art";
-      if (selectedModel?.triggerWord) {
-        finalPrompt = `${selectedModel.triggerWord}, ${finalPrompt}`;
-      }
-      imageToUse = sourceImage;
+      const parsed = parseDataUrl(sourceImage);
+      initImgB64 = parsed.b64;
+      initImgMime = parsed.mime;
     }
-
-    console.log("Final prompt:", finalPrompt);
-
-    if (isGenerating || !selectedModel) return;
 
     setIsGenerating(true);
     setImages(
@@ -637,34 +359,35 @@ function Generator({
 
     const results = await Promise.all(
       Array.from({ length: count }, async (_, i) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 130_000);
-
         try {
-          const token = tokens[selectedModel.provider]!;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const options: Record<string, any> = {
+            provider: selectedModel.provider,
+            model: selectedModel.puterModel,
+          };
 
-          const url = await generateHfInference(
-            selectedModel,
-            token,
-            finalPrompt,
-            imageToUse,
-            controller.signal,
-          );
-          if (url.startsWith("blob:")) blobUrlsRef.current.push(url);
+          // Provider-specific size + img2img options
+          if (selectedModel.provider === "openai-image-generation") {
+            options.ratio = { w: effectiveRatio.w, h: effectiveRatio.h };
+          } else if (selectedModel.provider === "together") {
+            options.width = effectiveRatio.w;
+            options.height = effectiveRatio.h;
+            if (initImgB64) options.image_base64 = initImgB64;
+          } else if (selectedModel.provider === "gemini") {
+            options.ratio = { w: 1024, h: 1024 };
+            if (initImgB64) {
+              options.input_image = initImgB64;
+              options.input_image_mime_type = initImgMime;
+            }
+          }
+          // xAI: no size or img2img options supported
 
-          clearTimeout(timeoutId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const imgEl = await (puter as any).ai.txt2img(finalPrompt, options);
+          const url: string =
+            imgEl instanceof HTMLImageElement ? imgEl.src : String(imgEl);
           return { index: i, state: { status: "done" as const, url } };
         } catch (err) {
-          clearTimeout(timeoutId);
-          if (err instanceof Error && err.name === "AbortError") {
-            return {
-              index: i,
-              state: {
-                status: "error" as const,
-                message: "Request timed out after 2 minutes.",
-              },
-            };
-          }
           const message =
             err instanceof Error ? err.message : "Unknown error occurred.";
           return { index: i, state: { status: "error" as const, message } };
@@ -678,27 +401,15 @@ function Generator({
       return next;
     });
     setIsGenerating(false);
-  }, [
-    mode,
-    prompt,
-    view,
-    direction,
-    width,
-    height,
-    transparent,
-    initImage,
-    sourceImage,
-    selectedModel,
-    count,
-    tokens,
-    isGenerating,
-  ]);
+  };
 
-  // Group available models by provider for grouped <Select>
-  const modelsByProvider = PROVIDERS.map((p) => ({
-    provider: p,
-    models: availableModels.filter((m) => m.provider === p.id),
-  })).filter((g) => g.models.length > 0);
+  // Group models by provider for the grouped select
+  const modelsByProvider = Object.entries(PROVIDER_LABELS).flatMap(
+    ([providerId, providerLabel]) => {
+      const models = MODELS.filter((m) => m.provider === providerId);
+      return models.length > 0 ? [{ providerLabel, models }] : [];
+    },
+  );
 
   const cols = count <= 1 ? 1 : count <= 4 ? 2 : 3;
   const gridColClass =
@@ -708,7 +419,7 @@ function Generator({
   return (
     <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Left: Controls */}
-      <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto pb-4 pr-2">
+      <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto pb-4 px-2">
         <Tabs
           value={mode}
           onValueChange={(v) => setMode(v as "simple" | "pixel")}
@@ -729,8 +440,8 @@ function Generator({
               <Label htmlFor="ai-prompt">Prompt</Label>
               <textarea
                 id="ai-prompt"
-                className="flex min-h-[80px] w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder="Describe the image to generate…"
+                className="flex min-h-20 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder="Describe the image to generate..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
               />
@@ -771,44 +482,34 @@ function Generator({
               </Select>
             </div>
 
-            <ImageUpload
-              label="Init Image (Optional)"
-              value={initImage}
-              onChange={setInitImage}
-            />
+            {showInitImage && (
+              <ImageUpload
+                label="Init Image (Optional)"
+                value={initImage}
+                onChange={setInitImage}
+              />
+            )}
 
-            <div className="grid grid-cols-2 gap-2">
+            {showRatioSelector && (
               <div className="space-y-1.5">
-                <Label>Width</Label>
-                <Select value={width} onValueChange={setWidth}>
-                  <SelectTrigger>
+                <Label>Aspect Ratio</Label>
+                <Select
+                  value={effectiveRatio.value}
+                  onValueChange={(v) => setRatio(v as Ratio)}
+                >
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["16px", "32px", "64px", "128px", "256px"].map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {availableRatios.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Height</Label>
-                <Select value={height} onValueChange={setHeight}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["16px", "32px", "64px", "128px", "256px"].map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
 
             <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
               <div className="space-y-0.5">
@@ -824,11 +525,18 @@ function Generator({
 
         {mode === "pixel" && (
           <>
-            <ImageUpload
-              label="Source Image"
-              value={sourceImage}
-              onChange={setSourceImage}
-            />
+            {pixelModeSupported ? (
+              <ImageUpload
+                label="Source Image"
+                value={sourceImage}
+                onChange={setSourceImage}
+              />
+            ) : (
+              <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
+                The selected model does not support image-to-image. Switch to
+                Gemini or FLUX.1 Schnell for Pixel Art conversion.
+              </div>
+            )}
           </>
         )}
 
@@ -836,16 +544,16 @@ function Generator({
 
         <div className="space-y-1.5">
           <Label>Model</Label>
-          <Select value={selectedKey} onValueChange={setSelectedKey}>
+          <Select value={selectedId} onValueChange={setSelectedId}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {modelsByProvider.map(({ provider, models }) => (
-                <SelectGroup key={provider.id}>
-                  <SelectLabel>{provider.name}</SelectLabel>
+              {modelsByProvider.map(({ providerLabel, models }) => (
+                <SelectGroup key={providerLabel}>
+                  <SelectLabel>{providerLabel}</SelectLabel>
                   {models.map((m) => (
-                    <SelectItem key={modelKey(m)} value={modelKey(m)}>
+                    <SelectItem key={m.id} value={m.id}>
                       {m.label}
                     </SelectItem>
                   ))}
@@ -878,22 +586,25 @@ function Generator({
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating…
+              Generating...
             </>
           ) : (
             "Generate"
           )}
         </Button>
 
-        <div className="mt-auto pt-2">
-          <button
-            onClick={onManageTokens}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground underline hover:text-foreground"
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          Powered by{" "}
+          <a
+            href="https://developer.puter.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:opacity-80"
           >
-            <Settings className="h-3 w-3" />
-            Manage API Keys
-          </button>
-        </div>
+            Puter.js
+          </a>
+          . Images are generated using your Puter account credits.
+        </p>
       </div>
 
       {/* Right: Image grid */}
@@ -920,46 +631,5 @@ function Generator({
 // Root export
 // ---------------------------------------------------------------------------
 export function AiAssets() {
-  const [tokens, setTokens] = useState<TokenMap>({});
-  const [loading, setLoading] = useState(true);
-  const [showSetup, setShowSetup] = useState(false);
-
-  useEffect(() => {
-    Promise.all(
-      PROVIDERS.map(async (p) => {
-        const enc = localStorage.getItem(p.lsKey);
-        return { id: p.id, token: enc ? await decryptToken(enc) : null };
-      }),
-    ).then((results) => {
-      const loaded: TokenMap = {};
-      for (const { id, token } of results) {
-        if (token) loaded[id as ProviderId] = token;
-      }
-      setTokens(loaded);
-      setLoading(false);
-    });
-  }, []);
-
-  const hasAnyToken = Object.keys(tokens).length > 0;
-
-  function handleSaveTokens(newTokens: TokenMap) {
-    setTokens(newTokens);
-    setShowSetup(false);
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!hasAnyToken || showSetup) {
-    return <TokenSetup currentTokens={tokens} onSave={handleSaveTokens} />;
-  }
-
-  return (
-    <Generator tokens={tokens} onManageTokens={() => setShowSetup(true)} />
-  );
+  return <Generator />;
 }
