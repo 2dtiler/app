@@ -71,7 +71,8 @@ async function generateOpenAI(
         const form = new FormData();
         const byteStr = atob(initImageB64);
         const bytes = new Uint8Array(byteStr.length);
-        for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
+        for (let i = 0; i < byteStr.length; i++)
+          bytes[i] = byteStr.charCodeAt(i);
         const blob = new Blob([bytes], { type: initImageMime });
         form.append("image", blob, "reference.png");
         form.append("prompt", prompt);
@@ -135,7 +136,9 @@ async function generateGemini(
 ): Promise<string> {
   const parts: unknown[] = [];
   if (initImageB64 && initImageMime) {
-    parts.push({ inline_data: { mime_type: initImageMime, data: initImageB64 } });
+    parts.push({
+      inline_data: { mime_type: initImageMime, data: initImageB64 },
+    });
   }
   parts.push({ text: prompt });
 
@@ -166,7 +169,10 @@ async function generateGemini(
   const data = (await res.json()) as {
     candidates?: {
       content?: {
-        parts?: { inlineData?: { data: string; mimeType: string }; thought?: boolean }[];
+        parts?: {
+          inlineData?: { data: string; mimeType: string };
+          thought?: boolean;
+        }[];
       };
     }[];
   };
@@ -214,12 +220,10 @@ async function generateTogether(
     );
   }
   const data = (await res.json()) as {
-    data: ({ b64_json?: string; url?: string })[];
+    data: { b64_json?: string; url?: string }[];
   };
   return data.data.map((img) =>
-    img.b64_json
-      ? `data:image/jpeg;base64,${img.b64_json}`
-      : (img.url ?? ""),
+    img.b64_json ? `data:image/jpeg;base64,${img.b64_json}` : (img.url ?? ""),
   );
 }
 
@@ -337,7 +341,9 @@ export function Generator() {
   }, [refreshModels]);
 
   const selectedModel =
-    availableModels.find((m) => m.id === selectedId) ?? availableModels[0] ?? null;
+    availableModels.find((m) => m.id === selectedId) ??
+    availableModels[0] ??
+    null;
 
   // ---------------------------------------------------------------------------
   // Auto-rebuild the prompt whenever config/style changes (unless user edited manually)
@@ -713,10 +719,7 @@ export function Generator() {
               <strong>Settings → AI API Keys</strong>.
             </p>
           ) : (
-            <Select
-              value={selectedId ?? ""}
-              onValueChange={setSelectedId}
-            >
+            <Select value={selectedId ?? ""} onValueChange={setSelectedId}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -755,11 +758,7 @@ export function Generator() {
           </Select>
         </div>
 
-        <Button
-          onClick={generate}
-          disabled={!canGenerate}
-          className="w-full"
-        >
+        <Button onClick={generate} disabled={!canGenerate} className="w-full">
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
