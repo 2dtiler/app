@@ -2,11 +2,13 @@ AI Asset Generation
   Add forms -> prompt (Get parameters from pixellab)
   Ability to download/add to tileset/open in image Editor
   History
+  Gallery
   Scheduler
   Add pixellab as a provider
-  How do I add nano banana
-    Add depleting progress bar to show remaining quota
-  How do I add openai chatgpt as provider
+  Add OpenAI as a provider
+  Add Gemini as a provider
+  Add depleting progress bar to show remaining quota
+  The Pixflux model works best for 64x64 and larger. Try BitForge if you want to create smaller images.
   
 Layer styling is a bit off in Image/sprite Editor
 Add frame should be a primary button

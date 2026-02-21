@@ -25,7 +25,7 @@ const TOOL_CONFIG: Record<
   { label: string; component: ComponentType }
 > = {
   "image-editor": { label: "Image/Sprite Editor", component: ImageEditor },
-  "ai-assets": { label: "AI Assets", component: AiAssets },
+  "ai-assets": { label: "AI Assets Generator", component: AiAssets },
 };
 
 interface ToolDrawerProps {

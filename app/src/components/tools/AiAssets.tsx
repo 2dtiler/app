@@ -7,10 +7,13 @@ import {
   Loader2,
   Settings,
   X,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -82,7 +85,7 @@ async function decryptToken(encoded: string): Promise<string | null> {
 // ---------------------------------------------------------------------------
 // Provider + model definitions
 // ---------------------------------------------------------------------------
-type ProviderId = "hf-inference" | "fal-ai";
+type ProviderId = "hf-inference";
 type TokenMap = Partial<Record<ProviderId, string>>;
 
 interface ProviderMeta {
@@ -90,7 +93,7 @@ interface ProviderMeta {
   name: string;
   lsKey: string;
   /** HTTP Authorization header prefix */
-  authScheme: "Bearer" | "Key";
+  authScheme: "Bearer";
   freeNote: string;
   keysUrl: string;
   description: string;
@@ -107,16 +110,6 @@ const PROVIDERS: ProviderMeta[] = [
     description:
       "FLUX.1 Schnell/Dev, SDXL, SD 3. Create a fine-grained token with Inference API (serverless) read access.",
   },
-  {
-    id: "fal-ai",
-    name: "fal.ai",
-    lsKey: "fal_token_enc",
-    authScheme: "Key",
-    freeNote: "Free credits on signup — no credit card required",
-    keysUrl: "https://fal.ai/dashboard/keys",
-    description:
-      "Z-Image Turbo, FLUX.1 Schnell/Dev, Fast SDXL, Qwen Image. Uses an async queue — results poll automatically.",
-  },
 ];
 
 interface ModelDef {
@@ -124,6 +117,8 @@ interface ModelDef {
   provider: ProviderId;
   /** Provider-specific model identifier used in the API path */
   providerId: string;
+  /** Optional trigger word to prepend to the prompt */
+  triggerWord?: string;
 }
 
 // Only models verified live on each provider as of Feb 2026.
@@ -149,35 +144,9 @@ const MODELS: ModelDef[] = [
     provider: "hf-inference",
     providerId: "stabilityai/stable-diffusion-3-medium-diffusers",
   },
-  // ── fal.ai ───────────────────────────────────────────────────────────────
-  {
-    label: "Z-Image Turbo",
-    provider: "fal-ai",
-    providerId: "fal-ai/z-image/turbo",
-  },
-  {
-    label: "FLUX.1 Schnell (fast)",
-    provider: "fal-ai",
-    providerId: "fal-ai/flux/schnell",
-  },
-  {
-    label: "FLUX.1 Dev (quality)",
-    provider: "fal-ai",
-    providerId: "fal-ai/flux/dev",
-  },
-  {
-    label: "SDXL (fast)",
-    provider: "fal-ai",
-    providerId: "fal-ai/fast-sdxl",
-  },
-  {
-    label: "Qwen Image",
-    provider: "fal-ai",
-    providerId: "fal-ai/qwen-image",
-  },
 ];
 
-const COUNT_OPTIONS = [1, 2, 3, 4, 6, 8];
+const COUNT_OPTIONS = [1, 2];
 
 const modelKey = (m: ModelDef) => `${m.provider}:${m.providerId}`;
 
@@ -189,6 +158,121 @@ type ImageState =
   | { status: "loading" }
   | { status: "done"; url: string }
   | { status: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Image Upload Helpers
+// ---------------------------------------------------------------------------
+async function resizeImage(
+  file: File,
+  maxSize: number = 1280,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("No canvas context"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL(file.type));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function ImageUpload({
+  value,
+  onChange,
+  label,
+}: {
+  value: string | null;
+  onChange: (val: string | null) => void;
+  label: string;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    try {
+      const resized = await resizeImage(file, 1280);
+      onChange(resized);
+    } catch (err) {
+      console.error("Failed to resize image", err);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div
+        className={`relative flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 transition-colors ${
+          isDragging
+            ? "border-primary bg-primary/10"
+            : "border-muted-foreground/25 hover:bg-muted/50"
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleFile(file);
+        }}
+        onClick={() => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = "image/*";
+          input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) handleFile(file);
+          };
+          input.click();
+        }}
+      >
+        {value ? (
+          <div className="relative w-full">
+            <img
+              src={value}
+              alt="Upload preview"
+              className="max-h-[120px] w-full object-contain"
+            />
+            <Button
+              size="icon"
+              variant="destructive"
+              className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(null);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
+            <Upload className="h-6 w-6 mb-1 opacity-50" />
+            <p>Drag & drop an image here, or click to select</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // TokenSetup screen
@@ -408,6 +492,7 @@ async function generateHfInference(
   model: ModelDef,
   token: string,
   prompt: string,
+  imageUrl: string | null,
   signal: AbortSignal,
 ): Promise<string> {
   const res = await fetch(`/api/hf/models/${model.providerId}`, {
@@ -460,79 +545,6 @@ async function generateHfInference(
   throw new Error("Unexpected response format from Hugging Face API.");
 }
 
-async function generateFalAi(
-  model: ModelDef,
-  token: string,
-  prompt: string,
-  signal: AbortSignal,
-): Promise<string> {
-  // Submit to async queue
-  const submitRes = await fetch(`/api/fal/${model.providerId}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ prompt }),
-    signal,
-  });
-
-  if (!submitRes.ok) {
-    if (submitRes.status === 401 || submitRes.status === 403)
-      throw new Error(
-        "Invalid or unauthorized fal.ai API key. Please reset it.",
-      );
-    const text = await submitRes.text().catch(() => "Unknown error");
-    throw new Error(`fal.ai error ${submitRes.status}: ${text.slice(0, 120)}`);
-  }
-
-  type FalSubmit = {
-    request_id: string;
-    status_url: string;
-    response_url: string;
-  };
-  const submitData = (await submitRes.json()) as FalSubmit;
-
-  // The returned URLs are absolute (queue.fal.run/…). Strip the host so we
-  // can route them through our CORS proxy at /api/fal/….
-  const statusPath = submitData.status_url.replace("https://queue.fal.run", "");
-  const responsePath = submitData.response_url.replace(
-    "https://queue.fal.run",
-    "",
-  );
-
-  // Poll until COMPLETED (max ~2 min)
-  for (let attempt = 0; attempt < 120; attempt++) {
-    await new Promise((r) => setTimeout(r, 1_000));
-
-    const statusRes = await fetch(`/api/fal${statusPath}`, {
-      headers: { Authorization: `Key ${token}` },
-      signal,
-    });
-    const statusData = (await statusRes.json()) as { status: string };
-
-    if (statusData.status === "COMPLETED") {
-      const resultRes = await fetch(`/api/fal${responsePath}`, {
-        headers: { Authorization: `Key ${token}` },
-        signal,
-      });
-      type FalResult = {
-        images?: Array<{ url: string }>;
-      };
-      const result = (await resultRes.json()) as FalResult;
-      const url = result.images?.[0]?.url;
-      if (!url) throw new Error("fal.ai returned no image in response.");
-      return url;
-    }
-
-    if (statusData.status === "ERROR" || statusData.status === "FAILED") {
-      throw new Error("fal.ai generation failed.");
-    }
-  }
-
-  throw new Error("fal.ai request timed out after 2 minutes.");
-}
-
 // ---------------------------------------------------------------------------
 // Generator (main UI once at least one token is available)
 // ---------------------------------------------------------------------------
@@ -545,11 +557,24 @@ function Generator({
 }) {
   const availableModels = MODELS.filter((m) => !!tokens[m.provider]);
 
+  const [mode, setMode] = useState<"simple" | "pixel">("simple");
+
+  // Simple mode state
   const [prompt, setPrompt] = useState("");
+  const [view, setView] = useState("None");
+  const [direction, setDirection] = useState("None");
+  const [initImage, setInitImage] = useState<string | null>(null);
+  const [width, setWidth] = useState("64px");
+  const [height, setHeight] = useState("64px");
+  const [transparent, setTransparent] = useState(false);
+
+  // Pixel mode state
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+
   const [selectedKey, setSelectedKey] = useState(() =>
     availableModels.length > 0 ? modelKey(availableModels[0]) : "",
   );
-  const [count, setCount] = useState(4);
+  const [count, setCount] = useState(2);
   const [images, setImages] = useState<ImageState[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   // Track blob object URLs (HF-inference) for cleanup on unmount
@@ -566,8 +591,44 @@ function Generator({
     availableModels.find((m) => modelKey(m) === selectedKey) ??
     availableModels[0];
 
+  const canGenerate =
+    !isGenerating &&
+    selectedModel &&
+    (mode === "simple" ? prompt.trim().length > 0 : sourceImage !== null);
+
   const generate = useCallback(async () => {
-    if (!prompt.trim() || isGenerating || !selectedModel) return;
+    let finalPrompt = "";
+    let imageToUse: string | null = null;
+
+    if (mode === "simple") {
+      if (!prompt.trim()) return;
+      finalPrompt = prompt.trim();
+      if (selectedModel?.triggerWord) {
+        finalPrompt = `${selectedModel.triggerWord}, ${finalPrompt}`;
+      }
+      if (view !== "None") {
+        finalPrompt += `, ${view} view`;
+      }
+      if (direction !== "None") {
+        finalPrompt += `, facing ${direction}`;
+      }
+      finalPrompt += `, ${width} x ${height} pixel art`;
+      if (transparent) {
+        finalPrompt += `, transparent background`;
+      }
+      imageToUse = initImage;
+    } else {
+      if (!sourceImage) return;
+      finalPrompt = "pixel art, 8-bit, retro game art";
+      if (selectedModel?.triggerWord) {
+        finalPrompt = `${selectedModel.triggerWord}, ${finalPrompt}`;
+      }
+      imageToUse = sourceImage;
+    }
+
+    console.log("Final prompt:", finalPrompt);
+
+    if (isGenerating || !selectedModel) return;
 
     setIsGenerating(true);
     setImages(
@@ -581,24 +642,15 @@ function Generator({
 
         try {
           const token = tokens[selectedModel.provider]!;
-          let url: string;
 
-          if (selectedModel.provider === "hf-inference") {
-            url = await generateHfInference(
-              selectedModel,
-              token,
-              prompt,
-              controller.signal,
-            );
-            if (url.startsWith("blob:")) blobUrlsRef.current.push(url);
-          } else {
-            url = await generateFalAi(
-              selectedModel,
-              token,
-              prompt,
-              controller.signal,
-            );
-          }
+          const url = await generateHfInference(
+            selectedModel,
+            token,
+            finalPrompt,
+            imageToUse,
+            controller.signal,
+          );
+          if (url.startsWith("blob:")) blobUrlsRef.current.push(url);
 
           clearTimeout(timeoutId);
           return { index: i, state: { status: "done" as const, url } };
@@ -626,7 +678,21 @@ function Generator({
       return next;
     });
     setIsGenerating(false);
-  }, [prompt, selectedModel, count, tokens, isGenerating]);
+  }, [
+    mode,
+    prompt,
+    view,
+    direction,
+    width,
+    height,
+    transparent,
+    initImage,
+    sourceImage,
+    selectedModel,
+    count,
+    tokens,
+    isGenerating,
+  ]);
 
   // Group available models by provider for grouped <Select>
   const modelsByProvider = PROVIDERS.map((p) => ({
@@ -642,17 +708,131 @@ function Generator({
   return (
     <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Left: Controls */}
-      <div className="flex w-64 shrink-0 flex-col gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="ai-prompt">Prompt</Label>
-          <textarea
-            id="ai-prompt"
-            className="flex min-h-[140px] w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            placeholder="Describe the image to generate…"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-        </div>
+      <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto pb-4 pr-2">
+        <Tabs
+          value={mode}
+          onValueChange={(v) => setMode(v as "simple" | "pixel")}
+        >
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="simple" className="text-xs">
+              Simple
+            </TabsTrigger>
+            <TabsTrigger value="pixel" className="text-xs">
+              Pixel Art
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {mode === "simple" && (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-prompt">Prompt</Label>
+              <textarea
+                id="ai-prompt"
+                className="flex min-h-[80px] w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder="Describe the image to generate…"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>View</Label>
+              <Select value={view} onValueChange={setView}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="None">None</SelectItem>
+                  <SelectItem value="Side">Side</SelectItem>
+                  <SelectItem value="Low top-down">Low top-down</SelectItem>
+                  <SelectItem value="High top-down">High top-down</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Direction</Label>
+              <Select value={direction} onValueChange={setDirection}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="None">None</SelectItem>
+                  <SelectItem value="South">South (facing camera)</SelectItem>
+                  <SelectItem value="South-West">South-West</SelectItem>
+                  <SelectItem value="West">West (facing left)</SelectItem>
+                  <SelectItem value="North-West">North-West</SelectItem>
+                  <SelectItem value="North">North (facing away)</SelectItem>
+                  <SelectItem value="North-East">North-East</SelectItem>
+                  <SelectItem value="East">East (facing right)</SelectItem>
+                  <SelectItem value="South-East">South-East</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <ImageUpload
+              label="Init Image (Optional)"
+              value={initImage}
+              onChange={setInitImage}
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <Label>Width</Label>
+                <Select value={width} onValueChange={setWidth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["16px", "32px", "64px", "128px", "256px"].map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Height</Label>
+                <Select value={height} onValueChange={setHeight}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["16px", "32px", "64px", "128px", "256px"].map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Transparent</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  Remove background
+                </p>
+              </div>
+              <Switch checked={transparent} onCheckedChange={setTransparent} />
+            </div>
+          </>
+        )}
+
+        {mode === "pixel" && (
+          <>
+            <ImageUpload
+              label="Source Image"
+              value={sourceImage}
+              onChange={setSourceImage}
+            />
+          </>
+        )}
+
+        <div className="my-2 h-px bg-border" />
 
         <div className="space-y-1.5">
           <Label>Model</Label>
@@ -694,11 +874,7 @@ function Generator({
           </Select>
         </div>
 
-        <Button
-          onClick={generate}
-          disabled={isGenerating || !prompt.trim() || !selectedModel}
-          className="w-full"
-        >
+        <Button onClick={generate} disabled={!canGenerate} className="w-full">
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -709,7 +885,7 @@ function Generator({
           )}
         </Button>
 
-        <div className="mt-auto border-t pt-4">
+        <div className="mt-auto pt-2">
           <button
             onClick={onManageTokens}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground underline hover:text-foreground"
