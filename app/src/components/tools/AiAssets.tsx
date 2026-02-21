@@ -168,62 +168,102 @@ const ALL_RATIOS: RatioDef[] = [
 const COUNT_OPTIONS = [1, 2];
 
 // Asset type definitions
-const ASSET_TYPE_DEFS: { value: AssetType; label: string; description: string }[] = [
-  { value: "tileset",    label: "Tileset",       description: "Grid-based environment tiles" },
-  { value: "sprite",     label: "Sprite Sheet",  description: "Animated character frames" },
-  { value: "background", label: "Background",    description: "Parallax scene layers" },
-  { value: "icon",       label: "Item Icon",     description: "Inventory & skill icons" },
-  { value: "ui",         label: "UI Element",    description: "Buttons, panels & HUD" },
-  { value: "vfx",        label: "VFX",           description: "Effects & particle sprites" },
+const ASSET_TYPE_DEFS: {
+  value: AssetType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "tileset",
+    label: "Tileset",
+    description: "Grid-based environment tiles",
+  },
+  {
+    value: "sprite",
+    label: "Sprite Sheet",
+    description: "Animated character frames",
+  },
+  {
+    value: "background",
+    label: "Background",
+    description: "Parallax scene layers",
+  },
+  { value: "icon", label: "Item Icon", description: "Inventory & skill icons" },
+  { value: "ui", label: "UI Element", description: "Buttons, panels & HUD" },
+  { value: "vfx", label: "VFX", description: "Effects & particle sprites" },
 ];
 
 // Style Stack options
 const ART_STYLES = [
-  { value: "pixel art",                   label: "Pixel Art" },
+  { value: "pixel art", label: "Pixel Art" },
   { value: "vector art with clean lines", label: "Vector" },
-  { value: "hand-painted",                label: "Hand-Painted" },
-  { value: "cel-shaded",                  label: "Cel-Shaded" },
-  { value: "watercolor",                  label: "Watercolor" },
+  { value: "hand-painted", label: "Hand-Painted" },
+  { value: "cel-shaded", label: "Cel-Shaded" },
+  { value: "watercolor", label: "Watercolor" },
 ];
 
 const COLOR_PALETTES = [
-  { value: "vibrant",          label: "Vibrant" },
-  { value: "pastel",           label: "Pastel" },
+  { value: "vibrant", label: "Vibrant" },
+  { value: "pastel", label: "Pastel" },
   { value: "muted and gritty", label: "Muted / Gritty" },
-  { value: "monochromatic",    label: "Monochromatic" },
-  { value: "neon",             label: "Neon" },
+  { value: "monochromatic", label: "Monochromatic" },
+  { value: "neon", label: "Neon" },
   { value: "warm earth tones", label: "Earth Tones" },
 ];
 
 const SPRITE_SIZES = ["16x16", "32x32", "64x64", "128x128"];
 
 // Tileset options
-const TILESET_TILE_TYPES = ["Ground", "Wall", "Object / Prop", "Path", "Liquid"];
+const TILESET_TILE_TYPES = [
+  "Ground",
+  "Wall",
+  "Object / Prop",
+  "Path",
+  "Liquid",
+];
 const TILESET_TERRAINS = [
-  "Grass", "Dirt", "Sand", "Snow", "Stone", "Cobblestone",
-  "Lava", "Water", "Ice", "Forest Floor", "Mud", "Marble",
+  "Grass",
+  "Dirt",
+  "Sand",
+  "Snow",
+  "Stone",
+  "Cobblestone",
+  "Lava",
+  "Water",
+  "Ice",
+  "Forest Floor",
+  "Mud",
+  "Marble",
 ];
 const TILESET_TRANSITIONS = [
-  "None", "Grass", "Dirt", "Sand", "Snow", "Stone", "Lava", "Water", "Ice",
+  "None",
+  "Grass",
+  "Dirt",
+  "Sand",
+  "Snow",
+  "Stone",
+  "Lava",
+  "Water",
+  "Ice",
 ];
 const MASK_MODES = [
   { value: "seamless 47-tile blob", label: "47-Tile Blob (organic terrain)" },
-  { value: "16-tile corner mask",   label: "16-Tile Corner (paths & boxes)" },
-  { value: "Wang tile",             label: "Wang Tiles (non-periodic)" },
-  { value: "dual grid",             label: "Dual Grid (biome blending)" },
+  { value: "16-tile corner mask", label: "16-Tile Corner (paths & boxes)" },
+  { value: "Wang tile", label: "Wang Tiles (non-periodic)" },
+  { value: "dual grid", label: "Dual Grid (biome blending)" },
 ];
 const TILESET_PERSPECTIVES = ["Top-down", "Isometric 2:1"];
 
 // Sprite options
 const SPRITE_ROLES = ["Hero / Player", "NPC", "Enemy", "Monster", "Boss"];
 const ANIM_STATES = [
-  { value: "idle",   hint: "2–4 frames, looping" },
-  { value: "walk",   hint: "4–8 frames, looping" },
-  { value: "run",    hint: "8–12 frames, looping" },
+  { value: "idle", hint: "2–4 frames, looping" },
+  { value: "walk", hint: "4–8 frames, looping" },
+  { value: "run", hint: "8–12 frames, looping" },
   { value: "attack", hint: "5–10 frames, one-shot" },
-  { value: "jump",   hint: "3–5 frames, one-shot" },
-  { value: "hurt",   hint: "2–4 frames, one-shot" },
-  { value: "die",    hint: "4–8 frames, one-shot" },
+  { value: "jump", hint: "3–5 frames, one-shot" },
+  { value: "hurt", hint: "2–4 frames, one-shot" },
+  { value: "die", hint: "4–8 frames, one-shot" },
 ];
 const SPRITE_PERSPECTIVES = [
   "side-view",
@@ -232,56 +272,124 @@ const SPRITE_PERSPECTIVES = [
   "isometric",
 ];
 const SPRITE_DIRECTIONS = [
-  "South", "South-West", "West", "North-West",
-  "North", "North-East", "East", "South-East",
+  "South",
+  "South-West",
+  "West",
+  "North-West",
+  "North",
+  "North-East",
+  "East",
+  "South-East",
 ];
 const FRAME_COUNTS = ["2", "4", "6", "8", "10", "12"];
 const PROPORTIONS = [
   { value: "chibi / super-deformed", label: "Chibi (large head, expressive)" },
-  { value: "semi-realistic",         label: "Semi-Realistic" },
-  { value: "realistic proportions",  label: "Realistic" },
+  { value: "semi-realistic", label: "Semi-Realistic" },
+  { value: "realistic proportions", label: "Realistic" },
 ];
 
 // Background options
 const BG_LAYERS = [
-  { value: "foreground",   label: "Foreground (fast scroll)" },
-  { value: "midground",    label: "Midground (standard)" },
+  { value: "foreground", label: "Foreground (fast scroll)" },
+  { value: "midground", label: "Midground (standard)" },
   { value: "far / skybox", label: "Far / Skybox (slow)" },
 ];
 const BG_ENVIRONMENTS = [
-  "Forest", "City", "Mountains", "Space", "Desert",
-  "Ocean", "Cave / Underground", "Fantasy Castle", "Sci-fi Station", "Ruins", "Arctic",
+  "Forest",
+  "City",
+  "Mountains",
+  "Space",
+  "Desert",
+  "Ocean",
+  "Cave / Underground",
+  "Fantasy Castle",
+  "Sci-fi Station",
+  "Ruins",
+  "Arctic",
 ];
 const BG_MOODS = [
-  "Day", "Night", "Dusk", "Dawn", "Spooky", "Mystical", "Stormy", "Post-Apocalyptic",
+  "Day",
+  "Night",
+  "Dusk",
+  "Dawn",
+  "Spooky",
+  "Mystical",
+  "Stormy",
+  "Post-Apocalyptic",
 ];
 
 // Icon options
 const ICON_CATEGORIES = [
-  "Consumable", "Weapon", "Armor / Accessory", "Resource", "Skill / Status",
+  "Consumable",
+  "Weapon",
+  "Armor / Accessory",
+  "Resource",
+  "Skill / Status",
 ];
 const ICON_TYPES: Record<string, string[]> = {
-  "Consumable":        ["Health Potion", "Mana Elixir", "Herb", "Food", "Scroll", "Bomb"],
-  "Weapon":            ["Sword", "Axe", "Bow", "Staff", "Dagger", "Spear", "Wand", "Shield"],
-  "Armor / Accessory": ["Helmet", "Chest Armor", "Gauntlets", "Boots", "Ring", "Amulet", "Cape"],
-  "Resource":          ["Ore", "Wood", "Gem", "Monster Drop", "Crafting Material", "Coin"],
-  "Skill / Status":    ["Fire Spell", "Lightning Spell", "Poison", "Haste", "Shield Buff", "Heal"],
+  Consumable: [
+    "Health Potion",
+    "Mana Elixir",
+    "Herb",
+    "Food",
+    "Scroll",
+    "Bomb",
+  ],
+  Weapon: ["Sword", "Axe", "Bow", "Staff", "Dagger", "Spear", "Wand", "Shield"],
+  "Armor / Accessory": [
+    "Helmet",
+    "Chest Armor",
+    "Gauntlets",
+    "Boots",
+    "Ring",
+    "Amulet",
+    "Cape",
+  ],
+  Resource: ["Ore", "Wood", "Gem", "Monster Drop", "Crafting Material", "Coin"],
+  "Skill / Status": [
+    "Fire Spell",
+    "Lightning Spell",
+    "Poison",
+    "Haste",
+    "Shield Buff",
+    "Heal",
+  ],
 };
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
 // UI options
 const UI_ELEMENT_TYPES = [
-  "Button", "Panel / Dialog Box", "Health Bar", "Mana Bar",
-  "Inventory Slot", "Cursor", "Tooltip Box", "Menu Frame",
+  "Button",
+  "Panel / Dialog Box",
+  "Health Bar",
+  "Mana Bar",
+  "Inventory Slot",
+  "Cursor",
+  "Tooltip Box",
+  "Menu Frame",
 ];
 const UI_THEMES = [
-  "Fantasy", "Sci-fi", "Minimal / Flat", "Wooden", "Stone", "Metal", "Dark / Gothic",
+  "Fantasy",
+  "Sci-fi",
+  "Minimal / Flat",
+  "Wooden",
+  "Stone",
+  "Metal",
+  "Dark / Gothic",
 ];
 
 // VFX options
 const VFX_ACTIONS = [
-  "Explosion", "Fire", "Magic Spell", "Smoke", "Water Splash",
-  "Lightning", "Poison Cloud", "Ice Shard", "Heal Glow", "Dust Puff",
+  "Explosion",
+  "Fire",
+  "Magic Spell",
+  "Smoke",
+  "Water Splash",
+  "Lightning",
+  "Poison Cloud",
+  "Ice Shard",
+  "Heal Glow",
+  "Dust Puff",
 ];
 const VFX_FRAME_COUNTS = ["4", "6", "8", "12", "16"];
 const VFX_SIZES = ["32x32", "64x64", "128x128"];
@@ -300,7 +408,7 @@ function buildPrompt(
   style: StyleStack,
   transparent: boolean,
 ): string {
-  const px  = style.spriteSize;
+  const px = style.spriteSize;
   const art = style.artStyle;
   const pal = `${style.colorPalette} color palette`;
   const bgSuffix = transparent ? "transparent background" : "solid background";
@@ -347,7 +455,9 @@ function buildPrompt(
     }
     case "icon": {
       const rarityStr =
-        icon.rarity !== "Common" ? `${icon.rarity.toLowerCase()} quality, ` : "";
+        icon.rarity !== "Common"
+          ? `${icon.rarity.toLowerCase()} quality, `
+          : "";
       return (
         `Single item icon of a ${rarityStr}${icon.type.toLowerCase()} (${icon.category.toLowerCase()}). ` +
         `${px}px, centered composition, ` +
@@ -392,52 +502,97 @@ function TilesetConfigForm({
     <>
       <div className="space-y-1.5">
         <Label>Tile Type</Label>
-        <Select value={config.tileType} onValueChange={(v) => set("tileType", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.tileType}
+          onValueChange={(v) => set("tileType", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {TILESET_TILE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {TILESET_TILE_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Terrain</Label>
         <Select value={config.terrain} onValueChange={(v) => set("terrain", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {TILESET_TERRAINS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {TILESET_TERRAINS.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Transition To</Label>
-        <Select value={config.transition} onValueChange={(v) => set("transition", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.transition}
+          onValueChange={(v) => set("transition", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {TILESET_TRANSITIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {TILESET_TRANSITIONS.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Autotile Mode</Label>
-        <Select value={config.maskMode} onValueChange={(v) => set("maskMode", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.maskMode}
+          onValueChange={(v) => set("maskMode", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {MASK_MODES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            {MASK_MODES.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                {m.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Perspective</Label>
-        <Select value={config.perspective} onValueChange={(v) => set("perspective", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.perspective}
+          onValueChange={(v) => set("perspective", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {TILESET_PERSPECTIVES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            {TILESET_PERSPECTIVES.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="flex items-center justify-between rounded-lg border p-3">
         <Label className="text-sm">Seamless Tiling</Label>
-        <Switch checked={config.seamless} onCheckedChange={(v) => set("seamless", v)} />
+        <Switch
+          checked={config.seamless}
+          onCheckedChange={(v) => set("seamless", v)}
+        />
       </div>
     </>
   );
@@ -458,16 +613,27 @@ function SpriteConfigForm({
       <div className="space-y-1.5">
         <Label>Role</Label>
         <Select value={config.role} onValueChange={(v) => set("role", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {SPRITE_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            {SPRITE_ROLES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Animation State</Label>
-        <Select value={config.animState} onValueChange={(v) => set("animState", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.animState}
+          onValueChange={(v) => set("animState", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             {ANIM_STATES.map((a) => (
               <SelectItem key={a.value} value={a.value}>
@@ -480,8 +646,13 @@ function SpriteConfigForm({
       </div>
       <div className="space-y-1.5">
         <Label>Perspective</Label>
-        <Select value={config.perspective} onValueChange={(v) => set("perspective", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.perspective}
+          onValueChange={(v) => set("perspective", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             {SPRITE_PERSPECTIVES.map((p) => (
               <SelectItem key={p} value={p}>
@@ -494,29 +665,56 @@ function SpriteConfigForm({
       {showDirection && (
         <div className="space-y-1.5">
           <Label>Direction</Label>
-          <Select value={config.direction} onValueChange={(v) => set("direction", v)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <Select
+            value={config.direction}
+            onValueChange={(v) => set("direction", v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {SPRITE_DIRECTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              {SPRITE_DIRECTIONS.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       )}
       <div className="space-y-1.5">
         <Label>Frame Count</Label>
-        <Select value={config.frameCount} onValueChange={(v) => set("frameCount", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.frameCount}
+          onValueChange={(v) => set("frameCount", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {FRAME_COUNTS.map((f) => <SelectItem key={f} value={f}>{f} frames</SelectItem>)}
+            {FRAME_COUNTS.map((f) => (
+              <SelectItem key={f} value={f}>
+                {f} frames
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Proportion Style</Label>
-        <Select value={config.proportion} onValueChange={(v) => set("proportion", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.proportion}
+          onValueChange={(v) => set("proportion", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {PROPORTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+            {PROPORTIONS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -531,34 +729,57 @@ function BackgroundConfigForm({
   config: BackgroundConfig;
   onChange: (c: BackgroundConfig) => void;
 }) {
-  const set = <K extends keyof BackgroundConfig>(k: K, v: BackgroundConfig[K]) =>
-    onChange({ ...config, [k]: v });
+  const set = <K extends keyof BackgroundConfig>(
+    k: K,
+    v: BackgroundConfig[K],
+  ) => onChange({ ...config, [k]: v });
   return (
     <>
       <div className="space-y-1.5">
         <Label>Parallax Layer</Label>
         <Select value={config.layer} onValueChange={(v) => set("layer", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {BG_LAYERS.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+            {BG_LAYERS.map((l) => (
+              <SelectItem key={l.value} value={l.value}>
+                {l.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Environment</Label>
-        <Select value={config.environment} onValueChange={(v) => set("environment", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.environment}
+          onValueChange={(v) => set("environment", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {BG_ENVIRONMENTS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+            {BG_ENVIRONMENTS.map((e) => (
+              <SelectItem key={e} value={e}>
+                {e}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Mood / Time of Day</Label>
         <Select value={config.mood} onValueChange={(v) => set("mood", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {BG_MOODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            {BG_MOODS.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -567,7 +788,10 @@ function BackgroundConfigForm({
           <Label className="text-sm">Seamless Loop</Label>
           <p className="text-[10px] text-muted-foreground">Horizontal tiling</p>
         </div>
-        <Switch checked={config.seamless} onCheckedChange={(v) => set("seamless", v)} />
+        <Switch
+          checked={config.seamless}
+          onCheckedChange={(v) => set("seamless", v)}
+        />
       </div>
     </>
   );
@@ -593,27 +817,45 @@ function IconConfigForm({
             onChange({ ...config, category: v, type: ICON_TYPES[v]?.[0] ?? "" })
           }
         >
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {ICON_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {ICON_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Type</Label>
         <Select value={config.type} onValueChange={(v) => set("type", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {typeOptions.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {typeOptions.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Rarity</Label>
         <Select value={config.rarity} onValueChange={(v) => set("rarity", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {RARITIES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            {RARITIES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -634,28 +876,48 @@ function UIConfigForm({
     <>
       <div className="space-y-1.5">
         <Label>Element Type</Label>
-        <Select value={config.elementType} onValueChange={(v) => set("elementType", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.elementType}
+          onValueChange={(v) => set("elementType", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {UI_ELEMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {UI_ELEMENT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Theme</Label>
         <Select value={config.theme} onValueChange={(v) => set("theme", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {UI_THEMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {UI_THEMES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="flex items-center justify-between rounded-lg border p-3">
         <div className="space-y-0.5">
           <Label className="text-sm">9-Slice Ready</Label>
-          <p className="text-[10px] text-muted-foreground">Fixed corners, scalable edges</p>
+          <p className="text-[10px] text-muted-foreground">
+            Fixed corners, scalable edges
+          </p>
         </div>
-        <Switch checked={config.nineSlice} onCheckedChange={(v) => set("nineSlice", v)} />
+        <Switch
+          checked={config.nineSlice}
+          onCheckedChange={(v) => set("nineSlice", v)}
+        />
       </div>
     </>
   );
@@ -675,27 +937,48 @@ function VFXConfigForm({
       <div className="space-y-1.5">
         <Label>Effect</Label>
         <Select value={config.action} onValueChange={(v) => set("action", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {VFX_ACTIONS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            {VFX_ACTIONS.map((a) => (
+              <SelectItem key={a} value={a}>
+                {a}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Frame Count</Label>
-        <Select value={config.frameCount} onValueChange={(v) => set("frameCount", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+        <Select
+          value={config.frameCount}
+          onValueChange={(v) => set("frameCount", v)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {VFX_FRAME_COUNTS.map((f) => <SelectItem key={f} value={f}>{f} frames</SelectItem>)}
+            {VFX_FRAME_COUNTS.map((f) => (
+              <SelectItem key={f} value={f}>
+                {f} frames
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1.5">
         <Label>Frame Size</Label>
         <Select value={config.size} onValueChange={(v) => set("size", v)}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {VFX_SIZES.map((s) => <SelectItem key={s} value={s}>{s}px</SelectItem>)}
+            {VFX_SIZES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}px
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -936,10 +1219,26 @@ function Generator() {
     () =>
       buildPrompt(
         assetType,
-        tilesetCfg, spriteCfg, bgCfg, iconCfg, uiCfg, vfxCfg,
-        styleStack, transparent,
+        tilesetCfg,
+        spriteCfg,
+        bgCfg,
+        iconCfg,
+        uiCfg,
+        vfxCfg,
+        styleStack,
+        transparent,
       ),
-    [assetType, tilesetCfg, spriteCfg, bgCfg, iconCfg, uiCfg, vfxCfg, styleStack, transparent],
+    [
+      assetType,
+      tilesetCfg,
+      spriteCfg,
+      bgCfg,
+      iconCfg,
+      uiCfg,
+      vfxCfg,
+      styleStack,
+      transparent,
+    ],
   );
 
   useEffect(() => {
@@ -1056,11 +1355,13 @@ function Generator() {
     <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Left: Controls */}
       <div className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto pb-4 px-2">
-
         {/* Asset type selector */}
         <div className="space-y-1.5">
           <Label>Asset Type</Label>
-          <Select value={assetType} onValueChange={(v) => setAssetType(v as AssetType)}>
+          <Select
+            value={assetType}
+            onValueChange={(v) => setAssetType(v as AssetType)}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -1068,7 +1369,9 @@ function Generator() {
               {ASSET_TYPE_DEFS.map((a) => (
                 <SelectItem key={a.value} value={a.value}>
                   <span>{a.label}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{a.description}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {a.description}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1078,12 +1381,24 @@ function Generator() {
         <div className="h-px bg-border" />
 
         {/* Per-asset configuration form */}
-        {assetType === "tileset"    && <TilesetConfigForm    config={tilesetCfg} onChange={setTilesetCfg} />}
-        {assetType === "sprite"     && <SpriteConfigForm     config={spriteCfg}  onChange={setSpriteCfg}  />}
-        {assetType === "background" && <BackgroundConfigForm config={bgCfg}      onChange={setBgCfg}      />}
-        {assetType === "icon"       && <IconConfigForm       config={iconCfg}    onChange={setIconCfg}    />}
-        {assetType === "ui"         && <UIConfigForm         config={uiCfg}      onChange={setUiCfg}      />}
-        {assetType === "vfx"        && <VFXConfigForm        config={vfxCfg}     onChange={setVfxCfg}     />}
+        {assetType === "tileset" && (
+          <TilesetConfigForm config={tilesetCfg} onChange={setTilesetCfg} />
+        )}
+        {assetType === "sprite" && (
+          <SpriteConfigForm config={spriteCfg} onChange={setSpriteCfg} />
+        )}
+        {assetType === "background" && (
+          <BackgroundConfigForm config={bgCfg} onChange={setBgCfg} />
+        )}
+        {assetType === "icon" && (
+          <IconConfigForm config={iconCfg} onChange={setIconCfg} />
+        )}
+        {assetType === "ui" && (
+          <UIConfigForm config={uiCfg} onChange={setUiCfg} />
+        )}
+        {assetType === "vfx" && (
+          <VFXConfigForm config={vfxCfg} onChange={setVfxCfg} />
+        )}
 
         <div className="h-px bg-border" />
 
@@ -1093,33 +1408,54 @@ function Generator() {
         </p>
         <div className="space-y-1.5">
           <Label>Art Style</Label>
-          <Select value={styleStack.artStyle} onValueChange={(v) => setStyle("artStyle", v)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <Select
+            value={styleStack.artStyle}
+            onValueChange={(v) => setStyle("artStyle", v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {ART_STYLES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Color Palette</Label>
-          <Select value={styleStack.colorPalette} onValueChange={(v) => setStyle("colorPalette", v)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <Select
+            value={styleStack.colorPalette}
+            onValueChange={(v) => setStyle("colorPalette", v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {COLOR_PALETTES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Tile / Sprite Size</Label>
-          <Select value={styleStack.spriteSize} onValueChange={(v) => setStyle("spriteSize", v)}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <Select
+            value={styleStack.spriteSize}
+            onValueChange={(v) => setStyle("spriteSize", v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {SPRITE_SIZES.map((s) => (
-                <SelectItem key={s} value={s}>{s}px</SelectItem>
+                <SelectItem key={s} value={s}>
+                  {s}px
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1127,7 +1463,9 @@ function Generator() {
         <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
           <div className="space-y-0.5">
             <Label className="text-sm">Transparent Background</Label>
-            <p className="text-[10px] text-muted-foreground">Remove background</p>
+            <p className="text-[10px] text-muted-foreground">
+              Remove background
+            </p>
           </div>
           <Switch checked={transparent} onCheckedChange={setTransparent} />
         </div>
