@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { Loader2, X, Upload } from "lucide-react";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - puter.js ships its own types but bundler moduleResolution may not resolve them
-import puter from "@heyputer/puter.js";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -352,10 +349,16 @@ function Generator() {
       initImgMime = parsed.mime;
     }
 
+    console.log(finalPrompt);
+
     setIsGenerating(true);
     setImages(
       Array.from({ length: count }, () => ({ status: "loading" as const })),
     );
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - puter.js ships its own types but bundler moduleResolution may not resolve them
+    const puter = (await import("@heyputer/puter.js")).default;
 
     const results = await Promise.all(
       Array.from({ length: count }, async (_, i) => {

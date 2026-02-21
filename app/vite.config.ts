@@ -50,7 +50,7 @@ export default defineConfig({
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
-        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com https://*.puter.com; " +
+        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com https://*.puter.com wss://*.puter.com; " +
         "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; " +
         "worker-src 'self' blob:; " +
         "object-src 'none'; " +

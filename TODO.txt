@@ -1,5 +1,6 @@
 AI Asset Generation
   Enrich form data
+  Make dropdown: Simple/Pixel Art
   Ability to download/add to tileset/open in image Editor
   History
   Gallery
