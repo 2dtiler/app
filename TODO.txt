@@ -1,10 +1,11 @@
 AI Asset Generation
-  Enrich form data. Did we cover everyting that pixelab does and more?
-  Ability to download/add to tileset/open in image Editor
+  Check out if all native implementations work
+  Allow account based-login instead of api keys
   History
   Gallery
   Scheduler
   Add depleting progress bar to show remaining quota
+  Ability to download/add to tileset/open in image Editor
   
 Layer styling is a bit off in Image/sprite Editor
 Add frame should be a primary button

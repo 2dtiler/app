@@ -104,7 +104,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
       {/* Backdrop */}
       <div
         aria-hidden="true"
-        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-[350ms] ease-out ${
+        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-350 ease-out ${
           isClosing ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
         onClick={onClose}
