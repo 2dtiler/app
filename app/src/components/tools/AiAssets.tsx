@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { Loader2, X, Upload } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, X, Upload, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -17,8 +16,62 @@ import {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type Ratio = "1:1" | "4:3" | "16:9" | "3:4";
 
+// Asset taxonomy
+type AssetType = "tileset" | "sprite" | "background" | "icon" | "ui" | "vfx";
+
+/** Style Stack — shared visual DNA applied to every generated prompt */
+interface StyleStack {
+  artStyle: string;
+  colorPalette: string;
+  spriteSize: string;
+}
+
+// Per-asset configuration interfaces
+interface TilesetConfig {
+  tileType: string;
+  terrain: string;
+  transition: string;
+  maskMode: string;
+  perspective: string;
+  seamless: boolean;
+}
+
+interface SpriteConfig {
+  role: string;
+  animState: string;
+  perspective: string;
+  direction: string;
+  frameCount: string;
+  proportion: string;
+}
+
+interface BackgroundConfig {
+  layer: string;
+  environment: string;
+  mood: string;
+  seamless: boolean;
+}
+
+interface IconConfig {
+  category: string;
+  type: string;
+  rarity: string;
+}
+
+interface UIConfig {
+  elementType: string;
+  theme: string;
+  nineSlice: boolean;
+}
+
+interface VFXConfig {
+  action: string;
+  frameCount: string;
+  size: string;
+}
+
+// Puter model definition
 interface ModelDef {
   id: string;
   label: string;
@@ -31,6 +84,8 @@ interface ModelDef {
   /** Aspect ratios this model supports; undefined = all; empty array = none */
   supportedRatios?: Ratio[];
 }
+
+type Ratio = "1:1" | "4:3" | "16:9" | "3:4";
 
 interface RatioDef {
   value: Ratio;
@@ -111,6 +166,542 @@ const ALL_RATIOS: RatioDef[] = [
 ];
 
 const COUNT_OPTIONS = [1, 2];
+
+// Asset type definitions
+const ASSET_TYPE_DEFS: { value: AssetType; label: string; description: string }[] = [
+  { value: "tileset",    label: "Tileset",       description: "Grid-based environment tiles" },
+  { value: "sprite",     label: "Sprite Sheet",  description: "Animated character frames" },
+  { value: "background", label: "Background",    description: "Parallax scene layers" },
+  { value: "icon",       label: "Item Icon",     description: "Inventory & skill icons" },
+  { value: "ui",         label: "UI Element",    description: "Buttons, panels & HUD" },
+  { value: "vfx",        label: "VFX",           description: "Effects & particle sprites" },
+];
+
+// Style Stack options
+const ART_STYLES = [
+  { value: "pixel art",                   label: "Pixel Art" },
+  { value: "vector art with clean lines", label: "Vector" },
+  { value: "hand-painted",                label: "Hand-Painted" },
+  { value: "cel-shaded",                  label: "Cel-Shaded" },
+  { value: "watercolor",                  label: "Watercolor" },
+];
+
+const COLOR_PALETTES = [
+  { value: "vibrant",          label: "Vibrant" },
+  { value: "pastel",           label: "Pastel" },
+  { value: "muted and gritty", label: "Muted / Gritty" },
+  { value: "monochromatic",    label: "Monochromatic" },
+  { value: "neon",             label: "Neon" },
+  { value: "warm earth tones", label: "Earth Tones" },
+];
+
+const SPRITE_SIZES = ["16x16", "32x32", "64x64", "128x128"];
+
+// Tileset options
+const TILESET_TILE_TYPES = ["Ground", "Wall", "Object / Prop", "Path", "Liquid"];
+const TILESET_TERRAINS = [
+  "Grass", "Dirt", "Sand", "Snow", "Stone", "Cobblestone",
+  "Lava", "Water", "Ice", "Forest Floor", "Mud", "Marble",
+];
+const TILESET_TRANSITIONS = [
+  "None", "Grass", "Dirt", "Sand", "Snow", "Stone", "Lava", "Water", "Ice",
+];
+const MASK_MODES = [
+  { value: "seamless 47-tile blob", label: "47-Tile Blob (organic terrain)" },
+  { value: "16-tile corner mask",   label: "16-Tile Corner (paths & boxes)" },
+  { value: "Wang tile",             label: "Wang Tiles (non-periodic)" },
+  { value: "dual grid",             label: "Dual Grid (biome blending)" },
+];
+const TILESET_PERSPECTIVES = ["Top-down", "Isometric 2:1"];
+
+// Sprite options
+const SPRITE_ROLES = ["Hero / Player", "NPC", "Enemy", "Monster", "Boss"];
+const ANIM_STATES = [
+  { value: "idle",   hint: "2–4 frames, looping" },
+  { value: "walk",   hint: "4–8 frames, looping" },
+  { value: "run",    hint: "8–12 frames, looping" },
+  { value: "attack", hint: "5–10 frames, one-shot" },
+  { value: "jump",   hint: "3–5 frames, one-shot" },
+  { value: "hurt",   hint: "2–4 frames, one-shot" },
+  { value: "die",    hint: "4–8 frames, one-shot" },
+];
+const SPRITE_PERSPECTIVES = [
+  "side-view",
+  "top-down 4-directional",
+  "top-down 8-directional",
+  "isometric",
+];
+const SPRITE_DIRECTIONS = [
+  "South", "South-West", "West", "North-West",
+  "North", "North-East", "East", "South-East",
+];
+const FRAME_COUNTS = ["2", "4", "6", "8", "10", "12"];
+const PROPORTIONS = [
+  { value: "chibi / super-deformed", label: "Chibi (large head, expressive)" },
+  { value: "semi-realistic",         label: "Semi-Realistic" },
+  { value: "realistic proportions",  label: "Realistic" },
+];
+
+// Background options
+const BG_LAYERS = [
+  { value: "foreground",   label: "Foreground (fast scroll)" },
+  { value: "midground",    label: "Midground (standard)" },
+  { value: "far / skybox", label: "Far / Skybox (slow)" },
+];
+const BG_ENVIRONMENTS = [
+  "Forest", "City", "Mountains", "Space", "Desert",
+  "Ocean", "Cave / Underground", "Fantasy Castle", "Sci-fi Station", "Ruins", "Arctic",
+];
+const BG_MOODS = [
+  "Day", "Night", "Dusk", "Dawn", "Spooky", "Mystical", "Stormy", "Post-Apocalyptic",
+];
+
+// Icon options
+const ICON_CATEGORIES = [
+  "Consumable", "Weapon", "Armor / Accessory", "Resource", "Skill / Status",
+];
+const ICON_TYPES: Record<string, string[]> = {
+  "Consumable":        ["Health Potion", "Mana Elixir", "Herb", "Food", "Scroll", "Bomb"],
+  "Weapon":            ["Sword", "Axe", "Bow", "Staff", "Dagger", "Spear", "Wand", "Shield"],
+  "Armor / Accessory": ["Helmet", "Chest Armor", "Gauntlets", "Boots", "Ring", "Amulet", "Cape"],
+  "Resource":          ["Ore", "Wood", "Gem", "Monster Drop", "Crafting Material", "Coin"],
+  "Skill / Status":    ["Fire Spell", "Lightning Spell", "Poison", "Haste", "Shield Buff", "Heal"],
+};
+const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
+
+// UI options
+const UI_ELEMENT_TYPES = [
+  "Button", "Panel / Dialog Box", "Health Bar", "Mana Bar",
+  "Inventory Slot", "Cursor", "Tooltip Box", "Menu Frame",
+];
+const UI_THEMES = [
+  "Fantasy", "Sci-fi", "Minimal / Flat", "Wooden", "Stone", "Metal", "Dark / Gothic",
+];
+
+// VFX options
+const VFX_ACTIONS = [
+  "Explosion", "Fire", "Magic Spell", "Smoke", "Water Splash",
+  "Lightning", "Poison Cloud", "Ice Shard", "Heal Glow", "Dust Puff",
+];
+const VFX_FRAME_COUNTS = ["4", "6", "8", "12", "16"];
+const VFX_SIZES = ["32x32", "64x64", "128x128"];
+
+// ---------------------------------------------------------------------------
+// Prompt builder — Style Stack algorithm
+// ---------------------------------------------------------------------------
+function buildPrompt(
+  assetType: AssetType,
+  tileset: TilesetConfig,
+  sprite: SpriteConfig,
+  bg: BackgroundConfig,
+  icon: IconConfig,
+  ui: UIConfig,
+  vfx: VFXConfig,
+  style: StyleStack,
+  transparent: boolean,
+): string {
+  const px  = style.spriteSize;
+  const art = style.artStyle;
+  const pal = `${style.colorPalette} color palette`;
+  const bgSuffix = transparent ? "transparent background" : "solid background";
+
+  switch (assetType) {
+    case "tileset": {
+      const transStr =
+        tileset.transition !== "None"
+          ? ` blending into ${tileset.transition.toLowerCase()}`
+          : "";
+      const seamlessStr = tileset.seamless ? "seamless " : "";
+      const isoStr =
+        tileset.perspective === "Isometric 2:1"
+          ? "isometric 2:1 ratio, "
+          : "top-down view, ";
+      return (
+        `${seamlessStr}${tileset.maskMode} autotile set of ` +
+        `${tileset.terrain.toLowerCase()} ${tileset.tileType.toLowerCase()} terrain${transStr}. ` +
+        `${isoStr}${px}px per tile, ` +
+        `${art} style, ${pal}, ` +
+        `clean grid layout, high contrast, ${bgSuffix}.`
+      );
+    }
+    case "sprite": {
+      const dirStr =
+        !sprite.perspective.startsWith("side") && sprite.direction !== "None"
+          ? `, facing ${sprite.direction.toLowerCase()}`
+          : "";
+      return (
+        `Horizontal sprite sheet of a ${sprite.proportion} ${sprite.role.toLowerCase()} ` +
+        `in a ${sprite.frameCount}-frame ${sprite.perspective} ${sprite.animState} animation${dirStr}. ` +
+        `Each frame ${px}px, consistent proportions across all frames, ` +
+        `${art} style, ${pal}, ${bgSuffix}.`
+      );
+    }
+    case "background": {
+      const seamlessStr = bg.seamless ? "seamless horizontally tiling " : "";
+      return (
+        `${seamlessStr}${bg.layer} parallax background layer, ` +
+        `${bg.mood.toLowerCase()} ${bg.environment.toLowerCase()} environment. ` +
+        `Atmospheric depth, ${art} style, ${pal}, ` +
+        `wide aspect ratio, no UI elements, ${bgSuffix}.`
+      );
+    }
+    case "icon": {
+      const rarityStr =
+        icon.rarity !== "Common" ? `${icon.rarity.toLowerCase()} quality, ` : "";
+      return (
+        `Single item icon of a ${rarityStr}${icon.type.toLowerCase()} (${icon.category.toLowerCase()}). ` +
+        `${px}px, centered composition, ` +
+        `${art} style, ${pal}, ` +
+        `sharp linework, readable silhouette, ${bgSuffix}.`
+      );
+    }
+    case "ui": {
+      const nineSliceStr = ui.nineSlice
+        ? "designed for 9-slice scaling with fixed corners and scalable edges, "
+        : "";
+      return (
+        `${ui.theme} ${ui.elementType.toLowerCase()} UI graphic. ` +
+        `${nineSliceStr}` +
+        `${art} style, ${pal}, ` +
+        `clean lines, centered for text placement if applicable, ${bgSuffix}.`
+      );
+    }
+    case "vfx": {
+      return (
+        `${vfx.frameCount}-frame ${art} ${vfx.action.toLowerCase()} VFX animation sprite sheet. ` +
+        `${vfx.size}px frames arranged in a horizontal strip, outward expansion, ` +
+        `${pal}, high contrast, ${bgSuffix}.`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-asset configuration forms
+// ---------------------------------------------------------------------------
+function TilesetConfigForm({
+  config,
+  onChange,
+}: {
+  config: TilesetConfig;
+  onChange: (c: TilesetConfig) => void;
+}) {
+  const set = <K extends keyof TilesetConfig>(k: K, v: TilesetConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Tile Type</Label>
+        <Select value={config.tileType} onValueChange={(v) => set("tileType", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TILESET_TILE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Terrain</Label>
+        <Select value={config.terrain} onValueChange={(v) => set("terrain", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TILESET_TERRAINS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Transition To</Label>
+        <Select value={config.transition} onValueChange={(v) => set("transition", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TILESET_TRANSITIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Autotile Mode</Label>
+        <Select value={config.maskMode} onValueChange={(v) => set("maskMode", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {MASK_MODES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Perspective</Label>
+        <Select value={config.perspective} onValueChange={(v) => set("perspective", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TILESET_PERSPECTIVES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <Label className="text-sm">Seamless Tiling</Label>
+        <Switch checked={config.seamless} onCheckedChange={(v) => set("seamless", v)} />
+      </div>
+    </>
+  );
+}
+
+function SpriteConfigForm({
+  config,
+  onChange,
+}: {
+  config: SpriteConfig;
+  onChange: (c: SpriteConfig) => void;
+}) {
+  const set = <K extends keyof SpriteConfig>(k: K, v: SpriteConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  const showDirection = !config.perspective.startsWith("side");
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Role</Label>
+        <Select value={config.role} onValueChange={(v) => set("role", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SPRITE_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Animation State</Label>
+        <Select value={config.animState} onValueChange={(v) => set("animState", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ANIM_STATES.map((a) => (
+              <SelectItem key={a.value} value={a.value}>
+                {a.value.charAt(0).toUpperCase() + a.value.slice(1)}
+                <span className="ml-1 text-muted-foreground">({a.hint})</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Perspective</Label>
+        <Select value={config.perspective} onValueChange={(v) => set("perspective", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SPRITE_PERSPECTIVES.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {showDirection && (
+        <div className="space-y-1.5">
+          <Label>Direction</Label>
+          <Select value={config.direction} onValueChange={(v) => set("direction", v)}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SPRITE_DIRECTIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <Label>Frame Count</Label>
+        <Select value={config.frameCount} onValueChange={(v) => set("frameCount", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FRAME_COUNTS.map((f) => <SelectItem key={f} value={f}>{f} frames</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Proportion Style</Label>
+        <Select value={config.proportion} onValueChange={(v) => set("proportion", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {PROPORTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
+function BackgroundConfigForm({
+  config,
+  onChange,
+}: {
+  config: BackgroundConfig;
+  onChange: (c: BackgroundConfig) => void;
+}) {
+  const set = <K extends keyof BackgroundConfig>(k: K, v: BackgroundConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Parallax Layer</Label>
+        <Select value={config.layer} onValueChange={(v) => set("layer", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {BG_LAYERS.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Environment</Label>
+        <Select value={config.environment} onValueChange={(v) => set("environment", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {BG_ENVIRONMENTS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Mood / Time of Day</Label>
+        <Select value={config.mood} onValueChange={(v) => set("mood", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {BG_MOODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm">Seamless Loop</Label>
+          <p className="text-[10px] text-muted-foreground">Horizontal tiling</p>
+        </div>
+        <Switch checked={config.seamless} onCheckedChange={(v) => set("seamless", v)} />
+      </div>
+    </>
+  );
+}
+
+function IconConfigForm({
+  config,
+  onChange,
+}: {
+  config: IconConfig;
+  onChange: (c: IconConfig) => void;
+}) {
+  const set = <K extends keyof IconConfig>(k: K, v: IconConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  const typeOptions = ICON_TYPES[config.category] ?? [];
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Category</Label>
+        <Select
+          value={config.category}
+          onValueChange={(v) =>
+            onChange({ ...config, category: v, type: ICON_TYPES[v]?.[0] ?? "" })
+          }
+        >
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ICON_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Type</Label>
+        <Select value={config.type} onValueChange={(v) => set("type", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {typeOptions.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Rarity</Label>
+        <Select value={config.rarity} onValueChange={(v) => set("rarity", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {RARITIES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
+function UIConfigForm({
+  config,
+  onChange,
+}: {
+  config: UIConfig;
+  onChange: (c: UIConfig) => void;
+}) {
+  const set = <K extends keyof UIConfig>(k: K, v: UIConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Element Type</Label>
+        <Select value={config.elementType} onValueChange={(v) => set("elementType", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {UI_ELEMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Theme</Label>
+        <Select value={config.theme} onValueChange={(v) => set("theme", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {UI_THEMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm">9-Slice Ready</Label>
+          <p className="text-[10px] text-muted-foreground">Fixed corners, scalable edges</p>
+        </div>
+        <Switch checked={config.nineSlice} onCheckedChange={(v) => set("nineSlice", v)} />
+      </div>
+    </>
+  );
+}
+
+function VFXConfigForm({
+  config,
+  onChange,
+}: {
+  config: VFXConfig;
+  onChange: (c: VFXConfig) => void;
+}) {
+  const set = <K extends keyof VFXConfig>(k: K, v: VFXConfig[K]) =>
+    onChange({ ...config, [k]: v });
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Effect</Label>
+        <Select value={config.action} onValueChange={(v) => set("action", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {VFX_ACTIONS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Frame Count</Label>
+        <Select value={config.frameCount} onValueChange={(v) => set("frameCount", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {VFX_FRAME_COUNTS.map((f) => <SelectItem key={f} value={f}>{f} frames</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Frame Size</Label>
+        <Select value={config.size} onValueChange={(v) => set("size", v)}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {VFX_SIZES.map((s) => <SelectItem key={s} value={s}>{s}px</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Image Upload helper component
@@ -277,74 +868,114 @@ function ImageCell({ state, index }: { state: ImageState; index: number }) {
 // Generator (main UI)
 // ---------------------------------------------------------------------------
 function Generator() {
-  const [mode, setMode] = useState<"simple" | "pixel">("simple");
+  // Asset type
+  const [assetType, setAssetType] = useState<AssetType>("tileset");
 
-  // Simple mode state
-  const [prompt, setPrompt] = useState("");
-  const [view, setView] = useState("None");
-  const [direction, setDirection] = useState("None");
-  const [initImage, setInitImage] = useState<string | null>(null);
-  const [ratio, setRatio] = useState<Ratio>("1:1");
+  // Per-asset configs
+  const [tilesetCfg, setTilesetCfg] = useState<TilesetConfig>({
+    tileType: "Ground",
+    terrain: "Grass",
+    transition: "None",
+    maskMode: "seamless 47-tile blob",
+    perspective: "Top-down",
+    seamless: true,
+  });
+  const [spriteCfg, setSpriteCfg] = useState<SpriteConfig>({
+    role: "Hero / Player",
+    animState: "idle",
+    perspective: "side-view",
+    direction: "South",
+    frameCount: "4",
+    proportion: "semi-realistic",
+  });
+  const [bgCfg, setBgCfg] = useState<BackgroundConfig>({
+    layer: "midground",
+    environment: "Forest",
+    mood: "Day",
+    seamless: true,
+  });
+  const [iconCfg, setIconCfg] = useState<IconConfig>({
+    category: "Consumable",
+    type: "Health Potion",
+    rarity: "Common",
+  });
+  const [uiCfg, setUiCfg] = useState<UIConfig>({
+    elementType: "Button",
+    theme: "Fantasy",
+    nineSlice: false,
+  });
+  const [vfxCfg, setVfxCfg] = useState<VFXConfig>({
+    action: "Explosion",
+    frameCount: "8",
+    size: "64x64",
+  });
+
+  // Style Stack
+  const [styleStack, setStyleStack] = useState<StyleStack>({
+    artStyle: "pixel art",
+    colorPalette: "vibrant",
+    spriteSize: "32x32",
+  });
   const [transparent, setTransparent] = useState(false);
 
-  // Pixel mode state
-  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  // Prompt (auto-generated but editable)
+  const [generatedPrompt, setGeneratedPrompt] = useState("");
+  const [isPromptEdited, setIsPromptEdited] = useState(false);
 
+  // Model + generation
   const [selectedId, setSelectedId] = useState(MODELS[0].id);
   const [count, setCount] = useState(2);
   const [images, setImages] = useState<ImageState[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [initImage, setInitImage] = useState<string | null>(null);
 
   const selectedModel = MODELS.find((m) => m.id === selectedId) ?? MODELS[0];
 
-  // Ratios available for the current model
+  // Auto-rebuild the prompt whenever config/style changes (unless user edited manually)
+  const autoPrompt = useCallback(
+    () =>
+      buildPrompt(
+        assetType,
+        tilesetCfg, spriteCfg, bgCfg, iconCfg, uiCfg, vfxCfg,
+        styleStack, transparent,
+      ),
+    [assetType, tilesetCfg, spriteCfg, bgCfg, iconCfg, uiCfg, vfxCfg, styleStack, transparent],
+  );
+
+  useEffect(() => {
+    if (!isPromptEdited) {
+      setGeneratedPrompt(autoPrompt());
+    }
+  }, [autoPrompt, isPromptEdited]);
+
+  const resetPrompt = () => {
+    setIsPromptEdited(false);
+    setGeneratedPrompt(autoPrompt());
+  };
+
+  // Resolve effective ratio for provider size options (prefer 1:1 square)
   const availableRatios =
     selectedModel.supportedRatios !== undefined
       ? ALL_RATIOS.filter((r) =>
           (selectedModel.supportedRatios as Ratio[]).includes(r.value),
         )
       : ALL_RATIOS;
-
-  // Fall back to first available ratio when the current one is not supported
   const effectiveRatio =
-    availableRatios.find((r) => r.value === ratio) ??
+    availableRatios.find((r) => r.value === "1:1") ??
     availableRatios[0] ??
     ALL_RATIOS[0];
 
-  const showRatioSelector = availableRatios.length > 0;
-  const showInitImage = mode === "simple" && selectedModel.supportsImg2Img;
-  const pixelModeSupported = selectedModel.supportsImg2Img;
-
-  const canGenerate =
-    !isGenerating &&
-    selectedModel !== undefined &&
-    (mode === "simple"
-      ? prompt.trim().length > 0
-      : pixelModeSupported && sourceImage !== null);
+  const canGenerate = !isGenerating && generatedPrompt.trim().length > 0;
 
   const generate = async () => {
-    if (isGenerating || !selectedModel) return;
+    if (!canGenerate || !selectedModel) return;
 
-    let finalPrompt = "";
+    const finalPrompt = generatedPrompt.trim();
     let initImgB64: string | null = null;
     let initImgMime: string | null = null;
 
-    if (mode === "simple") {
-      if (!prompt.trim()) return;
-      finalPrompt = prompt.trim();
-      if (view !== "None") finalPrompt += `, ${view} view`;
-      if (direction !== "None") finalPrompt += `, facing ${direction}`;
-      finalPrompt += ", pixel art, 8-bit, retro game art";
-      if (transparent) finalPrompt += ", transparent background";
-      if (initImage && selectedModel.supportsImg2Img) {
-        const parsed = parseDataUrl(initImage);
-        initImgB64 = parsed.b64;
-        initImgMime = parsed.mime;
-      }
-    } else {
-      if (!sourceImage || !selectedModel.supportsImg2Img) return;
-      finalPrompt = "pixel art, 8-bit, retro game art";
-      const parsed = parseDataUrl(sourceImage);
+    if (initImage && selectedModel.supportsImg2Img) {
+      const parsed = parseDataUrl(initImage);
       initImgB64 = parsed.b64;
       initImgMime = parsed.mime;
     }
@@ -369,7 +1000,6 @@ function Generator() {
             model: selectedModel.puterModel,
           };
 
-          // Provider-specific size + img2img options
           if (selectedModel.provider === "openai-image-generation") {
             options.ratio = { w: effectiveRatio.w, h: effectiveRatio.h };
           } else if (selectedModel.provider === "together") {
@@ -414,6 +1044,9 @@ function Generator() {
     },
   );
 
+  const setStyle = <K extends keyof StyleStack>(k: K, v: StyleStack[K]) =>
+    setStyleStack((prev) => ({ ...prev, [k]: v }));
+
   const cols = count <= 1 ? 1 : count <= 4 ? 2 : 3;
   const gridColClass =
     cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
@@ -422,129 +1055,122 @@ function Generator() {
   return (
     <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Left: Controls */}
-      <div className="flex w-64 shrink-0 flex-col gap-4 overflow-y-auto pb-4 px-2">
-        <Tabs
-          value={mode}
-          onValueChange={(v) => setMode(v as "simple" | "pixel")}
-        >
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="simple" className="text-xs">
-              Simple
-            </TabsTrigger>
-            <TabsTrigger value="pixel" className="text-xs">
-              Pixel Art
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto pb-4 px-2">
 
-        {mode === "simple" && (
-          <>
-            <div className="space-y-1.5">
-              <Label htmlFor="ai-prompt">Prompt</Label>
-              <textarea
-                id="ai-prompt"
-                className="flex min-h-20 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder="Describe the image to generate..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
-            </div>
+        {/* Asset type selector */}
+        <div className="space-y-1.5">
+          <Label>Asset Type</Label>
+          <Select value={assetType} onValueChange={(v) => setAssetType(v as AssetType)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ASSET_TYPE_DEFS.map((a) => (
+                <SelectItem key={a.value} value={a.value}>
+                  <span>{a.label}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{a.description}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="space-y-1.5">
-              <Label>View</Label>
-              <Select value={view} onValueChange={setView}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Side">Side</SelectItem>
-                  <SelectItem value="Low top-down">Low top-down</SelectItem>
-                  <SelectItem value="High top-down">High top-down</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="h-px bg-border" />
 
-            <div className="space-y-1.5">
-              <Label>Direction</Label>
-              <Select value={direction} onValueChange={setDirection}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="South">South (facing camera)</SelectItem>
-                  <SelectItem value="South-West">South-West</SelectItem>
-                  <SelectItem value="West">West (facing left)</SelectItem>
-                  <SelectItem value="North-West">North-West</SelectItem>
-                  <SelectItem value="North">North (facing away)</SelectItem>
-                  <SelectItem value="North-East">North-East</SelectItem>
-                  <SelectItem value="East">East (facing right)</SelectItem>
-                  <SelectItem value="South-East">South-East</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Per-asset configuration form */}
+        {assetType === "tileset"    && <TilesetConfigForm    config={tilesetCfg} onChange={setTilesetCfg} />}
+        {assetType === "sprite"     && <SpriteConfigForm     config={spriteCfg}  onChange={setSpriteCfg}  />}
+        {assetType === "background" && <BackgroundConfigForm config={bgCfg}      onChange={setBgCfg}      />}
+        {assetType === "icon"       && <IconConfigForm       config={iconCfg}    onChange={setIconCfg}    />}
+        {assetType === "ui"         && <UIConfigForm         config={uiCfg}      onChange={setUiCfg}      />}
+        {assetType === "vfx"        && <VFXConfigForm        config={vfxCfg}     onChange={setVfxCfg}     />}
 
-            {showInitImage && (
-              <ImageUpload
-                label="Init Image (Optional)"
-                value={initImage}
-                onChange={setInitImage}
-              />
+        <div className="h-px bg-border" />
+
+        {/* Style Stack */}
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Style Stack
+        </p>
+        <div className="space-y-1.5">
+          <Label>Art Style</Label>
+          <Select value={styleStack.artStyle} onValueChange={(v) => setStyle("artStyle", v)}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ART_STYLES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Color Palette</Label>
+          <Select value={styleStack.colorPalette} onValueChange={(v) => setStyle("colorPalette", v)}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {COLOR_PALETTES.map((p) => (
+                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Tile / Sprite Size</Label>
+          <Select value={styleStack.spriteSize} onValueChange={(v) => setStyle("spriteSize", v)}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SPRITE_SIZES.map((s) => (
+                <SelectItem key={s} value={s}>{s}px</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+          <div className="space-y-0.5">
+            <Label className="text-sm">Transparent Background</Label>
+            <p className="text-[10px] text-muted-foreground">Remove background</p>
+          </div>
+          <Switch checked={transparent} onCheckedChange={setTransparent} />
+        </div>
+
+        <div className="h-px bg-border" />
+
+        {/* Generated prompt — editable */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="ai-prompt">Prompt</Label>
+            {isPromptEdited && (
+              <button
+                onClick={resetPrompt}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset
+              </button>
             )}
+          </div>
+          <textarea
+            id="ai-prompt"
+            className="flex min-h-24 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={generatedPrompt}
+            onChange={(e) => {
+              setGeneratedPrompt(e.target.value);
+              setIsPromptEdited(true);
+            }}
+          />
+        </div>
 
-            {showRatioSelector && (
-              <div className="space-y-1.5">
-                <Label>Aspect Ratio</Label>
-                <Select
-                  value={effectiveRatio.value}
-                  onValueChange={(v) => setRatio(v as Ratio)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableRatios.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-              <div className="space-y-0.5">
-                <Label className="text-sm">Transparent</Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Remove background
-                </p>
-              </div>
-              <Switch checked={transparent} onCheckedChange={setTransparent} />
-            </div>
-          </>
+        {/* Reference image (img2img models only) */}
+        {selectedModel.supportsImg2Img && (
+          <ImageUpload
+            label="Reference Image (Optional)"
+            value={initImage}
+            onChange={setInitImage}
+          />
         )}
 
-        {mode === "pixel" && (
-          <>
-            {pixelModeSupported ? (
-              <ImageUpload
-                label="Source Image"
-                value={sourceImage}
-                onChange={setSourceImage}
-              />
-            ) : (
-              <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
-                The selected model does not support image-to-image. Switch to
-                Gemini or FLUX.1 Schnell for Pixel Art conversion.
-              </div>
-            )}
-          </>
-        )}
+        <div className="h-px bg-border" />
 
-        <div className="my-2 h-px bg-border" />
-
+        {/* Model + count */}
         <div className="space-y-1.5">
           <Label>Model</Label>
           <Select value={selectedId} onValueChange={setSelectedId}>
@@ -621,7 +1247,7 @@ function Generator() {
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="select-none text-sm text-muted-foreground">
-              Enter a prompt and click Generate to create images.
+              Configure an asset type and click Generate.
             </p>
           </div>
         )}

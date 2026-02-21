@@ -1,6 +1,5 @@
 AI Asset Generation
-  Enrich form data
-  Make dropdown: Simple/Pixel Art
+  Enrich form data. Did we cover everyting that pixelab does and more?
   Ability to download/add to tileset/open in image Editor
   History
   Gallery
