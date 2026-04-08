@@ -49,37 +49,70 @@ export const Toolbar = memo(function Toolbar({
             File
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onMouseDown={onNewProject}>
+            <MenubarItem onMouseDown={onNewProject} className="cursor-pointer">
               Manage Projects
               <MenubarShortcut>⌘N</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem onMouseDown={onSaveProject}>
+            <MenubarItem onMouseDown={onSaveProject} className="cursor-pointer">
               Save Project
               <MenubarShortcut>⌘S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarSub>
-              <MenubarSubTrigger>Import</MenubarSubTrigger>
+              <MenubarSubTrigger className="cursor-pointer">
+                Import
+              </MenubarSubTrigger>
               <MenubarSubContent>
-                <MenubarItem onMouseDown={onImportProject}>
-                  Project (.2dp)
+                <MenubarItem
+                  onMouseDown={onImportProject}
+                  className="cursor-pointer"
+                >
+                  2d Tiler Project (.2dp)
                 </MenubarItem>
-                <MenubarItem onMouseDown={onImportMap}>Map</MenubarItem>
-                <MenubarItem onMouseDown={onImportTileset}>Tileset</MenubarItem>
+                <MenubarItem
+                  onMouseDown={onImportMap}
+                  className="cursor-pointer"
+                >
+                  Map
+                </MenubarItem>
+                <MenubarItem
+                  onMouseDown={onImportTileset}
+                  className="cursor-pointer"
+                >
+                  Tileset
+                </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSub>
-              <MenubarSubTrigger>Export</MenubarSubTrigger>
+              <MenubarSubTrigger className="cursor-pointer">
+                Export
+              </MenubarSubTrigger>
               <MenubarSubContent>
-                <MenubarItem onMouseDown={onExportProject}>
-                  Project (.2dp)
+                <MenubarItem
+                  onMouseDown={onExportProject}
+                  className="cursor-pointer"
+                >
+                  2d Tiler Project (.2dp)
                 </MenubarItem>
-                <MenubarItem onMouseDown={onExportMap}>Map</MenubarItem>
-                <MenubarItem onMouseDown={onExportTileset}>Tileset</MenubarItem>
+                <MenubarItem
+                  onMouseDown={onExportMap}
+                  className="cursor-pointer"
+                >
+                  Map
+                </MenubarItem>
+                <MenubarItem
+                  onMouseDown={onExportTileset}
+                  className="cursor-pointer"
+                >
+                  Tileset
+                </MenubarItem>
               </MenubarSubContent>
             </MenubarSub>
             <MenubarSeparator />
-            <MenubarItem onMouseDown={onOpenSettings}>
+            <MenubarItem
+              onMouseDown={onOpenSettings}
+              className="cursor-pointer"
+            >
               Settings
               <MenubarShortcut>⌘,</MenubarShortcut>
             </MenubarItem>
@@ -106,7 +139,7 @@ export const Toolbar = memo(function Toolbar({
               <MenubarShortcut>⇧⌘Z</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onMouseDown={onFindReplace}>
+            <MenubarItem onMouseDown={onFindReplace} className="cursor-pointer">
               Find and Replace
               <MenubarShortcut>⌘H</MenubarShortcut>
             </MenubarItem>
@@ -131,6 +164,7 @@ export const Toolbar = memo(function Toolbar({
                 toolOpeningRef.current = true;
                 onOpenTool("image-editor");
               }}
+              className="cursor-pointer"
             >
               Image/Sprite Editor
             </MenubarItem>
@@ -139,6 +173,7 @@ export const Toolbar = memo(function Toolbar({
                 toolOpeningRef.current = true;
                 onOpenTool("ai-assets");
               }}
+              className="cursor-pointer"
             >
               AI Assets Generator
             </MenubarItem>
@@ -150,12 +185,19 @@ export const Toolbar = memo(function Toolbar({
             Help
           </MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onMouseDown={onAbout}>About</MenubarItem>
-            <MenubarItem onMouseDown={onKeyboardShortcuts}>
+            <MenubarItem onMouseDown={onAbout} className="cursor-pointer">
+              About
+            </MenubarItem>
+            <MenubarItem
+              onMouseDown={onKeyboardShortcuts}
+              className="cursor-pointer"
+            >
               Keyboard Shortcuts
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onMouseDown={onSubmitBug}>Submit Bug</MenubarItem>
+            <MenubarItem onMouseDown={onSubmitBug} className="cursor-pointer">
+              Submit Bug
+            </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
       </Menubar>

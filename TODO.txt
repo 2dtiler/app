@@ -1,4 +1,8 @@
+Export Options
+Import Options
+
 AI Asset Generation
+  AI Generation not working currently
   Check out if all native implementations work
   Allow account based-login instead of api keys
   History
@@ -9,8 +13,6 @@ AI Asset Generation
   
 Layer styling is a bit off in Image/sprite Editor
 Add frame should be a primary button
-Export Options
-Import Options
 Get some ideas from pixelorama (Installed)
 Palettes: Allow to select amount of columns per row
 Add opacity to image objects. Can be selected from palette menu
