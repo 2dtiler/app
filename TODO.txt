@@ -1,4 +1,6 @@
-Clean up Zero Design
+- Fill terrain should show an outline
+- Fill terrain selected items add button should be cursor-pointer
+
 Make mobile friendly
 Import Options
 Export Options

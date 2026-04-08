@@ -173,9 +173,7 @@ export function FillTerrainDialog({
   // -----------------------------------------------------------------------
   const handleTilesetChange = useCallback((tilesetId: string) => {
     setSelectedTilesetId(tilesetId as TilesetId);
-    setTerrainTiles([]);
     setCanvasSelectedTile(null);
-    setSelectedTerrainId(null);
   }, []);
 
   // -----------------------------------------------------------------------
@@ -326,7 +324,7 @@ export function FillTerrainDialog({
           <TerrainTileSelector
             tiles={terrainTiles}
             onTilesChange={setTerrainTiles}
-            tilesetAssetId={activeTileset?.assetId ?? null}
+            tilesets={tilesets}
             tileSize={state.tileSize}
           />
         </div>

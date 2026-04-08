@@ -76,7 +76,7 @@ export const LayerRow = memo(function LayerRow({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "layer-item group/item relative flex items-center gap-2 border-b border-border px-3 py-3 text-sm transition-colors",
+            "layer-item group/item relative flex items-center gap-1 border-b border-border px-3 py-3 text-sm transition-colors",
             isActive
               ? "bg-secondary text-foreground"
               : "text-foreground hover:bg-accent",
@@ -109,15 +109,15 @@ export const LayerRow = memo(function LayerRow({
             className="shrink-0 cursor-grab text-text-disabled transition-opacity active:cursor-grabbing group-hover/item:text-text-secondary"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-3 w-3" />
           </span>
 
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon-xs"
-                className="shrink-0"
+                size="icon"
+                className="h-5 w-5 shrink-0"
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(layer.id, false);
@@ -137,8 +137,8 @@ export const LayerRow = memo(function LayerRow({
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon-xs"
-                className="shrink-0"
+                size="icon"
+                className="h-5 w-5 shrink-0"
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleLock(layer.id, false);
@@ -154,13 +154,13 @@ export const LayerRow = memo(function LayerRow({
             <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
           </Tooltip>
 
-          <span className="shrink-0 text-text-secondary">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
             {layer.type === "image" ? (
-              <Image className="h-3.5 w-3.5" />
+              <Image className="h-3 w-3" />
             ) : layer.type === "object" ? (
-              <Shapes className="h-3.5 w-3.5" />
+              <Shapes className="h-3 w-3" />
             ) : (
-              <Grid3X3 className="h-3.5 w-3.5" />
+              <Grid3X3 className="h-3 w-3" />
             )}
           </span>
 
@@ -179,10 +179,10 @@ export const LayerRow = memo(function LayerRow({
             />
           ) : (
             <div
-              className="min-w-0 flex-1"
+              className="min-w-0 flex-1 basis-0 overflow-hidden"
               onDoubleClick={() => onDoubleClick(layer.id, layer.name)}
             >
-              <div className="font-mono text-[10px] uppercase tracking-widest text-text-secondary">
+              <div className="truncate font-mono text-[10px] uppercase tracking-widest text-text-secondary">
                 {layerKind}
               </div>
               <div className="mt-1 truncate text-[13px] leading-none text-foreground">
@@ -191,12 +191,13 @@ export const LayerRow = memo(function LayerRow({
             </div>
           )}
 
-          <div className="absolute top-0 right-0 bottom-0 z-20 flex items-center gap-1 bg-linear-to-l from-background via-background/96 to-transparent pl-6 pr-2 opacity-0 transition-opacity group-hover/item:opacity-100 group-focus-within/item:opacity-100">
+          <div className="flex shrink-0 items-center gap-0 pr-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
+                  className="h-5 w-5"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(layer.id, "up", parentGroupId);
@@ -211,7 +212,8 @@ export const LayerRow = memo(function LayerRow({
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
+                  className="h-5 w-5"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(layer.id, "down", parentGroupId);
@@ -225,8 +227,9 @@ export const LayerRow = memo(function LayerRow({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="destructive"
-                  size="icon-xs"
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-destructive"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onDelete(layer.id, layer.name);

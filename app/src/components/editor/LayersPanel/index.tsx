@@ -983,9 +983,6 @@ export function LayersPanel() {
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary">
             Layers
           </p>
-          <p className="mt-2 text-lg leading-none tracking-[-0.02em] text-foreground">
-            {treeNodes.length} items
-          </p>
         </div>
         <Button
           variant="outline"

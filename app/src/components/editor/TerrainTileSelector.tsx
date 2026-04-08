@@ -23,7 +23,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { getAssetUrl } from "@/lib/db";
-import type { AssetId, TileSize, TerrainTile } from "@/types";
+import type { TileSize, TerrainTile, Tileset } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,7 +32,7 @@ import type { AssetId, TileSize, TerrainTile } from "@/types";
 interface TerrainTileSelectorProps {
   tiles: TerrainTile[];
   onTilesChange: (tiles: TerrainTile[]) => void;
-  tilesetAssetId: AssetId | null;
+  tilesets: Tileset[];
   tileSize: TileSize;
 }
 
@@ -87,45 +87,54 @@ function TilePreview({
 export function TerrainTileSelector({
   tiles,
   onTilesChange,
-  tilesetAssetId,
+  tilesets,
 }: TerrainTileSelectorProps) {
-  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
-    null,
-  );
-
-  // Clear image synchronously during render when asset is removed (avoids
-  // the "setState in effect" lint error).
-  const [prevAssetId, setPrevAssetId] = useState(tilesetAssetId);
-  if (tilesetAssetId !== prevAssetId) {
-    setPrevAssetId(tilesetAssetId);
-    if (!tilesetAssetId) {
-      setTilesetImage(null);
-    }
-  }
+  // Map of assetId -> loaded HTMLImageElement for mini-previews
+  const [tilesetImages, setTilesetImages] = useState<
+    Map<string, HTMLImageElement>
+  >(new Map());
 
   // -----------------------------------------------------------------------
-  // Load the tileset image for mini-previews
+  // Load tileset images for each unique assetId referenced by current tiles
   // -----------------------------------------------------------------------
   useEffect(() => {
-    if (!tilesetAssetId) return;
-    let revoke: string | null = null;
+    const neededAssetIds = new Set(
+      tiles
+        .map((t) => {
+          const ts = tilesets.find((s) => s.id === t.tileRef.tilesetId);
+          return ts?.assetId ?? null;
+        })
+        .filter(Boolean) as string[],
+    );
+
+    const revokes: string[] = [];
     let cancelled = false;
 
-    getAssetUrl(tilesetAssetId).then((url) => {
-      if (cancelled || !url) return;
-      revoke = url;
-      const img = new Image();
-      img.onload = () => {
-        if (!cancelled) setTilesetImage(img);
-      };
-      img.src = url;
+    neededAssetIds.forEach((assetId) => {
+      if (tilesetImages.has(assetId)) return; // already loaded
+      getAssetUrl(assetId as Parameters<typeof getAssetUrl>[0]).then((url) => {
+        if (cancelled || !url) return;
+        revokes.push(url);
+        const img = new Image();
+        img.onload = () => {
+          if (!cancelled) {
+            setTilesetImages((prev) => {
+              const next = new Map(prev);
+              next.set(assetId, img);
+              return next;
+            });
+          }
+        };
+        img.src = url;
+      });
     });
 
     return () => {
       cancelled = true;
-      if (revoke) URL.revokeObjectURL(revoke);
+      revokes.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [tilesetAssetId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tiles, tilesets]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -159,46 +168,50 @@ export function TerrainTileSelector({
 
       <div className="flex gap-3 overflow-x-auto pb-2">
         {/* Filled tile slots */}
-        {tiles.map((entry, index) => (
-          <div
-            key={index}
-            className="flex flex-col items-center gap-1.5 shrink-0 p-2 rounded-md border border-border bg-muted/30"
-          >
-            {/* Mini tile preview */}
-            <div className="relative">
-              <TilePreview
-                image={tilesetImage}
-                sx={entry.tileRef.sx}
-                sy={entry.tileRef.sy}
-                sw={entry.tileRef.sw}
-                sh={entry.tileRef.sh}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onMouseDown={() => handleRemove(index)}
-              >
-                <X className="h-2.5 w-2.5" />
-              </Button>
-            </div>
+        {tiles.map((entry, index) => {
+          const ts = tilesets.find((s) => s.id === entry.tileRef.tilesetId);
+          const tileImage = ts ? (tilesetImages.get(ts.assetId) ?? null) : null;
+          return (
+            <div
+              key={index}
+              className="flex flex-col items-center gap-1.5 shrink-0 p-2 rounded-md border border-border bg-muted/30"
+            >
+              {/* Mini tile preview */}
+              <div className="relative">
+                <TilePreview
+                  image={tileImage}
+                  sx={entry.tileRef.sx}
+                  sy={entry.tileRef.sy}
+                  sw={entry.tileRef.sw}
+                  sh={entry.tileRef.sh}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onMouseDown={() => handleRemove(index)}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </Button>
+              </div>
 
-            {/* Probability slider */}
-            <div className="flex items-center gap-1.5 w-24">
-              <Slider
-                min={0}
-                max={100}
-                step={1}
-                value={[entry.probability]}
-                onValueChange={([v]) => handleProbabilityChange(index, v)}
-                className="flex-1"
-              />
-              <span className="text-[10px] text-muted-foreground w-7 text-right tabular-nums">
-                {entry.probability}%
-              </span>
+              {/* Probability slider */}
+              <div className="flex items-center gap-1.5 w-24">
+                <Slider
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[entry.probability]}
+                  onValueChange={([v]) => handleProbabilityChange(index, v)}
+                  className="flex-1"
+                />
+                <span className="text-[10px] text-muted-foreground w-7 text-right tabular-nums">
+                  {entry.probability}%
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Empty placeholder slot — indicates where the next tile will go */}
         <div className="flex items-center justify-center shrink-0 w-13 h-13 rounded-md border-2 border-dashed border-muted-foreground/30 text-muted-foreground/40 self-start mt-2">

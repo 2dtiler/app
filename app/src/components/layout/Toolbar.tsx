@@ -222,7 +222,6 @@ export const Toolbar = memo(function Toolbar({
           type="button"
           className={cn(
             "inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-visible bg-background text-text-secondary transition-colors hover:text-foreground",
-            activeTheme === "dark" && "bg-primary text-primary-foreground",
           )}
           onClick={() => setTheme(nextTheme)}
           aria-pressed={activeTheme === "dark"}
