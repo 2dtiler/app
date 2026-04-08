@@ -525,6 +525,7 @@ export function TilesetPanel() {
           onZoomChange={handleSetTilesetZoom}
           selectedTile={canvasSelectedTile}
           onTileSelect={handleTileSelect}
+          selectionMode="rectangle"
           className="flex-1 min-h-0"
           placeholder={
             groupTilesets.length === 0

@@ -34,6 +34,7 @@ export function TilesetCanvas({
   onZoomChange,
   selectedTile,
   onTileSelect,
+  selectionMode = "single",
   className = "",
   placeholder = "No tileset selected",
   dragTilesetId,
@@ -47,6 +48,14 @@ export function TilesetCanvas({
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [dragSelection, setDragSelection] = useState<{
+    sx: number;
+    sy: number;
+    sw: number;
+    sh: number;
+  } | null>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
 
   // Ctrl+Wheel zoom and middle-mouse pan
   useCanvasNavigation(containerRef, zoom, onZoomChange);
@@ -126,43 +135,150 @@ export function TilesetCanvas({
     }
 
     // Hover highlight
-    if (hoverCell) {
+    if (hoverCell && !dragSelection) {
       ctx.fillStyle = "rgba(255, 165, 0, 0.15)";
       ctx.fillRect(hoverCell.x * ts, hoverCell.y * ts, ts, ts);
     }
 
     // Selected tile highlight
-    if (selectedTile) {
+    const renderedSelection = dragSelection ?? selectedTile;
+    if (renderedSelection) {
       ctx.strokeStyle = "rgba(255, 165, 0, 0.9)";
       ctx.lineWidth = 2;
       ctx.strokeRect(
-        selectedTile.sx * zoom + 1,
-        selectedTile.sy * zoom + 1,
-        selectedTile.sw * zoom - 2,
-        selectedTile.sh * zoom - 2,
+        renderedSelection.sx * zoom + 1,
+        renderedSelection.sy * zoom + 1,
+        renderedSelection.sw * zoom - 2,
+        renderedSelection.sh * zoom - 2,
       );
     }
-  }, [tilesetImage, zoom, tileSize, hoverCell, selectedTile]);
+  }, [tilesetImage, zoom, tileSize, hoverCell, selectedTile, dragSelection]);
 
   // -----------------------------------------------------------------------
-  // Step 3: Handle click → convert pixel coords to tile coords → call back
+  // Step 3: Convert client coordinates into grid-snapped cell coordinates.
   // -----------------------------------------------------------------------
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!tilesetImage) return;
+  const getTileCellFromClientPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!tilesetImage) return null;
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
-      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
-      onTileSelect({
-        sx: x * tileSize,
-        sy: y * tileSize,
-        sw: tileSize,
-        sh: tileSize,
-      });
+      const maxX = Math.max(0, Math.ceil(tilesetImage.width / tileSize) - 1);
+      const maxY = Math.max(0, Math.ceil(tilesetImage.height / tileSize) - 1);
+      const x = Math.min(
+        maxX,
+        Math.max(0, Math.floor((clientX - rect.left) / (tileSize * zoom))),
+      );
+      const y = Math.min(
+        maxY,
+        Math.max(0, Math.floor((clientY - rect.top) / (tileSize * zoom))),
+      );
+      return { x, y };
     },
-    [tilesetImage, zoom, tileSize, onTileSelect],
+    [tilesetImage, tileSize, zoom],
+  );
+
+  const getTileRegion = useCallback(
+    (start: { x: number; y: number }, end: { x: number; y: number }) => {
+      const minX = Math.min(start.x, end.x);
+      const minY = Math.min(start.y, end.y);
+      const maxX = Math.max(start.x, end.x);
+      const maxY = Math.max(start.y, end.y);
+      return {
+        sx: minX * tileSize,
+        sy: minY * tileSize,
+        sw: (maxX - minX + 1) * tileSize,
+        sh: (maxY - minY + 1) * tileSize,
+      };
+    },
+    [tileSize],
+  );
+
+  const commitSelectionAtPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const start = selectionStartRef.current;
+      const end = getTileCellFromClientPoint(clientX, clientY);
+      if (!start || !end) return;
+      onTileSelect(getTileRegion(start, end));
+      setDragSelection(null);
+      selectionStartRef.current = null;
+    },
+    [getTileCellFromClientPoint, getTileRegion, onTileSelect],
+  );
+
+  const clearDragSelection = useCallback(() => {
+    selectionStartRef.current = null;
+    setDragSelection(null);
+  }, []);
+
+  const stopDragListeners = useCallback(() => {
+    dragCleanupRef.current?.();
+    dragCleanupRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopDragListeners();
+    };
+  }, [stopDragListeners]);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!tilesetImage || e.button !== 0) return;
+      const cell = getTileCellFromClientPoint(e.clientX, e.clientY);
+      if (!cell) return;
+
+      if (selectionMode === "rectangle") {
+        e.preventDefault();
+        stopDragListeners();
+        selectionStartRef.current = cell;
+        setDragSelection(getTileRegion(cell, cell));
+
+        const handleWindowMouseMove = (event: MouseEvent) => {
+          const nextCell = getTileCellFromClientPoint(
+            event.clientX,
+            event.clientY,
+          );
+          if (!nextCell || !selectionStartRef.current) return;
+          setHoverCell(nextCell);
+          setDragSelection(getTileRegion(selectionStartRef.current, nextCell));
+        };
+
+        const handleWindowMouseUp = (event: MouseEvent) => {
+          commitSelectionAtPoint(event.clientX, event.clientY);
+          stopDragListeners();
+        };
+
+        const handleWindowBlur = () => {
+          clearDragSelection();
+          stopDragListeners();
+        };
+
+        window.addEventListener("mousemove", handleWindowMouseMove);
+        window.addEventListener("mouseup", handleWindowMouseUp, {
+          once: true,
+        });
+        window.addEventListener("blur", handleWindowBlur, { once: true });
+        dragCleanupRef.current = () => {
+          window.removeEventListener("mousemove", handleWindowMouseMove);
+          window.removeEventListener("mouseup", handleWindowMouseUp);
+          window.removeEventListener("blur", handleWindowBlur);
+        };
+        return;
+      }
+
+      onTileSelect(getTileRegion(cell, cell));
+    },
+    [
+      tilesetImage,
+      clearDragSelection,
+      commitSelectionAtPoint,
+      getTileCellFromClientPoint,
+      getTileRegion,
+      onTileSelect,
+      selectionMode,
+      stopDragListeners,
+    ],
   );
 
   // -----------------------------------------------------------------------
@@ -170,15 +286,11 @@ export function TilesetCanvas({
   // -----------------------------------------------------------------------
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!tilesetImage) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
-      const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
-      setHoverCell({ x, y });
+      if (selectionMode === "rectangle") return;
+      const cell = getTileCellFromClientPoint(e.clientX, e.clientY);
+      if (cell) setHoverCell(cell);
     },
-    [tilesetImage, zoom, tileSize],
+    [getTileCellFromClientPoint, selectionMode],
   );
 
   // -----------------------------------------------------------------------
@@ -238,7 +350,7 @@ export function TilesetCanvas({
           ref={canvasRef}
           className="cursor-crosshair"
           draggable={!!dragTilesetId}
-          onMouseDown={handleClick}
+          onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onDragStart={dragTilesetId ? handleDragStart : undefined}
           onContextMenu={onContextMenuTile ? handleContextMenu : undefined}

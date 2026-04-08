@@ -19,6 +19,7 @@ import type { MapCanvasProps, ResizeHandle } from "./types";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
+import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
 
 // ---------------------------------------------------------------------------
 // Internal action types (private to this hook)
@@ -119,6 +120,7 @@ interface UseSceneInteractionParams {
   onCancelPendingObject?: MapCanvasProps["onCancelPendingObject"];
   onDoubleClickObject?: MapCanvasProps["onDoubleClickObject"];
   overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+  tileSize: number;
   scaledTile: number;
   mapW: number;
   mapH: number;
@@ -218,6 +220,7 @@ export function useSceneInteraction({
   onCancelPendingObject,
   onDoubleClickObject,
   overlayCanvasRef,
+  tileSize,
   scaledTile,
   mapW,
   mapH,
@@ -861,6 +864,10 @@ export function useSceneInteraction({
       const pos = getGridPos(e.x, e.y);
       const activeLayer =
         layers.find((layer) => layer.id === activeLayerId) ?? null;
+      const selectedStamp =
+        currentTool === "paint" && selectedTile
+          ? createTileStamp(selectedTile, tileSize)
+          : null;
       let fillPreviewRegion: [number, number][] = [];
 
       if (pos && currentTool === "fill" && canPreviewFill && activeLayer) {
@@ -927,34 +934,62 @@ export function useSceneInteraction({
               const brushNum = parseInt(brushSize);
               const hx = pos.x * scaledTile;
               const hy = pos.y * scaledTile;
-              const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
-              const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
+              const previewWidth =
+                selectedStamp && isMultiTileStamp(selectedStamp)
+                  ? selectedStamp.width
+                  : brushNum;
+              const previewHeight =
+                selectedStamp && isMultiTileStamp(selectedStamp)
+                  ? selectedStamp.height
+                  : brushNum;
+              const hw = Math.min(previewWidth, mapW - pos.x) * scaledTile;
+              const hh = Math.min(previewHeight, mapH - pos.y) * scaledTile;
               ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
               ctx.fillRect(hx, hy, hw, hh);
               ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
               ctx.lineWidth = 2;
               ctx.strokeRect(hx, hy, hw, hh);
               // Draw tile preview directly on overlay — no React state, no re-render
-              if (currentTool === "paint" && selectedTile) {
+              if (currentTool === "paint" && selectedTile && selectedStamp) {
                 const tileImg = getTileImage(selectedTile);
                 if (tileImg) {
                   ctx.globalAlpha = 0.5;
-                  for (let dy = 0; dy < brushNum; dy++) {
-                    for (let dx = 0; dx < brushNum; dx++) {
-                      const tx = pos.x + dx;
-                      const ty = pos.y + dy;
+                  if (isMultiTileStamp(selectedStamp)) {
+                    for (const cell of selectedStamp.cells) {
+                      const tx = pos.x + cell.dx;
+                      const ty = pos.y + cell.dy;
                       if (tx >= mapW || ty >= mapH) continue;
                       ctx.drawImage(
                         tileImg,
-                        selectedTile.sx,
-                        selectedTile.sy,
-                        selectedTile.sw,
-                        selectedTile.sh,
+                        cell.ref.sx,
+                        cell.ref.sy,
+                        cell.ref.sw,
+                        cell.ref.sh,
                         tx * scaledTile,
                         ty * scaledTile,
                         scaledTile,
                         scaledTile,
                       );
+                    }
+                  } else {
+                    const ref = selectedStamp.cells[0].ref;
+                    for (let dy = 0; dy < brushNum; dy++) {
+                      for (let dx = 0; dx < brushNum; dx++) {
+                        const tx = pos.x + dx;
+                        const ty = pos.y + dy;
+                        if (tx >= mapW || ty >= mapH) continue;
+                        ctx.drawImage(
+                          tileImg,
+                          ref.sx,
+                          ref.sy,
+                          ref.sw,
+                          ref.sh,
+                          tx * scaledTile,
+                          ty * scaledTile,
+                          scaledTile,
+                          scaledTile,
+                        );
+                      }
                     }
                   }
                   ctx.globalAlpha = 1;
@@ -1220,6 +1255,7 @@ export function useSceneInteraction({
       brushSize,
       selectedTile,
       onPaintTile,
+      tileSize,
       scaledTile,
       mapW,
       mapH,

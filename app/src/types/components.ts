@@ -31,6 +31,8 @@ export interface TilesetCanvasProps {
   selectedTile: TileRegion | null;
   /** Called when the user clicks a tile */
   onTileSelect: (tile: TileRegion) => void;
+  /** Selection interaction mode. Rectangle mode is opt-in for the main editor. */
+  selectionMode?: "single" | "rectangle";
   /** Additional CSS classes for the outer container */
   className?: string;
   /** Placeholder text when no image is loaded */

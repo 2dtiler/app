@@ -123,6 +123,12 @@ import {
 import { generateObjectId } from "@/lib/ids";
 import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
 import {
+  areTileRefsEqual,
+  createTileStamp,
+  getTileStampRef,
+  isMultiTileStamp,
+} from "@/lib/tile-stamp";
+import {
   getClipboard,
   setClipboard,
   type TileClipboard,
@@ -214,26 +220,37 @@ export function MapPanel() {
       );
       if (effectivelyLocked) return;
 
-      if (state.currentTool === "paint") {
-        if (!state.selectedTile) return;
-        const brushNum = parseInt(state.brushSize);
-        const ref = state.selectedTile;
+      const selectedStamp = state.selectedTile
+        ? createTileStamp(state.selectedTile, state.tileSize)
+        : null;
 
-        for (let dy = 0; dy < brushNum; dy++) {
-          for (let dx = 0; dx < brushNum; dx++) {
-            const tx = gx + dx;
-            const ty = gy + dy;
+      if (state.currentTool === "paint") {
+        if (!selectedStamp) return;
+
+        if (isMultiTileStamp(selectedStamp)) {
+          for (const cell of selectedStamp.cells) {
+            const tx = gx + cell.dx;
+            const ty = gy + cell.dy;
             if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
               continue;
-            paintBuffer.set(`${tx},${ty}`, {
-              tilesetId: ref.tilesetId,
-              sx: ref.sx,
-              sy: ref.sy,
-              sw: ref.sw,
-              sh: ref.sh,
-            });
-            // Draw directly onto the paint canvas — no React re-render
+            const ref = { ...cell.ref };
+            paintBuffer.set(`${tx},${ty}`, ref);
             mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+          }
+        } else {
+          const brushNum = parseInt(state.brushSize);
+          const ref = selectedStamp.cells[0].ref;
+
+          for (let dy = 0; dy < brushNum; dy++) {
+            for (let dx = 0; dx < brushNum; dx++) {
+              const tx = gx + dx;
+              const ty = gy + dy;
+              if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
+                continue;
+              paintBuffer.set(`${tx},${ty}`, { ...ref });
+              // Draw directly onto the paint canvas — no React re-render
+              mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+            }
           }
         }
       } else if (state.currentTool === "erase") {
@@ -285,18 +302,21 @@ export function MapPanel() {
                 };
               }
             }
-          } else if (state.selectedTile) {
-            // Plain fill: every position gets the same tile
-            const ref = state.selectedTile;
+          } else if (selectedStamp) {
+            // Plain fill: single-tile fills write one tile, multi-tile fills repeat
+            // the selected stamp with alignment anchored to map origin.
+            let changed = false;
             for (const [x, y] of toFill) {
-              layer.tiles[`${x},${y}`] = {
-                tilesetId: ref.tilesetId,
-                sx: ref.sx,
-                sy: ref.sy,
-                sw: ref.sw,
-                sh: ref.sh,
-              };
+              const key = `${x},${y}`;
+              const nextRef = { ...getTileStampRef(selectedStamp, x, y) };
+              if (areTileRefsEqual(layer.tiles[key] ?? null, nextRef)) {
+                continue;
+              }
+              layer.tiles[key] = nextRef;
+              changed = true;
             }
+
+            if (!changed) return;
           }
         });
       }
@@ -306,6 +326,7 @@ export function MapPanel() {
       activeLayer,
       state.currentTool,
       state.selectedTile,
+      state.tileSize,
       state.brushSize,
       state.fillMode,
       state.activeFillTerrain,
@@ -674,36 +695,17 @@ export function MapPanel() {
       }
 
       // Priority 3 (keyboard fallback): copy from selected tileset tile
-      if (!fromContextMenu && state.selectedTile && project) {
-        const brushNum = parseInt(state.brushSize);
-        const ts = state.tileSize;
-        const tileset = project.tilesets.find(
-          (t) => t.id === state.selectedTile!.tilesetId,
-        );
-        if (!tileset) return;
-        const startTx = state.selectedTile.sx / ts;
-        const startTy = state.selectedTile.sy / ts;
-        const tiles: TileClipboard["tiles"] = [];
-        for (let dy = 0; dy < brushNum; dy++) {
-          for (let dx = 0; dx < brushNum; dx++) {
-            const px = (startTx + dx) * ts;
-            const py = (startTy + dy) * ts;
-            if (px + ts > tileset.imageWidth || py + ts > tileset.imageHeight)
-              continue;
-            tiles.push({
-              dx,
-              dy,
-              ref: {
-                tilesetId: state.selectedTile!.tilesetId,
-                sx: px,
-                sy: py,
-                sw: ts,
-                sh: ts,
-              },
-            });
-          }
-        }
-        setClipboard({ tiles, width: brushNum, height: brushNum });
+      if (!fromContextMenu && state.selectedTile) {
+        const stamp = createTileStamp(state.selectedTile, state.tileSize);
+        setClipboard({
+          tiles: stamp.cells.map((cell) => ({
+            dx: cell.dx,
+            dy: cell.dy,
+            ref: { ...cell.ref },
+          })),
+          width: stamp.width,
+          height: stamp.height,
+        });
       }
     },
     [
@@ -713,7 +715,6 @@ export function MapPanel() {
       state.tileSize,
       activeLayer,
       activeMap,
-      project,
     ],
   );
 

@@ -255,6 +255,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onDoubleClickObject,
     selectedTile,
     overlayCanvasRef,
+    tileSize,
     scaledTile,
     mapW,
     mapH,

@@ -47,9 +47,6 @@ export function getFillRegion({
   }
 
   const targetTile = layer.tiles[`${startX},${startY}`] ?? null;
-  if (!isTerrain && sameTileSource(targetTile, selectedTile)) {
-    return [];
-  }
 
   const visited = new Set<string>();
   const queue: [number, number][] = [[startX, startY]];
