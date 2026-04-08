@@ -1,11 +1,12 @@
 /**
  * MapCanvas — Canvas2D-based map renderer.
  *
- * Two stacked canvases:
- *   1. mainCanvas   — all scene content (checkerboard, tiles, image layers,
- *                     grid, selection, objects, hover tile preview)
- *   2. overlayCanvas — imperative hover brush highlight drawn directly by
- *                     useSceneInteraction without triggering React renders
+ * Four stacked canvases:
+ *   1. mainCanvas    — inactive layers below the active layer
+ *   2. paintCanvas   — active layer content plus live paint/erase preview
+ *   3. topCanvas     — inactive layers above the active layer plus editor UI
+ *   4. overlayCanvas — imperative hover brush highlight drawn directly by
+ *                      useSceneInteraction without triggering React renders
  *
  */
 
@@ -39,6 +40,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     selectedTile,
     onPaintTile,
     onPaintEnd,
+    paintBufferVersion,
     imperativeRef,
     mapSelection,
     onSelectionChange,
@@ -60,9 +62,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   } = props;
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  // Paint canvas: imperative tile drawing during brush strokes (no React re-renders)
   const paintCanvasRef = useRef<HTMLCanvasElement>(null);
+  const topCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Paint canvas: active-layer rendering plus imperative brush updates.
   // Pre-rendered inactive layers below/above active layer for fast compositing
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -125,6 +128,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       mainCanvasRef.current.width = canvasW;
       mainCanvasRef.current.height = canvasH;
     }
+    if (topCanvasRef.current) {
+      topCanvasRef.current.width = canvasW;
+      topCanvasRef.current.height = canvasH;
+    }
     if (overlayCanvasRef.current) {
       overlayCanvasRef.current.width = canvasW;
       overlayCanvasRef.current.height = canvasH;
@@ -167,27 +174,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.imageSmoothingEnabled = false;
-        // Draw a checkerboard pattern to visually indicate the tile is erased.
-        // This covers the committed tile on the main canvas below.
-        const x0 = gx * scaledTile;
-        const y0 = gy * scaledTile;
-        const cs = Math.max(4, scaledTile / 4); // checker cell size
-        ctx.clearRect(x0, y0, scaledTile, scaledTile);
-        const checkerboardStyles = getComputedStyle(
-          canvas.parentElement ?? document.documentElement,
-        );
-        const col1 =
-          checkerboardStyles.getPropertyValue("--checkerboard-base").trim() ||
-          "#1e1e1e";
-        const col2 =
-          checkerboardStyles.getPropertyValue("--checkerboard-accent").trim() ||
-          "#282828";
-        for (let row = 0; row * cs < scaledTile; row++) {
-          for (let col = 0; col * cs < scaledTile; col++) {
-            ctx.fillStyle = (row + col) % 2 === 0 ? col1 : col2;
-            ctx.fillRect(x0 + col * cs, y0 + row * cs, cs, cs);
-          }
-        }
+        ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
       },
       clearPaintCanvas() {
         const canvas = paintCanvasRef.current;
@@ -356,7 +343,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   ]);
 
   // ---------------------------------------------------------------------------
-  // Main draw effect
+  // Base scene draw effect (inactive layers below active)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const canvas = mainCanvasRef.current;
@@ -367,12 +354,23 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ---- Composite pre-rendered inactive layers (below active) ----
     if (lowerBgCanvasRef.current) {
       ctx.drawImage(lowerBgCanvasRef.current, 0, 0);
     }
+  }, [canvasW, canvasH, orderedLayerEntries, activeLayerId, imagesReady, zoom]);
 
-    // ---- Active layer only ----
+  // ---------------------------------------------------------------------------
+  // Active layer draw effect (committed content + live brush mutations)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     const activeEntry = orderedLayerEntries.find(
       (e) => e.layer.id === activeLayerId,
     );
@@ -407,7 +405,6 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       } else {
         const layer = activeEntry.layer as TileLayer;
         if (layer.visible) {
-          // Committed tiles only — paint buffer is drawn imperatively on paintCanvas
           for (const [key, ref] of Object.entries(layer.tiles) as [
             string,
             TileRef,
@@ -427,8 +424,31 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         }
       }
     }
+  }, [
+    canvasW,
+    canvasH,
+    scaledTile,
+    zoom,
+    orderedLayerEntries,
+    activeLayerId,
+    imagesReady,
+    liveImagePos,
+    liveImageResize,
+    paintBufferVersion,
+  ]);
 
-    // ---- Composite pre-rendered inactive layers (above active) ----
+  // ---------------------------------------------------------------------------
+  // Top scene draw effect (inactive layers above active + editor UI)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const canvas = topCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     if (upperBgCanvasRef.current) {
       ctx.drawImage(upperBgCanvasRef.current, 0, 0);
     }
@@ -774,8 +794,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     mapW,
     mapH,
     zoom,
-    orderedLayerEntries,
     activeLayerId,
+    orderedLayerEntries,
     imagesReady,
     currentTool,
     renderedSelection,
@@ -886,7 +906,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
       }}
     >
-      {/* Main canvas: tiles, images, grid, overlays */}
+      {/* Base canvas: inactive layers below the active layer */}
       <canvas
         ref={mainCanvasRef}
         width={canvasW}
@@ -903,9 +923,22 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
       />
-      {/* Paint canvas: imperative tile drawing during brush strokes */}
+      {/* Active-layer canvas: committed content plus live brush updates */}
       <canvas
         ref={paintCanvasRef}
+        width={canvasW}
+        height={canvasH}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          pointerEvents: "none",
+          imageRendering: "pixelated",
+        }}
+      />
+      {/* Top canvas: inactive layers above the active layer plus editor UI */}
+      <canvas
+        ref={topCanvasRef}
         width={canvasW}
         height={canvasH}
         style={{

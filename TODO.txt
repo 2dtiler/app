@@ -1,11 +1,11 @@
-- Erasing should look at what layer is selected
-- Add unit tests and add to CI/CD
 - Orientation is not working at all
+- Map Custom Options
+- Layer Custom Options
 
 Import Options
 Export Options
 
-AI Asset Generation
+AI Asset Generation:
   AI Generation not working currently
   Check out if all native implementations work
   History
@@ -14,28 +14,39 @@ AI Asset Generation
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
-Image/sprite Editor
+Image/sprite Editor:
   In Light mode the sprite canvas is still dark
   Layer styling is too narrow initially
   Add frame should be a primary button
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
   Add opacity operator for palettes
+
+Exploration:  
+  LDTK
+  Pixelorama
+  PixiEditor
+  Tiled (mapeditor.org)
+  Aseprite
+  Libresprite
+  Autotile
+  SpriteFusion
+  Universal lpc spritesheet generator
+  Tilekit
+  Tilesetter
+  Tileforge
+  Pixellab
+  Lospec
+  Spritely
+  Makko.ai
+  Keep Notes
   
-Get some ideas from pixelorama (Installed)
-Unslopify
-Make list of tiled advanced features
-  - Map Custom Options
-  - Layer Custom Options
-  - Select + Magic Wand
-Make list of aseprite advanced features
-Autotile. Like Spritefusion
+Unslopify  
+Add unit tests and add to CI/CD  
 Write documentation for website. Use /nothing-design
-Get some ideas from: Keep Notes
 Royalty free packs
 High touch animations
 Ad Marketplace for selling/buying tilesets etc.
 Add tutorial video
 Windows/Mac/Linux Apps
-ldtk Features?
 Drive some traffic to it: 2dtiler.com

@@ -258,8 +258,27 @@ export function MapPanel() {
             const ty = gy + dy;
             if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles)
               continue;
-            paintBuffer.set(`${tx},${ty}`, null);
-            // Erase directly on the paint canvas — no React re-render
+            const key = `${tx},${ty}`;
+            const committedRef = activeLayer.tiles[key] ?? null;
+            const bufferedRef = paintBuffer.has(key)
+              ? paintBuffer.get(key)
+              : undefined;
+            const effectiveRef =
+              bufferedRef === undefined ? committedRef : bufferedRef;
+
+            if (effectiveRef === null && committedRef === null) {
+              paintBuffer.delete(key);
+              continue;
+            }
+
+            if (committedRef === null) {
+              paintBuffer.delete(key);
+            } else {
+              paintBuffer.set(key, null);
+            }
+
+            // Clear the active-layer canvas cell so the composite matches the
+            // active layer's buffered state during the drag.
             mapCanvasRef.current?.eraseBufferTile(tx, ty);
           }
         }
@@ -342,9 +361,6 @@ export function MapPanel() {
     const entries = Array.from(paintBuffer.entries());
     paintBuffer.clear();
 
-    // Clear the paint canvas imperatively — no lingering buffer visuals
-    mapCanvasRef.current?.clearPaintCanvas();
-
     setState((draft) => {
       const layer = draft.project?.layers.find(
         (l) => l.id === state.activeLayerId,
@@ -359,8 +375,8 @@ export function MapPanel() {
       }
     });
 
-    // paintBufferVersion bump triggers the main draw effect so committed tiles
-    // replace what was on the paint canvas.
+    // paintBufferVersion bump redraws the active-layer canvas from committed
+    // state after the buffered stroke is applied.
     setPaintBufferVersion((v) => v + 1);
   }, [setState, state.activeLayerId, paintBuffer]);
 
