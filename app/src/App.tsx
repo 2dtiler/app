@@ -92,7 +92,6 @@ import {
   EditorWorkspaceDrawer,
   type EditorWorkspaceTab,
 } from "@/components/editor/Layout/EditorLayouts";
-import { AdBanner } from "@/components/AdBanner";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (
@@ -732,9 +731,6 @@ function AppShell({
               layersPanel={<LayersPanel />}
               objectsPanel={<ObjectsPanel />}
               isObjectLayerActive={isObjectLayerActive}
-              layerWorkspaceFooter={
-                <AdBanner adSlot="YOUR_AD_SLOT_ID" className="shrink-0 p-1" />
-              }
             />
           )}
         </main>

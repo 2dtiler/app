@@ -144,17 +144,6 @@ export interface ToolbarProps {
 }
 
 // ---------------------------------------------------------------------------
-// Ad Banner
-// ---------------------------------------------------------------------------
-
-export interface AdBannerProps {
-  adSlot: string;
-  adFormat?: string;
-  fullWidthResponsive?: boolean;
-  className?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Layers Panel - Base Types (generic enough for both map and image editor)
 // ---------------------------------------------------------------------------
 

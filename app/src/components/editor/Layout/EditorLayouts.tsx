@@ -89,7 +89,6 @@ interface DesktopEditorLayoutProps {
   layersPanel: ReactNode;
   objectsPanel: ReactNode;
   isObjectLayerActive: boolean;
-  layerWorkspaceFooter?: ReactNode;
 }
 
 export function DesktopEditorLayout({
@@ -98,7 +97,6 @@ export function DesktopEditorLayout({
   layersPanel,
   objectsPanel,
   isObjectLayerActive,
-  layerWorkspaceFooter,
 }: DesktopEditorLayoutProps) {
   return (
     <Group orientation="horizontal" id="main-layout">
@@ -149,7 +147,6 @@ export function DesktopEditorLayout({
                   <div className="flex-1 min-h-0 overflow-auto">
                     {layersPanel}
                   </div>
-                  {layerWorkspaceFooter}
                 </div>
               )}
             </section>

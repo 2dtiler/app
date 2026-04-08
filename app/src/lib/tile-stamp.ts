@@ -12,7 +12,10 @@ export interface TileStamp {
   cells: TileStampCell[];
 }
 
-type TileStampSource = Pick<SelectedTile, "tilesetId" | "sx" | "sy" | "sw" | "sh">;
+type TileStampSource = Pick<
+  SelectedTile,
+  "tilesetId" | "sx" | "sy" | "sw" | "sh"
+>;
 
 export function areTileRefsEqual(
   a: TileRef | null | undefined,
@@ -61,7 +64,11 @@ export function createTileStamp(
   return { width, height, cells };
 }
 
-export function getTileStampRef(stamp: TileStamp, x: number, y: number): TileRef {
+export function getTileStampRef(
+  stamp: TileStamp,
+  x: number,
+  y: number,
+): TileRef {
   const dx = ((x % stamp.width) + stamp.width) % stamp.width;
   const dy = ((y % stamp.height) + stamp.height) % stamp.height;
   return stamp.cells[dy * stamp.width + dx].ref;

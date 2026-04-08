@@ -1,7 +1,6 @@
-- Remove adsense
+- Extract all interfaces types etc. into types
 - Erasing should look at what layer is selected
 - Dont use sentry if not defined: VITE_SENTRY_DSN
-- Extract all interfaces types etc. into types
 - Add unit tests
 
 Import Options
