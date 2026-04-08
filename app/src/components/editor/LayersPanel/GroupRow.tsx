@@ -10,6 +10,7 @@ import {
   Folder,
   FolderOpen,
   GripVertical,
+  TextCursorInput,
   Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,12 +68,11 @@ export const GroupRow = memo(function GroupRow({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer bg-muted/30 hover:bg-secondary",
+            "layer-item group/item relative flex items-center gap-2 border-b border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent",
             isDragging && "opacity-40",
-            dropIndicator === "inside" &&
-              "ring-2 ring-primary ring-inset bg-primary/10",
+            dropIndicator === "inside" && "bg-secondary",
           )}
-          style={{ paddingLeft: `${6 + depth * 16}px` }}
+          style={{ paddingLeft: `${12 + depth * 20}px` }}
           onMouseDown={() => onToggleExpand(group.id)}
           draggable
           onDragStart={(e) => {
@@ -84,38 +84,38 @@ export const GroupRow = memo(function GroupRow({
           onDragOver={(e) => onDragOver(e, group.id, true)}
           onDrop={onDrop}
         >
-          {/* Drop indicator lines */}
           {dropIndicator === "above" && (
-            <div className="absolute left-1 right-1 top-0 -translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+            <div className="pointer-events-none absolute left-3 right-3 top-0 h-px bg-foreground" />
           )}
           {dropIndicator === "below" && (
-            <div className="absolute left-1 right-1 bottom-0 translate-y-1/2 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+            <div className="pointer-events-none absolute left-3 right-3 bottom-0 h-px bg-foreground" />
+          )}
+          {dropIndicator === "inside" && (
+            <div className="pointer-events-none absolute inset-x-3 inset-y-1 rounded-[10px] border border-border-visible" />
           )}
 
-          {/* Drag handle */}
           <span
-            className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-60 hover:opacity-100!"
+            className="shrink-0 cursor-grab text-text-disabled transition-colors active:cursor-grabbing group-hover/item:text-text-secondary"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <GripVertical className="h-3 w-3 text-muted-foreground" />
+            <GripVertical className="h-3.5 w-3.5" />
           </span>
 
-          {/* Visibility */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
+                size="icon-xs"
+                className="shrink-0"
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleVisibility(group.id, true);
                 }}
               >
                 {group.visible ? (
-                  <Eye className="h-3 w-3" />
+                  <Eye className="h-3 w-3 text-foreground" />
                 ) : (
-                  <EyeOff className="h-3 w-3 text-muted-foreground" />
+                  <EyeOff className="h-3 w-3 text-text-disabled" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -124,22 +124,21 @@ export const GroupRow = memo(function GroupRow({
             </TooltipContent>
           </Tooltip>
 
-          {/* Lock */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
+                size="icon-xs"
+                className="shrink-0"
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   onToggleLock(group.id, true);
                 }}
               >
                 {group.locked ? (
-                  <Lock className="h-3 w-3 text-primary" />
+                  <Lock className="h-3 w-3 text-foreground" />
                 ) : (
-                  <Unlock className="h-3 w-3 text-muted-foreground" />
+                  <Unlock className="h-3 w-3 text-text-disabled" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -148,20 +147,18 @@ export const GroupRow = memo(function GroupRow({
             </TooltipContent>
           </Tooltip>
 
-          {/* Folder icon */}
-          <span className="shrink-0">
+          <span className="shrink-0 text-text-secondary">
             {group.expanded ? (
-              <FolderOpen className="h-3 w-3 text-muted-foreground" />
+              <FolderOpen className="h-3.5 w-3.5" />
             ) : (
-              <Folder className="h-3 w-3 text-muted-foreground" />
+              <Folder className="h-3.5 w-3.5" />
             )}
           </span>
 
-          {/* Name */}
           {isRenaming ? (
             <input
               ref={renameInputRef}
-              className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
               onBlur={onCommitRename}
@@ -172,25 +169,28 @@ export const GroupRow = memo(function GroupRow({
               onMouseDown={(e) => e.stopPropagation()}
             />
           ) : (
-            <span
-              className="flex-1 min-w-0 truncate font-medium"
+            <div
+              className="min-w-0 flex-1"
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onDoubleClick(group.id, group.name);
               }}
             >
-              {group.name}
-            </span>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-text-secondary">
+                Group
+              </div>
+              <div className="mt-1 truncate text-[13px] leading-none text-foreground">
+                {group.name}
+              </div>
+            </div>
           )}
 
-          {/* Move/Delete buttons */}
-          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0 px-0.5 rounded-r bg-secondary opacity-0 group-hover/item:opacity-100 z-20">
+          <div className="absolute top-0 right-0 bottom-0 z-20 flex items-center gap-1 bg-linear-to-l from-background via-background/96 to-transparent pl-6 pr-2 opacity-0 transition-opacity group-hover/item:opacity-100 group-focus-within/item:opacity-100">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
+                  size="icon-xs"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(group.id, "up", parentGroupId);
@@ -205,8 +205,7 @@ export const GroupRow = memo(function GroupRow({
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
+                  size="icon-xs"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onMove(group.id, "down", parentGroupId);
@@ -220,9 +219,8 @@ export const GroupRow = memo(function GroupRow({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 text-destructive"
+                  variant="destructive"
+                  size="icon-xs"
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     onDelete(group.id, group.name);
@@ -262,28 +260,28 @@ export const GroupRow = memo(function GroupRow({
         <ContextMenuItem
           onMouseDown={() => onDoubleClick(group.id, group.name)}
         >
-          Rename
+          <TextCursorInput className="mr-2 h-4 w-4" /> Rename
         </ContextMenuItem>
         <ContextMenuItem onMouseDown={() => onDuplicate(group.id)}>
-          <Copy className="h-4 w-4 mr-2" /> Duplicate
+          <Copy className="mr-2 h-4 w-4" /> Duplicate
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           onMouseDown={() => onMove(group.id, "up", parentGroupId)}
         >
-          <ChevronUp className="h-4 w-4 mr-2" /> Move Up
+          <ChevronUp className="mr-2 h-4 w-4" /> Move Up
         </ContextMenuItem>
         <ContextMenuItem
           onMouseDown={() => onMove(group.id, "down", parentGroupId)}
         >
-          <ChevronDown className="h-4 w-4 mr-2" /> Move Down
+          <ChevronDown className="mr-2 h-4 w-4" /> Move Down
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           variant="destructive"
           onMouseDown={() => onDelete(group.id, group.name)}
         >
-          <Trash2 className="h-4 w-4 mr-2" /> Delete Group
+          <Trash2 className="mr-2 h-4 w-4" /> Delete Group
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

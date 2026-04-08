@@ -520,7 +520,10 @@ export function Generator() {
       for (const result of results) {
         if (result === null) continue;
         if ("error" in result) {
-          next[result.index] = { status: "error", message: result.error };
+          next[result.index] = {
+            status: "error",
+            message: result.error ?? "Unknown error occurred.",
+          };
         } else if (result.urls.length === 1) {
           next[result.index] = { status: "done", url: result.urls[0] };
         } else {

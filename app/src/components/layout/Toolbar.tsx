@@ -1,4 +1,6 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
+import { MoonStar, SunMedium } from "lucide-react";
+import { useTheme } from "next-themes";
 import {
   Menubar,
   MenubarContent,
@@ -11,6 +13,7 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from "@/components/ui/menubar";
+import { cn } from "@/lib/utils";
 // rerender-defer-reads: use store directly for controls to avoid
 // subscribing to full state which would re-render on every change
 import { getEditorStore } from "@/lib/store";
@@ -37,17 +40,34 @@ export const Toolbar = memo(function Toolbar({
 }: ToolbarProps) {
   // Get controls without subscribing to state — avoids re-renders on every state change
   const controls = useMemo(() => getEditorStore().getControls(), []);
+  const { resolvedTheme, setTheme } = useTheme();
   // Track whether a tool item was selected so we can suppress focus-return to the
   // menubar trigger (which would land inside vaul's aria-hidden root)
   const toolOpeningRef = useRef(false);
+  const activeTheme = resolvedTheme === "light" ? "light" : "dark";
+  const nextTheme = activeTheme === "light" ? "dark" : "light";
+  const ThemeIcon = activeTheme === "light" ? SunMedium : MoonStar;
+
+  useEffect(() => {
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (!themeColor) return;
+    themeColor.setAttribute(
+      "content",
+      activeTheme === "light" ? "#f5f5f5" : "#000000",
+    );
+  }, [activeTheme]);
 
   return (
-    <header className="flex h-8 shrink-0 items-center border-b border-border bg-card px-1">
-      <Menubar className="h-7 border-none bg-transparent shadow-none rounded-none p-0">
+    <header className="flex h-12 shrink-0 items-center gap-4 border-b border-border bg-background px-3">
+      <div className="flex">
+        <span className="font-mono uppercase truncate text-sm -mt-0.5 ">
+          2D Tiler
+        </span>
+      </div>
+
+      <Menubar className="h-8 border-none bg-transparent p-0">
         <MenubarMenu>
-          <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
-            File
-          </MenubarTrigger>
+          <MenubarTrigger>File</MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem onMouseDown={onNewProject} className="cursor-pointer">
               Manage Projects
@@ -120,9 +140,7 @@ export const Toolbar = memo(function Toolbar({
         </MenubarMenu>
 
         <MenubarMenu>
-          <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
-            Edit
-          </MenubarTrigger>
+          <MenubarTrigger>Edit</MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem
               onMouseDown={() => controls.back()}
@@ -147,9 +165,7 @@ export const Toolbar = memo(function Toolbar({
         </MenubarMenu>
 
         <MenubarMenu>
-          <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
-            Tools
-          </MenubarTrigger>
+          <MenubarTrigger>Tools</MenubarTrigger>
           <MenubarContent
             className="min-w-45"
             onCloseAutoFocus={(e) => {
@@ -181,9 +197,7 @@ export const Toolbar = memo(function Toolbar({
         </MenubarMenu>
 
         <MenubarMenu>
-          <MenubarTrigger className="h-6 px-2 text-xs font-medium data-[state=open]:bg-accent">
-            Help
-          </MenubarTrigger>
+          <MenubarTrigger>Help</MenubarTrigger>
           <MenubarContent className="min-w-45">
             <MenubarItem onMouseDown={onAbout} className="cursor-pointer">
               About
@@ -203,9 +217,21 @@ export const Toolbar = memo(function Toolbar({
       </Menubar>
 
       <div className="flex-1" />
-      <span className="text-[10px] font-medium text-primary/60 tracking-widest uppercase mr-1">
-        2D TILER
-      </span>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-visible bg-background text-text-secondary transition-colors hover:text-foreground",
+            activeTheme === "dark" && "bg-primary text-primary-foreground",
+          )}
+          onClick={() => setTheme(nextTheme)}
+          aria-pressed={activeTheme === "dark"}
+          aria-label={`Use ${nextTheme} mode`}
+          title={`Use ${nextTheme} mode`}
+        >
+          <ThemeIcon className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </header>
   );
 });

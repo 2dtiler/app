@@ -1,5 +1,7 @@
-Export Options
+Clean up Zero Design
+Make mobile friendly
 Import Options
+Export Options
 
 AI Asset Generation
   AI Generation not working currently
@@ -31,7 +33,6 @@ Get some ideas from: Keep Notes
 Royalty free packs
 High touch animations
 Ad Marketplace for selling/buying tilesets etc.
-Performance Audit
 Add tutorial video
 Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps

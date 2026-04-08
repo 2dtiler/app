@@ -89,6 +89,7 @@ export function ProjectModal({
   const [showNewProject, setShowNewProject] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canClose = projects.length > 0;
 
   const [prevOpen, setPrevOpen] = useState(open);
   if (open && !prevOpen) {
@@ -238,14 +239,19 @@ export function ProjectModal({
       <Dialog
         open={open}
         onOpenChange={(o) => {
-          if (o) onOpenChange(o);
+          if (!o && !canClose) return;
+          onOpenChange(o);
         }}
       >
         <DialogContent
           className="sm:max-w-120"
-          showCloseButton={false}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
+          showCloseButton={canClose}
+          onInteractOutside={(e) => {
+            if (!canClose) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (!canClose) e.preventDefault();
+          }}
         >
           <DialogHeader>
             <DialogTitle>Projects</DialogTitle>

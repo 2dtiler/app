@@ -72,14 +72,14 @@ export function LayersPanel() {
 
   if (!activeMap) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="px-2 py-1 border-b border-border bg-card shrink-0">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+      <div className="flex h-full flex-col bg-background">
+        <div className="border-b border-border px-4 py-3 shrink-0">
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary">
             Layers
           </span>
         </div>
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
-          No map selected
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-text-disabled">
+          [ NO MAP SELECTED ]
         </div>
       </div>
     );
@@ -977,26 +977,29 @@ export function LayersPanel() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-2 py-1 border-b border-border bg-card shrink-0">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          Layers
-        </span>
+    <div className="flex h-full flex-col bg-background">
+      <div className="flex shrink-0 items-end justify-between gap-4 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary">
+            Layers
+          </p>
+          <p className="mt-2 text-lg leading-none tracking-[-0.02em] text-foreground">
+            {treeNodes.length} items
+          </p>
+        </div>
         <Button
-          variant="default"
+          variant="outline"
           size="sm"
-          className="h-5 px-2 text-[10px]"
+          className="h-8 px-3"
           onMouseDown={handleAddLayer}
         >
           <Plus className="h-3 w-3" />
-          Add Layer
+          Add
         </Button>
       </div>
 
-      {/* Layer tree */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-1 space-y-0.5">
+        <div className="px-2 pb-4">
           {treeNodes.map((node) => {
             if (node.type === "group") {
               return (
