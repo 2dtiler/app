@@ -1,5 +1,11 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
-import { Panel, Group, Separator } from "react-resizable-panels";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  lazy,
+  Suspense,
+  useRef,
+} from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   initEditorStore,
@@ -80,6 +86,12 @@ import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
 import { ObjectsPanel } from "@/components/editor/ObjectsPanel";
+import {
+  CompactEditorShell,
+  DesktopEditorLayout,
+  EditorWorkspaceDrawer,
+  type EditorWorkspaceTab,
+} from "@/components/editor/layout/CompactEditorLayout";
 import { AdBanner } from "@/components/AdBanner";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
@@ -96,6 +108,8 @@ const emptyProjectMessage = (
     Open or create a project to get started
   </main>
 );
+
+const NARROW_LAYOUT_BREAKPOINT = 768;
 
 // Init-once guard: prevents double-init in React StrictMode (advanced-init-once)
 let storeInitStarted = false;
@@ -405,6 +419,11 @@ function AppShell({
 }) {
   const { state, setState } = useEditorStore();
   const hasProject = state.project !== null;
+  const editorHostRef = useRef<HTMLElement>(null);
+  const [editorWidth, setEditorWidth] = useState<number | null>(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceTab, setWorkspaceTab] =
+    useState<EditorWorkspaceTab>("layers");
 
   // Determine if the active layer is an object layer
   const isObjectLayerActive =
@@ -413,6 +432,33 @@ function AppShell({
     (state.project.objectLayers ?? []).some(
       (l) => l.id === state.activeLayerId,
     );
+
+  const isCompactLayout =
+    hasProject &&
+    editorWidth !== null &&
+    editorWidth < NARROW_LAYOUT_BREAKPOINT;
+
+  const workspaceDrawerOpen = isCompactLayout && workspaceOpen;
+
+  const setEditorHostNode = useCallback((node: HTMLElement | null) => {
+    editorHostRef.current = node;
+    setEditorWidth(node?.clientWidth ?? null);
+  }, []);
+
+  useEffect(() => {
+    const container = editorHostRef.current;
+    if (!hasProject || !container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setEditorWidth(entry.contentRect.width);
+    });
+
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [hasProject]);
 
   const handleExportProject = useCallback(async () => {
     if (!state.project) return;
@@ -618,6 +664,20 @@ function AppShell({
     input.click();
   }, [state.project, state.activeTilesetGroupId, setState]);
 
+  const activeWorkspaceSummary = isObjectLayerActive
+    ? "Objects open alongside the map"
+    : "Layers and objects stay one tap away";
+
+  const handleOpenWorkspace = useCallback(() => {
+    if (isObjectLayerActive) {
+      setWorkspaceTab("objects");
+    }
+    setWorkspaceOpen(true);
+  }, [isObjectLayerActive]);
+
+  const workspaceButtonLabel =
+    isObjectLayerActive || workspaceTab === "objects" ? "Objects" : "Layers";
+
   return (
     <div className="flex h-full flex-col">
       <Toolbar
@@ -644,52 +704,39 @@ function AppShell({
       />
 
       {hasProject ? (
-        <main className="flex-1 min-h-0">
-          <Group orientation="horizontal" id="main-layout">
-            {/* Left: Tileset Panel */}
-            <Panel defaultSize="50%" minSize="15%" maxSize="60%">
-              <TilesetPanel />
-            </Panel>
+        <main ref={setEditorHostNode} className="flex-1 min-h-0">
+          {isCompactLayout ? (
+            <>
+              <CompactEditorShell
+                tilesetPanel={<TilesetPanel />}
+                mapPanel={<MapPanel />}
+                workspaceSummary={activeWorkspaceSummary}
+                workspaceButtonLabel={workspaceButtonLabel}
+                workspaceOpen={workspaceDrawerOpen}
+                onOpenWorkspace={handleOpenWorkspace}
+              />
 
-            <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-
-            {/* Right: Map + Layers */}
-            <Panel defaultSize="50%" minSize="25%">
-              <Group orientation="horizontal" id="right-layout">
-                {/* Center: Map Canvas */}
-                <Panel defaultSize="75%" minSize="30%">
-                  <MapPanel />
-                </Panel>
-
-                <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-
-                {/* Right: Layers + Objects */}
-                <Panel defaultSize="25%" minSize="10%" maxSize="50%">
-                  {isObjectLayerActive ? (
-                    <Group orientation="vertical" id="layers-objects-layout">
-                      <Panel defaultSize="50%" minSize="20%">
-                        <LayersPanel />
-                      </Panel>
-                      <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors cursor-row-resize" />
-                      <Panel defaultSize="50%" minSize="20%">
-                        <ObjectsPanel />
-                      </Panel>
-                    </Group>
-                  ) : (
-                    <div className="flex flex-col h-full">
-                      <div className="flex-1 min-h-0 overflow-auto">
-                        <LayersPanel />
-                      </div>
-                      <AdBanner
-                        adSlot="YOUR_AD_SLOT_ID"
-                        className="shrink-0 p-1"
-                      />
-                    </div>
-                  )}
-                </Panel>
-              </Group>
-            </Panel>
-          </Group>
+              <EditorWorkspaceDrawer
+                open={workspaceDrawerOpen}
+                activeTab={workspaceTab}
+                onOpenChange={setWorkspaceOpen}
+                onTabChange={setWorkspaceTab}
+                layersPanel={<LayersPanel />}
+                objectsPanel={<ObjectsPanel />}
+              />
+            </>
+          ) : (
+            <DesktopEditorLayout
+              tilesetPanel={<TilesetPanel />}
+              mapPanel={<MapPanel />}
+              layersPanel={<LayersPanel />}
+              objectsPanel={<ObjectsPanel />}
+              isObjectLayerActive={isObjectLayerActive}
+              layerWorkspaceFooter={
+                <AdBanner adSlot="YOUR_AD_SLOT_ID" className="shrink-0 p-1" />
+              }
+            />
+          )}
         </main>
       ) : (
         emptyProjectMessage

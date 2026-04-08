@@ -1,6 +1,8 @@
 Make mobile friendly
 
+- Add group should be cursor-pointer
 - Completely remove reference of Pixi
+- Completely remove 
 - Tileset should allow you to drag to select
 - Erasing should look at what layer is selected
 
