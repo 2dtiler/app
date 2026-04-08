@@ -3,7 +3,7 @@
  * Zoom levels are intentionally ephemeral — they reset to 1 on page reload.
  */
 
-type ZoomState = { mapZoom: number; tilesetZoom: number };
+import type { ZoomState } from "@/types/editor-store";
 
 let state: ZoomState = { mapZoom: 1, tilesetZoom: 1 };
 

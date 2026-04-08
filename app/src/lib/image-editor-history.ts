@@ -10,16 +10,7 @@
  */
 
 const MAX_SNAPSHOTS = 50;
-
-interface FrameHistory {
-  /** Undo stack (most recent at end) */
-  undoStack: Uint8ClampedArray[];
-  /** Redo stack (most recent at end) */
-  redoStack: Uint8ClampedArray[];
-  /** Canvas dimensions at time of snapshot */
-  width: number;
-  height: number;
-}
+import type { FrameHistory } from "@/types/image-editor-internals";
 
 /**
  * Key is either a bare FrameId (legacy single-layer) or

@@ -4,7 +4,6 @@ import Color from "color";
 import { PipetteIcon } from "lucide-react";
 import { Slider } from "radix-ui";
 import {
-  type ComponentProps,
   createContext,
   memo,
   useCallback,
@@ -33,6 +32,7 @@ import type {
   ColorPickerEyeDropperProps,
   ColorPickerOutputProps,
   ColorPickerFormatProps,
+  PercentageInputProps,
 } from "@/types";
 
 // Re-export for backward compatibility
@@ -321,8 +321,6 @@ export const ColorPickerOutput = ({
     </Select>
   );
 };
-
-type PercentageInputProps = ComponentProps<typeof Input>;
 
 const PercentageInput = ({
   className,

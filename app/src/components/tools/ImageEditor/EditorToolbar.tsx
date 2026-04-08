@@ -16,26 +16,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 
-import type { ImageEditorTool } from "@/types/image-editor";
-
-interface EditorToolbarProps {
-  zoom: number;
-  brushSize: number;
-  tool: ImageEditorTool;
-  blurSize: number;
-  blurIntensity: number;
-  canUndo: boolean;
-  canRedo: boolean;
-  onZoom: (z: number) => void;
-  onBrushSize: (s: number) => void;
-  onBlurSize: (s: number) => void;
-  onBlurIntensity: (i: number) => void;
-  onNew: () => void;
-  onResize: () => void;
-  onSave: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-}
+import type { EditorToolbarProps } from "@/types/image-editor-ui";
 
 export function EditorToolbar({
   zoom,

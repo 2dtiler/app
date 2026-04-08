@@ -24,22 +24,10 @@ import {
   deleteApiKey,
 } from "@/lib/api-keys";
 import type { AppSettings } from "@/types";
-
-interface SettingsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Per-provider key row
-// ---------------------------------------------------------------------------
-
-interface KeyRowProps {
-  id: string;
-  label: string;
-  url: string;
-  placeholder: string;
-}
+import type {
+  SettingsDialogProps,
+  SettingsKeyRowProps as KeyRowProps,
+} from "@/types/dialogs";
 
 function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [value, setValue] = useState("");

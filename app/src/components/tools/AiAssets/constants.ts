@@ -1,4 +1,4 @@
-import type { ModelDef, RatioDef } from "./types";
+import type { AssetType, ModelDef, RatioDef } from "@/types/ai-assets";
 
 export const MODELS: ModelDef[] = [
   // ── OpenAI ──────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ export const COUNT_OPTIONS = [1, 2];
 
 // Asset type definitions
 export const ASSET_TYPE_DEFS: {
-  value: import("./types").AssetType;
+  value: AssetType;
   label: string;
   description: string;
 }[] = [

@@ -3,7 +3,7 @@
  * Component-specific prop types and context types.
  */
 
-import type { CSSProperties, HTMLAttributes } from "react";
+import type { CSSProperties, ComponentProps, HTMLAttributes } from "react";
 import type { TilesetId, TileSize, AssetId } from "./schema";
 
 // ---------------------------------------------------------------------------
@@ -119,6 +119,8 @@ export type ColorPickerOutputProps = {
 } & HTMLAttributes<HTMLButtonElement>;
 
 export type ColorPickerFormatProps = HTMLAttributes<HTMLDivElement>;
+
+export type PercentageInputProps = ComponentProps<"input">;
 
 // ---------------------------------------------------------------------------
 // Toolbar

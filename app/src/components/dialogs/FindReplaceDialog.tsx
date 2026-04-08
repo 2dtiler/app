@@ -39,22 +39,16 @@ import { useEditorStore } from "@/hooks/use-editor-store";
 import { getAllLayerIds } from "@/lib/layers";
 import { getAssetUrl } from "@/lib/db";
 import type { TileRef, TilesetId, LayerId, AssetId } from "@/types";
+import type {
+  FindReplaceDialogProps,
+  FindReplaceGridSize as GridSize,
+} from "@/types/dialogs";
 
 // ---------------------------------------------------------------------------
 // Grid sizes
 // ---------------------------------------------------------------------------
 
 const GRID_SIZES = [1, 2, 3, 4, 5] as const;
-type GridSize = (typeof GRID_SIZES)[number];
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-interface FindReplaceDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
 
 // ---------------------------------------------------------------------------
 // Tile Cell — renders a single tile from a tileset image using <canvas>

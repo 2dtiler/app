@@ -11,7 +11,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
-import type { MapCanvasProps } from "./types";
+import type { MapCanvasProps } from "@/types/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,
@@ -24,7 +24,10 @@ import {
 } from "./texture-cache";
 import { useSceneInteraction } from "./use-scene-interaction";
 
-export type { MapCanvasProps, MapCanvasImperativeHandle } from "./types";
+export type {
+  MapCanvasProps,
+  MapCanvasImperativeHandle,
+} from "@/types/map-canvas";
 
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {

@@ -7,185 +7,30 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type {
   ImageLayer,
-  ObjectLayer,
-  MapObject,
   ObjectType,
   TileLayer,
   TileRef,
   EditorState,
   MapSelection,
 } from "@/types";
-import type { MapCanvasProps, ResizeHandle } from "./types";
+import type {
+  ImageDragAction,
+  ImageResizeAction,
+  ObjectDragAction,
+  ObjectPlaceAction,
+  ObjectResizeAction,
+  PolyVertexDragAction,
+  ResizeHandle,
+  SelectionAction,
+  UseSceneInteractionParams,
+  UseSceneInteractionReturn,
+} from "@/types/map-canvas";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
 import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
 
-// ---------------------------------------------------------------------------
-// Internal action types (private to this hook)
-// ---------------------------------------------------------------------------
-
-type SelectionAction =
-  | { type: "draw"; startX: number; startY: number }
-  | {
-      type: "move";
-      offsetX: number;
-      offsetY: number;
-      orig: MapSelection;
-      tiles: { dx: number; dy: number; ref: TileRef }[];
-    };
-
-type ImageDragAction = {
-  layerId: string;
-  startX: number;
-  startY: number;
-  origX: number;
-  origY: number;
-};
-
-type ImageResizeAction = {
-  layerId: string;
-  handle: ResizeHandle;
-  startX: number;
-  startY: number;
-  origX: number;
-  origY: number;
-  origWidth: number;
-  origHeight: number;
-};
-
-type ObjectPlaceAction = {
-  type: ObjectType;
-  startX: number;
-  startY: number;
-};
-
-type ObjectDragAction = {
-  objectId: string;
-  startX: number;
-  startY: number;
-  origX: number;
-  origY: number;
-};
-
-type ObjectResizeAction = {
-  objectId: string;
-  handle: ResizeHandle;
-  startX: number;
-  startY: number;
-  origX: number;
-  origY: number;
-  origWidth: number;
-  origHeight: number;
-};
-
-type PolyVertexDragAction = {
-  objectId: string;
-  vertexIndex: number;
-  startX: number;
-  startY: number;
-  origPoint: { x: number; y: number };
-};
-
-// ---------------------------------------------------------------------------
-// Hook inputs / outputs
-// ---------------------------------------------------------------------------
-
-interface UseSceneInteractionParams {
-  layers: TileLayer[];
-  zoom: number;
-  activeLayerId: string | null;
-  currentTool: EditorState["currentTool"];
-  fillMode: EditorState["fillMode"];
-  activeFillTerrain: EditorState["activeFillTerrain"];
-  canPreviewFill: boolean;
-  brushSize: EditorState["brushSize"];
-  onPaintTile: MapCanvasProps["onPaintTile"];
-  onPaintEnd: MapCanvasProps["onPaintEnd"];
-  mapSelection: MapSelection | null;
-  onSelectionChange: MapCanvasProps["onSelectionChange"];
-  onMoveTiles: MapCanvasProps["onMoveTiles"];
-  imageLayers: ImageLayer[];
-  onMoveImageLayer: MapCanvasProps["onMoveImageLayer"];
-  onResizeImageLayer: MapCanvasProps["onResizeImageLayer"];
-  objectLayers: ObjectLayer[];
-  objects: MapObject[];
-  activeObjectId: string | null;
-  pendingObjectType: ObjectType | null;
-  onCreateObject: MapCanvasProps["onCreateObject"];
-  onMoveObject: MapCanvasProps["onMoveObject"];
-  onResizeObject: MapCanvasProps["onResizeObject"];
-  onUpdatePolygonPoints: MapCanvasProps["onUpdatePolygonPoints"];
-  onSelectObject: MapCanvasProps["onSelectObject"];
-  onCancelPendingObject?: MapCanvasProps["onCancelPendingObject"];
-  onDoubleClickObject?: MapCanvasProps["onDoubleClickObject"];
-  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
-  tileSize: number;
-  scaledTile: number;
-  mapW: number;
-  mapH: number;
-  selectedTile: TileRef | null;
-}
-
-export interface UseSceneInteractionReturn {
-  // Overlay canvas ref for imperative hover drawing
-  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
-
-  // Selection
-  renderedSelection: MapSelection | null;
-  liveSelection: MapSelection | null;
-  moveTilesSnapshot: { dx: number; dy: number; ref: TileRef }[] | null;
-
-  // Image layer live state
-  liveImagePos: { layerId: string; x: number; y: number } | null;
-  liveImageResize: {
-    layerId: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-
-  // Object live state
-  liveObjectPos: { objectId: string; x: number; y: number } | null;
-  liveObjectResize: {
-    objectId: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-  liveObjectPlace: {
-    type: ObjectType;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-  livePolyVertex: {
-    objectId: string;
-    vertexIndex: number;
-    x: number;
-    y: number;
-  } | null;
-
-  // Polygon drawing
-  isDrawingPolygon: boolean;
-  polygonPoints: { x: number; y: number }[];
-  polygonCursorPos: { x: number; y: number } | null;
-
-  // Cursor / drag feedback
-  isMoving: boolean;
-  resizingHandle: ResizeHandle | null;
-  hoveredHandle: ResizeHandle | null;
-  hoveredObjectCursor: string | null;
-
-  // Pointer handlers (coordinates are canvas-relative pixels)
-  handlePointerDown: (e: { x: number; y: number; button?: number }) => void;
-  handlePointerMove: (e: { x: number; y: number }) => void;
-  handlePointerUp: (e?: { button?: number }) => void;
-  handlePointerLeave: () => void;
-}
+export type { UseSceneInteractionReturn } from "@/types/map-canvas";
 
 // ---------------------------------------------------------------------------
 // Hook

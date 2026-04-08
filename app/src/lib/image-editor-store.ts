@@ -7,7 +7,7 @@
  * the pixel history system.
  */
 
-import { createTravels, type Travels } from "travels";
+import { createTravels } from "travels";
 import {
   DEFAULT_IMAGE_EDITOR_STATE,
   type ImageEditorState,
@@ -18,14 +18,8 @@ import {
   type ImageEditorLayerId,
   type ImageEditorRasterLayer,
 } from "@/types/image-editor";
+import type { ImageEditorTravels } from "@/types/image-editor-internals";
 import { v4 as uuidv4 } from "uuid";
-
-type ImageEditorTravels = Travels<
-  ImageEditorState,
-  false,
-  true,
-  Record<string, never>
->;
 
 let instance: ImageEditorTravels | null = null;
 

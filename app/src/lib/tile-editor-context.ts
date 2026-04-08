@@ -1,23 +1,6 @@
-import type { TilesetId, AssetId, LayerId } from "@/types";
+import type { TileEditorContext } from "@/types/editor-helpers";
 
-export interface TileEditorContext {
-  tilesetId: TilesetId;
-  assetId: AssetId;
-  /** X offset of the tile within the tileset image */
-  sx: number;
-  /** Y offset of the tile within the tileset image */
-  sy: number;
-  /** Tile width in pixels */
-  sw: number;
-  /** Tile height in pixels */
-  sh: number;
-  /** The layer this tile belongs to on the map */
-  layerId: LayerId;
-  /** Tile grid X position on the map */
-  tileX: number;
-  /** Tile grid Y position on the map */
-  tileY: number;
-}
+export type { TileEditorContext } from "@/types/editor-helpers";
 
 let activeContext: TileEditorContext | null = null;
 

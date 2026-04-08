@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,17 +8,14 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type {
+  CompactEditorShellProps,
+  DesktopEditorLayoutProps,
+  EditorWorkspaceDrawerProps,
+  EditorWorkspaceTab,
+} from "@/types/editor-layout";
 
-export type EditorWorkspaceTab = "layers" | "objects";
-
-interface CompactEditorShellProps {
-  tilesetPanel: ReactNode;
-  mapPanel: ReactNode;
-  workspaceSummary: string;
-  workspaceButtonLabel: string;
-  workspaceOpen: boolean;
-  onOpenWorkspace: () => void;
-}
+export type { EditorWorkspaceTab } from "@/types/editor-layout";
 
 export function CompactEditorShell({
   tilesetPanel,
@@ -81,14 +77,6 @@ export function CompactEditorShell({
       </Panel>
     </Group>
   );
-}
-
-interface DesktopEditorLayoutProps {
-  tilesetPanel: ReactNode;
-  mapPanel: ReactNode;
-  layersPanel: ReactNode;
-  objectsPanel: ReactNode;
-  isObjectLayerActive: boolean;
 }
 
 export function DesktopEditorLayout({
@@ -155,15 +143,6 @@ export function DesktopEditorLayout({
       </Panel>
     </Group>
   );
-}
-
-interface EditorWorkspaceDrawerProps {
-  open: boolean;
-  activeTab: EditorWorkspaceTab;
-  onOpenChange: (open: boolean) => void;
-  onTabChange: (tab: EditorWorkspaceTab) => void;
-  layersPanel: ReactNode;
-  objectsPanel: ReactNode;
 }
 
 export function EditorWorkspaceDrawer({

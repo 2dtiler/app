@@ -50,16 +50,13 @@ import type {
   ImageEditorLayerGroup,
 } from "@/types/image-editor";
 import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
-
-export type PaletteExportFormat =
-  | "ase"
-  | "aseprite"
-  | "gpl"
-  | "pal"
-  | "txt"
-  | "hex"
-  | "png";
-export type PngSwatchSize = 1 | 8 | 16 | 32;
+import type {
+  FrameOperation,
+  PaletteExportFormat,
+  PaletteLibrarySnapshot,
+  PngSwatchSize,
+  UndoableActionType,
+} from "@/types/image-editor-hook";
 
 // ---------------------------------------------------------------------------
 // Module-level per-layer pixel data — survives component unmount/remount.
@@ -230,27 +227,12 @@ function computeCompositeAboveLayer(
 // Frame operation undo/redo stacks
 // ---------------------------------------------------------------------------
 
-interface FrameOperation {
-  type: "add" | "delete" | "duplicate";
-  frameId: FrameId;
-  frame: Frame;
-  index: number;
-  /** Per-layer pixel data: layerId → ImageData snapshot */
-  layerData: Map<string, ImageData>;
-  prevFrameIndex: number;
-}
-
 const frameOpUndoStack: FrameOperation[] = [];
 const frameOpRedoStack: FrameOperation[] = [];
 
 // ---------------------------------------------------------------------------
 // Palette undo/redo history
 // ---------------------------------------------------------------------------
-
-interface PaletteLibrarySnapshot {
-  palettes: Palette[];
-  activePaletteId: PaletteId;
-}
 
 const paletteUndoStack: PaletteLibrarySnapshot[] = [];
 const paletteRedoStack: PaletteLibrarySnapshot[] = [];
@@ -274,7 +256,6 @@ function getActivePaletteIndex(s: ImageEditorState): number {
 // Unified action ordering log (maintains chronological undo/redo order)
 // ---------------------------------------------------------------------------
 
-type UndoableActionType = "pixel" | "frame" | "palette";
 const actionLog: UndoableActionType[] = [];
 const redoLog: UndoableActionType[] = [];
 

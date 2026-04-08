@@ -20,6 +20,10 @@ import type {
   ImageEditorImageLayer,
   ImageEditorLayerGroup,
 } from "@/types/image-editor";
+import type {
+  ImageEditorLayerTreeNode,
+  LayerTreeNode,
+} from "@/types/editor-helpers";
 
 // ---------------------------------------------------------------------------
 // Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())
@@ -418,32 +422,6 @@ export function isAncestorOf(
   return false;
 }
 
-export type LayerTreeNode =
-  | {
-      type: "layer";
-      layer: TileLayer;
-      depth: number;
-      parentGroupId: LayerGroupId | null;
-    }
-  | {
-      type: "imageLayer";
-      layer: ImageLayer;
-      depth: number;
-      parentGroupId: LayerGroupId | null;
-    }
-  | {
-      type: "objectLayer";
-      layer: ObjectLayer;
-      depth: number;
-      parentGroupId: LayerGroupId | null;
-    }
-  | {
-      type: "group";
-      group: LayerGroup;
-      depth: number;
-      parentGroupId: LayerGroupId | null;
-    };
-
 /**
  * Build a flat list of tree nodes for rendering in the layers panel.
  * Returns nodes in display order (top-to-bottom = reversed render order).
@@ -533,26 +511,6 @@ function buildDisplayTreeImpl(
 // ---------------------------------------------------------------------------
 // Image Editor Display Tree
 // ---------------------------------------------------------------------------
-
-export type ImageEditorLayerTreeNode =
-  | {
-      type: "rasterLayer";
-      layer: ImageEditorRasterLayer;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
-    }
-  | {
-      type: "imageLayer";
-      layer: ImageEditorImageLayer;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
-    }
-  | {
-      type: "group";
-      group: ImageEditorLayerGroup;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
-    };
 
 /**
  * Check whether `ancestorId` is an ancestor of `descendantId` in an

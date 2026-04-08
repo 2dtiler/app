@@ -1,21 +1,9 @@
-import type { SelectedTile, TileRef } from "@/types";
-
-export interface TileStampCell {
-  dx: number;
-  dy: number;
-  ref: TileRef;
-}
-
-export interface TileStamp {
-  width: number;
-  height: number;
-  cells: TileStampCell[];
-}
-
-type TileStampSource = Pick<
-  SelectedTile,
-  "tilesetId" | "sx" | "sy" | "sw" | "sh"
->;
+import type { TileRef } from "@/types";
+import type {
+  TileStamp,
+  TileStampCell,
+  TileStampSource,
+} from "@/types/editor-helpers";
 
 export function areTileRefsEqual(
   a: TileRef | null | undefined,

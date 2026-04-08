@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import type { MapObject, PropertyType, PropertyValue } from "@/types";
+import type { PropertyType, PropertyValue } from "@/types";
 import {
   Select,
   SelectContent,
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ObjectPropertiesDialogProps } from "@/types/dialogs";
 
 const PROPERTY_TYPES: PropertyType[] = [
   "bool",
@@ -30,13 +31,6 @@ const PROPERTY_TYPES: PropertyType[] = [
   "object",
   "string",
 ];
-
-interface ObjectPropertiesDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  object: MapObject;
-  onSave: (properties: Record<string, PropertyValue>, name?: string) => void;
-}
 
 export function ObjectPropertiesDialog({
   open,

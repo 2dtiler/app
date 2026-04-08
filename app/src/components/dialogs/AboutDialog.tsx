@@ -5,11 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface AboutDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import type { AboutDialogProps } from "@/types/dialogs";
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   return (

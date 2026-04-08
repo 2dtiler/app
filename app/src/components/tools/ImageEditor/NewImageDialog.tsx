@@ -10,15 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-interface NewImageDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (width: number, height: number) => void;
-  /** When provided, the dialog acts as a "resize" dialog pre-filled with current dimensions. */
-  initialWidth?: number;
-  initialHeight?: number;
-}
+import type { NewImageDialogProps } from "@/types/image-editor-ui";
 
 export function NewImageDialog({
   open,

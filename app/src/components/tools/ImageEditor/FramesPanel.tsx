@@ -11,25 +11,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import type { Frame, FrameId } from "@/types/image-editor";
-
-interface FramesPanelProps {
-  frames: Frame[];
-  currentFrameIndex: number;
-  isPlaying: boolean;
-  fps: number;
-  onionSkin: boolean;
-  canvasWidth: number;
-  canvasHeight: number;
-  getFrameData: (frameId: FrameId) => ImageData | null;
-  onSelectFrame: (index: number) => void;
-  onAddFrame: () => void;
-  onDuplicateFrame: () => void;
-  onDeleteFrame: () => void;
-  onPlay: () => void;
-  onStop: () => void;
-  onSetFps: (fps: number) => void;
-  onSetOnionSkin: (on: boolean) => void;
-}
+import type { FramesPanelProps } from "@/types/image-editor-ui";
 
 function FrameThumbnail({
   frame,

@@ -17,11 +17,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import type { ImageEditorTool } from "@/types/image-editor";
-
-interface ToolSidebarProps {
-  currentTool: ImageEditorTool;
-  onSelectTool: (tool: ImageEditorTool) => void;
-}
+import type { ToolSidebarProps } from "@/types/image-editor-ui";
 
 const TOOLS: {
   id: ImageEditorTool;

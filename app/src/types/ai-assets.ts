@@ -1,4 +1,3 @@
-// Asset taxonomy
 export type AssetType =
   | "tileset"
   | "sprite"
@@ -7,14 +6,12 @@ export type AssetType =
   | "ui"
   | "vfx";
 
-/** Style Stack — shared visual DNA applied to every generated prompt */
 export interface StyleStack {
   artStyle: string;
   colorPalette: string;
   spriteSize: string;
 }
 
-// Per-asset configuration interfaces
 export interface TilesetConfig {
   tileType: string;
   terrain: string;
@@ -58,17 +55,12 @@ export interface VFXConfig {
   size: string;
 }
 
-// Model definition
 export interface ModelDef {
   id: string;
   label: string;
-  /** API provider key — must match an id in API_KEY_PROVIDERS */
   provider: "openai" | "gemini" | "together" | "xai";
-  /** Model identifier passed directly to the provider's REST API */
   apiModel: string;
-  /** Whether this model accepts an input image (img2img / edit) */
   supportsImg2Img: boolean;
-  /** Aspect ratios this model supports; undefined = all; empty array = none */
   supportedRatios?: Ratio[];
 }
 

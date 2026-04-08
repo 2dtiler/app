@@ -23,18 +23,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { getAssetUrl } from "@/lib/db";
-import type { TileSize, TerrainTile, Tileset } from "@/types";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface TerrainTileSelectorProps {
-  tiles: TerrainTile[];
-  onTilesChange: (tiles: TerrainTile[]) => void;
-  tilesets: Tileset[];
-  tileSize: TileSize;
-}
+import type { TerrainTileSelectorProps } from "@/types/editor-layout";
 
 // ---------------------------------------------------------------------------
 // Mini tile preview — draws a single tile from the tileset onto a tiny canvas

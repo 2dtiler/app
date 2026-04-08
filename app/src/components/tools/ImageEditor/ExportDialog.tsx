@@ -10,13 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-interface ExportDialogProps {
-  open: boolean;
-  totalFrames: number;
-  onClose: () => void;
-  onExportSpriteSheet: (columns: number) => void;
-}
+import type { ExportDialogProps } from "@/types/image-editor-ui";
 
 export function ExportDialog({
   open,

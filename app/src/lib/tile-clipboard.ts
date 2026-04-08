@@ -6,16 +6,9 @@
  * panel components without requiring a React context.
  */
 
-import type { TileRef } from "@/types";
+import type { TileClipboard } from "@/types/editor-helpers";
 
-export interface TileClipboard {
-  /** Relative tile positions and their references within the copied region */
-  tiles: { dx: number; dy: number; ref: TileRef }[];
-  /** Width of the copied region in tiles */
-  width: number;
-  /** Height of the copied region in tiles */
-  height: number;
-}
+export type { TileClipboard } from "@/types/editor-helpers";
 
 let _clipboard: TileClipboard | null = null;
 

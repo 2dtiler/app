@@ -8,6 +8,12 @@
  */
 
 import type { Color, ImageEditorTool } from "@/types/image-editor";
+import type {
+  ImageEditorResizeHandle as ResizeHandle,
+  SelectionState,
+  StrokeState,
+  ToolContext,
+} from "@/types/image-editor-internals";
 
 // ---------------------------------------------------------------------------
 // Common helpers
@@ -117,44 +123,6 @@ function colorsEqual(a: Color, b: Color): boolean {
 // ---------------------------------------------------------------------------
 // Tool state — persisted across onDown / onMove / onUp calls
 // ---------------------------------------------------------------------------
-
-export interface ToolContext {
-  /** The main canvas 2d context */
-  ctx: CanvasRenderingContext2D;
-  /** The overlay canvas 2d context (for previews) */
-  overlayCtx: CanvasRenderingContext2D;
-  /** Canvas dimensions */
-  width: number;
-  height: number;
-  /** Current tool configuration */
-  color: Color;
-  brushSize: number;
-  tool: ImageEditorTool;
-  /** Whether the shift key is currently held */
-  shiftKey: boolean;
-  /** Blur kernel radius (1–8) */
-  blurSize: number;
-  /** Blur intensity (1–100) */
-  blurIntensity: number;
-}
-
-/**
- * Mutable state for the currently active tool stroke.
- * Created in onDown, mutated in onMove, consumed in onUp.
- */
-export interface StrokeState {
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  /** Snapshot of image before stroke began (for previewing line/rect/etc.) */
-  snapshot: ImageData | null;
-  /** For move tool: the offset being dragged */
-  moveOffsetX: number;
-  moveOffsetY: number;
-  /** Whether a stroke is actively occurring */
-  active: boolean;
-}
 
 export function createStrokeState(): StrokeState {
   return {
@@ -328,46 +296,6 @@ export function eraserUp(
  * Extended stroke state for the selection tool.
  * Stored in a module-level variable so it persists across stroke cycles.
  */
-export type ResizeHandle =
-  | "nw"
-  | "n"
-  | "ne"
-  | "w"
-  | "e"
-  | "sw"
-  | "s"
-  | "se"
-  | null;
-
-export interface SelectionState {
-  /** The pixel data that has been "lifted" from the canvas */
-  floatingPixels: ImageData | null;
-  /** Current position of the floating selection */
-  floatingX: number;
-  floatingY: number;
-  /** Current display width/height (may differ from floatingPixels dimensions during resize) */
-  displayWidth: number;
-  displayHeight: number;
-  /** The original area that was cleared when lifting */
-  sourceRect: { x: number; y: number; width: number; height: number } | null;
-  /** Whether we are currently dragging the floating selection vs drawing a new selection */
-  draggingFloating: boolean;
-  /** Whether we are currently resizing the floating selection */
-  resizingHandle: ResizeHandle;
-  /** Starting point for resize operation */
-  resizeStartX: number;
-  resizeStartY: number;
-  /** Bounds at the start of resize */
-  resizeStartBounds: { x: number; y: number; w: number; h: number };
-  /** Snapshot before any modification (for undo) */
-  canvasSnapshot: ImageData | null;
-  /** The drag offset from the pointer to the floating top-left */
-  dragOffsetX: number;
-  dragOffsetY: number;
-  /** Whether the floating selection has been committed already */
-  committed: boolean;
-}
-
 let selectionState: SelectionState = {
   floatingPixels: null,
   floatingX: 0,

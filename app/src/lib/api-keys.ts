@@ -11,13 +11,7 @@
 // Provider config
 // ---------------------------------------------------------------------------
 
-export interface ApiKeyProvider {
-  id: string;
-  label: string;
-  /** URL to the provider's API key management page */
-  url: string;
-  placeholder: string;
-}
+import type { ApiKeyProvider } from "@/types/api-keys";
 
 export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {

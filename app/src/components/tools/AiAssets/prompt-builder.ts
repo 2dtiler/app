@@ -7,7 +7,7 @@ import type {
   IconConfig,
   UIConfig,
   VFXConfig,
-} from "./types";
+} from "@/types/ai-assets";
 
 export function buildPrompt(
   assetType: AssetType,

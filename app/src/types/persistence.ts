@@ -1,0 +1,59 @@
+import type {
+  AssetId,
+  MapObject,
+  ObjectLayer,
+  Project,
+  TileLayer,
+  TileMapData,
+  Tileset,
+} from "./schema";
+
+export interface AssetRecord {
+  id: AssetId;
+  data: ArrayBuffer;
+  mimeType: string;
+  createdAt: number;
+}
+
+export interface ProjectRecord {
+  id: string;
+  name: string;
+  data: string;
+  updatedAt: number;
+}
+
+export interface ProjectPrefs {
+  activeTilesetGroupId: string | null;
+  activeTilesetId: string | null;
+  activeMapGroupId: string | null;
+  activeMapId: string | null;
+  activeLayerId: string | null;
+}
+
+export interface AssetManifestEntry {
+  id: AssetId;
+  mimeType: string;
+  byteLength: number;
+}
+
+export interface PackedProject {
+  project: Project;
+  manifest: AssetManifestEntry[];
+  assetBlob: Uint8Array;
+}
+
+export interface PackedMap {
+  map: TileMapData;
+  layers: TileLayer[];
+  tilesets: Tileset[];
+  objectLayers?: ObjectLayer[];
+  objects?: MapObject[];
+  manifest: AssetManifestEntry[];
+  assetBlob: Uint8Array;
+}
+
+export interface PackedTileset {
+  tileset: Tileset;
+  manifest: AssetManifestEntry[];
+  assetBlob: Uint8Array;
+}

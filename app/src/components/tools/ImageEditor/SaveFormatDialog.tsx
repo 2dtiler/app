@@ -11,17 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-type SaveFormat = "png" | "gif" | "spritesheet";
-
-interface SaveFormatDialogProps {
-  open: boolean;
-  totalFrames: number;
-  onClose: () => void;
-  onSavePng: () => void;
-  onSaveGif: () => void;
-  onSaveSpriteSheet: (columns: number) => void;
-}
+import type {
+  SaveFormat,
+  SaveFormatDialogProps,
+} from "@/types/image-editor-ui";
 
 const FORMAT_OPTIONS: { id: SaveFormat; label: string; description: string }[] =
   [

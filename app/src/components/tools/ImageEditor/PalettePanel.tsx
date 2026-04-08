@@ -24,10 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  PaletteExportFormat,
-  PngSwatchSize,
-} from "@/hooks/use-image-editor";
 import {
   Tooltip,
   TooltipContent,
@@ -49,30 +45,8 @@ import {
   ColorPickerOutput,
   ColorPickerFormat,
 } from "@/components/ui/color-picker";
-import type { Color, Palette, PaletteId } from "@/types/image-editor";
-
-interface PalettePanelProps {
-  // Palette library
-  palettes: Palette[];
-  activePaletteId: PaletteId;
-  onSwitchPalette: (id: PaletteId) => void;
-  onRenamePalette: (id: PaletteId, name: string) => void;
-  onDeletePalette: (id: PaletteId) => void;
-  onDuplicatePalette: (id: PaletteId) => void;
-  // Active palette colors
-  colors: Color[];
-  primaryColor: Color;
-  secondaryColor: Color;
-  onSelectPrimary: (color: Color) => void;
-  onSelectSecondary: (color: Color) => void;
-  onAddColor: (color: Color) => void;
-  onRemoveColor: (index: number) => void;
-  onUpdateColor: (index: number, color: Color) => void;
-  onReorderColors: (fromIndex: number, toIndex: number) => void;
-  onImport: (file: File) => void;
-  onExport: (format: PaletteExportFormat, swatchSize?: PngSwatchSize) => void;
-  onReset: () => void;
-}
+import type { Color } from "@/types/image-editor";
+import type { PalettePanelProps } from "@/types/image-editor-ui";
 
 function colorToHex(c: Color): string {
   const r = c.r.toString(16).padStart(2, "0");

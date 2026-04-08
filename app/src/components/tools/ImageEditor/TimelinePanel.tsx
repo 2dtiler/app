@@ -39,6 +39,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import type { TimelinePanelProps } from "@/types/image-editor-ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -207,24 +208,7 @@ function FrameCell({
 
 // ─── TimelinePanel ────────────────────────────────────────────────────────────
 
-export interface TimelinePanelProps {
-  frames: Frame[];
-  currentFrameIndex: number;
-  isPlaying: boolean;
-  fps: number;
-  onionSkin: boolean;
-  canvasWidth: number;
-  canvasHeight: number;
-  onSelectFrame: (index: number) => void;
-  onAddFrame: () => void;
-  onDuplicateFrame: () => void;
-  onDeleteFrame: () => void;
-  onMoveFrame: (direction: "left" | "right") => void;
-  onPlay: () => void;
-  onStop: () => void;
-  onSetFps: (fps: number) => void;
-  onSetOnionSkin: (on: boolean) => void;
-}
+export type { TimelinePanelProps } from "@/types/image-editor-ui";
 
 export function TimelinePanel({
   frames,

@@ -25,36 +25,12 @@ import type {
   MapObject,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
-
-interface AssetManifestEntry {
-  id: AssetId;
-  mimeType: string;
-  byteLength: number;
-}
-
-interface PackedProject {
-  project: Project;
-  manifest: AssetManifestEntry[];
-  /** Concatenated raw asset bytes */
-  assetBlob: Uint8Array;
-}
-
-interface PackedMap {
-  map: TileMapData;
-  layers: TileLayer[];
-  /** Tileset metadata for every tileset referenced by tiles on these layers */
-  tilesets: Tileset[];
-  objectLayers?: ObjectLayer[];
-  objects?: MapObject[];
-  manifest: AssetManifestEntry[];
-  assetBlob: Uint8Array;
-}
-
-interface PackedTileset {
-  tileset: Tileset;
-  manifest: AssetManifestEntry[];
-  assetBlob: Uint8Array;
-}
+import type {
+  AssetManifestEntry,
+  PackedMap,
+  PackedProject,
+  PackedTileset,
+} from "@/types/persistence";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -193,9 +169,7 @@ export async function exportMap(
  * Import a .2dm binary. Restores tileset assets to IndexedDB.
  * Returns the map, its layers, and the tileset metadata needed to render them.
  */
-export async function importMap(
-  data: Uint8Array,
-): Promise<{
+export async function importMap(data: Uint8Array): Promise<{
   map: TileMapData;
   layers: TileLayer[];
   tilesets: Tileset[];

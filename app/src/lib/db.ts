@@ -1,28 +1,11 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Project, AppSettings, AssetId } from "@/types";
 import type { Palette } from "@/types/image-editor";
-
-// ---------------------------------------------------------------------------
-// Asset record — stores binary blobs (tileset images) separately
-// ---------------------------------------------------------------------------
-
-export interface AssetRecord {
-  id: AssetId;
-  data: ArrayBuffer;
-  mimeType: string;
-  createdAt: number;
-}
-
-// ---------------------------------------------------------------------------
-// Project record — the serializable project metadata (no blobs)
-// ---------------------------------------------------------------------------
-
-export interface ProjectRecord {
-  id: string;
-  name: string;
-  data: string; // JSON-stringified Project
-  updatedAt: number;
-}
+import type {
+  AssetRecord,
+  ProjectPrefs,
+  ProjectRecord,
+} from "@/types/persistence";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -172,18 +155,6 @@ export async function deleteProject(id: string): Promise<void> {
     await db.assets.bulkDelete(assetIds);
   }
   await db.projects.delete(id);
-}
-
-// ---------------------------------------------------------------------------
-// Per-project UI preferences (localStorage)
-// ---------------------------------------------------------------------------
-
-export interface ProjectPrefs {
-  activeTilesetGroupId: string | null;
-  activeTilesetId: string | null;
-  activeMapGroupId: string | null;
-  activeMapId: string | null;
-  activeLayerId: string | null;
 }
 
 const PROJECT_PREFS_PREFIX = "project-prefs-";

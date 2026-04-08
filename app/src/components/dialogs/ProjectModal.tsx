@@ -36,7 +36,6 @@ import {
   deleteProjectPrefs,
   saveLastProjectId,
 } from "@/lib/db";
-import type { ProjectRecord } from "@/lib/db";
 import { getEditorStore, markEditorSaved } from "@/lib/store";
 import {
   generateProjectId,
@@ -50,6 +49,8 @@ import {
   importProject,
 } from "@/lib/format";
 import type { Project } from "@/types";
+import type { ProjectModalProps } from "@/types/dialogs";
+import type { ProjectRecord } from "@/types/persistence";
 
 function createNewProject(name: string): Project {
   const now = Date.now();
@@ -71,12 +72,6 @@ function createNewProject(name: string): Project {
     objects: [],
     overrideTilesets: [],
   };
-}
-
-interface ProjectModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onProjectLoaded: () => void;
 }
 
 export function ProjectModal({

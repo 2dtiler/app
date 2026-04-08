@@ -12,16 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-type LayerType = "tile" | "group" | "image" | "object";
-
-interface LayerTypeOption {
-  type: LayerType;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-  disabled: boolean;
-}
+import type {
+  AddLayerDialogLayerType as LayerType,
+  AddLayerDialogLayerTypeOption as LayerTypeOption,
+  AddLayerDialogProps,
+} from "@/types/dialogs";
 
 const LAYER_TYPES: LayerTypeOption[] = [
   {
@@ -57,20 +52,6 @@ const LAYER_TYPES: LayerTypeOption[] = [
     disabled: false,
   },
 ];
-
-interface AddLayerDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  defaultName: string;
-  onCreateLayer: (name: string, type: LayerType) => void;
-  /** Called when the user selects "Image Layer" — parent handles file picking */
-  onRequestImageLayer?: () => void;
-  /**
-   * If provided, only these layer types will be shown in the dialog.
-   * Defaults to all types.
-   */
-  allowedTypes?: LayerType[];
-}
 
 export function AddLayerDialog({
   open,

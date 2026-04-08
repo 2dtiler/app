@@ -10,9 +10,10 @@
  *   only their AssetId references live in the undo/redo-tracked state.
  */
 
-import { createTravels, type TravelPatches, type Travels } from "travels";
+import { createTravels, type TravelPatches } from "travels";
 import { DEFAULT_EDITOR_STATE, type EditorState } from "@/types";
 import type { MapObject } from "@/types";
+import type { EditorTravels, PersistedHistory } from "@/types/editor-store";
 import { db } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -20,13 +21,6 @@ import { db } from "./db";
 // ---------------------------------------------------------------------------
 
 const HISTORY_STORE_KEY = "editor-history";
-
-interface PersistedHistory {
-  id: string;
-  state: string;
-  patches: string;
-  position: number;
-}
 
 async function loadPersistedHistory(): Promise<{
   state: EditorState;
@@ -85,7 +79,6 @@ export function hasUnsavedChanges(): boolean {
 // Travels instance
 // ---------------------------------------------------------------------------
 
-type EditorTravels = Travels<EditorState, false, true, Record<string, never>>;
 let travelsInstance: EditorTravels | null = null;
 
 /**

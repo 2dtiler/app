@@ -1,10 +1,7 @@
 import { useRef, useEffect, useLayoutEffect, useCallback } from "react";
-import type {
-  Color,
-  ImageEditorTool,
-  PixelSelection,
-} from "@/types/image-editor";
-import type { FrameId } from "@/types/image-editor";
+import type { ToolContext, StrokeState } from "@/types/image-editor-internals";
+import type { ImageEditorTool } from "@/types/image-editor";
+import type { ImageCanvasProps } from "@/types/image-editor-ui";
 import {
   createStrokeState,
   dispatchDown,
@@ -18,37 +15,7 @@ import {
   hitTestResizeHandle,
   getResizeHandleCursor,
   drawFloatingOnOverlay,
-  type ToolContext,
-  type StrokeState,
 } from "@/lib/image-editor-tools";
-
-interface ImageCanvasProps {
-  width: number;
-  height: number;
-  zoom: number;
-  tool: ImageEditorTool;
-  primaryColor: Color;
-  secondaryColor: Color;
-  brushSize: number;
-  blurSize: number;
-  blurIntensity: number;
-  currentFrameId: FrameId | null;
-  /** Raw pixels of the active layer only (drawn by tools). */
-  activeLayerData: ImageData | null;
-  /** Composite of all visible layers below the active layer. */
-  belowComposite: ImageData | null;
-  /** Composite of all visible layers above the active layer. */
-  aboveComposite: ImageData | null;
-  previousFrameData: ImageData | null;
-  onionSkin: boolean;
-  selection: PixelSelection | null;
-  /** If true, prevent drawing on this layer. */
-  isLayerLocked: boolean;
-  onZoom: (zoom: number) => void;
-  onPushUndo: () => void;
-  onSelectionChange: (sel: PixelSelection | null) => void;
-  onFrameDataChange: (frameId: FrameId, data: ImageData) => void;
-}
 
 export function ImageCanvas({
   width,

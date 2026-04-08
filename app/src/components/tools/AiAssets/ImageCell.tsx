@@ -1,5 +1,5 @@
 import { Loader2, X } from "lucide-react";
-import type { ImageState } from "./types";
+import type { ImageState } from "@/types/ai-assets";
 
 export function ImageCell({
   state,

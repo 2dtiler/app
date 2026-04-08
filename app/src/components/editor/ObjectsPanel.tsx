@@ -44,6 +44,7 @@ import { ObjectPropertiesDialog } from "@/components/dialogs/ObjectPropertiesDia
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateObjectId } from "@/lib/ids";
 import type { ObjectId, ObjectType, MapObject } from "@/types";
+import type { ObjectRowProps } from "@/types/editor-layout";
 import { cn } from "@/lib/utils";
 
 const OBJECT_TYPE_ICONS: Record<ObjectType, typeof Square> = {
@@ -410,30 +411,6 @@ export function ObjectsPanel() {
 // ---------------------------------------------------------------------------
 // ObjectRow component
 // ---------------------------------------------------------------------------
-
-interface ObjectRowProps {
-  object: MapObject;
-  isActive: boolean;
-  renamingId: string | null;
-  renameValue: string;
-  onRenameValueChange: (value: string) => void;
-  onDoubleClick: (id: string, name: string) => void;
-  onCommitRename: () => void;
-  onCancelRename: () => void;
-  onSelect: (id: ObjectId) => void;
-  onToggleVisibility: (id: string) => void;
-  onToggleLock: (id: string) => void;
-  onMove: (id: string, dir: "up" | "down") => void;
-  onDelete: (id: string, name: string) => void;
-  onDuplicate: (id: string) => void;
-  onEditProperties: (id: string) => void;
-  isDragging: boolean;
-  dropIndicator: "above" | "below" | null;
-  onDragStart: (id: string) => void;
-  onDragEnd: () => void;
-  onDragOver: (e: React.DragEvent, targetId: string) => void;
-  onDrop: (e: React.DragEvent) => void;
-}
 
 const ObjectRow = memo(function ObjectRow({
   object,

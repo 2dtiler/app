@@ -42,17 +42,7 @@ import { TerrainTileSelector } from "@/components/editor/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateTerrainId } from "@/lib/ids";
 import type { TerrainTile, TerrainId, TilesetId, Terrain } from "@/types";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-interface FillTerrainDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Called when the user clicks "Apply" — the parent sets fillMode and activeFillTerrain */
-  onApply: (tiles: TerrainTile[]) => void;
-}
+import type { FillTerrainDialogProps } from "@/types/dialogs";
 
 // ---------------------------------------------------------------------------
 // Component

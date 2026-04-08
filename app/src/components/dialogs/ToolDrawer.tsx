@@ -9,7 +9,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import type { ToolName } from "@/components/layout/Toolbar";
+import type { ToolName } from "@/types";
+import type { ToolDrawerProps } from "@/types/dialogs";
 
 const ImageEditor = lazy(() =>
   import("@/components/tools/ImageEditor").then((m) => ({
@@ -27,11 +28,6 @@ const TOOL_CONFIG: Record<
   "image-editor": { label: "Image/Sprite Editor", component: ImageEditor },
   "ai-assets": { label: "AI Assets Generator", component: AiAssets },
 };
-
-interface ToolDrawerProps {
-  activeTool: ToolName | null;
-  onClose: () => void;
-}
 
 const SLIDE_DURATION = 350;
 

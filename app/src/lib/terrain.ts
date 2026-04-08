@@ -2,7 +2,8 @@
  * terrain.ts — Utility functions for fill and fill-terrain behavior.
  */
 
-import type { FillMode, TerrainTile, TileLayer, TileRef } from "@/types";
+import type { TerrainTile, TileRef } from "@/types";
+import type { FillRegionOptions } from "@/types/editor-helpers";
 
 function sameTileSource(a: TileRef | null, b: TileRef | null) {
   return (
@@ -12,17 +13,6 @@ function sameTileSource(a: TileRef | null, b: TileRef | null) {
     a.sx === b.sx &&
     a.sy === b.sy
   );
-}
-
-export interface FillRegionOptions {
-  layer: TileLayer;
-  mapWidth: number;
-  mapHeight: number;
-  startX: number;
-  startY: number;
-  fillMode: FillMode;
-  selectedTile: TileRef | null;
-  activeFillTerrain: TerrainTile[] | null;
 }
 
 export function getFillRegion({

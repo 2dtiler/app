@@ -5,11 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface KeyboardShortcutsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import type { KeyboardShortcutsDialogProps } from "@/types/dialogs";
 
 const shortcuts = [
   {
