@@ -1,6 +1,10 @@
-- Orientation is not working at all
-- Map Custom Options
-- Tileset Custom Options
+Image/sprite Editor:
+  In Light mode the sprite canvas is still dark
+  Layer styling is too narrow initially
+  Add frame should be a primary button
+  Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
+  Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
+  Add opacity operator for palettes
 
 Import Options
 Export Options
@@ -13,14 +17,6 @@ AI Asset Generation:
   Scheduler
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
-
-Image/sprite Editor:
-  In Light mode the sprite canvas is still dark
-  Layer styling is too narrow initially
-  Add frame should be a primary button
-  Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-  Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
-  Add opacity operator for palettes
 
 Exploration:  
   LDTK

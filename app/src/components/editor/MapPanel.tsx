@@ -119,7 +119,13 @@ import {
   type MapObject,
   type ObjectId,
   type ObjectType,
+  type PropertyValue,
+  PROPERTY_TYPES,
 } from "@/types";
+import type {
+  EditablePropertyEntry,
+  MapOptionsDialogProps,
+} from "@/types/dialogs";
 import type { TileClipboard } from "@/types/editor-helpers";
 import { generateObjectId } from "@/lib/ids";
 import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
@@ -132,6 +138,36 @@ import {
 import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { zoomStore } from "@/lib/zoom-store";
+
+function mapPropertiesToEntries(
+  properties: TileMapData["properties"],
+): EditablePropertyEntry[] {
+  return Object.entries(properties ?? {}).map(([key, propertyValue]) => ({
+    key,
+    value: typeof propertyValue === "string" ? propertyValue : propertyValue.value,
+    type:
+      typeof propertyValue === "string" ? "string" : propertyValue.type,
+  }));
+}
+
+function buildPropertyRecord(
+  entries: EditablePropertyEntry[],
+): Record<string, PropertyValue> {
+  const properties: Record<string, PropertyValue> = {};
+
+  for (const { key, value, type } of entries) {
+    const trimmedKey = key.trim();
+    if (!trimmedKey) continue;
+    properties[trimmedKey] = { value, type };
+  }
+
+  return properties;
+}
+
+function clampMapDimension(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(256, Math.max(1, Math.round(value)));
+}
 
 export function MapPanel() {
   const { state, setState, controls } = useEditorStore();
@@ -1076,6 +1112,7 @@ export function MapPanel() {
         widthInTiles: newMapWidth,
         heightInTiles: newMapHeight,
         tileSize: draft.tileSize,
+        properties: {},
         layerOrder: [layerId],
         createdAt: Date.now(),
       };
@@ -1252,6 +1289,12 @@ export function MapPanel() {
         widthInTiles: sourceMap.widthInTiles,
         heightInTiles: sourceMap.heightInTiles,
         tileSize: sourceMap.tileSize,
+        properties: Object.fromEntries(
+          Object.entries(sourceMap.properties ?? {}).map(([key, propertyValue]) => [
+            key,
+            { ...propertyValue },
+          ]),
+        ),
         layerOrder: sourceMap.layerOrder.map(remapId),
         createdAt: Date.now(),
       };
@@ -1320,20 +1363,29 @@ export function MapPanel() {
     });
   }
 
-  function handleResizeMap(width: number, height: number) {
+  function handleSaveMapOptions(
+    width: number,
+    height: number,
+    properties: Record<string, PropertyValue>,
+  ) {
     if (!activeMap) return;
+
+    const nextWidth = clampMapDimension(width, activeMap.widthInTiles);
+    const nextHeight = clampMapDimension(height, activeMap.heightInTiles);
+
     setState((draft) => {
       if (!draft.project) return;
       const map = draft.project.maps.find((m) => m.id === state.activeMapId);
       if (!map) return;
-      map.widthInTiles = width;
-      map.heightInTiles = height;
+      map.widthInTiles = nextWidth;
+      map.heightInTiles = nextHeight;
+      map.properties = properties;
       // Trim tiles outside bounds
       for (const layer of draft.project.layers) {
         if (layer.mapId !== map.id) continue;
         for (const key of Object.keys(layer.tiles)) {
           const [x, y] = key.split(",").map(Number);
-          if (x >= width || y >= height) {
+          if (x >= nextWidth || y >= nextHeight) {
             delete layer.tiles[key];
           }
         }
@@ -1742,6 +1794,9 @@ export function MapPanel() {
                     {renamingTabId === m.id ? (
                       <input
                         ref={renameInputRef}
+                        id={`rename-map-tab-${m.id}`}
+                        name={`rename-map-tab-${m.id}`}
+                        aria-label={`Rename map ${m.name}`}
                         className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
@@ -1974,9 +2029,12 @@ export function MapPanel() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">Name</Label>
+              <Label htmlFor="new-map-name" className="text-xs">
+                Name
+              </Label>
               <Input
                 id="new-map-name"
+                name="new-map-name"
                 value={newMapName}
                 onChange={(e) => setNewMapName(e.target.value)}
                 className="mt-1"
@@ -1985,9 +2043,12 @@ export function MapPanel() {
             </div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <Label className="text-xs">Width (tiles)</Label>
+                <Label htmlFor="new-map-width" className="text-xs">
+                  Width (tiles)
+                </Label>
                 <Input
                   id="new-map-width"
+                  name="new-map-width"
                   type="number"
                   min={1}
                   max={256}
@@ -1997,9 +2058,12 @@ export function MapPanel() {
                 />
               </div>
               <div className="flex-1">
-                <Label className="text-xs">Height (tiles)</Label>
+                <Label htmlFor="new-map-height" className="text-xs">
+                  Height (tiles)
+                </Label>
                 <Input
                   id="new-map-height"
+                  name="new-map-height"
                   type="number"
                   min={1}
                   max={256}
@@ -2035,7 +2099,7 @@ export function MapPanel() {
           open={mapOptionsOpen}
           onOpenChange={setMapOptionsOpen}
           map={activeMap}
-          onResize={handleResizeMap}
+          onSave={handleSaveMapOptions}
         />
       )}
 
@@ -2063,6 +2127,7 @@ export function MapPanel() {
           </DialogHeader>
           <Input
             id="new-map-group-name"
+            name="new-map-group-name"
             placeholder="Group name"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
@@ -2149,65 +2214,197 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
   open,
   onOpenChange,
   map,
-  onResize,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  map: TileMapData;
-  onResize: (w: number, h: number) => void;
-}) {
+  onSave,
+}: MapOptionsDialogProps) {
   const [width, setWidth] = useState(map.widthInTiles);
   const [height, setHeight] = useState(map.heightInTiles);
-  const [prevOpen, setPrevOpen] = useState(open);
-  const [prevMap, setPrevMap] = useState(map);
+  const [entries, setEntries] = useState<EditablePropertyEntry[]>(() =>
+    mapPropertiesToEntries(map.properties),
+  );
+  const [prevSyncDeps, setPrevSyncDeps] = useState({ open, map });
 
-  if (open !== prevOpen || map !== prevMap) {
-    setPrevOpen(open);
-    setPrevMap(map);
-    if (open) {
-      setWidth(map.widthInTiles);
-      setHeight(map.heightInTiles);
-    }
+  if (open && (open !== prevSyncDeps.open || map !== prevSyncDeps.map)) {
+    setPrevSyncDeps({ open, map });
+    setWidth(map.widthInTiles);
+    setHeight(map.heightInTiles);
+    setEntries(mapPropertiesToEntries(map.properties));
+  } else if (open !== prevSyncDeps.open || map !== prevSyncDeps.map) {
+    setPrevSyncDeps({ open, map });
   }
+
+  function handleAddProperty() {
+    setEntries((prev) => [...prev, { key: "", value: "", type: "string" }]);
+  }
+
+  function handleRemoveProperty(index: number) {
+    setEntries((prev) => prev.filter((_, entryIndex) => entryIndex !== index));
+  }
+
+  function handlePropertyKeyChange(index: number, value: string) {
+    setEntries((prev) =>
+      prev.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, key: value } : entry,
+      ),
+    );
+  }
+
+  function handlePropertyTypeChange(
+    index: number,
+    value: EditablePropertyEntry["type"],
+  ) {
+    setEntries((prev) =>
+      prev.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, type: value } : entry,
+      ),
+    );
+  }
+
+  function handlePropertyValueChange(index: number, value: string) {
+    setEntries((prev) =>
+      prev.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, value } : entry,
+      ),
+    );
+  }
+
+  function handleApply() {
+    onSave(width, height, buildPropertyRecord(entries));
+  }
+
+  const displayWidth = clampMapDimension(width, map.widthInTiles);
+  const displayHeight = clampMapDimension(height, map.heightInTiles);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[320px]">
+      <DialogContent className="sm:max-w-160">
         <DialogHeader>
           <DialogTitle>Map Options — {map.name}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Edit map dimensions and tile size
+          <DialogDescription>
+            Edit map dimensions and custom properties for this map.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <Label className="text-xs">Width (tiles)</Label>
-            <Input
-              id="map-options-width"
-              type="number"
-              min={1}
-              max={256}
-              value={width}
-              onChange={(e) => setWidth(Number(e.target.value))}
-              className="mt-1"
-            />
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Label htmlFor="map-options-width" className="text-xs">
+                Width (tiles)
+              </Label>
+              <Input
+                id="map-options-width"
+                name="map-options-width"
+                type="number"
+                min={1}
+                max={256}
+                value={width}
+                onChange={(e) => setWidth(Number(e.target.value))}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="map-options-height" className="text-xs">
+                Height (tiles)
+              </Label>
+              <Input
+                id="map-options-height"
+                name="map-options-height"
+                type="number"
+                min={1}
+                max={256}
+                value={height}
+                onChange={(e) => setHeight(Number(e.target.value))}
+                className="mt-1"
+              />
+            </div>
           </div>
-          <div className="flex-1">
-            <Label className="text-xs">Height (tiles)</Label>
-            <Input
-              id="map-options-height"
-              type="number"
-              min={1}
-              max={256}
-              value={height}
-              onChange={(e) => setHeight(Number(e.target.value))}
-              className="mt-1"
-            />
+
+          <p className="text-[10px] text-muted-foreground">
+            Pixel size: {displayWidth * map.tileSize} × {displayHeight * map.tileSize}px
+          </p>
+
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Custom Properties</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onMouseDown={handleAddProperty}
+              >
+                <Plus className="h-3 w-3 mr-1" /> Add
+              </Button>
+            </div>
+
+            {entries.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                No custom properties. Click &quot;Add&quot; to create one.
+              </p>
+            )}
+
+            {entries.map((entry, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  id={`map-property-key-${index}`}
+                  name={`map-property-key-${index}`}
+                  aria-label={`Map property ${index + 1} key`}
+                  placeholder="Key"
+                  value={entry.key}
+                  onChange={(e) =>
+                    handlePropertyKeyChange(index, e.target.value)
+                  }
+                  className="flex-2 min-w-0 h-7 text-xs"
+                />
+                <Select
+                  name={`map-property-type-${index}`}
+                  value={entry.type}
+                  onValueChange={(value) =>
+                    handlePropertyTypeChange(
+                      index,
+                      value as EditablePropertyEntry["type"],
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    id={`map-property-type-${index}`}
+                    aria-label={`Map property ${index + 1} type`}
+                    className="w-22 h-7 text-xs shrink-0"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROPERTY_TYPES.map((propertyType) => (
+                      <SelectItem
+                        key={propertyType}
+                        value={propertyType}
+                        className="text-xs"
+                      >
+                        {propertyType}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  id={`map-property-value-${index}`}
+                  name={`map-property-value-${index}`}
+                  aria-label={`Map property ${index + 1} value`}
+                  placeholder="Value"
+                  value={entry.value}
+                  onChange={(e) =>
+                    handlePropertyValueChange(index, e.target.value)
+                  }
+                  className="flex-2 min-w-0 h-7 text-xs"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive shrink-0"
+                  onMouseDown={() => handleRemoveProperty(index)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground">
-          Pixel size: {width * map.tileSize} × {height * map.tileSize}px
-        </p>
         <DialogFooter>
           <Button
             variant="ghost"
@@ -2216,7 +2413,7 @@ const MapOptionsDialog = memo(function MapOptionsDialog({
           >
             Cancel
           </Button>
-          <Button size="sm" onMouseDown={() => onResize(width, height)}>
+          <Button size="sm" onMouseDown={handleApply}>
             Apply
           </Button>
         </DialogFooter>

@@ -66,6 +66,8 @@ export interface TileMapData {
   heightInTiles: number;
   /** The tile size used by this map (px) */
   tileSize: TileSize;
+  /** Custom key-value properties (typed for future Tiled export compatibility) */
+  properties?: Record<string, PropertyValue>;
   /** Ordered layer/group IDs from bottom to top (top-level items) */
   layerOrder: (LayerId | LayerGroupId)[];
   createdAt: number;
@@ -165,6 +167,16 @@ export interface TileRef {
 export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon";
 
 /** Property types for Tiled-compatible custom properties (values are always stored as strings) */
+export const PROPERTY_TYPES = [
+  "bool",
+  "color",
+  "float",
+  "file",
+  "int",
+  "object",
+  "string",
+] as const;
+
 export type PropertyType =
   | "bool"
   | "color"

@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import type { ToolName } from "./components";
-import type { MapObject, PropertyValue, TerrainTile } from "./schema";
+import type {
+  MapObject,
+  PropertyType,
+  PropertyValue,
+  TerrainTile,
+  TileMapData,
+} from "./schema";
 
 export interface AboutDialogProps {
   open: boolean;
@@ -53,6 +59,23 @@ export interface ObjectPropertiesDialogProps {
   onOpenChange: (open: boolean) => void;
   object: MapObject;
   onSave: (properties: Record<string, PropertyValue>, name?: string) => void;
+}
+
+export interface EditablePropertyEntry {
+  key: string;
+  value: string;
+  type: PropertyType;
+}
+
+export interface MapOptionsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  map: TileMapData;
+  onSave: (
+    width: number,
+    height: number,
+    properties: Record<string, PropertyValue>,
+  ) => void;
 }
 
 export interface ProjectModalProps {
