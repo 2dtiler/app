@@ -91,7 +91,7 @@ import {
   DesktopEditorLayout,
   EditorWorkspaceDrawer,
   type EditorWorkspaceTab,
-} from "@/components/editor/layout/CompactEditorLayout";
+} from "@/components/editor/Layout/EditorLayouts";
 import { AdBanner } from "@/components/AdBanner";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)

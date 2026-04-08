@@ -26,14 +26,13 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
             Version 0.1.0
           </p>
           <p>
-            A tile map editor built with React & PixiJS for creating 2D game
-            maps. Upload tileset images, paint maps with brushes, manage layers,
-            and export your work.
+            A tile map editor built with React for creating 2D game maps. Upload
+            tileset images, paint maps with brushes, manage layers, and export
+            your work.
           </p>
           <div className="border-t border-border pt-3 text-xs space-y-1">
             <p>
-              <span className="text-foreground">Engine:</span> PixiJS 8 + React
-              19
+              <span className="text-foreground">Engine:</span> React 19
             </p>
             <p>
               <span className="text-foreground">Persistence:</span> IndexedDB

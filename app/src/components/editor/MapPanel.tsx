@@ -1766,7 +1766,7 @@ export function MapPanel() {
         </Button>
       </div>
 
-      {/* Map canvas area — PixiJS renderer */}
+      {/* Map canvas area */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div

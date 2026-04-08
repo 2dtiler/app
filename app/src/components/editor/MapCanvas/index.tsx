@@ -7,8 +7,6 @@
  *   2. overlayCanvas — imperative hover brush highlight drawn directly by
  *                     useSceneInteraction without triggering React renders
  *
- * This matches the approach of TilesetCanvas and ImageCanvas for snappy,
- * frame-rate painting without any pixi.js overhead.
  */
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
