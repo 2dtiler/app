@@ -32,6 +32,8 @@
   --success: #4a9e5c;
   --warning: #d4a843;
   --interactive: #5b9bf6;
+  --checkerboard-base: #1e1e1e;
+  --checkerboard-accent: #282828;
 
   --background: var(--black);
   --foreground: var(--text-primary);
@@ -78,6 +80,8 @@
   --text-primary: #1a1a1a;
   --text-display: #000000;
   --interactive: #007aff;
+  --checkerboard-base: #f0f0f0;
+  --checkerboard-accent: #e3e3e3;
 }
 
 @theme inline {

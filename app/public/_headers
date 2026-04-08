@@ -21,8 +21,10 @@
   # default-src: fall-back for anything not listed explicitly
   # script-src:  self + Google AdSense / Ad Manager domains
   # style-src:   unsafe-inline required for Radix UI / Tailwind inline styles
+    #              plus Google Fonts stylesheet loading
   # img-src:     data: / blob: for canvas exports; https: for ad images
   # font-src:    self only (no remote fonts currently used)
+    # font-src:    self + Google Fonts font files
   # connect-src: Sentry ingest + AdSense reporting
   # frame-src:   Google Ad iframes
   # worker-src:  blob: for Vite-generated web workers
@@ -34,3 +36,4 @@
   # script-src: self + Google AdSense / Ad Manager + Cloudflare Insights beacon
   # connect-src:    Sentry ingest + AdSense reporting + Cloudflare Insights RUM endpoint + Puter.js AI API + OpenAI + Together.xyz + xAI
   Content-Security-Policy: default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.gstatic.com https://static.doubleclick.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com https://*.puter.com wss://*.puter.com https://api.openai.com https://api.together.xyz https://api.x.ai; frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.gstatic.com https://static.doubleclick.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com https://*.puter.com wss://*.puter.com https://api.openai.com https://api.together.xyz https://api.x.ai; frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

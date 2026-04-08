@@ -1,15 +1,15 @@
-- Fill terrain should show an outline
-- Tileset should allow you to drag to select
-- Light mode should also apply to map view
-
 Make mobile friendly
+
+- Completely remove reference of Pixi
+- Tileset should allow you to drag to select
+- Erasing should look at what layer is selected
+
 Import Options
 Export Options
 
 AI Asset Generation
   AI Generation not working currently
   Check out if all native implementations work
-  Allow account based-login instead of api keys
   History
   Gallery
   Scheduler
@@ -39,5 +39,6 @@ Royalty free packs
 High touch animations
 Ad Marketplace for selling/buying tilesets etc.
 Add tutorial video
-Drive some traffic to it: 2dtiler.com
 Windows/Mac/Linux Apps
+ldtk Features?
+Drive some traffic to it: 2dtiler.com

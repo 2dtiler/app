@@ -177,8 +177,15 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const y0 = gy * scaledTile;
         const cs = Math.max(4, scaledTile / 4); // checker cell size
         ctx.clearRect(x0, y0, scaledTile, scaledTile);
-        const col1 = "#1e1e1e";
-        const col2 = "#282828";
+        const checkerboardStyles = getComputedStyle(
+          canvas.parentElement ?? document.documentElement,
+        );
+        const col1 =
+          checkerboardStyles.getPropertyValue("--checkerboard-base").trim() ||
+          "#1e1e1e";
+        const col2 =
+          checkerboardStyles.getPropertyValue("--checkerboard-accent").trim() ||
+          "#282828";
         for (let row = 0; row * cs < scaledTile; row++) {
           for (let col = 0; col * cs < scaledTile; col++) {
             ctx.fillStyle = (row + col) % 2 === 0 ? col1 : col2;
@@ -872,12 +879,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         width: canvasW,
         height: canvasH,
         // CSS checkerboard — no canvas redraws needed for background
-        backgroundColor: "#1e1e1e",
+        backgroundColor: "var(--checkerboard-base)",
         backgroundImage:
-          "linear-gradient(45deg, #282828 25%, transparent 25%), " +
-          "linear-gradient(-45deg, #282828 25%, transparent 25%), " +
-          "linear-gradient(45deg, transparent 75%, #282828 75%), " +
-          "linear-gradient(-45deg, transparent 75%, #282828 75%)",
+          "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+          "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+          "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
+          "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
         backgroundSize: `${checkSize * 2}px ${checkSize * 2}px`,
         backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
       }}
