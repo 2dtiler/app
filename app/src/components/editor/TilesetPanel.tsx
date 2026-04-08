@@ -205,7 +205,10 @@ export function TilesetPanel() {
       const tilesetsInGroup = tileset
         ? project?.tilesets.filter((t) => t.groupId === tileset.groupId)
         : [];
-      const nextTilesetId = getAdjacentItemId(tilesetsInGroup ?? [], deleteTarget.id);
+      const nextTilesetId = getAdjacentItemId(
+        tilesetsInGroup ?? [],
+        deleteTarget.id,
+      );
       if (tileset) {
         void deleteAsset(tileset.assetId);
       }
@@ -433,7 +436,9 @@ export function TilesetPanel() {
                 {groupTilesets.map((t) => (
                   <div
                     key={t.id}
-                    data-state={state.activeTilesetId === t.id ? "active" : "inactive"}
+                    data-state={
+                      state.activeTilesetId === t.id ? "active" : "inactive"
+                    }
                     className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
                   >
                     {renamingTabId === t.id ? (

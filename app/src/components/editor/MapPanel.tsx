@@ -1777,7 +1777,9 @@ export function MapPanel() {
                 {groupMaps.map((m) => (
                   <div
                     key={m.id}
-                    data-state={state.activeMapId === m.id ? "active" : "inactive"}
+                    data-state={
+                      state.activeMapId === m.id ? "active" : "inactive"
+                    }
                     className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
                   >
                     {renamingTabId === m.id ? (
