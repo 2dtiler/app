@@ -8,8 +8,6 @@
 
 import type { TileClipboard } from "@/types/editor-helpers";
 
-export type { TileClipboard } from "@/types/editor-helpers";
-
 let _clipboard: TileClipboard | null = null;
 
 /** Get the current tile clipboard contents. Returns null if empty. */

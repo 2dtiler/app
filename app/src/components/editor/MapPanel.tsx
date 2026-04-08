@@ -29,7 +29,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
-import type { MapCanvasImperativeHandle } from "./MapCanvas";
+import type { MapCanvasImperativeHandle } from "@/types/map-canvas";
 import { tilesetImageCache } from "./MapCanvas/texture-cache";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -120,6 +120,7 @@ import {
   type ObjectId,
   type ObjectType,
 } from "@/types";
+import type { TileClipboard } from "@/types/editor-helpers";
 import { generateObjectId } from "@/lib/ids";
 import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
 import {
@@ -128,11 +129,7 @@ import {
   getTileStampRef,
   isMultiTileStamp,
 } from "@/lib/tile-stamp";
-import {
-  getClipboard,
-  setClipboard,
-  type TileClipboard,
-} from "@/lib/tile-clipboard";
+import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { zoomStore } from "@/lib/zoom-store";
 

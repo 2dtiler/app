@@ -35,17 +35,6 @@ import type {
   PercentageInputProps,
 } from "@/types";
 
-// Re-export for backward compatibility
-export type {
-  ColorPickerProps,
-  ColorPickerSelectionProps,
-  ColorPickerHueProps,
-  ColorPickerAlphaProps,
-  ColorPickerEyeDropperProps,
-  ColorPickerOutputProps,
-  ColorPickerFormatProps,
-} from "@/types";
-
 const ColorPickerContext = createContext<ColorPickerContextValue | undefined>(
   undefined,
 );

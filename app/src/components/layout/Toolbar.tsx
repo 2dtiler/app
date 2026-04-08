@@ -19,9 +19,6 @@ import { cn } from "@/lib/utils";
 import { getEditorStore } from "@/lib/store";
 import type { ToolbarProps } from "@/types";
 
-// Re-export for backward compatibility
-export type { ToolName, ToolbarProps } from "@/types";
-
 export const Toolbar = memo(function Toolbar({
   onNewProject,
   onSaveProject,

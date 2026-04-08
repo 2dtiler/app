@@ -208,8 +208,6 @@ function FrameCell({
 
 // ─── TimelinePanel ────────────────────────────────────────────────────────────
 
-export type { TimelinePanelProps } from "@/types/image-editor-ui";
-
 export function TimelinePanel({
   frames,
   currentFrameIndex,

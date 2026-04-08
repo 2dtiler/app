@@ -18,9 +18,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { getAssetUrl } from "@/lib/db";
-
-// Re-export for backward compatibility
-export type { TileRegion, TilesetCanvasProps } from "@/types";
 import type { TilesetCanvasProps } from "@/types";
 
 // ---------------------------------------------------------------------------

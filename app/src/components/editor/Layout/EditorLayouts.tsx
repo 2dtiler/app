@@ -15,8 +15,6 @@ import type {
   EditorWorkspaceTab,
 } from "@/types/editor-layout";
 
-export type { EditorWorkspaceTab } from "@/types/editor-layout";
-
 export function CompactEditorShell({
   tilesetPanel,
   mapPanel,

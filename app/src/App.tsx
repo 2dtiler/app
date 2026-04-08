@@ -42,11 +42,13 @@ import type {
   LayerId,
   LayerGroupId,
   ObjectId,
+  ToolName,
 } from "@/types";
+import type { EditorWorkspaceTab } from "@/types/editor-layout";
 
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Toolbar, type ToolName } from "@/components/layout/Toolbar";
+import { Toolbar } from "@/components/layout/Toolbar";
 const SettingsDialog = lazy(() =>
   import("@/components/dialogs/SettingsDialog").then((m) => ({
     default: m.SettingsDialog,
@@ -90,7 +92,6 @@ import {
   CompactEditorShell,
   DesktopEditorLayout,
   EditorWorkspaceDrawer,
-  type EditorWorkspaceTab,
 } from "@/components/editor/Layout/EditorLayouts";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)

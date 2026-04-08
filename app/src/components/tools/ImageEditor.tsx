@@ -4,11 +4,9 @@ import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary, saveAsset } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
+import type { TileEditorContext } from "@/types/editor-helpers";
 import { generateAssetId, generateTilesetId } from "@/lib/ids";
-import {
-  consumeTileEditorContext,
-  type TileEditorContext,
-} from "@/lib/tile-editor-context";
+import { consumeTileEditorContext } from "@/lib/tile-editor-context";
 import {
   tilesetImageCache,
   loadTilesetImage,

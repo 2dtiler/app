@@ -1,7 +1,5 @@
 import type { TileEditorContext } from "@/types/editor-helpers";
 
-export type { TileEditorContext } from "@/types/editor-helpers";
-
 let activeContext: TileEditorContext | null = null;
 
 /** Set the tile editor context (call before opening the image editor drawer). */

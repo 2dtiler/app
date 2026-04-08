@@ -24,11 +24,6 @@ import {
 } from "./texture-cache";
 import { useSceneInteraction } from "./use-scene-interaction";
 
-export type {
-  MapCanvasProps,
-  MapCanvasImperativeHandle,
-} from "@/types/map-canvas";
-
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {
     map,
