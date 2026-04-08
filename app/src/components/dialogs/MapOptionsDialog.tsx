@@ -152,7 +152,8 @@ export const MapOptionsDialog = memo(function MapOptionsDialog({
           </div>
 
           <p className="text-[10px] text-muted-foreground">
-            Pixel size: {displayWidth * map.tileSize} × {displayHeight * map.tileSize}px
+            Pixel size: {displayWidth * map.tileSize} ×{" "}
+            {displayHeight * map.tileSize}px
           </p>
 
           <div className="border-t pt-4 space-y-3">
@@ -182,7 +183,9 @@ export const MapOptionsDialog = memo(function MapOptionsDialog({
                   aria-label={`Map property ${index + 1} key`}
                   placeholder="Key"
                   value={entry.key}
-                  onChange={(e) => handlePropertyKeyChange(index, e.target.value)}
+                  onChange={(e) =>
+                    handlePropertyKeyChange(index, e.target.value)
+                  }
                   className="flex-2 min-w-0 h-7 text-xs"
                 />
                 <Select
@@ -220,7 +223,9 @@ export const MapOptionsDialog = memo(function MapOptionsDialog({
                   aria-label={`Map property ${index + 1} value`}
                   placeholder="Value"
                   value={entry.value}
-                  onChange={(e) => handlePropertyValueChange(index, e.target.value)}
+                  onChange={(e) =>
+                    handlePropertyValueChange(index, e.target.value)
+                  }
                   className="flex-2 min-w-0 h-7 text-xs"
                 />
                 <Button
@@ -236,7 +241,11 @@ export const MapOptionsDialog = memo(function MapOptionsDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={handleApply}>
