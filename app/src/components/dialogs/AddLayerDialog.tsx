@@ -25,7 +25,6 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <Grid3X3 className="h-6 w-6" />,
     description:
       "A grid-based layer for placing tiles from your tilesets. The most common layer type for building maps.",
-    disabled: false,
   },
   {
     type: "group",
@@ -33,7 +32,6 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <FolderOpen className="h-6 w-6" />,
     description:
       "A container that groups multiple layers together for organization. Groups can be hidden, locked, and moved as a unit.",
-    disabled: false,
   },
   {
     type: "image",
@@ -41,7 +39,6 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <Image className="h-6 w-6" />,
     description:
       "A layer that displays a single image, such as a background or parallax element. Not bound to the tile grid.",
-    disabled: false,
   },
   {
     type: "object",
@@ -49,7 +46,6 @@ const LAYER_TYPES: LayerTypeOption[] = [
     icon: <Shapes className="h-6 w-6" />,
     description:
       "A layer for placing freeform objects like spawn points, collision zones, triggers, and other non-tile entities.",
-    disabled: false,
   },
 ];
 
@@ -112,21 +108,14 @@ export function AddLayerDialog({
               ).map((opt) => (
                 <button
                   key={opt.type}
-                  disabled={opt.disabled}
                   onMouseDown={() => handleSelectType(opt.type)}
                   className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                    opt.disabled
-                      ? "cursor-not-allowed opacity-40 border-border"
-                      : "cursor-pointer border-border hover:border-primary hover:bg-accent",
+                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors cursor-pointer border-border hover:border-primary hover:bg-accent",
                   )}
                 >
                   <div
                     className={cn(
-                      "mt-0.5 shrink-0 rounded-md p-2",
-                      opt.disabled
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-primary/10 text-primary",
+                      "mt-0.5 shrink-0 rounded-md p-2 bg-primary/10 text-primary",
                     )}
                   >
                     {opt.icon}
@@ -134,11 +123,6 @@ export function AddLayerDialog({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{opt.label}</span>
-                      {opt.disabled && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                          Coming soon
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {opt.description}

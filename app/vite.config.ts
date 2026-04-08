@@ -46,12 +46,12 @@ export default defineConfig({
         "camera=(), microphone=(), geolocation=(), payment=()",
       "Content-Security-Policy":
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com https://www.gstatic.com https://static.doubleclick.net https://static.cloudflareinsights.com; " +
+        "script-src 'self' 'unsafe-inline' https://www.gstatic.com https://static.cloudflareinsights.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
-        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://pagead2.googlesyndication.com https://stats.g.doubleclick.net https://www.google.com https://cloudflareinsights.com https://*.puter.com wss://*.puter.com; " +
-        "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://pagead2.googlesyndication.com; " +
+        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://www.google.com https://cloudflareinsights.com; " +
+        "frame-src https://www.google.com; " +
         "worker-src 'self' blob:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +

@@ -37,7 +37,6 @@ export interface AddLayerDialogLayerTypeOption {
   label: string;
   icon: ReactNode;
   description: string;
-  disabled: boolean;
 }
 
 export interface AddLayerDialogProps {
