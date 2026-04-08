@@ -34,6 +34,9 @@ export interface MapCanvasProps {
   zoom: number;
   activeLayerId: string | null;
   currentTool: EditorState["currentTool"];
+  fillMode: EditorState["fillMode"];
+  activeFillTerrain: EditorState["activeFillTerrain"];
+  canPreviewFill: boolean;
   brushSize: EditorState["brushSize"];
   selectedTile: EditorState["selectedTile"];
   onPaintTile: (gx: number, gy: number) => void;

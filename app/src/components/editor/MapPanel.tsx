@@ -121,7 +121,7 @@ import {
   type ObjectType,
 } from "@/types";
 import { generateObjectId } from "@/lib/ids";
-import { pickWeightedTile } from "@/lib/terrain";
+import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
 import {
   getClipboard,
   setClipboard,
@@ -189,6 +189,15 @@ export function MapPanel() {
   // Derived values needed by hooks (computed before early return)
   const activeMap = project?.maps.find((m) => m.id === state.activeMapId);
   const activeLayer = project?.layers.find((l) => l.id === state.activeLayerId);
+  const activeLayerEffectivelyLocked =
+    !!activeMap &&
+    !!activeLayer &&
+    isLayerEffectivelyLocked(
+      activeLayer.id,
+      activeMap.layerOrder,
+      project?.layers ?? [],
+      project?.layerGroups ?? [],
+    );
 
   // Paint tile handler — called by MapCanvas on pointer events.
   // Paint/erase write to a lightweight buffer for instant rendering;
@@ -241,68 +250,17 @@ export function MapPanel() {
           }
         }
       } else if (state.currentTool === "fill") {
-        // ---------------------
-        // Fill Tool — two modes:
-        //   "fill"        → flood-fill with the single selected tile
-        //   "fillTerrain" → flood-fill with weighted-random terrain tiles
-        // ---------------------
-
         const isTerrain = state.fillMode === "fillTerrain";
-
-        // Validate that we have tile data to fill with
-        if (isTerrain) {
-          if (!state.activeFillTerrain || state.activeFillTerrain.length === 0)
-            return;
-        } else {
-          if (!state.selectedTile) return;
-        }
-        if (!activeLayer) return;
-
-        const w = activeMap.widthInTiles;
-        const h = activeMap.heightInTiles;
-
-        const targetKey = `${gx},${gy}`;
-        const targetTile = activeLayer.tiles[targetKey] ?? null;
-
-        // For plain fill, skip if clicked tile already matches selected tile
-        if (!isTerrain && state.selectedTile) {
-          const ref = state.selectedTile;
-          if (
-            targetTile &&
-            targetTile.tilesetId === ref.tilesetId &&
-            targetTile.sx === ref.sx &&
-            targetTile.sy === ref.sy
-          ) {
-            return;
-          }
-        }
-
-        // BFS flood fill — collect all 4-connected tiles matching the target
-        const visited = new Set<string>();
-        const queue: [number, number][] = [[gx, gy]];
-        const toFill: [number, number][] = [];
-        let qi = 0;
-
-        while (qi < queue.length) {
-          const [x, y] = queue[qi++];
-          const key = `${x},${y}`;
-          if (visited.has(key)) continue;
-          if (x < 0 || y < 0 || x >= w || y >= h) continue;
-          visited.add(key);
-
-          const current = activeLayer.tiles[key] ?? null;
-          const matches =
-            (current === null && targetTile === null) ||
-            (current !== null &&
-              targetTile !== null &&
-              current.tilesetId === targetTile.tilesetId &&
-              current.sx === targetTile.sx &&
-              current.sy === targetTile.sy);
-
-          if (!matches) continue;
-          toFill.push([x, y]);
-          queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-        }
+        const toFill = getFillRegion({
+          layer: activeLayer,
+          mapWidth: activeMap.widthInTiles,
+          mapHeight: activeMap.heightInTiles,
+          startX: gx,
+          startY: gy,
+          fillMode: state.fillMode,
+          selectedTile: state.selectedTile,
+          activeFillTerrain: state.activeFillTerrain,
+        });
 
         if (toFill.length === 0) return;
 
@@ -1831,6 +1789,9 @@ export function MapPanel() {
                 zoom={mapZoom}
                 activeLayerId={state.activeLayerId}
                 currentTool={state.currentTool}
+                fillMode={state.fillMode}
+                activeFillTerrain={state.activeFillTerrain}
+                canPreviewFill={!activeLayerEffectivelyLocked}
                 brushSize={state.brushSize}
                 selectedTile={state.selectedTile}
                 onPaintTile={handlePaintTile}

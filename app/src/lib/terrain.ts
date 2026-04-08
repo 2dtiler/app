@@ -1,12 +1,82 @@
 /**
- * terrain.ts — Utility functions for the Fill Terrain tool.
- *
- * The core algorithm is weighted random tile selection:
- * given an array of TerrainTile entries (each with a probability weight),
- * pick one tile at random proportional to its weight.
+ * terrain.ts — Utility functions for fill and fill-terrain behavior.
  */
 
-import type { TerrainTile, TileRef } from "@/types";
+import type { FillMode, TerrainTile, TileLayer, TileRef } from "@/types";
+
+function sameTileSource(a: TileRef | null, b: TileRef | null) {
+  return (
+    a !== null &&
+    b !== null &&
+    a.tilesetId === b.tilesetId &&
+    a.sx === b.sx &&
+    a.sy === b.sy
+  );
+}
+
+export interface FillRegionOptions {
+  layer: TileLayer;
+  mapWidth: number;
+  mapHeight: number;
+  startX: number;
+  startY: number;
+  fillMode: FillMode;
+  selectedTile: TileRef | null;
+  activeFillTerrain: TerrainTile[] | null;
+}
+
+export function getFillRegion({
+  layer,
+  mapWidth,
+  mapHeight,
+  startX,
+  startY,
+  fillMode,
+  selectedTile,
+  activeFillTerrain,
+}: FillRegionOptions): [number, number][] {
+  if (startX < 0 || startY < 0 || startX >= mapWidth || startY >= mapHeight) {
+    return [];
+  }
+
+  const isTerrain = fillMode === "fillTerrain";
+  if (isTerrain) {
+    if (!activeFillTerrain || activeFillTerrain.length === 0) return [];
+  } else if (!selectedTile) {
+    return [];
+  }
+
+  const targetTile = layer.tiles[`${startX},${startY}`] ?? null;
+  if (!isTerrain && sameTileSource(targetTile, selectedTile)) {
+    return [];
+  }
+
+  const visited = new Set<string>();
+  const queue: [number, number][] = [[startX, startY]];
+  const toFill: [number, number][] = [];
+  let queueIndex = 0;
+
+  while (queueIndex < queue.length) {
+    const [x, y] = queue[queueIndex++];
+    const key = `${x},${y}`;
+
+    if (visited.has(key)) continue;
+    if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) continue;
+    visited.add(key);
+
+    const currentTile = layer.tiles[key] ?? null;
+    const matchesTarget =
+      (currentTile === null && targetTile === null) ||
+      sameTileSource(currentTile, targetTile);
+
+    if (!matchesTarget) continue;
+
+    toFill.push([x, y]);
+    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+
+  return toFill;
+}
 
 /**
  * Pick a tile from the terrain using weighted random selection.

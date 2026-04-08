@@ -18,6 +18,7 @@ import type {
 import type { MapCanvasProps, ResizeHandle } from "./types";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
 import { getTileImage } from "./texture-cache";
+import { getFillRegion } from "@/lib/terrain";
 
 // ---------------------------------------------------------------------------
 // Internal action types (private to this hook)
@@ -94,6 +95,9 @@ interface UseSceneInteractionParams {
   zoom: number;
   activeLayerId: string | null;
   currentTool: EditorState["currentTool"];
+  fillMode: EditorState["fillMode"];
+  activeFillTerrain: EditorState["activeFillTerrain"];
+  canPreviewFill: boolean;
   brushSize: EditorState["brushSize"];
   onPaintTile: MapCanvasProps["onPaintTile"];
   onPaintEnd: MapCanvasProps["onPaintEnd"];
@@ -190,6 +194,9 @@ export function useSceneInteraction({
   zoom,
   activeLayerId,
   currentTool,
+  fillMode,
+  activeFillTerrain,
+  canPreviewFill,
   brushSize,
   onPaintTile,
   onPaintEnd,
@@ -217,6 +224,21 @@ export function useSceneInteraction({
   selectedTile,
 }: UseSceneInteractionParams): UseSceneInteractionReturn {
   const isPaintingRef = useRef(false);
+  const fillPreviewCacheRef = useRef<{
+    tileKey: string | null;
+    layer: TileLayer | null;
+    fillMode: EditorState["fillMode"];
+    selectedTile: TileRef | null;
+    activeFillTerrain: EditorState["activeFillTerrain"];
+    region: [number, number][];
+  }>({
+    tileKey: null,
+    layer: null,
+    fillMode,
+    selectedTile,
+    activeFillTerrain,
+    region: [],
+  });
 
   // --- Selection state ---
   const selActionRef = useRef<SelectionAction | null>(null);
@@ -837,6 +859,43 @@ export function useSceneInteraction({
   const handlePointerMove = useCallback(
     (e: { x: number; y: number }) => {
       const pos = getGridPos(e.x, e.y);
+      const activeLayer =
+        layers.find((layer) => layer.id === activeLayerId) ?? null;
+      let fillPreviewRegion: [number, number][] = [];
+
+      if (pos && currentTool === "fill" && canPreviewFill && activeLayer) {
+        const tileKey = `${pos.x},${pos.y}`;
+        const cachedPreview = fillPreviewCacheRef.current;
+
+        if (
+          cachedPreview.tileKey === tileKey &&
+          cachedPreview.layer === activeLayer &&
+          cachedPreview.fillMode === fillMode &&
+          cachedPreview.selectedTile === selectedTile &&
+          cachedPreview.activeFillTerrain === activeFillTerrain
+        ) {
+          fillPreviewRegion = cachedPreview.region;
+        } else {
+          fillPreviewRegion = getFillRegion({
+            layer: activeLayer,
+            mapWidth: mapW,
+            mapHeight: mapH,
+            startX: pos.x,
+            startY: pos.y,
+            fillMode,
+            selectedTile,
+            activeFillTerrain,
+          });
+          fillPreviewCacheRef.current = {
+            tileKey,
+            layer: activeLayer,
+            fillMode,
+            selectedTile,
+            activeFillTerrain,
+            region: fillPreviewRegion,
+          };
+        }
+      }
 
       // Draw the yellow hover box directly on the overlay canvas —
       // no React state update, no re-render.
@@ -847,40 +906,59 @@ export function useSceneInteraction({
           ctx.clearRect(0, 0, overlay.width, overlay.height);
           ctx.imageSmoothingEnabled = false;
           if (pos && currentTool !== "select") {
-            const brushNum = currentTool === "fill" ? 1 : parseInt(brushSize);
-            const hx = pos.x * scaledTile;
-            const hy = pos.y * scaledTile;
-            const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
-            const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
-            ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
-            ctx.fillRect(hx, hy, hw, hh);
-            ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(hx, hy, hw, hh);
-            // Draw tile preview directly on overlay — no React state, no re-render
-            if (currentTool === "paint" && selectedTile) {
-              const tileImg = getTileImage(selectedTile);
-              if (tileImg) {
-                ctx.globalAlpha = 0.5;
-                for (let dy = 0; dy < brushNum; dy++) {
-                  for (let dx = 0; dx < brushNum; dx++) {
-                    const tx = pos.x + dx;
-                    const ty = pos.y + dy;
-                    if (tx >= mapW || ty >= mapH) continue;
-                    ctx.drawImage(
-                      tileImg,
-                      selectedTile.sx,
-                      selectedTile.sy,
-                      selectedTile.sw,
-                      selectedTile.sh,
-                      tx * scaledTile,
-                      ty * scaledTile,
-                      scaledTile,
-                      scaledTile,
-                    );
-                  }
+            if (currentTool === "fill") {
+              if (fillPreviewRegion.length > 0) {
+                ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+                ctx.strokeStyle = "rgba(255, 165, 0, 0.55)";
+                ctx.lineWidth = 1;
+                for (const [tx, ty] of fillPreviewRegion) {
+                  const hx = tx * scaledTile;
+                  const hy = ty * scaledTile;
+                  ctx.fillRect(hx, hy, scaledTile, scaledTile);
+                  ctx.strokeRect(
+                    hx + 0.5,
+                    hy + 0.5,
+                    scaledTile - 1,
+                    scaledTile - 1,
+                  );
                 }
-                ctx.globalAlpha = 1;
+              }
+            } else {
+              const brushNum = parseInt(brushSize);
+              const hx = pos.x * scaledTile;
+              const hy = pos.y * scaledTile;
+              const hw = Math.min(brushNum, mapW - pos.x) * scaledTile;
+              const hh = Math.min(brushNum, mapH - pos.y) * scaledTile;
+              ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+              ctx.fillRect(hx, hy, hw, hh);
+              ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
+              ctx.lineWidth = 2;
+              ctx.strokeRect(hx, hy, hw, hh);
+              // Draw tile preview directly on overlay — no React state, no re-render
+              if (currentTool === "paint" && selectedTile) {
+                const tileImg = getTileImage(selectedTile);
+                if (tileImg) {
+                  ctx.globalAlpha = 0.5;
+                  for (let dy = 0; dy < brushNum; dy++) {
+                    for (let dx = 0; dx < brushNum; dx++) {
+                      const tx = pos.x + dx;
+                      const ty = pos.y + dy;
+                      if (tx >= mapW || ty >= mapH) continue;
+                      ctx.drawImage(
+                        tileImg,
+                        selectedTile.sx,
+                        selectedTile.sy,
+                        selectedTile.sw,
+                        selectedTile.sh,
+                        tx * scaledTile,
+                        ty * scaledTile,
+                        scaledTile,
+                        scaledTile,
+                      );
+                    }
+                  }
+                  ctx.globalAlpha = 1;
+                }
               }
             }
           }
@@ -1134,7 +1212,11 @@ export function useSceneInteraction({
     },
     [
       getGridPos,
+      layers,
       currentTool,
+      fillMode,
+      activeFillTerrain,
+      canPreviewFill,
       brushSize,
       selectedTile,
       onPaintTile,
@@ -1296,6 +1378,8 @@ export function useSceneInteraction({
   );
 
   const handlePointerLeave = useCallback(() => {
+    fillPreviewCacheRef.current.tileKey = null;
+    fillPreviewCacheRef.current.region = [];
     const overlay = overlayCanvasRef.current;
     if (overlay) {
       const ctx = overlay.getContext("2d");
