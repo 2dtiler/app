@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useSyncExternalStore } from "react";
-import { Plus, Save, ZoomIn, ZoomOut, Trash2 } from "lucide-react";
+import { Plus, Save, ZoomIn, ZoomOut, Trash2, X } from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -49,6 +49,15 @@ import {
   type Tileset,
   type TilesetGroup,
 } from "@/types";
+
+function getAdjacentItemId<T extends { id: string }>(
+  items: T[],
+  targetId: string,
+): string | null {
+  const index = items.findIndex((item) => item.id === targetId);
+  if (index === -1) return null;
+  return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
+}
 
 export function TilesetPanel() {
   const { state, setState } = useEditorStore();
@@ -193,6 +202,10 @@ export function TilesetPanel() {
     if (deleteTarget.type === "tileset") {
       // Find asset to clean up
       const tileset = project?.tilesets.find((t) => t.id === deleteTarget.id);
+      const tilesetsInGroup = tileset
+        ? project?.tilesets.filter((t) => t.groupId === tileset.groupId)
+        : [];
+      const nextTilesetId = getAdjacentItemId(tilesetsInGroup ?? [], deleteTarget.id);
       if (tileset) {
         void deleteAsset(tileset.assetId);
       }
@@ -202,7 +215,9 @@ export function TilesetPanel() {
           (t) => t.id !== deleteTarget.id,
         );
         if (draft.activeTilesetId === deleteTarget.id) {
-          draft.activeTilesetId = null;
+          draft.activeTilesetId = nextTilesetId as TilesetId | null;
+        }
+        if (draft.selectedTile?.tilesetId === deleteTarget.id) {
           draft.selectedTile = null;
         }
       });
@@ -411,15 +426,23 @@ export function TilesetPanel() {
               }
             >
               <TabsList
-                className="h-7 bg-transparent rounded-none p-0"
+                variant="editor"
+                className="h-8 rounded-none bg-transparent p-0"
                 scrollable
               >
                 {groupTilesets.map((t) => (
-                  <div key={t.id} className="flex items-center group">
+                  <div
+                    key={t.id}
+                    data-state={state.activeTilesetId === t.id ? "active" : "inactive"}
+                    className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  >
                     {renamingTabId === t.id ? (
                       <input
                         ref={renameInputRef}
-                        className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
+                        id={`rename-tileset-tab-${t.id}`}
+                        name={`rename-tileset-tab-${t.id}`}
+                        aria-label={`Rename tileset ${t.name}`}
+                        className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={commitRename}
@@ -437,12 +460,14 @@ export function TilesetPanel() {
                                 <div>
                                   <TabsTrigger
                                     value={t.id}
-                                    className="h-6 px-2 text-xs rounded-none"
+                                    className="h-7 min-w-0 rounded-none px-2 text-[11px]"
                                     onDoubleClick={() =>
                                       handleTabDoubleClick(t)
                                     }
                                   >
-                                    {t.name}
+                                    <span className="max-w-40 truncate">
+                                      {t.name}
+                                    </span>
                                   </TabsTrigger>
                                 </div>
                               </TooltipTrigger>
@@ -468,22 +493,24 @@ export function TilesetPanel() {
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                          onMouseDown={() =>
+                        <button
+                          type="button"
+                          aria-label={`Close tileset ${t.name}`}
+                          className="mr-1 flex h-5 w-5 flex-none items-center justify-center rounded-sm text-muted-foreground/80 opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/tab:opacity-100 group-data-[state=active]/tab:opacity-100 group-hover/tab:pointer-events-auto group-data-[state=active]/tab:pointer-events-auto pointer-events-none"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setDeleteTarget({
                               type: "tileset",
                               id: t.id,
                               name: t.name,
-                            })
-                          }
+                            });
+                          }}
                         >
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </Button>
+                          <X className="h-3 w-3" />
+                        </button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete Tileset</TooltipContent>
+                      <TooltipContent>Close Tileset</TooltipContent>
                     </Tooltip>
                   </div>
                 ))}

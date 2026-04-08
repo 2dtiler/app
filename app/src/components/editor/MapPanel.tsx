@@ -9,6 +9,7 @@ import {
   Plus,
   ZoomIn,
   ZoomOut,
+  X,
   BoxSelect,
   Paintbrush,
   PaintBucket,
@@ -129,6 +130,15 @@ import { zoomStore } from "@/lib/zoom-store";
 function clampMapDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(256, Math.max(1, Math.round(value)));
+}
+
+function getAdjacentItemId<T extends { id: string }>(
+  items: T[],
+  targetId: string,
+): string | null {
+  const index = items.findIndex((item) => item.id === targetId);
+  if (index === -1) return null;
+  return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
 export function MapPanel() {
@@ -1145,6 +1155,10 @@ export function MapPanel() {
       setState((draft) => {
         if (!draft.project) return;
         const map = draft.project.maps.find((m) => m.id === deleteTarget.id);
+        const mapsInGroup = map
+          ? draft.project.maps.filter((m) => m.groupId === map.groupId)
+          : [];
+        const nextMapId = getAdjacentItemId(mapsInGroup, deleteTarget.id);
         if (map) {
           draft.project.layers = draft.project.layers.filter(
             (l) => l.mapId !== deleteTarget.id,
@@ -1157,8 +1171,17 @@ export function MapPanel() {
           (m) => m.id !== deleteTarget.id,
         );
         if (draft.activeMapId === deleteTarget.id) {
-          draft.activeMapId = null;
-          draft.activeLayerId = null;
+          draft.activeMapId = nextMapId as MapId | null;
+          const nextMap = nextMapId
+            ? draft.project.maps.find((m) => m.id === nextMapId)
+            : null;
+          draft.activeLayerId = nextMap
+            ? (findLastLayerId(
+                nextMap.layerOrder,
+                draft.project.layers,
+                draft.project.layerGroups ?? [],
+              ) ?? null)
+            : null;
         }
       });
     } else {
@@ -1747,18 +1770,23 @@ export function MapPanel() {
               }
             >
               <TabsList
-                className="h-7 bg-transparent rounded-none p-0"
+                variant="editor"
+                className="h-8 rounded-none bg-transparent p-0"
                 scrollable
               >
                 {groupMaps.map((m) => (
-                  <div key={m.id} className="flex items-center group">
+                  <div
+                    key={m.id}
+                    data-state={state.activeMapId === m.id ? "active" : "inactive"}
+                    className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  >
                     {renamingTabId === m.id ? (
                       <input
                         ref={renameInputRef}
                         id={`rename-map-tab-${m.id}`}
                         name={`rename-map-tab-${m.id}`}
                         aria-label={`Rename map ${m.name}`}
-                        className="h-6 w-24 px-1 text-xs bg-background border border-primary rounded"
+                        className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={commitRename}
@@ -1776,12 +1804,14 @@ export function MapPanel() {
                                 <div>
                                   <TabsTrigger
                                     value={m.id}
-                                    className="h-6 px-2 text-xs rounded-none"
+                                    className="h-7 min-w-0 rounded-none px-2 text-[11px]"
                                     onDoubleClick={() =>
                                       handleTabDoubleClick(m)
                                     }
                                   >
-                                    {m.name}
+                                    <span className="max-w-40 truncate">
+                                      {m.name}
+                                    </span>
                                   </TabsTrigger>
                                 </div>
                               </TooltipTrigger>
@@ -1807,22 +1837,24 @@ export function MapPanel() {
                     )}
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
-                          onMouseDown={() =>
+                        <button
+                          type="button"
+                          aria-label={`Close map ${m.name}`}
+                          className="mr-1 flex h-5 w-5 flex-none items-center justify-center rounded-sm text-muted-foreground/80 opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/tab:opacity-100 group-data-[state=active]/tab:opacity-100 group-hover/tab:pointer-events-auto group-data-[state=active]/tab:pointer-events-auto pointer-events-none"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setDeleteTarget({
                               type: "map",
                               id: m.id,
                               name: m.name,
-                            })
-                          }
+                            });
+                          }}
                         >
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </Button>
+                          <X className="h-3 w-3" />
+                        </button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete Map</TooltipContent>
+                      <TooltipContent>Close Map</TooltipContent>
                     </Tooltip>
                   </div>
                 ))}
