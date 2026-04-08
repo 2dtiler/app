@@ -1,7 +1,7 @@
 - When an object layer is selected, you should not be able to paint on it.
 - Move all stores to a stores folder
-- Uppercase all ui Components
 - Fix sentry issue
+- Tabs do not look like Tabs
 
 Image/sprite Editor:
   Layer styling is too narrow initially

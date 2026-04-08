@@ -7,14 +7,14 @@ import {
   Undo2,
   Redo2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/Button";
+import { Slider } from "@/components/ui/Slider";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 
 import type { EditorToolbarProps } from "@/types/image-editor-ui";
 

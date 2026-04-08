@@ -16,12 +16,12 @@ import {
   Settings2,
   Copy,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +31,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/AlertDialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@/components/ui/ContextMenu";
 import { ObjectPropertiesDialog } from "@/components/dialogs/ObjectPropertiesDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateObjectId } from "@/lib/ids";

@@ -4,7 +4,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import type { AboutDialogProps } from "@/types/dialogs";
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {

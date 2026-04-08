@@ -30,27 +30,27 @@ import {
 import { MapCanvas } from "./MapCanvas";
 import type { MapCanvasImperativeHandle } from "@/types/map-canvas";
 import { tilesetImageCache } from "./MapCanvas/texture-cache";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/Button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/Select";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/DropdownMenu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +60,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/AlertDialog";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -71,7 +71,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@/components/ui/ContextMenu";
 import { FillTerrainDialog } from "@/components/dialogs/FillTerrainDialog";
 import { MapOptionsDialog } from "@/components/dialogs/MapOptionsDialog";
 import { NewMapDialog } from "@/components/dialogs/NewMapDialog";

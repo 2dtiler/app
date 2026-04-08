@@ -20,8 +20,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/Button";
+import { Slider } from "@/components/ui/Slider";
 import { getAssetUrl } from "@/lib/db";
 import type { TerrainTileSelectorProps } from "@/types/editor-layout";
 

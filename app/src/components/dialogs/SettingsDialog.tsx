@@ -6,16 +6,16 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/Accordion";
+import { Switch } from "@/components/ui/Switch";
+import { Label } from "@/components/ui/Label";
+import { Button } from "@/components/ui/Button";
 import { getSettings, saveSettings } from "@/lib/db";
 import {
   API_KEY_PROVIDERS,

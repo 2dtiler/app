@@ -8,7 +8,7 @@ import {
   Pencil,
   Copy,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,26 +16,26 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/DropdownMenu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/Select";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/Popover";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import {
   ColorPicker,
   ColorPickerSelection,
@@ -44,7 +44,7 @@ import {
   ColorPickerEyeDropper,
   ColorPickerOutput,
   ColorPickerFormat,
-} from "@/components/ui/color-picker";
+} from "@/components/ui/ColorPicker";
 import type { Color } from "@/types/image-editor";
 import type { PalettePanelProps } from "@/types/image-editor-ui";
 

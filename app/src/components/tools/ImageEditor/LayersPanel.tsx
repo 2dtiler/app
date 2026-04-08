@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +18,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/AlertDialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { AddLayerDialog } from "@/components/dialogs/AddLayerDialog";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import {

@@ -6,7 +6,7 @@ import {
   Suspense,
   useRef,
 } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/Tooltip";
 import {
   initEditorStore,
   getEditorStore,
@@ -47,7 +47,7 @@ import type {
 import type { EditorWorkspaceTab } from "@/types/editor-layout";
 
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/Sonner";
 import { Toolbar } from "@/components/layout/Toolbar";
 const SettingsDialog = lazy(() =>
   import("@/components/dialogs/SettingsDialog").then((m) => ({

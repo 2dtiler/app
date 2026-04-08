@@ -4,7 +4,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import type { KeyboardShortcutsDialogProps } from "@/types/dialogs";
 
 const shortcuts = [

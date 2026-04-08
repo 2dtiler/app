@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/Button";
+import { Label } from "@/components/ui/Label";
 
 async function resizeImage(
   file: File,

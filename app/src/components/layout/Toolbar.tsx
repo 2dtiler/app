@@ -12,7 +12,7 @@ import {
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
-} from "@/components/ui/menubar";
+} from "@/components/ui/Menubar";
 import { cn } from "@/lib/utils";
 // rerender-defer-reads: use store directly for controls to avoid
 // subscribing to full state which would re-render on every change

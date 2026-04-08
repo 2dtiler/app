@@ -9,13 +9,13 @@ import {
   Droplets,
   MousePointer2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 import type { ImageEditorTool } from "@/types/image-editor";
 import type { ToolSidebarProps } from "@/types/image-editor-ui";
 

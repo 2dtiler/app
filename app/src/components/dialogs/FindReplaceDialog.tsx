@@ -25,15 +25,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/Select";
+import { Button } from "@/components/ui/Button";
 import { TilesetCanvas } from "@/components/editor/TilesetCanvas";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { getAllLayerIds } from "@/lib/layers";

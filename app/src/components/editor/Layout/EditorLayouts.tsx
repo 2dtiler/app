@@ -1,13 +1,13 @@
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import {
   Drawer,
   DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerTitle,
-} from "@/components/ui/drawer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/components/ui/Drawer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type {
   CompactEditorShellProps,
   DesktopEditorLayoutProps,

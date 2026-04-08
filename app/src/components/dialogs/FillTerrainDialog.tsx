@@ -27,16 +27,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/Select";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { TilesetCanvas } from "@/components/editor/TilesetCanvas";
 import { TerrainTileSelector } from "@/components/editor/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";

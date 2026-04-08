@@ -1,15 +1,15 @@
 import { useRef, useEffect } from "react";
 import { Plus, Copy, Trash2, Play, Pause } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Switch } from "@/components/ui/Switch";
+import { Label } from "@/components/ui/Label";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/Tooltip";
 import type { Frame, FrameId } from "@/types/image-editor";
 import type { FramesPanelProps } from "@/types/image-editor-ui";
 
