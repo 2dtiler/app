@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 
 import "./index.css";
 import App from "./App";
+import { isSentryEnabled } from "@/lib/sentry";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -21,4 +22,6 @@ createRoot(document.getElementById("root")!).render(
 );
 
 // Load Sentry after render so it doesn't block the critical path
-requestIdleCallback(() => import("./instrument"), { timeout: 5000 });
+if (isSentryEnabled) {
+  requestIdleCallback(() => import("./instrument"), { timeout: 5000 });
+}

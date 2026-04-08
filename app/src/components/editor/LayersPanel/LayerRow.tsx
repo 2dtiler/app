@@ -55,13 +55,6 @@ export const LayerRow = memo(function LayerRow({
   onDrop,
 }: LayerRowProps) {
   const isRenaming = renamingId === layer.id;
-  const layerKind =
-    layer.type === "image"
-      ? "Image"
-      : layer.type === "object"
-        ? "Object"
-        : "Tile";
-
   const renameInputRef = useCallback((node: HTMLInputElement | null) => {
     if (node) {
       requestAnimationFrame(() => {
@@ -182,10 +175,7 @@ export const LayerRow = memo(function LayerRow({
               className="min-w-0 flex-1 basis-0 overflow-hidden"
               onDoubleClick={() => onDoubleClick(layer.id, layer.name)}
             >
-              <div className="truncate font-mono text-[10px] uppercase tracking-widest text-text-secondary">
-                {layerKind}
-              </div>
-              <div className="mt-1 truncate text-[13px] leading-none text-foreground">
+              <div className="truncate text-[13px] leading-none text-foreground">
                 {layer.name}
               </div>
             </div>

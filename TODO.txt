@@ -1,6 +1,6 @@
-- Dont use sentry if not defined: VITE_SENTRY_DSN
 - Erasing should look at what layer is selected
 - Add unit tests and add to CI/CD
+- Orientation is not working at all
 
 Import Options
 Export Options
@@ -15,13 +15,13 @@ AI Asset Generation
   Ability to download/add to tileset/open in image Editor
 
 Image/sprite Editor
-  Layer styling is a bit off in 
+  In Light mode the sprite canvas is still dark
+  Layer styling is too narrow initially
   Add frame should be a primary button
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-  Palettes: Allow to select amount of columns per row
-  Add opacity to image objects. Can be selected from palette menu
-  Tools in image editor should have different icons
-    
+  Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
+  Add opacity operator for palettes
+  
 Get some ideas from pixelorama (Installed)
 Unslopify
 Make list of tiled advanced features

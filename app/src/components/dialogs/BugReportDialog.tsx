@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as Sentry from "@sentry/react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { submitBugReportToSentry } from "@/lib/sentry";
 import type { BugReportDialogProps } from "@/types/dialogs";
 
 export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
@@ -37,26 +37,10 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
     setSubmitting(true);
 
     try {
-      Sentry.setUser({ email: email.trim() || undefined });
-
-      Sentry.captureEvent({
-        message: `Bug Report: ${description.slice(0, 80)}`,
-        level: "error",
-        tags: { source: "bug-report-dialog" },
-        extra: {
-          description,
-          reporterEmail: email.trim() || "not provided",
-        },
-        user: {
-          email: email.trim() || undefined,
-        },
-      });
-
-      // Flush to ensure the event is sent before we show success
-      await Sentry.flush(3000);
+      await submitBugReportToSentry(description, email);
       setSubmitted(true);
     } catch {
-      // Still show success — Sentry may buffer the event
+      // Still show success when Sentry is unavailable or send fails.
       setSubmitted(true);
     } finally {
       setSubmitting(false);

@@ -16,13 +16,13 @@ import {
   isImageEditorStoreReady,
   getImageEditorStore,
 } from "@/lib/image-editor-store";
-import { NewImageDialog } from "./ImageEditor/NewImageDialog";
-import { ImageCanvas } from "./ImageEditor/ImageCanvas";
-import { ToolSidebar } from "./ImageEditor/ToolSidebar";
-import { EditorToolbar } from "./ImageEditor/EditorToolbar";
-import { PalettePanel } from "./ImageEditor/PalettePanel";
-import { TimelinePanel } from "./ImageEditor/TimelinePanel";
-import { SaveFormatDialog } from "./ImageEditor/SaveFormatDialog";
+import { NewImageDialog } from "./NewImageDialog";
+import { ImageCanvas } from "./ImageCanvas";
+import { ToolSidebar } from "./ToolSidebar";
+import { EditorToolbar } from "./EditorToolbar";
+import { PalettePanel } from "./PalettePanel";
+import { TimelinePanel } from "./TimelinePanel";
+import { SaveFormatDialog } from "./SaveFormatDialog";
 import type { ImageEditorTool } from "@/types/image-editor";
 
 export function ImageEditor() {

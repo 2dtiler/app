@@ -452,7 +452,7 @@ const ObjectRow = memo(function ObjectRow({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "layer-item relative flex items-center gap-1 px-1.5 py-1 rounded text-xs group/item cursor-pointer",
+            "layer-item relative flex items-center gap-1 px-1.5 pr-16 py-1 rounded text-xs group/item cursor-pointer",
             isActive
               ? "bg-accent text-accent-foreground"
               : "hover:bg-secondary",
@@ -560,7 +560,7 @@ const ObjectRow = memo(function ObjectRow({
           )}
 
           {/* Move/Delete buttons */}
-          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0 px-0.5 rounded-r bg-secondary opacity-0 group-hover/item:opacity-100 z-20">
+          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0 px-0.5 rounded-r bg-secondary z-20">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
