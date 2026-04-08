@@ -1,6 +1,3 @@
-- When an object layer is selected, you should not be able to paint on it.
-- Move all stores to a stores folder
-- Fix sentry issue
 - Tabs do not look like Tabs
 
 Image/sprite Editor:

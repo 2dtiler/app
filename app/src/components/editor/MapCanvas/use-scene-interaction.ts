@@ -32,6 +32,33 @@ import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
 
 export type { UseSceneInteractionReturn } from "@/types/map-canvas";
 
+function drawBlockedPreview(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  if (width <= 0 || height <= 0) return;
+
+  const inset = Math.max(
+    1,
+    Math.min(6, Math.floor(Math.min(width, height) * 0.18)),
+  );
+
+  ctx.fillStyle = "rgba(220, 38, 38, 0.22)";
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = "rgba(220, 38, 38, 0.95)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+  ctx.beginPath();
+  ctx.moveTo(x + inset, y + inset);
+  ctx.lineTo(x + width - inset, y + height - inset);
+  ctx.moveTo(x + width - inset, y + inset);
+  ctx.lineTo(x + inset, y + height - inset);
+  ctx.stroke();
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -709,6 +736,11 @@ export function useSceneInteraction({
       const pos = getGridPos(e.x, e.y);
       const activeLayer =
         layers.find((layer) => layer.id === activeLayerId) ?? null;
+      const isBlockedDrawPreview =
+        objectLayers.some((layer) => layer.id === activeLayerId) &&
+        (currentTool === "paint" ||
+          currentTool === "erase" ||
+          currentTool === "fill");
       const selectedStamp =
         currentTool === "paint" && selectedTile
           ? createTileStamp(selectedTile, tileSize)
@@ -758,7 +790,31 @@ export function useSceneInteraction({
           ctx.clearRect(0, 0, overlay.width, overlay.height);
           ctx.imageSmoothingEnabled = false;
           if (pos && currentTool !== "select") {
-            if (currentTool === "fill") {
+            if (isBlockedDrawPreview) {
+              const brushNum = parseInt(brushSize);
+              const hx = pos.x * scaledTile;
+              const hy = pos.y * scaledTile;
+              const previewWidth =
+                currentTool === "paint" &&
+                selectedStamp &&
+                isMultiTileStamp(selectedStamp)
+                  ? selectedStamp.width
+                  : currentTool === "fill"
+                    ? 1
+                    : brushNum;
+              const previewHeight =
+                currentTool === "paint" &&
+                selectedStamp &&
+                isMultiTileStamp(selectedStamp)
+                  ? selectedStamp.height
+                  : currentTool === "fill"
+                    ? 1
+                    : brushNum;
+              const hw = Math.min(previewWidth, mapW - pos.x) * scaledTile;
+              const hh = Math.min(previewHeight, mapH - pos.y) * scaledTile;
+
+              drawBlockedPreview(ctx, hx, hy, hw, hh);
+            } else if (currentTool === "fill") {
               if (fillPreviewRegion.length > 0) {
                 ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
                 ctx.strokeStyle = "rgba(255, 165, 0, 0.55)";
