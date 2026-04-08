@@ -938,8 +938,7 @@ export function MapPanel() {
           const fX = nextRef.flipX ?? false;
           const fY = nextRef.flipY ?? false;
           if (action === "rotateLeft") {
-            nextRef.rotation =
-              ((rot - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+            nextRef.rotation = ((rot - 90 + 360) % 360) as 0 | 90 | 180 | 270;
           } else if (action === "rotateRight") {
             nextRef.rotation = ((rot + 90) % 360) as 0 | 90 | 180 | 270;
           } else if (action === "flipH") {
