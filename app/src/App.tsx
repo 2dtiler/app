@@ -80,7 +80,7 @@ const BugReportDialog = lazy(() =>
   })),
 );
 const ToolDrawer = lazy(() =>
-  import("@/components/dialogs/ToolDrawer").then((m) => ({
+  import("@/components/tools/ToolDrawer").then((m) => ({
     default: m.ToolDrawer,
   })),
 );
