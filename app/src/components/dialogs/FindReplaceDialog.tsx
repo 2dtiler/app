@@ -1,5 +1,5 @@
 /**
- * FindReplaceDialog — Modal for finding and replacing tile patterns across
+ * FindReplaceDialog — Dialog for finding and replacing tile patterns across
  * layers of the active map.
  *
  * Workflow:

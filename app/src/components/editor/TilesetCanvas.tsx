@@ -12,7 +12,7 @@
  *
  * Used by:
  * - TilesetPanel (main sidebar tileset viewer)
- * - FillTerrainDialog (terrain configuration modal)
+ * - FillTerrainDialog (terrain configuration dialog)
  */
 
 import { useRef, useState, useCallback, useEffect } from "react";

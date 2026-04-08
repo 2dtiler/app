@@ -78,7 +78,36 @@ export interface MapOptionsDialogProps {
   ) => void;
 }
 
-export interface ProjectModalProps {
+export interface NewMapDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  name: string;
+  width: number;
+  height: number;
+  tileSize: number;
+  onNameChange: (value: string) => void;
+  onWidthChange: (value: number) => void;
+  onHeightChange: (value: number) => void;
+  onCreate: () => void;
+}
+
+export interface NewMapGroupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  name: string;
+  onNameChange: (value: string) => void;
+  onCreate: () => void;
+}
+
+export interface NewTilesetGroupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  name: string;
+  onNameChange: (value: string) => void;
+  onCreate: () => void;
+}
+
+export interface ProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectLoaded: () => void;

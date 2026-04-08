@@ -649,7 +649,7 @@ export function ImageCanvas({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 overflow-auto bg-neutral-900"
+      className="relative flex-1 overflow-auto bg-background"
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
@@ -665,11 +665,12 @@ export function ImageCanvas({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
+            backgroundColor: "var(--checkerboard-base)",
             backgroundImage:
-              "linear-gradient(45deg, #333 25%, transparent 25%), " +
-              "linear-gradient(-45deg, #333 25%, transparent 25%), " +
-              "linear-gradient(45deg, transparent 75%, #333 75%), " +
-              "linear-gradient(-45deg, transparent 75%, #333 75%)",
+              "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+              "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+              "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
+              "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
             backgroundSize: `${zoom * 2}px ${zoom * 2}px`,
             backgroundPosition: `0 0, 0 ${zoom}px, ${zoom}px -${zoom}px, -${zoom}px 0`,
             opacity: 0.5,

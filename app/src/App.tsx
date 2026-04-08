@@ -54,9 +54,9 @@ const SettingsDialog = lazy(() =>
     default: m.SettingsDialog,
   })),
 );
-const ProjectModal = lazy(() =>
-  import("@/components/dialogs/ProjectModal").then((m) => ({
-    default: m.ProjectModal,
+const ProjectDialog = lazy(() =>
+  import("@/components/dialogs/ProjectDialog").then((m) => ({
+    default: m.ProjectDialog,
   })),
 );
 const AboutDialog = lazy(() =>
@@ -117,7 +117,7 @@ let storeInitStarted = false;
 function App() {
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
@@ -290,14 +290,14 @@ function App() {
         }
       }
 
-      // No projects at all — show the project modal
+      // No projects at all — show the project dialog
       if (!autoOpened) {
-        setProjectModalOpen(true);
+        setProjectDialogOpen(true);
       }
 
       setReady(true);
     });
-  }, [setProjectModalOpen]);
+  }, [setProjectDialogOpen]);
 
   useAutoSave();
   useKeyboardShortcuts();
@@ -368,8 +368,8 @@ function App() {
       <AppShell
         settingsOpen={settingsOpen}
         setSettingsOpen={setSettingsOpen}
-        projectModalOpen={projectModalOpen}
-        setProjectModalOpen={setProjectModalOpen}
+        projectDialogOpen={projectDialogOpen}
+        setProjectDialogOpen={setProjectDialogOpen}
         aboutOpen={aboutOpen}
         setAboutOpen={setAboutOpen}
         shortcutsOpen={shortcutsOpen}
@@ -389,8 +389,8 @@ function App() {
 function AppShell({
   settingsOpen,
   setSettingsOpen,
-  projectModalOpen,
-  setProjectModalOpen,
+  projectDialogOpen,
+  setProjectDialogOpen,
   aboutOpen,
   setAboutOpen,
   shortcutsOpen,
@@ -404,8 +404,8 @@ function AppShell({
 }: {
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;
-  projectModalOpen: boolean;
-  setProjectModalOpen: (v: boolean) => void;
+  projectDialogOpen: boolean;
+  setProjectDialogOpen: (v: boolean) => void;
   aboutOpen: boolean;
   setAboutOpen: (v: boolean) => void;
   shortcutsOpen: boolean;
@@ -468,8 +468,8 @@ function AppShell({
   }, [state.project]);
 
   const handleNewProject = useCallback(() => {
-    setProjectModalOpen(true);
-  }, [setProjectModalOpen]);
+    setProjectDialogOpen(true);
+  }, [setProjectDialogOpen]);
 
   // --- Map Import/Export ---
 
@@ -689,7 +689,7 @@ function AppShell({
             void saveProject({ ...project, updatedAt: Date.now() });
           }
         }}
-        onImportProject={() => setProjectModalOpen(true)}
+        onImportProject={() => setProjectDialogOpen(true)}
         onImportMap={handleImportMap}
         onImportTileset={handleImportTileset}
         onExportProject={handleExportProject}
@@ -744,12 +744,12 @@ function AppShell({
           <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         </Suspense>
       )}
-      {projectModalOpen && (
+      {projectDialogOpen && (
         <Suspense>
-          <ProjectModal
-            open={projectModalOpen}
-            onOpenChange={setProjectModalOpen}
-            onProjectLoaded={() => setProjectModalOpen(false)}
+          <ProjectDialog
+            open={projectDialogOpen}
+            onOpenChange={setProjectDialogOpen}
+            onProjectLoaded={() => setProjectDialogOpen(false)}
           />
         </Suspense>
       )}

@@ -26,20 +26,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Input } from "@/components/ui/input";
+import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/lib/zoom-store";
 import { saveAsset, getAsset, deleteAsset, saveProject } from "@/lib/db";
@@ -544,41 +536,13 @@ export function TilesetPanel() {
         onChange={handleFileSelected}
       />
 
-      {/* Add group dialog */}
-      <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
-        <DialogContent className="sm:max-w-[320px]">
-          <DialogHeader>
-            <DialogTitle>New Tileset Group</DialogTitle>
-            <DialogDescription className="sr-only">
-              Enter a name for the new tileset group
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            id="tileset-group-name"
-            placeholder="Group name"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()}
-            autoFocus
-          />
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              size="sm"
-              onMouseDown={() => setAddGroupOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onMouseDown={handleCreateGroup}
-              disabled={!newGroupName.trim()}
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NewTilesetGroupDialog
+        open={addGroupOpen}
+        onOpenChange={setAddGroupOpen}
+        name={newGroupName}
+        onNameChange={setNewGroupName}
+        onCreate={handleCreateGroup}
+      />
 
       {/* Delete confirmation */}
       <AlertDialog

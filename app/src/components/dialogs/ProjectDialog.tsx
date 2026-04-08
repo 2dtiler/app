@@ -49,7 +49,7 @@ import {
   importProject,
 } from "@/lib/format";
 import type { Project } from "@/types";
-import type { ProjectModalProps } from "@/types/dialogs";
+import type { ProjectDialogProps } from "@/types/dialogs";
 import type { ProjectRecord } from "@/types/persistence";
 
 function createNewProject(name: string): Project {
@@ -74,11 +74,11 @@ function createNewProject(name: string): Project {
   };
 }
 
-export function ProjectModal({
+export function ProjectDialog({
   open,
   onOpenChange,
   onProjectLoaded,
-}: ProjectModalProps) {
+}: ProjectDialogProps) {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [showNewProject, setShowNewProject] = useState(false);
@@ -125,7 +125,6 @@ export function ProjectModal({
     const store = getEditorStore();
     const currentState = store.getState();
 
-    // Save current project's UI preferences before switching
     if (currentState.project) {
       saveProjectPrefs(currentState.project.id, {
         activeTilesetGroupId: currentState.activeTilesetGroupId,
@@ -136,7 +135,6 @@ export function ProjectModal({
       });
     }
 
-    // Restore saved preferences for the project being opened
     const prefs = loadProjectPrefs(project.id);
 
     store.setState((draft) => {
@@ -144,7 +142,6 @@ export function ProjectModal({
       draft.tileSize = project.tileSize;
 
       if (prefs) {
-        // Validate that saved IDs still exist in the project
         const tilesetGroupIds = new Set(
           project.tilesetGroups.map((g) => g.id as string),
         );
@@ -225,7 +222,6 @@ export function ProjectModal({
     } catch (err) {
       console.error("Failed to import project:", err);
     }
-    // Reset the input
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -259,6 +255,7 @@ export function ProjectModal({
             <div className="space-y-3 py-2">
               <Input
                 id="project-name"
+                name="project-name"
                 placeholder="Project name"
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}

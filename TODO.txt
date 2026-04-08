@@ -1,5 +1,9 @@
+- When an object layer is selected, you should not be able to paint on it.
+- Move all stores to a stores folder
+- Uppercase all ui Components
+- Fix sentry issue
+
 Image/sprite Editor:
-  In Light mode the sprite canvas is still dark
   Layer styling is too narrow initially
   Add frame should be a primary button
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes

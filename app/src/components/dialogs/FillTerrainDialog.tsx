@@ -1,5 +1,5 @@
 /**
- * FillTerrainDialog — Modal for configuring weighted terrain tiles used by the
+ * FillTerrainDialog — Dialog for configuring weighted terrain tiles used by the
  * Fill Terrain tool.
  *
  * Workflow:
