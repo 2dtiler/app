@@ -1,6 +1,6 @@
 - Orientation is not working at all
 - Map Custom Options
-- Layer Custom Options
+- Tileset Custom Options
 
 Import Options
 Export Options

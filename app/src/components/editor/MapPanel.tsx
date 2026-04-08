@@ -886,29 +886,78 @@ export function MapPanel() {
       if (!region) return;
 
       const r = region;
+      const rotated = action === "rotateLeft" || action === "rotateRight";
+      const nextWidth = rotated ? r.height : r.width;
+      const nextHeight = rotated ? r.width : r.height;
+
+      if (
+        r.x + nextWidth > activeMap.widthInTiles ||
+        r.y + nextHeight > activeMap.heightInTiles
+      ) {
+        return;
+      }
+
       setState((draft) => {
         const layer = draft.project?.layers.find(
           (l) => l.id === state.activeLayerId,
         );
         if (!layer) return;
+
+        const snapshot: TileClipboard["tiles"] = [];
         for (let dy = 0; dy < r.height; dy++) {
           for (let dx = 0; dx < r.width; dx++) {
-            const key = `${r.x + dx},${r.y + dy}`;
-            const tile = layer.tiles[key];
-            if (!tile) continue;
-            const rot = tile.rotation ?? 0;
-            const fX = tile.flipX ?? false;
-            const fY = tile.flipY ?? false;
-            if (action === "rotateLeft") {
-              tile.rotation = ((rot - 90 + 360) % 360) as 0 | 90 | 180 | 270;
-            } else if (action === "rotateRight") {
-              tile.rotation = ((rot + 90) % 360) as 0 | 90 | 180 | 270;
-            } else if (action === "flipH") {
-              tile.flipX = !fX;
-            } else if (action === "flipV") {
-              tile.flipY = !fY;
-            }
+            const ref = layer.tiles[`${r.x + dx},${r.y + dy}`];
+            if (ref) snapshot.push({ dx, dy, ref: { ...ref } });
           }
+        }
+
+        for (let dy = 0; dy < r.height; dy++) {
+          for (let dx = 0; dx < r.width; dx++) {
+            delete layer.tiles[`${r.x + dx},${r.y + dy}`];
+          }
+        }
+
+        for (const { dx, dy, ref } of snapshot) {
+          let nextDx = dx;
+          let nextDy = dy;
+
+          if (action === "rotateLeft") {
+            nextDx = dy;
+            nextDy = r.width - 1 - dx;
+          } else if (action === "rotateRight") {
+            nextDx = r.height - 1 - dy;
+            nextDy = dx;
+          } else if (action === "flipH") {
+            nextDx = r.width - 1 - dx;
+          } else if (action === "flipV") {
+            nextDy = r.height - 1 - dy;
+          }
+
+          const nextRef: TileRef = { ...ref };
+          const rot = nextRef.rotation ?? 0;
+          const fX = nextRef.flipX ?? false;
+          const fY = nextRef.flipY ?? false;
+          if (action === "rotateLeft") {
+            nextRef.rotation =
+              ((rot - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+          } else if (action === "rotateRight") {
+            nextRef.rotation = ((rot + 90) % 360) as 0 | 90 | 180 | 270;
+          } else if (action === "flipH") {
+            nextRef.flipX = !fX;
+          } else if (action === "flipV") {
+            nextRef.flipY = !fY;
+          }
+
+          layer.tiles[`${r.x + nextDx},${r.y + nextDy}`] = nextRef;
+        }
+
+        if (draft.mapSelection) {
+          draft.mapSelection = {
+            x: r.x,
+            y: r.y,
+            width: nextWidth,
+            height: nextHeight,
+          };
         }
       });
     },
