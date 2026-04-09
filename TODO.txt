@@ -8,6 +8,7 @@ Image/sprite Editor:
   Layer styling is too narrow initially
   Add frame should be a primary button
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
+    - Sitemap is not reliable
   Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
   Add opacity operator for palettes
   Navigating away should ask to save changes

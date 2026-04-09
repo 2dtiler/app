@@ -1,4 +1,10 @@
-import { useRef, useState, useCallback, useSyncExternalStore } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import { Plus, Save, ZoomIn, ZoomOut, Trash2, X } from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/Button";
@@ -83,6 +89,7 @@ export function TilesetPanel() {
     zoomStore.getSnapshot,
   );
   const project = state.project;
+  const projectId = project?.id ?? null;
 
   const [deleteTarget, setDeleteTarget] = useState<{
     type: "tileset" | "group";
@@ -95,6 +102,10 @@ export function TilesetPanel() {
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    zoomStore.setActiveTileset(projectId ? state.activeTilesetId : null);
+  }, [projectId, state.activeTilesetId]);
 
   if (!project) return null;
 

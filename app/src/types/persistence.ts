@@ -22,12 +22,16 @@ export interface ProjectRecord {
   updatedAt: number;
 }
 
+export type PersistedZoomMap = Record<string, number>;
+
 export interface ProjectPrefs {
   activeTilesetGroupId: string | null;
   activeTilesetId: string | null;
   activeMapGroupId: string | null;
   activeMapId: string | null;
   activeLayerId: string | null;
+  mapZooms?: PersistedZoomMap;
+  tilesetZooms?: PersistedZoomMap;
 }
 
 export interface AssetManifestEntry {

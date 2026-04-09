@@ -18,7 +18,6 @@ import { useEditorStore } from "@/hooks/use-editor-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
   saveProject,
-  saveProjectPrefs,
   listProjects,
   getProject,
   loadProjectPrefs,
@@ -36,7 +35,12 @@ import {
 import { generateMapId, generateLayerId, generateObjectId } from "@/lib/ids";
 import { getAllLayerIds } from "@/lib/layers";
 import { clearTileEditorContext } from "@/lib/tile-editor-context";
+import {
+  hydrateZoomStoreForProject,
+  saveCurrentProjectPrefs,
+} from "@/lib/project-prefs";
 import { getActiveTilesetTileSize } from "@/lib/project";
+import { zoomStore } from "@/lib/zoom-store";
 import type {
   TilesetGroupId,
   MapGroupId,
@@ -212,6 +216,15 @@ function App() {
             markEditorSaved();
           }
         }
+        const currentState = getEditorStore().getState();
+        if (currentState.project) {
+          hydrateZoomStoreForProject(
+            currentState.project,
+            prefs,
+            currentState.activeMapId,
+            currentState.activeTilesetId,
+          );
+        }
         setReady(true);
         return;
       }
@@ -275,6 +288,13 @@ function App() {
             );
           });
           markEditorSaved();
+          const currentState = getEditorStore().getState();
+          hydrateZoomStoreForProject(
+            project,
+            prefs,
+            currentState.activeMapId,
+            currentState.activeTilesetId,
+          );
           autoOpened = true;
         }
       }
@@ -298,6 +318,13 @@ function App() {
               );
             });
             markEditorSaved();
+            const currentState = getEditorStore().getState();
+            hydrateZoomStoreForProject(
+              project,
+              null,
+              currentState.activeMapId,
+              currentState.activeTilesetId,
+            );
             autoOpened = true;
           }
         }
@@ -305,6 +332,7 @@ function App() {
 
       // No projects at all — show the project dialog
       if (!autoOpened) {
+        zoomStore.reset();
         setProjectDialogOpen(true);
       }
 
@@ -315,22 +343,26 @@ function App() {
   useAutoSave();
   useKeyboardShortcuts();
 
+  useEffect(() => {
+    const unsubscribe = zoomStore.subscribe(() => {
+      try {
+        saveCurrentProjectPrefs();
+      } catch {
+        // Store may not be initialized yet
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Save project UI preferences on page unload so they persist across refreshes.
   // Also warn the user if there are unsaved changes.
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       try {
-        const store = getEditorStore();
-        const s = store.getState();
-        if (s.project) {
-          saveProjectPrefs(s.project.id, {
-            activeTilesetGroupId: s.activeTilesetGroupId,
-            activeTilesetId: s.activeTilesetId,
-            activeMapGroupId: s.activeMapGroupId,
-            activeMapId: s.activeMapId,
-            activeLayerId: s.activeLayerId,
-          });
-        }
+        saveCurrentProjectPrefs();
       } catch {
         // Store may not be initialized yet
       }

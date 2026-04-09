@@ -36,6 +36,10 @@ import {
   deleteProjectPrefs,
   saveLastProjectId,
 } from "@/lib/db";
+import {
+  buildProjectPrefsFromState,
+  hydrateZoomStoreForProject,
+} from "@/lib/project-prefs";
 import { getEditorStore, markEditorSaved } from "@/lib/store";
 import {
   generateProjectId,
@@ -127,13 +131,10 @@ export function ProjectDialog({
     const currentState = store.getState();
 
     if (currentState.project) {
-      saveProjectPrefs(currentState.project.id, {
-        activeTilesetGroupId: currentState.activeTilesetGroupId,
-        activeTilesetId: currentState.activeTilesetId,
-        activeMapGroupId: currentState.activeMapGroupId,
-        activeMapId: currentState.activeMapId,
-        activeLayerId: currentState.activeLayerId,
-      });
+      const currentPrefs = buildProjectPrefsFromState(currentState);
+      if (currentPrefs) {
+        saveProjectPrefs(currentState.project.id, currentPrefs);
+      }
     }
 
     const prefs = loadProjectPrefs(project.id);
@@ -184,6 +185,13 @@ export function ProjectDialog({
       draft.tileSize = getActiveTilesetTileSize(project, draft.activeTilesetId);
     });
     markEditorSaved();
+    const nextState = store.getState();
+    hydrateZoomStoreForProject(
+      project,
+      prefs,
+      nextState.activeMapId,
+      nextState.activeTilesetId,
+    );
     saveLastProjectId(project.id);
     onOpenChange(false);
     onProjectLoaded();

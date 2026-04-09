@@ -152,6 +152,7 @@ export function MapPanel() {
     zoomStore.getSnapshot,
   );
   const project = state.project;
+  const projectId = project?.id ?? null;
 
   const containerRef = useRef<HTMLDivElement>(null);
   /** Tile grid position captured on the most recent right-click (context menu). */
@@ -196,6 +197,10 @@ export function MapPanel() {
   const [renameValue, setRenameValue] = useState("");
   const [propsObjectId, setPropsObjectId] = useState<ObjectId | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    zoomStore.setActiveMap(projectId ? state.activeMapId : null);
+  }, [projectId, state.activeMapId]);
 
   // Ctrl+Wheel zoom and middle-mouse pan
   const handleSetMapZoom = useCallback((newZoom: number) => {

@@ -1,5 +1,6 @@
 import type { Travels } from "travels";
 import type { EditorState } from "./schema";
+import type { PersistedZoomMap } from "./persistence";
 
 export interface PersistedHistory {
   id: string;
@@ -18,4 +19,15 @@ export type EditorTravels = Travels<
 export interface ZoomState {
   mapZoom: number;
   tilesetZoom: number;
+  activeMapId: string | null;
+  activeTilesetId: string | null;
+  mapZooms: PersistedZoomMap;
+  tilesetZooms: PersistedZoomMap;
+}
+
+export interface ZoomStoreHydration {
+  activeMapId: string | null;
+  activeTilesetId: string | null;
+  mapZooms?: PersistedZoomMap;
+  tilesetZooms?: PersistedZoomMap;
 }
