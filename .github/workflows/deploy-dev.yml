@@ -29,4 +29,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy app/dist --project-name=2dtiler-app --branch=dev
+          workingDirectory: app
+          packageManager: bun
+          wranglerVersion: 4.80.0
+          command: pages deploy dist --project-name=2dtiler-app --branch=dev

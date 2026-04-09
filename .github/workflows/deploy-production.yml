@@ -29,7 +29,10 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy app/dist --project-name=2dtiler-app --branch=main
+          workingDirectory: app
+          packageManager: bun
+          wranglerVersion: 4.80.0
+          command: pages deploy dist --project-name=2dtiler-app --branch=main
 
   deploy-website:
     name: Deploy Website to 2dtiler.com
@@ -52,7 +55,10 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy website/dist --project-name=2dtiler-website --branch=main
+          workingDirectory: website
+          packageManager: bun
+          wranglerVersion: 4.65.0
+          command: pages deploy dist --project-name=2dtiler-website --branch=main
 
   deploy-server:
     name: Deploy Server to api.2dtiler.com
@@ -72,4 +78,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: server
+          packageManager: bun
+          wranglerVersion: 4.66.0
           command: deploy
