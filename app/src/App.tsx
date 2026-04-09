@@ -721,13 +721,16 @@ function AppShell({
   const workspaceButtonLabel = showDetailsPanel
     ? (detailsTabLabel ?? "Details")
     : "Layers";
-  const handleOpenTool = useCallback((tool: ToolName) => {
-    if (tool === "image-editor") {
-      clearTileEditorContext();
-    }
+  const handleOpenTool = useCallback(
+    (tool: ToolName) => {
+      if (tool === "image-editor") {
+        clearTileEditorContext();
+      }
 
-    setActiveTool(tool);
-  }, [setActiveTool]);
+      setActiveTool(tool);
+    },
+    [setActiveTool],
+  );
 
   return (
     <div className="flex h-full flex-col">

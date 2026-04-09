@@ -79,17 +79,7 @@ export function ImageEditor() {
     }
 
     tmpCtx.imageSmoothingEnabled = false;
-    tmpCtx.drawImage(
-      img,
-      ctx.sx,
-      ctx.sy,
-      ctx.sw,
-      ctx.sh,
-      0,
-      0,
-      ctx.sw,
-      ctx.sh,
-    );
+    tmpCtx.drawImage(img, ctx.sx, ctx.sy, ctx.sw, ctx.sh, 0, 0, ctx.sw, ctx.sh);
     const imageData = tmpCtx.getImageData(0, 0, ctx.sw, ctx.sh);
     if (!isCurrentRun()) {
       return;
