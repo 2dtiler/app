@@ -298,10 +298,13 @@ export function MapPanel() {
   const activeImageLayer =
     flatImageLayers.find((layer) => layer.id === state.activeLayerId) ?? null;
 
-  const setExclusiveTileClipboard = useCallback((data: TileClipboard | null) => {
-    setClipboard(data);
-    setImageLayerClipboard(null);
-  }, []);
+  const setExclusiveTileClipboard = useCallback(
+    (data: TileClipboard | null) => {
+      setClipboard(data);
+      setImageLayerClipboard(null);
+    },
+    [],
+  );
 
   const setExclusiveImageLayerClipboard = useCallback(
     (data: ImageLayerClipboard | null) => {
@@ -1069,7 +1072,9 @@ export function MapPanel() {
     setState((draft) => {
       if (!draft.project) return;
 
-      const map = draft.project.maps.find((entry) => entry.id === state.activeMapId);
+      const map = draft.project.maps.find(
+        (entry) => entry.id === state.activeMapId,
+      );
       if (!map) return;
 
       const groups = draft.project.layerGroups ?? [];
@@ -1143,7 +1148,12 @@ export function MapPanel() {
       imageLayers.push(nextLayer);
 
       const inserted = draft.activeLayerId
-        ? insertLayerAfter(draft.activeLayerId, newLayerId, map.layerOrder, groups)
+        ? insertLayerAfter(
+            draft.activeLayerId,
+            newLayerId,
+            map.layerOrder,
+            groups,
+          )
         : false;
       if (!inserted) {
         map.layerOrder.push(newLayerId);
