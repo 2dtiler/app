@@ -1,4 +1,3 @@
-- Do not allow painting on image layer
 - Open image properties for opacity
 - Max length for layer names
 - Open tile in image editor should also work for images
@@ -23,6 +22,7 @@ AI Asset Generation:
   Ability to download/add to tileset/open in image Editor
 
 Update README.md
+Ad Marketplace for selling/buying tilesets etc.
 
 Exploration:
   Ogmo Editor
@@ -44,11 +44,13 @@ Exploration:
   Makko.ai
   Keep Notes
 
+Manage Tilesets
+Manage Maps
 Add unit tests and add to CI/CD
 Write documentation for website. Use /nothing-design
 Royalty free packs
 High touch animations
-Ad Marketplace for selling/buying tilesets etc.
 Add tutorial video
+Add roadmap voting on home page
 Windows/Mac/Linux Apps
 Drive some traffic to it: 2dtiler.com

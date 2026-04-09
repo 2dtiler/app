@@ -60,7 +60,7 @@ export function CompactEditorShell({
               type="button"
               variant="outline"
               size="xs"
-              aria-label="Open layers and objects workspace"
+              aria-label="Open layer workspace"
               aria-haspopup="dialog"
               aria-expanded={workspaceOpen}
               aria-controls="mobile-editor-workspace"
@@ -81,8 +81,8 @@ export function DesktopEditorLayout({
   tilesetPanel,
   mapPanel,
   layersPanel,
-  objectsPanel,
-  isObjectLayerActive,
+  detailsPanel,
+  showDetailsPanel,
 }: DesktopEditorLayoutProps) {
   return (
     <Group orientation="horizontal" id="main-layout">
@@ -118,14 +118,14 @@ export function DesktopEditorLayout({
               aria-label="Layer workspace"
               className="h-full min-h-0"
             >
-              {isObjectLayerActive ? (
+              {showDetailsPanel ? (
                 <Group orientation="vertical" id="layers-objects-layout">
                   <Panel defaultSize="50%" minSize="20%">
                     {layersPanel}
                   </Panel>
                   <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors cursor-row-resize" />
                   <Panel defaultSize="50%" minSize="20%">
-                    {objectsPanel}
+                    {detailsPanel}
                   </Panel>
                 </Group>
               ) : (
@@ -149,8 +149,12 @@ export function EditorWorkspaceDrawer({
   onOpenChange,
   onTabChange,
   layersPanel,
-  objectsPanel,
+  detailsPanel,
+  detailsTabLabel,
+  showDetailsPanel,
 }: EditorWorkspaceDrawerProps) {
+  const resolvedActiveTab = showDetailsPanel ? activeTab : "layers";
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
       <DrawerContent
@@ -163,7 +167,7 @@ export function EditorWorkspaceDrawer({
               Workspace
             </DrawerTitle>
             <DrawerDescription>
-              Manage layers and objects without replacing the map.
+              Manage layers and layer details without replacing the map.
             </DrawerDescription>
           </div>
 
@@ -175,14 +179,18 @@ export function EditorWorkspaceDrawer({
         </div>
 
         <Tabs
-          value={activeTab}
+          value={resolvedActiveTab}
           onValueChange={(value) => onTabChange(value as EditorWorkspaceTab)}
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
           <div className="border-b border-border px-4 py-3">
             <TabsList variant="line" className="w-full justify-start">
               <TabsTrigger value="layers">Layers</TabsTrigger>
-              <TabsTrigger value="objects">Objects</TabsTrigger>
+              {showDetailsPanel ? (
+                <TabsTrigger value="details">
+                  {detailsTabLabel ?? "Details"}
+                </TabsTrigger>
+              ) : null}
             </TabsList>
           </div>
 
@@ -190,9 +198,11 @@ export function EditorWorkspaceDrawer({
             <div className="h-full min-h-0">{layersPanel}</div>
           </TabsContent>
 
-          <TabsContent value="objects" className="min-h-0 flex-1">
-            <div className="h-full min-h-0">{objectsPanel}</div>
-          </TabsContent>
+          {showDetailsPanel ? (
+            <TabsContent value="details" className="min-h-0 flex-1">
+              <div className="h-full min-h-0">{detailsPanel}</div>
+            </TabsContent>
+          ) : null}
         </Tabs>
       </DrawerContent>
     </Drawer>

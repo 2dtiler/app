@@ -303,7 +303,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           const posY = imgLayer.y * zoom;
           const spriteW = imgLayer.width * zoom;
           const spriteH = imgLayer.height * zoom;
-          offCtx.globalAlpha = 0.7;
+          offCtx.globalAlpha =
+            (0.7 * Math.max(0, Math.min(100, imgLayer.opacity ?? 100))) / 100;
           offCtx.drawImage(img, posX, posY, spriteW, spriteH);
           offCtx.globalAlpha = 1;
           continue;
@@ -400,7 +401,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             const spriteH =
               (imgIsResizing ? liveImageResize!.height : imgLayer.height) *
               zoom;
+            ctx.globalAlpha =
+              Math.max(0, Math.min(100, imgLayer.opacity ?? 100)) / 100;
             ctx.drawImage(img, posX, posY, spriteW, spriteH);
+            ctx.globalAlpha = 1;
           }
         }
       } else {

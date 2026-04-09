@@ -89,6 +89,7 @@ import { TilesetPanel } from "@/components/editor/TilesetPanel";
 import { MapPanel } from "@/components/editor/MapPanel";
 import { LayersPanel } from "@/components/editor/LayersPanel";
 import { ObjectsPanel } from "@/components/editor/ObjectsPanel";
+import { ImageLayerPropertiesPanel } from "./components/editor/ImageLayerPropertiesPanel";
 import {
   CompactEditorShell,
   DesktopEditorLayout,
@@ -436,13 +437,36 @@ function AppShell({
   const [workspaceTab, setWorkspaceTab] =
     useState<EditorWorkspaceTab>("layers");
 
-  // Determine if the active layer is an object layer
-  const isObjectLayerActive =
+  const activeLayerKind =
     state.project !== null &&
     state.activeLayerId !== null &&
-    (state.project.objectLayers ?? []).some(
-      (l) => l.id === state.activeLayerId,
-    );
+    (state.project.objectLayers ?? []).some((l) => l.id === state.activeLayerId)
+      ? "object"
+      : state.project !== null &&
+          state.activeLayerId !== null &&
+          (state.project.imageLayers ?? []).some(
+            (l) => l.id === state.activeLayerId,
+          )
+        ? "image"
+        : state.project !== null &&
+            state.activeLayerId !== null &&
+            state.project.layers.some((l) => l.id === state.activeLayerId)
+          ? "tile"
+          : null;
+  const showDetailsPanel =
+    activeLayerKind === "object" || activeLayerKind === "image";
+  const detailsTabLabel =
+    activeLayerKind === "object"
+      ? "Objects"
+      : activeLayerKind === "image"
+        ? "Properties"
+        : null;
+  const detailsPanel =
+    activeLayerKind === "object" ? (
+      <ObjectsPanel />
+    ) : activeLayerKind === "image" ? (
+      <ImageLayerPropertiesPanel />
+    ) : null;
 
   const isCompactLayout =
     hasProject &&
@@ -450,6 +474,7 @@ function AppShell({
     editorWidth < NARROW_LAYOUT_BREAKPOINT;
 
   const workspaceDrawerOpen = isCompactLayout && workspaceOpen;
+  const activeWorkspaceTab = showDetailsPanel ? workspaceTab : "layers";
 
   const setEditorHostNode = useCallback((node: HTMLElement | null) => {
     editorHostRef.current = node;
@@ -680,19 +705,21 @@ function AppShell({
     input.click();
   }, [state.project, state.activeTilesetGroupId, state.tileSize, setState]);
 
-  const activeWorkspaceSummary = isObjectLayerActive
-    ? "Objects open alongside the map"
-    : "Layers and objects stay one tap away";
+  const activeWorkspaceSummary =
+    activeLayerKind === "object"
+      ? "Objects open alongside the map"
+      : activeLayerKind === "image"
+        ? "Image properties open alongside the map"
+        : "Layers stay one tap away";
 
   const handleOpenWorkspace = useCallback(() => {
-    if (isObjectLayerActive) {
-      setWorkspaceTab("objects");
-    }
+    setWorkspaceTab(showDetailsPanel ? "details" : "layers");
     setWorkspaceOpen(true);
-  }, [isObjectLayerActive]);
+  }, [showDetailsPanel]);
 
-  const workspaceButtonLabel =
-    isObjectLayerActive || workspaceTab === "objects" ? "Objects" : "Layers";
+  const workspaceButtonLabel = showDetailsPanel
+    ? (detailsTabLabel ?? "Details")
+    : "Layers";
 
   return (
     <div className="flex h-full flex-col">
@@ -734,11 +761,13 @@ function AppShell({
 
               <EditorWorkspaceDrawer
                 open={workspaceDrawerOpen}
-                activeTab={workspaceTab}
+                activeTab={activeWorkspaceTab}
                 onOpenChange={setWorkspaceOpen}
                 onTabChange={setWorkspaceTab}
                 layersPanel={<LayersPanel />}
-                objectsPanel={<ObjectsPanel />}
+                detailsPanel={detailsPanel}
+                detailsTabLabel={detailsTabLabel}
+                showDetailsPanel={showDetailsPanel}
               />
             </>
           ) : (
@@ -746,8 +775,8 @@ function AppShell({
               tilesetPanel={<TilesetPanel />}
               mapPanel={<MapPanel />}
               layersPanel={<LayersPanel />}
-              objectsPanel={<ObjectsPanel />}
-              isObjectLayerActive={isObjectLayerActive}
+              detailsPanel={detailsPanel}
+              showDetailsPanel={showDetailsPanel}
             />
           )}
         </main>

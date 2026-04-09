@@ -45,6 +45,16 @@ export function normalizeProject(project: Project): Project {
   for (const tileset of project.overrideTilesets) {
     normalizeTileset(tileset, fallbackTileSize);
   }
+  for (const imageLayer of project.imageLayers) {
+    if (typeof imageLayer.opacity !== "number") {
+      imageLayer.opacity = 100;
+      continue;
+    }
+    imageLayer.opacity = Math.max(
+      0,
+      Math.min(100, Math.round(imageLayer.opacity)),
+    );
+  }
 
   return project;
 }

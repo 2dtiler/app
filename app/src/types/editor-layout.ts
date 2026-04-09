@@ -7,7 +7,7 @@ import type {
   Tileset,
 } from "./schema";
 
-export type EditorWorkspaceTab = "layers" | "objects";
+export type EditorWorkspaceTab = "layers" | "details";
 
 export interface CompactEditorShellProps {
   tilesetPanel: ReactNode;
@@ -22,8 +22,8 @@ export interface DesktopEditorLayoutProps {
   tilesetPanel: ReactNode;
   mapPanel: ReactNode;
   layersPanel: ReactNode;
-  objectsPanel: ReactNode;
-  isObjectLayerActive: boolean;
+  detailsPanel: ReactNode;
+  showDetailsPanel: boolean;
 }
 
 export interface EditorWorkspaceDrawerProps {
@@ -32,7 +32,9 @@ export interface EditorWorkspaceDrawerProps {
   onOpenChange: (open: boolean) => void;
   onTabChange: (tab: EditorWorkspaceTab) => void;
   layersPanel: ReactNode;
-  objectsPanel: ReactNode;
+  detailsPanel: ReactNode;
+  detailsTabLabel: string | null;
+  showDetailsPanel: boolean;
 }
 
 export interface TerrainTileSelectorProps {

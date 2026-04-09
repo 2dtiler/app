@@ -137,6 +137,8 @@ export interface ImageLayer {
   width: number;
   /** Display height in pixels */
   height: number;
+  /** Layer opacity as a percentage from 0 to 100 */
+  opacity: number;
 }
 
 /**

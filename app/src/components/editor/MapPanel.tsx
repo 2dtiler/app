@@ -1316,6 +1316,7 @@ export function MapPanel() {
           y: il.y,
           width: il.width,
           height: il.height,
+          opacity: il.opacity ?? 100,
         };
         draft.project.imageLayers.push(newImageLayer);
       }

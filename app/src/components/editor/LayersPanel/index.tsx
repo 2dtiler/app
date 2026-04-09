@@ -419,6 +419,7 @@ export function LayersPanel() {
           y: 0,
           width: imgWidth,
           height: imgHeight,
+          opacity: 100,
         };
         draft.project.imageLayers.push(imageLayer);
 
@@ -709,6 +710,7 @@ export function LayersPanel() {
           y: imgLayer.y,
           width: imgLayer.width,
           height: imgLayer.height,
+          opacity: imgLayer.opacity ?? 100,
         };
         draft.project.imageLayers.push(copy);
         insertAfter(layerId, newLayerId, map.layerOrder, groups);
@@ -855,6 +857,7 @@ export function LayersPanel() {
             y: il.y,
             width: il.width,
             height: il.height,
+            opacity: il.opacity ?? 100,
           };
           draft.project.imageLayers.push(copy);
           continue;
