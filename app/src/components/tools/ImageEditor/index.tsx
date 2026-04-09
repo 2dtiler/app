@@ -4,13 +4,23 @@ import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary, saveAsset } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
-import type { TileEditorContext } from "@/types/editor-helpers";
+import type {
+  ImageLayerEditorContext,
+  TileEditorContext,
+} from "@/types/editor-helpers";
 import { generateAssetId, generateTilesetId } from "@/lib/ids";
+import {
+  clearImageLayerEditorContext,
+  getPendingImageLayerEditorRequest,
+} from "@/lib/image-layer-editor-context";
 import {
   clearTileEditorContext,
   getPendingTileEditorRequest,
 } from "@/lib/tile-editor-context";
 import {
+  evictImageLayer,
+  imageLayerImageCache,
+  loadImageLayerImage,
   tilesetImageCache,
   loadTilesetImage,
   evictTileset,
@@ -40,7 +50,10 @@ export function ImageEditor() {
   const [activeTileCtx, setActiveTileCtx] = useState<TileEditorContext | null>(
     null,
   );
+  const [activeImageLayerCtx, setActiveImageLayerCtx] =
+    useState<ImageLayerEditorContext | null>(null);
   const handledTileRequestIdRef = useRef<number | null>(null);
+  const handledImageLayerRequestIdRef = useRef<number | null>(null);
   const loadRunIdRef = useRef(0);
   const isMountedRef = useRef(true);
 
@@ -105,17 +118,91 @@ export function ImageEditor() {
     handledTileRequestIdRef.current = requestId;
     clearTileEditorContext(requestId);
     setShowNewDialog(false);
+    setActiveImageLayerCtx(null);
     setActiveTileCtx(ctx);
   }, [editor, projectId]);
+
+  const loadPendingImageLayerRequest = useCallback(async () => {
+    const pendingRequest = getPendingImageLayerEditorRequest();
+    if (!pendingRequest) {
+      return;
+    }
+
+    const { requestId, context: ctx } = pendingRequest;
+    if (handledImageLayerRequestIdRef.current === requestId) {
+      return;
+    }
+
+    const runId = ++loadRunIdRef.current;
+    const isCurrentRun = () =>
+      isMountedRef.current && loadRunIdRef.current === runId;
+
+    let img = imageLayerImageCache.get(ctx.assetId);
+    if (!img) {
+      img = (await loadImageLayerImage(ctx.assetId)) ?? undefined;
+    }
+    if (!img || !isCurrentRun()) {
+      return;
+    }
+
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = width;
+    tmpCanvas.height = height;
+    const tmpCtx = tmpCanvas.getContext("2d");
+    if (!tmpCtx || !isCurrentRun()) {
+      return;
+    }
+
+    tmpCtx.imageSmoothingEnabled = false;
+    tmpCtx.drawImage(img, 0, 0, width, height);
+    const imageData = tmpCtx.getImageData(0, 0, width, height);
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
+    editor.initProject(width, height, savedPalettes ?? undefined);
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    if (isImageEditorStoreReady()) {
+      const s = getImageEditorStore().getState();
+      if (s.frames.length > 0) {
+        editor.setFrameData(s.frames[0].id, imageData);
+      }
+    }
+
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    handledImageLayerRequestIdRef.current = requestId;
+    clearImageLayerEditorContext(requestId);
+    setShowNewDialog(false);
+    setActiveTileCtx(null);
+    setActiveImageLayerCtx(ctx);
+  }, [editor, projectId]);
+
+  const loadPendingEditorRequest = useCallback(async () => {
+    if (getPendingImageLayerEditorRequest()) {
+      await loadPendingImageLayerRequest();
+      return;
+    }
+
+    await loadPendingTileRequest();
+  }, [loadPendingImageLayerRequest, loadPendingTileRequest]);
 
   useEffect(() => {
     isMountedRef.current = true;
     const pendingLoadTimer = window.setTimeout(() => {
-      void loadPendingTileRequest();
+      void loadPendingEditorRequest();
     }, 0);
 
     function handleOpenImageEditor() {
-      void loadPendingTileRequest();
+      void loadPendingEditorRequest();
     }
 
     window.addEventListener("open-image-editor", handleOpenImageEditor);
@@ -126,7 +213,7 @@ export function ImageEditor() {
       window.clearTimeout(pendingLoadTimer);
       window.removeEventListener("open-image-editor", handleOpenImageEditor);
     };
-  }, [loadPendingTileRequest]);
+  }, [loadPendingEditorRequest]);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {
@@ -141,6 +228,7 @@ export function ImageEditor() {
     setShowNewDialog(true);
     // Clear tile context so Save opens the format dialog, not a tileset write
     setActiveTileCtx(null);
+    setActiveImageLayerCtx(null);
   }, []);
 
   const handleResize = useCallback(() => {
@@ -243,13 +331,69 @@ export function ImageEditor() {
     [editor, setMainState],
   );
 
+  const handleSaveImageLayer = useCallback(
+    async (ctx: ImageLayerEditorContext) => {
+      const frameData = editor.getCurrentFrameData();
+      if (!frameData) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = frameData.width;
+      canvas.height = frameData.height;
+      const canvasCtx = canvas.getContext("2d");
+      if (!canvasCtx) return;
+      canvasCtx.imageSmoothingEnabled = false;
+      canvasCtx.putImageData(frameData, 0, 0);
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/png");
+      });
+      if (!blob) return;
+
+      const buffer = await blob.arrayBuffer();
+      const newAssetId = generateAssetId();
+      await saveAsset(newAssetId, buffer, "image/png");
+
+      let didUpdateLayer = false;
+      setMainState((draft) => {
+        const imageLayer = (draft.project?.imageLayers ?? []).find(
+          (layer) => layer.id === ctx.layerId,
+        );
+        if (!imageLayer) return;
+
+        imageLayer.assetId = newAssetId;
+        imageLayer.width = frameData.width;
+        imageLayer.height = frameData.height;
+        didUpdateLayer = true;
+      });
+
+      if (!didUpdateLayer) {
+        return;
+      }
+
+      evictImageLayer(ctx.assetId);
+      setActiveImageLayerCtx((current) =>
+        current && current.layerId === ctx.layerId
+          ? { ...current, assetId: newAssetId }
+          : current,
+      );
+    },
+    [editor, setMainState],
+  );
+
   const handleSave = useCallback(() => {
-    if (activeTileCtx) {
+    if (activeImageLayerCtx) {
+      void handleSaveImageLayer(activeImageLayerCtx);
+    } else if (activeTileCtx) {
       void handleSaveTile(activeTileCtx);
     } else {
       setShowSaveDialog(true);
     }
-  }, [activeTileCtx, handleSaveTile]);
+  }, [
+    activeImageLayerCtx,
+    activeTileCtx,
+    handleSaveImageLayer,
+    handleSaveTile,
+  ]);
 
   // Restore palette library when the active project changes
   useEffect(() => {

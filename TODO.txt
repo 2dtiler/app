@@ -1,5 +1,7 @@
-- Open tile in image editor should also work for images
-
+Open tile in image editor should also work for images
+  - Events are not binding on load
+  - Saving dimensions
+  
 Image/sprite Editor:
   Layer styling is too narrow initially
   Add frame should be a primary button
@@ -7,9 +9,10 @@ Image/sprite Editor:
   Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
   Add opacity operator for palettes
   Navigating away should ask to save changes
-  Brush size not working
-  Saving should show sonar
-  
+  Saving should show popup
+  Add ability to export
+  Pencil/Eraser should draw square, not a blob
+
 Import Options
 ===================================
 Export Options

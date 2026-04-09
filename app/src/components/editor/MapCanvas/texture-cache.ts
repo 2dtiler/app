@@ -183,3 +183,12 @@ export function loadImageLayerImage(
   loadingImageLayerPromises.set(assetId, promise);
   return promise;
 }
+
+export function evictImageLayer(assetId: AssetId): void {
+  const url = imageLayerBlobUrls.get(assetId);
+  if (url) {
+    URL.revokeObjectURL(url);
+    imageLayerBlobUrls.delete(assetId);
+  }
+  imageLayerImageCache.delete(assetId);
+}

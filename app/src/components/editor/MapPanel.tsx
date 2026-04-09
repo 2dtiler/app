@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
+
 import {
   useRef,
   useState,
@@ -123,6 +125,7 @@ import {
   isMultiTileStamp,
 } from "@/lib/tile-stamp";
 import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
+import { setImageLayerEditorContext } from "@/lib/image-layer-editor-context";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { zoomStore } from "@/lib/zoom-store";
 
@@ -141,6 +144,8 @@ function getAdjacentItemId<T extends { id: string }>(
 }
 
 export function MapPanel() {
+  "use no memo";
+
   const { state, setState, controls } = useEditorStore();
   const { mapZoom } = useSyncExternalStore(
     zoomStore.subscribe,
@@ -162,6 +167,8 @@ export function MapPanel() {
    * "Open tile in Image Editor").
    */
   const [hasContextMenuTile, setHasContextMenuTile] = useState(false);
+  const [hasContextMenuImageLayer, setHasContextMenuImageLayer] =
+    useState(false);
 
   // --- Paint buffer for instant visual feedback ---
   // Tile changes are written here during a stroke.
@@ -208,6 +215,24 @@ export function MapPanel() {
       project?.layers ?? [],
       project?.layerGroups ?? [],
     );
+  const layerGroups = project?.layerGroups ?? [];
+  const projectImageLayers = project?.imageLayers ?? [];
+  const projectObjectLayers = project?.objectLayers ?? [];
+  const flatLayers = activeMap
+    ? flattenLayerTree(activeMap.layerOrder, project?.layers ?? [], layerGroups)
+    : [];
+  const flatImageLayers = activeMap
+    ? flattenImageLayers(activeMap.layerOrder, projectImageLayers, layerGroups)
+    : [];
+  const flatObjectLayers = activeMap
+    ? flattenObjectLayers(
+        activeMap.layerOrder,
+        projectObjectLayers,
+        layerGroups,
+      )
+    : [];
+  const activeImageLayer =
+    flatImageLayers.find((layer) => layer.id === state.activeLayerId) ?? null;
 
   // Paint tile handler — called by MapCanvas on pointer events.
   // Paint/erase write to a lightweight buffer for instant rendering;
@@ -606,6 +631,27 @@ export function MapPanel() {
     window.dispatchEvent(new CustomEvent("open-image-editor"));
   }, [contextMenuTileRef, activeLayer, activeMap, project]);
 
+  const handleOpenImageLayerInEditor = useCallback(() => {
+    if (!activeImageLayer || !hasContextMenuImageLayer || activeImageLayer.locked)
+      return;
+
+    setImageLayerEditorContext({
+      layerId: activeImageLayer.id,
+      assetId: activeImageLayer.assetId,
+    });
+
+    window.dispatchEvent(new CustomEvent("open-image-editor"));
+  }, [activeImageLayer, hasContextMenuImageLayer]);
+
+  const handleEditInImageEditor = useCallback(() => {
+    if (activeImageLayer) {
+      handleOpenImageLayerInEditor();
+      return;
+    }
+
+    handleOpenInImageEditor();
+  }, [activeImageLayer, handleOpenImageLayerInEditor, handleOpenInImageEditor]);
+
   // ---------------------------------------------------------------------------
   // Copy / Cut / Paste tile operations
   // ---------------------------------------------------------------------------
@@ -613,27 +659,40 @@ export function MapPanel() {
   /**
    * Shared helper: convert a MouseEvent position to a clamped tile coordinate.
    */
-  const eventToTile = useCallback(
+  const eventToMapPoint = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeMap) return null;
       const el = containerRef.current;
       if (!el) return null;
       const rect = el.getBoundingClientRect();
-      const rawX = e.clientX - rect.left + el.scrollLeft;
-      const rawY = e.clientY - rect.top + el.scrollTop;
+      return {
+        x: e.clientX - rect.left + el.scrollLeft,
+        y: e.clientY - rect.top + el.scrollTop,
+      };
+    },
+    [],
+  );
+
+  const eventToTile = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!activeMap) return null;
+      const point = eventToMapPoint(e);
+      if (!point) return null;
       const scaledTile = activeMap.tileSize * mapZoom;
       return {
         x: Math.max(
           0,
-          Math.min(Math.floor(rawX / scaledTile), activeMap.widthInTiles - 1),
+          Math.min(Math.floor(point.x / scaledTile), activeMap.widthInTiles - 1),
         ),
         y: Math.max(
           0,
-          Math.min(Math.floor(rawY / scaledTile), activeMap.heightInTiles - 1),
+          Math.min(
+            Math.floor(point.y / scaledTile),
+            activeMap.heightInTiles - 1,
+          ),
         ),
       };
     },
-    [activeMap, mapZoom],
+    [activeMap, eventToMapPoint, mapZoom],
   );
 
   /**
@@ -642,6 +701,7 @@ export function MapPanel() {
    */
   const handleMapContextMenu = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      const point = eventToMapPoint(e);
       const tile = eventToTile(e);
       if (tile) {
         contextMenuTileRef.current = tile;
@@ -650,8 +710,23 @@ export function MapPanel() {
       } else {
         setHasContextMenuTile(false);
       }
+
+      if (point && activeImageLayer?.visible) {
+        const scaledX = activeImageLayer.x * mapZoom;
+        const scaledY = activeImageLayer.y * mapZoom;
+        const scaledWidth = activeImageLayer.width * mapZoom;
+        const scaledHeight = activeImageLayer.height * mapZoom;
+        const withinImageLayer =
+          point.x >= scaledX &&
+          point.x <= scaledX + scaledWidth &&
+          point.y >= scaledY &&
+          point.y <= scaledY + scaledHeight;
+        setHasContextMenuImageLayer(withinImageLayer);
+      } else {
+        setHasContextMenuImageLayer(false);
+      }
     },
-    [eventToTile, activeLayer],
+    [activeImageLayer, activeLayer, eventToMapPoint, eventToTile, mapZoom],
   );
 
   /**
@@ -1003,7 +1078,17 @@ export function MapPanel() {
   const canCut = !!activeMap && isTileLayerActive;
   const canCutToolbar = canCut && !!state.mapSelection;
   const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
-  const canOpenInEditor = !!activeMap && !!activeLayer && hasContextMenuTile;
+  const canOpenTileInEditor =
+    !!activeMap && !!activeLayer && hasContextMenuTile;
+  const canOpenImageLayerInEditor =
+    !!activeMap &&
+    !!activeImageLayer &&
+    activeImageLayer.visible &&
+    !activeImageLayer.locked &&
+    hasContextMenuImageLayer;
+  const canEditInImageEditor = activeImageLayer
+    ? canOpenImageLayerInEditor
+    : canOpenTileInEditor;
   const isSelectTool = state.currentTool === "select";
   /** Context-menu orient: only when select tool is active AND there's a tile or selection */
   const canOrientContextMenu =
@@ -1021,23 +1106,6 @@ export function MapPanel() {
     (m) => m.groupId === state.activeMapGroupId,
   );
 
-  // Flatten layer tree for rendering — applies group visibility/lock
-  const layerGroups = project.layerGroups ?? [];
-  const projectImageLayers = project.imageLayers ?? [];
-  const flatLayers = activeMap
-    ? flattenLayerTree(activeMap.layerOrder, project.layers, layerGroups)
-    : [];
-  const flatImageLayers = activeMap
-    ? flattenImageLayers(activeMap.layerOrder, projectImageLayers, layerGroups)
-    : [];
-  const projectObjectLayers = project.objectLayers ?? [];
-  const flatObjectLayers = activeMap
-    ? flattenObjectLayers(
-        activeMap.layerOrder,
-        projectObjectLayers,
-        layerGroups,
-      )
-    : [];
   // Collect all objects for flat object layers
   const flatObjectLayerIds = new Set(
     flatObjectLayers.map((l) => l.id as string),
@@ -1967,11 +2035,11 @@ export function MapPanel() {
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
-            disabled={!canOpenInEditor}
-            onSelect={handleOpenInImageEditor}
+            disabled={!canEditInImageEditor}
+            onSelect={handleEditInImageEditor}
           >
             <Pencil className="h-3.5 w-3.5" />
-            Open tile in Image Editor
+            Edit in Image Editor
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuSub>

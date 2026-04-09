@@ -59,6 +59,11 @@ export interface TileEditorContext {
   tileY: number;
 }
 
+export interface ImageLayerEditorContext {
+  layerId: LayerId;
+  assetId: AssetId;
+}
+
 export interface TileClipboard {
   tiles: { dx: number; dy: number; ref: TileRef }[];
   width: number;
