@@ -273,7 +273,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
   const getDisplayImageLayer = useCallback(
     (imgLayer: ImageLayer) => {
-      const resize = liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
+      const resize =
+        liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
       const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
 
       return {
@@ -335,7 +336,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           if (!imgLayer.visible) continue;
           const img = imageLayerImageCache.get(imgLayer.assetId);
           if (!img) continue;
-          const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(imgLayer));
+          const scaledImageLayer = scaleImageLayer(
+            getDisplayImageLayer(imgLayer),
+          );
           offCtx.globalAlpha =
             (0.7 * Math.max(0, Math.min(100, imgLayer.opacity ?? 100))) / 100;
           drawImageLayerWithOrientation(offCtx, img, scaledImageLayer);
@@ -417,7 +420,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         if (imgLayer.visible) {
           const img = imageLayerImageCache.get(imgLayer.assetId);
           if (img) {
-            const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(imgLayer));
+            const scaledImageLayer = scaleImageLayer(
+              getDisplayImageLayer(imgLayer),
+            );
             ctx.globalAlpha =
               Math.max(0, Math.min(100, imgLayer.opacity ?? 100)) / 100;
             drawImageLayerWithOrientation(ctx, img, scaledImageLayer);
@@ -513,7 +518,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     if (currentTool === "select") {
       const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
       if (activeImgLayer) {
-        const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(activeImgLayer));
+        const scaledImageLayer = scaleImageLayer(
+          getDisplayImageLayer(activeImgLayer),
+        );
         const polygon = getImageLayerPolygon(scaledImageLayer);
         const handlePositions = getImageLayerHandlePositions(scaledImageLayer);
 
@@ -901,7 +908,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         ? "crosshair"
         : resizingHandle
           ? (() => {
-              const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+              const activeImgLayer = imageLayers.find(
+                (l) => l.id === activeLayerId,
+              );
               if (!activeImgLayer) return RESIZE_CURSORS[resizingHandle];
               return getImageLayerResizeCursor(
                 scaleImageLayer(getDisplayImageLayer(activeImgLayer)),
@@ -910,7 +919,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             })()
           : hoveredHandle
             ? (() => {
-                const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+                const activeImgLayer = imageLayers.find(
+                  (l) => l.id === activeLayerId,
+                );
                 if (!activeImgLayer) return RESIZE_CURSORS[hoveredHandle];
                 return getImageLayerResizeCursor(
                   scaleImageLayer(getDisplayImageLayer(activeImgLayer)),

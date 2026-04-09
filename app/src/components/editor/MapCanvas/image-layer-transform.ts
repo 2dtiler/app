@@ -2,7 +2,16 @@ import type { ImageLayer } from "@/types";
 import type { ResizeHandle } from "@/types/map-canvas";
 
 const MIN_IMAGE_LAYER_SIZE = 4;
-const HANDLE_ORDER: ResizeHandle[] = ["nw", "n", "ne", "w", "e", "sw", "s", "se"];
+const HANDLE_ORDER: ResizeHandle[] = [
+  "nw",
+  "n",
+  "ne",
+  "w",
+  "e",
+  "sw",
+  "s",
+  "se",
+];
 
 const OPPOSITE_HANDLE: Record<ResizeHandle, ResizeHandle> = {
   nw: "se",
@@ -15,7 +24,9 @@ const OPPOSITE_HANDLE: Record<ResizeHandle, ResizeHandle> = {
   se: "nw",
 };
 
-function getRotationMatrix(layer: Pick<ImageLayer, "rotation" | "flipX" | "flipY">) {
+function getRotationMatrix(
+  layer: Pick<ImageLayer, "rotation" | "flipX" | "flipY">,
+) {
   const rotation = ((layer.rotation ?? 0) * Math.PI) / 180;
   const cos = Math.cos(rotation);
   const sin = Math.sin(rotation);
@@ -94,7 +105,10 @@ function getLocalHandlePoint(
 }
 
 export function transformImageLayerPoint(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
   point: { x: number; y: number },
 ) {
   const center = getImageLayerCenter(layer);
@@ -106,7 +120,10 @@ export function transformImageLayerPoint(
 }
 
 export function getImageLayerPolygon(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
 ) {
   return [
     transformImageLayerPoint(layer, { x: layer.x, y: layer.y }),
@@ -126,14 +143,20 @@ export function getImageLayerPolygon(
 }
 
 export function getImageLayerHandlePosition(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
   handle: ResizeHandle,
 ) {
   return transformImageLayerPoint(layer, getLocalHandlePoint(layer, handle));
 }
 
 export function getImageLayerHandlePositions(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
 ): [ResizeHandle, number, number][] {
   return HANDLE_ORDER.map((handle) => {
     const point = getImageLayerHandlePosition(layer, handle);
@@ -142,7 +165,10 @@ export function getImageLayerHandlePositions(
 }
 
 export function pointInImageLayer(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
   point: { x: number; y: number },
 ) {
   const polygon = getImageLayerPolygon(layer);
@@ -171,7 +197,10 @@ export function pointInImageLayer(
 }
 
 export function getImageLayerResizeCursor(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
   handle: ResizeHandle,
 ) {
   const center = getImageLayerCenter(layer);
@@ -193,7 +222,10 @@ export function getImageLayerResizeCursor(
 }
 
 export function resizeImageLayerFromHandle(
-  layer: Pick<ImageLayer, "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY">,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
   handle: ResizeHandle,
   pointer: { x: number; y: number },
   shiftKey: boolean,
@@ -263,7 +295,10 @@ export function resizeImageLayerFromHandle(
 
   if (shiftKey && isCorner && layer.width > 0 && layer.height > 0) {
     const aspect = layer.width / layer.height;
-    if (Math.abs(width - layer.width) / layer.width >= Math.abs(height - layer.height) / layer.height) {
+    if (
+      Math.abs(width - layer.width) / layer.width >=
+      Math.abs(height - layer.height) / layer.height
+    ) {
       height = width / aspect;
     } else {
       width = height * aspect;

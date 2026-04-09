@@ -481,7 +481,8 @@ export function useSceneInteraction({
 
   const getInteractiveImageLayer = useCallback(
     (imgLayer: ImageLayer) => {
-      const resize = liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
+      const resize =
+        liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
       const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
 
       return {
@@ -500,9 +501,9 @@ export function useSceneInteraction({
 
   const getImageLayerHandles = useCallback(
     (imgLayer: ImageLayer): [ResizeHandle, number, number][] => {
-      return getImageLayerHandlePositions(getInteractiveImageLayer(imgLayer)).map(
-        ([handle, x, y]) => [handle, x * zoom, y * zoom],
-      );
+      return getImageLayerHandlePositions(
+        getInteractiveImageLayer(imgLayer),
+      ).map(([handle, x, y]) => [handle, x * zoom, y * zoom]);
     },
     [getInteractiveImageLayer, zoom],
   );

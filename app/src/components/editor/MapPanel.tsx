@@ -1070,8 +1070,7 @@ export function MapPanel() {
         const flipY = layer.flipY ?? false;
 
         if (action === "rotateLeft") {
-          layer.rotation =
-            ((rotation - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+          layer.rotation = ((rotation - 90 + 360) % 360) as 0 | 90 | 180 | 270;
           return;
         }
 
@@ -1153,8 +1152,12 @@ export function MapPanel() {
   /** Context-menu orient: only when select tool is active AND there's a tile, selection, or active image layer */
   const canOrientContextMenu =
     isSelectTool &&
-    ((!!activeLayer && !activeLayer.locked && (!!state.mapSelection || hasContextMenuTile)) ||
-      (!!activeImageLayer && !activeImageLayer.locked && hasContextMenuImageLayer));
+    ((!!activeLayer &&
+      !activeLayer.locked &&
+      (!!state.mapSelection || hasContextMenuTile)) ||
+      (!!activeImageLayer &&
+        !activeImageLayer.locked &&
+        hasContextMenuImageLayer));
 
   if (!project) return null;
 
