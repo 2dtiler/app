@@ -37,6 +37,7 @@ export interface Tileset {
   id: TilesetId;
   name: string;
   groupId: TilesetGroupId;
+  tileSize: TileSize;
   /** Reference to the source image blob stored in IndexedDB */
   assetId: AssetId;
   /** Width of the source image in pixels */

@@ -35,6 +35,7 @@ import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialo
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/lib/zoom-store";
 import { saveAsset, getAsset, deleteAsset, saveProject } from "@/lib/db";
+import { getTilesetTileSize } from "@/lib/project";
 import { markEditorSaved } from "@/lib/store";
 import {
   generateTilesetId,
@@ -44,6 +45,7 @@ import {
 import {
   TILE_SIZES,
   type TileSize,
+  type EditorState,
   type TilesetGroupId,
   type TilesetId,
   type Tileset,
@@ -57,6 +59,21 @@ function getAdjacentItemId<T extends { id: string }>(
   const index = items.findIndex((item) => item.id === targetId);
   if (index === -1) return null;
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
+}
+
+function syncActiveTilesetState(
+  draft: EditorState,
+  tilesetId: TilesetId | null,
+): void {
+  draft.activeTilesetId = tilesetId;
+  const activeTileset = draft.project?.tilesets.find(
+    (tileset) => tileset.id === tilesetId,
+  );
+  draft.tileSize = getTilesetTileSize(
+    activeTileset,
+    draft.project?.tileSize ?? draft.tileSize,
+  );
+  draft.selectedTile = null;
 }
 
 export function TilesetPanel() {
@@ -90,6 +107,7 @@ export function TilesetPanel() {
   const activeTileset = project.tilesets.find(
     (t) => t.id === state.activeTilesetId,
   );
+  const activeTileSize = getTilesetTileSize(activeTileset, project.tileSize);
 
   // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
 
@@ -152,13 +170,14 @@ export function TilesetPanel() {
         id: tilesetId,
         name,
         groupId: activeGroup.id,
+        tileSize: activeTileSize,
         assetId,
         imageWidth: img.width,
         imageHeight: img.height,
         createdAt: Date.now(),
       };
       draft.project.tilesets.push(tileset);
-      draft.activeTilesetId = tilesetId;
+      syncActiveTilesetState(draft, tilesetId);
     });
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -174,7 +193,7 @@ export function TilesetPanel() {
         const firstInGroup = draft.project?.tilesets.find(
           (t) => t.groupId === value,
         );
-        draft.activeTilesetId = firstInGroup?.id ?? null;
+        syncActiveTilesetState(draft, firstInGroup?.id ?? null);
       });
     }
   }
@@ -192,7 +211,7 @@ export function TilesetPanel() {
       };
       draft.project.tilesetGroups.push(group);
       draft.activeTilesetGroupId = id;
-      draft.activeTilesetId = null;
+      syncActiveTilesetState(draft, null);
     });
     setAddGroupOpen(false);
   }
@@ -218,7 +237,7 @@ export function TilesetPanel() {
           (t) => t.id !== deleteTarget.id,
         );
         if (draft.activeTilesetId === deleteTarget.id) {
-          draft.activeTilesetId = nextTilesetId as TilesetId | null;
+          syncActiveTilesetState(draft, nextTilesetId as TilesetId | null);
         }
         if (draft.selectedTile?.tilesetId === deleteTarget.id) {
           draft.selectedTile = null;
@@ -242,8 +261,7 @@ export function TilesetPanel() {
         if (draft.activeTilesetGroupId === deleteTarget.id) {
           draft.activeTilesetGroupId =
             draft.project.tilesetGroups[0]?.id ?? null;
-          draft.activeTilesetId = null;
-          draft.selectedTile = null;
+          syncActiveTilesetState(draft, null);
         }
       });
     }
@@ -283,19 +301,29 @@ export function TilesetPanel() {
         id: newTilesetId,
         name: `${source.name}_copy`,
         groupId: source.groupId,
+        tileSize: source.tileSize,
         assetId: newAssetId,
         imageWidth: source.imageWidth,
         imageHeight: source.imageHeight,
         createdAt: Date.now(),
       };
       draft.project.tilesets.push(tileset);
-      draft.activeTilesetId = newTilesetId;
+      syncActiveTilesetState(draft, newTilesetId);
     });
   }
 
   function handleTileSizeChange(value: string) {
+    const tileSize = Number(value) as TileSize;
     setState((draft) => {
-      draft.tileSize = Number(value) as TileSize;
+      const activeTileset = draft.project?.tilesets.find(
+        (tileset) => tileset.id === draft.activeTilesetId,
+      );
+      if (activeTileset) {
+        activeTileset.tileSize = tileSize;
+      } else if (draft.project) {
+        draft.project.tileSize = tileSize;
+      }
+      draft.tileSize = tileSize;
       draft.selectedTile = null;
     });
   }
@@ -307,7 +335,7 @@ export function TilesetPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Tileset toolbar */}
-      <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0 flex-wrap">
+      <div className="flex items-center gap-1 px-1 py-2 border-b border-border bg-card shrink-0 flex-wrap">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -329,7 +357,7 @@ export function TilesetPanel() {
 
         {/* Tile size selector */}
         <Select
-          value={String(state.tileSize)}
+          value={String(activeTileSize)}
           onValueChange={handleTileSizeChange}
         >
           <SelectTrigger className="h-6 w-18 text-xs">
@@ -424,7 +452,7 @@ export function TilesetPanel() {
               value={state.activeTilesetId ?? ""}
               onValueChange={(v) =>
                 setState((draft) => {
-                  draft.activeTilesetId = v as TilesetId;
+                  syncActiveTilesetState(draft, v as TilesetId);
                 })
               }
             >
@@ -544,7 +572,7 @@ export function TilesetPanel() {
       >
         <TilesetCanvas
           assetId={activeTileset?.assetId ?? null}
-          tileSize={state.tileSize}
+          tileSize={activeTileSize}
           zoom={tilesetZoom}
           onZoomChange={handleSetTilesetZoom}
           selectedTile={canvasSelectedTile}

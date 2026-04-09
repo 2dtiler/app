@@ -21,10 +21,12 @@ import type {
   TileLayer,
   Tileset,
   TilesetId,
+  TileSize,
   ObjectLayer,
   MapObject,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
+import { normalizeProject, normalizeTileset } from "./project";
 import type {
   AssetManifestEntry,
   PackedMap,
@@ -107,17 +109,7 @@ export async function exportProject(project: Project): Promise<Uint8Array> {
 export async function importProject(data: Uint8Array): Promise<Project> {
   const packed = decompressPack<PackedProject>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
-  // Backward-compat: ensure terrains array exists for older project files
-  if (!packed.project.terrains) {
-    packed.project.terrains = [];
-  }
-  if (!packed.project.objectLayers) {
-    packed.project.objectLayers = [];
-  }
-  if (!packed.project.objects) {
-    packed.project.objects = [];
-  }
-  return packed.project;
+  return normalizeProject(packed.project);
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +173,9 @@ export async function importMap(data: Uint8Array): Promise<{
   return {
     map: packed.map,
     layers: packed.layers,
-    tilesets: packed.tilesets,
+    tilesets: packed.tilesets.map((tileset) =>
+      normalizeTileset(tileset, packed.map.tileSize),
+    ),
     objectLayers: packed.objectLayers ?? [],
     objects: packed.objects ?? [],
   };
@@ -204,10 +198,13 @@ export async function exportTileset(tileset: Tileset): Promise<Uint8Array> {
  * Import a .2dt binary. Restores asset to IndexedDB.
  * Returns the tileset metadata.
  */
-export async function importTileset(data: Uint8Array): Promise<Tileset> {
+export async function importTileset(
+  data: Uint8Array,
+  fallbackTileSize: TileSize = 32,
+): Promise<Tileset> {
   const packed = decompressPack<PackedTileset>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
-  return packed.tileset;
+  return normalizeTileset(packed.tileset, fallbackTileSize);
 }
 
 /**

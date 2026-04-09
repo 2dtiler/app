@@ -15,6 +15,7 @@ import { DEFAULT_EDITOR_STATE, type EditorState } from "@/types";
 import type { MapObject } from "@/types";
 import type { EditorTravels, PersistedHistory } from "@/types/editor-store";
 import { db } from "./db";
+import { getActiveTilesetTileSize, normalizeProject } from "./project";
 
 // ---------------------------------------------------------------------------
 // Persistence helpers (IndexedDB-backed via Dexie)
@@ -94,24 +95,12 @@ export async function initEditorStore(): Promise<EditorTravels> {
       ...DEFAULT_EDITOR_STATE,
       ...persisted.state,
     };
-    // Ensure project.terrains exists for older projects
-    if (restoredState.project && !restoredState.project.terrains) {
-      restoredState.project.terrains = [];
-    }
-    // Ensure project.imageLayers exists for older projects
-    if (restoredState.project && !restoredState.project.imageLayers) {
-      restoredState.project.imageLayers = [];
-    }
-    // Ensure project.objectLayers and objects exist for older projects
-    if (restoredState.project && !restoredState.project.objectLayers) {
-      restoredState.project.objectLayers = [];
-    }
-    if (restoredState.project && !restoredState.project.objects) {
-      restoredState.project.objects = [];
-    }
-    // Ensure overrideTilesets exists for older projects
-    if (restoredState.project && !restoredState.project.overrideTilesets) {
-      restoredState.project.overrideTilesets = [];
+    if (restoredState.project) {
+      normalizeProject(restoredState.project);
+      restoredState.tileSize = getActiveTilesetTileSize(
+        restoredState.project,
+        restoredState.activeTilesetId,
+      );
     }
     // Migrate old string-only properties to { value, type } format
     if (restoredState.project) {

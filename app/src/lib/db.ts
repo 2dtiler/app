@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Project, AppSettings, AssetId } from "@/types";
 import type { Palette } from "@/types/image-editor";
+import { normalizeProject } from "./project";
 import type {
   AssetRecord,
   ProjectPrefs,
@@ -140,7 +141,7 @@ export async function saveProject(
 export async function getProject(id: string): Promise<Project | null> {
   const record = await db.projects.get(id);
   if (!record) return null;
-  return JSON.parse(record.data) as Project;
+  return normalizeProject(JSON.parse(record.data) as Project);
 }
 
 export async function listProjects(): Promise<ProjectRecord[]> {

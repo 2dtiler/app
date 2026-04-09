@@ -181,6 +181,7 @@ export function ImageEditor() {
             name: `__override__`,
             groupId:
               sourceTileset?.groupId ?? draft.project.tilesetGroups[0]!.id,
+            tileSize: sourceTileset?.tileSize ?? draft.tileSize,
             assetId: newAssetId,
             imageWidth: ctx.sw,
             imageHeight: ctx.sh,

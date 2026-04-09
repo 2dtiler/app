@@ -35,6 +35,7 @@ import {
 } from "@/lib/format";
 import { generateMapId, generateLayerId, generateObjectId } from "@/lib/ids";
 import { getAllLayerIds } from "@/lib/layers";
+import { getActiveTilesetTileSize } from "@/lib/project";
 import type {
   TilesetGroupId,
   MapGroupId,
@@ -178,6 +179,10 @@ function App() {
               draft.activeLayerId =
                 prefs.activeLayerId as typeof draft.activeLayerId;
             }
+            draft.tileSize = getActiveTilesetTileSize(
+              project,
+              draft.activeTilesetId,
+            );
           });
           markEditorSaved();
         } else {
@@ -219,7 +224,6 @@ function App() {
           const prefs = loadProjectPrefs(project.id);
           getEditorStore().setState((draft) => {
             draft.project = project;
-            draft.tileSize = project.tileSize;
             if (prefs) {
               const tilesetGroupIds = new Set(
                 project.tilesetGroups.map((g) => g.id as string),
@@ -263,6 +267,10 @@ function App() {
               draft.activeMapId = null;
               draft.activeLayerId = null;
             }
+            draft.tileSize = getActiveTilesetTileSize(
+              project,
+              draft.activeTilesetId,
+            );
           });
           markEditorSaved();
           autoOpened = true;
@@ -277,12 +285,15 @@ function App() {
           if (project) {
             getEditorStore().setState((draft) => {
               draft.project = project;
-              draft.tileSize = project.tileSize;
               draft.activeTilesetGroupId = project.tilesetGroups[0]?.id ?? null;
               draft.activeMapGroupId = project.mapGroups[0]?.id ?? null;
               draft.activeTilesetId = null;
               draft.activeMapId = null;
               draft.activeLayerId = null;
+              draft.tileSize = getActiveTilesetTileSize(
+                project,
+                draft.activeTilesetId,
+              );
             });
             markEditorSaved();
             autoOpened = true;
@@ -635,7 +646,7 @@ function AppShell({
       if (!file) return;
       try {
         const raw = await readFileAsUint8Array(file);
-        const tileset = await importTileset(raw);
+        const tileset = await importTileset(raw, state.tileSize);
 
         // Assign to current or first tileset group
         const targetGroupId =
@@ -655,6 +666,11 @@ function AppShell({
           }
           draft.activeTilesetId = tileset.id;
           draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+          draft.tileSize = getActiveTilesetTileSize(
+            draft.project,
+            draft.activeTilesetId,
+          );
+          draft.selectedTile = null;
         });
       } catch (err) {
         console.error("[Import Tileset] Failed:", err);
@@ -662,7 +678,7 @@ function AppShell({
       }
     };
     input.click();
-  }, [state.project, state.activeTilesetGroupId, setState]);
+  }, [state.project, state.activeTilesetGroupId, state.tileSize, setState]);
 
   const activeWorkspaceSummary = isObjectLayerActive
     ? "Objects open alongside the map"

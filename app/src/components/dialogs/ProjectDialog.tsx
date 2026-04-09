@@ -48,6 +48,7 @@ import {
   readFileAsUint8Array,
   importProject,
 } from "@/lib/format";
+import { getActiveTilesetTileSize } from "@/lib/project";
 import type { Project } from "@/types";
 import type { ProjectDialogProps } from "@/types/dialogs";
 import type { ProjectRecord } from "@/types/persistence";
@@ -139,7 +140,6 @@ export function ProjectDialog({
 
     store.setState((draft) => {
       draft.project = project;
-      draft.tileSize = project.tileSize;
 
       if (prefs) {
         const tilesetGroupIds = new Set(
@@ -180,6 +180,8 @@ export function ProjectDialog({
         draft.activeMapId = null;
         draft.activeLayerId = null;
       }
+
+      draft.tileSize = getActiveTilesetTileSize(project, draft.activeTilesetId);
     });
     markEditorSaved();
     saveLastProjectId(project.id);

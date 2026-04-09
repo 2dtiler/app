@@ -978,7 +978,7 @@ export function LayersPanel() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex shrink-0 items-end justify-between border-b border-border px-4 py-3">
+      <div className="flex shrink-0 items-end justify-between border-b border-border px-4 py-2">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary inline-block -mt-1">
             Layers
