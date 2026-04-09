@@ -978,16 +978,16 @@ export function LayersPanel() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex shrink-0 items-end justify-between gap-4 border-b border-border px-4 py-3">
+      <div className="flex shrink-0 items-end justify-between border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-secondary inline-block -mt-1">
             Layers
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3"
+          className="h-6 px-3"
           onMouseDown={handleAddLayer}
         >
           <Plus className="h-3 w-3" />

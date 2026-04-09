@@ -1,4 +1,6 @@
-- Tabs do not look like Tabs
+- Fix CI/CD
+- Bug Fixes for Tilesets different brush sizes: Preview wrong. Dont remember
+- Add a link topright to github repo, and website
 
 Image/sprite Editor:
   Layer styling is too narrow initially
@@ -19,7 +21,10 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
-Exploration:  
+Update README.md
+
+Exploration:
+  Ogmo Editor
   LDTK
   Pixelorama
   PixiEditor
@@ -37,9 +42,8 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
-  
-Unslopify  
-Add unit tests and add to CI/CD  
+
+Add unit tests and add to CI/CD
 Write documentation for website. Use /nothing-design
 Royalty free packs
 High touch animations
