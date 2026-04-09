@@ -74,7 +74,7 @@ export function SaveFormatDialog({
     >
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Save Image</DialogTitle>
+          <DialogTitle>Export Image</DialogTitle>
           <DialogDescription>
             Choose a format to export your image.
           </DialogDescription>
@@ -142,7 +142,7 @@ export function SaveFormatDialog({
             Cancel
           </Button>
           <Button onClick={() => void handleSave()} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "Exporting..." : "Export"}
           </Button>
         </DialogFooter>
       </DialogContent>

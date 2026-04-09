@@ -41,7 +41,6 @@ import {
   ColorPicker,
   ColorPickerSelection,
   ColorPickerHue,
-  ColorPickerAlpha,
   ColorPickerEyeDropper,
   ColorPickerOutput,
   ColorPickerFormat,
@@ -56,12 +55,24 @@ function colorToHex(color: Color): string {
   return `#${r}${g}${b}`;
 }
 
+function colorToCss(color: Color): string {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+}
+
 function colorsMatch(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
 }
 
 function toOpacityPercent(color: Color): number {
   return Math.round((color.a / 255) * 100);
+}
+
+function clampOpacityPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 export function PalettePanel({
@@ -91,7 +102,6 @@ export function PalettePanel({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [opacityPercent, setOpacityPercent] = useState(100);
   const pickedColorRef = useRef<Color | null>(null);
 
   const handleRenameStart = useCallback(() => {
@@ -133,8 +143,7 @@ export function PalettePanel({
   }, [editingIndex, colors, primaryColor]);
 
   const openPickerForAdd = useCallback(() => {
-    pickedColorRef.current = { ...primaryColor };
-    setOpacityPercent(toOpacityPercent(primaryColor));
+    pickedColorRef.current = { ...primaryColor, a: 255 };
     setEditingIndex(null);
     setPickerOpen(true);
   }, [primaryColor]);
@@ -142,8 +151,7 @@ export function PalettePanel({
   const openPickerForEdit = useCallback(
     (index: number) => {
       const baseColor = colors[index]!;
-      pickedColorRef.current = { ...baseColor };
-      setOpacityPercent(toOpacityPercent(baseColor));
+      pickedColorRef.current = { ...baseColor, a: 255 };
       setEditingIndex(index);
       setPickerOpen(true);
     },
@@ -157,30 +165,30 @@ export function PalettePanel({
       r: Math.round(rgba[0]),
       g: Math.round(rgba[1]),
       b: Math.round(rgba[2]),
-      a: Math.round((rgba[3] ?? 1) * 255),
+      a: 255,
     };
-    setOpacityPercent(Math.round((rgba[3] ?? 1) * 100));
   }, []);
 
-  const handleOpacityChange = useCallback(
+  const handlePrimaryOpacityChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const nextOpacity = Math.max(
-        0,
-        Math.min(100, Number(event.target.value)),
-      );
-      setOpacityPercent(nextOpacity);
-
-      const baseColor =
-        pickedColorRef.current ??
-        (editingIndex !== null ? colors[editingIndex] : primaryColor);
-      if (!baseColor) return;
-
-      pickedColorRef.current = {
-        ...baseColor,
+      const nextOpacity = clampOpacityPercent(Number(event.target.value));
+      onSelectPrimary({
+        ...primaryColor,
         a: Math.round((nextOpacity / 100) * 255),
-      };
+      });
     },
-    [colors, editingIndex, primaryColor],
+    [onSelectPrimary, primaryColor],
+  );
+
+  const handleSecondaryOpacityChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextOpacity = clampOpacityPercent(Number(event.target.value));
+      onSelectSecondary({
+        ...secondaryColor,
+        a: Math.round((nextOpacity / 100) * 255),
+      });
+    },
+    [onSelectSecondary, secondaryColor],
   );
 
   const handlePickerConfirm = useCallback(() => {
@@ -304,18 +312,46 @@ export function PalettePanel({
             <div className="relative w-10 h-10">
               <div
                 className="absolute bottom-0 right-0 w-7 h-7 rounded border border-border"
-                style={{ backgroundColor: colorToHex(secondaryColor) }}
+                style={{ backgroundColor: colorToCss(secondaryColor) }}
                 title="Secondary color (right-click)"
               />
               <div
                 className="absolute top-0 left-0 w-7 h-7 rounded border-2 border-white shadow"
-                style={{ backgroundColor: colorToHex(primaryColor) }}
+                style={{ backgroundColor: colorToCss(primaryColor) }}
                 title="Primary color (left-click)"
               />
             </div>
-            <div className="text-[10px] text-muted-foreground leading-tight">
-              <div>Left Click: {colorToHex(primaryColor)}</div>
-              <div>Right Click: {colorToHex(secondaryColor)}</div>
+            <div className="flex-1 space-y-1 text-[10px] text-muted-foreground leading-tight">
+              <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-1.5">
+                <span>Left Click</span>
+                <span className="truncate uppercase">{colorToHex(primaryColor)}</span>
+                <Input
+                  id="primary-color-opacity"
+                  name="primary-color-opacity"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={toOpacityPercent(primaryColor)}
+                  onChange={handlePrimaryOpacityChange}
+                  className="h-6 w-14 px-1.5 text-[10px]"
+                />
+                <span>%</span>
+              </div>
+              <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-1.5">
+                <span>Right Click</span>
+                <span className="truncate uppercase">{colorToHex(secondaryColor)}</span>
+                <Input
+                  id="secondary-color-opacity"
+                  name="secondary-color-opacity"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={toOpacityPercent(secondaryColor)}
+                  onChange={handleSecondaryOpacityChange}
+                  className="h-6 w-14 px-1.5 text-[10px]"
+                />
+                <span>%</span>
+              </div>
             </div>
           </div>
         </div>
@@ -389,31 +425,11 @@ export function PalettePanel({
                   <ColorPickerEyeDropper className="size-8" />
                   <div className="grid w-full gap-1">
                     <ColorPickerHue />
-                    <ColorPickerAlpha />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <ColorPickerOutput />
                   <ColorPickerFormat />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="palette-opacity"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Opacity
-                  </label>
-                  <Input
-                    id="palette-opacity"
-                    name="palette-opacity"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={opacityPercent}
-                    onChange={handleOpacityChange}
-                    className="h-8 w-20 px-2 text-xs"
-                  />
-                  <span className="text-xs text-muted-foreground">%</span>
                 </div>
                 <div className="flex justify-end gap-1.5">
                   <Button

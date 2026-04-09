@@ -40,6 +40,7 @@ export interface EditorToolbarProps {
   blurSize: number;
   blurIntensity: number;
   canApplyCrop: boolean;
+  canSave: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onZoom: (z: number) => void;
@@ -51,6 +52,7 @@ export interface EditorToolbarProps {
   onNew: () => void;
   onResize: () => void;
   onSave: () => void;
+  onExport: () => void;
   onUndo: () => void;
   onRedo: () => void;
 }

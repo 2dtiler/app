@@ -1,7 +1,5 @@
 Image/sprite Editor:
-  Opacity at the wrong spot
-  Confusion about saving and exporting
-  Saving should show popup
+  Opacity not real opacity
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
     - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
 

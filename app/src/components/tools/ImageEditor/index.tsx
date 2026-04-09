@@ -497,7 +497,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
     } else if (activeTileCtx) {
       return handleSaveTile(activeTileCtx);
     } else {
-      setShowSaveDialog(true);
+      toast("Use Export to save this image to a file.");
       return false;
     }
   }, [
@@ -506,6 +506,10 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
     handleSaveImageLayer,
     handleSaveTile,
   ]);
+
+  const handleOpenExportDialog = useCallback(() => {
+    setShowSaveDialog(true);
+  }, []);
 
   const handleExportPng = useCallback(async (): Promise<boolean> => {
     const didSave = await editor.exportPng();
@@ -688,6 +692,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
     !!selection &&
     selection.width > 0 &&
     selection.height > 0;
+  const canSaveToContext = !!(activeImageLayerCtx || activeTileCtx);
 
   // Determine whether the active layer is locked
   const activeLayerId = editor.state?.activeLayerId as
@@ -716,6 +721,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
         blurSize={blurSize}
         blurIntensity={blurIntensity}
         canApplyCrop={canApplyCrop}
+        canSave={canSaveToContext}
         canUndo={editor.canUndo}
         canRedo={editor.canRedo}
         onZoom={editor.setZoom}
@@ -727,6 +733,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
         onNew={handleNew}
         onResize={handleResize}
         onSave={handleSave}
+        onExport={handleOpenExportDialog}
         onUndo={editor.performUndo}
         onRedo={editor.performRedo}
       />

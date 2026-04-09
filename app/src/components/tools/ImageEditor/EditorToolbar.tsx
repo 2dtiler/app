@@ -1,5 +1,6 @@
 import {
   FilePlus,
+  FileDown,
   Save,
   ZoomIn,
   ZoomOut,
@@ -25,6 +26,7 @@ export function EditorToolbar({
   blurSize,
   blurIntensity,
   canApplyCrop,
+  canSave,
   canUndo,
   canRedo,
   onZoom,
@@ -36,6 +38,7 @@ export function EditorToolbar({
   onNew,
   onResize,
   onSave,
+  onExport,
   onUndo,
   onRedo,
 }: EditorToolbarProps) {
@@ -65,12 +68,29 @@ export function EditorToolbar({
           {/* Save button */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="xs" onClick={onSave}>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={onSave}
+                disabled={!canSave}
+              >
                 <Save className="size-3.5 mr-1" />
                 Save
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Save (Ctrl+S)</TooltipContent>
+            <TooltipContent>
+              {canSave ? "Save back to map (Ctrl+S)" : "No map target to save"}
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="xs" onClick={onExport}>
+                <FileDown className="size-3.5 mr-1" />
+                Export
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export to file</TooltipContent>
           </Tooltip>
         </div>
 
