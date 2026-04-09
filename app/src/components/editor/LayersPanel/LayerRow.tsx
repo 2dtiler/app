@@ -145,7 +145,9 @@ export const LayerRow = memo(function LayerRow({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
+              <TooltipContent>
+                {layer.locked ? "Unlock" : "Lock"}
+              </TooltipContent>
             </Tooltip>
 
             <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
