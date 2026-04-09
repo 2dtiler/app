@@ -632,7 +632,11 @@ export function MapPanel() {
   }, [contextMenuTileRef, activeLayer, activeMap, project]);
 
   const handleOpenImageLayerInEditor = useCallback(() => {
-    if (!activeImageLayer || !hasContextMenuImageLayer || activeImageLayer.locked)
+    if (
+      !activeImageLayer ||
+      !hasContextMenuImageLayer ||
+      activeImageLayer.locked
+    )
       return;
 
     setImageLayerEditorContext({
@@ -659,18 +663,15 @@ export function MapPanel() {
   /**
    * Shared helper: convert a MouseEvent position to a clamped tile coordinate.
    */
-  const eventToMapPoint = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const el = containerRef.current;
-      if (!el) return null;
-      const rect = el.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left + el.scrollLeft,
-        y: e.clientY - rect.top + el.scrollTop,
-      };
-    },
-    [],
-  );
+  const eventToMapPoint = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left + el.scrollLeft,
+      y: e.clientY - rect.top + el.scrollTop,
+    };
+  }, []);
 
   const eventToTile = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -681,7 +682,10 @@ export function MapPanel() {
       return {
         x: Math.max(
           0,
-          Math.min(Math.floor(point.x / scaledTile), activeMap.widthInTiles - 1),
+          Math.min(
+            Math.floor(point.x / scaledTile),
+            activeMap.widthInTiles - 1,
+          ),
         ),
         y: Math.max(
           0,
