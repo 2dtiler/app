@@ -1,6 +1,6 @@
 name = "2dtiler-api"
 main = "src/index.ts"
-compatibility_date = "2025-01-01"
+compatibility_date = "2026-04-09"
 
 # Route all requests to api.2dtiler.com through this worker.
 # The zone (2dtiler.com) must be on your Cloudflare account.

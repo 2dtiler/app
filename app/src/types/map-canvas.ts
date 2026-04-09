@@ -30,6 +30,7 @@ export interface MapCanvasProps {
   activeFillTerrain: EditorState["activeFillTerrain"];
   canPreviewFill: boolean;
   brushSize: EditorState["brushSize"];
+  selectedTileSize: EditorState["tileSize"];
   selectedTile: EditorState["selectedTile"];
   onPaintTile: (gx: number, gy: number) => void;
   onPaintEnd: () => void;
@@ -148,6 +149,7 @@ export interface UseSceneInteractionParams {
   activeFillTerrain: EditorState["activeFillTerrain"];
   canPreviewFill: boolean;
   brushSize: EditorState["brushSize"];
+  selectedTileSize: EditorState["tileSize"];
   onPaintTile: MapCanvasProps["onPaintTile"];
   onPaintEnd: MapCanvasProps["onPaintEnd"];
   mapSelection: MapSelection | null;
@@ -168,7 +170,6 @@ export interface UseSceneInteractionParams {
   onCancelPendingObject?: MapCanvasProps["onCancelPendingObject"];
   onDoubleClickObject?: MapCanvasProps["onDoubleClickObject"];
   overlayCanvasRef: RefObject<HTMLCanvasElement | null>;
-  tileSize: number;
   scaledTile: number;
   mapW: number;
   mapH: number;

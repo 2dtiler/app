@@ -1905,6 +1905,7 @@ export function MapPanel() {
                 activeFillTerrain={state.activeFillTerrain}
                 canPreviewFill={!activeLayerEffectivelyLocked}
                 brushSize={state.brushSize}
+                selectedTileSize={state.tileSize}
                 selectedTile={state.selectedTile}
                 onPaintTile={handlePaintTile}
                 onPaintEnd={handlePaintEnd}

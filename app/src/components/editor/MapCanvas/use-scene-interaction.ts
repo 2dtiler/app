@@ -72,6 +72,7 @@ export function useSceneInteraction({
   activeFillTerrain,
   canPreviewFill,
   brushSize,
+  selectedTileSize,
   onPaintTile,
   onPaintEnd,
   mapSelection,
@@ -92,13 +93,13 @@ export function useSceneInteraction({
   onCancelPendingObject,
   onDoubleClickObject,
   overlayCanvasRef,
-  tileSize,
   scaledTile,
   mapW,
   mapH,
   selectedTile,
 }: UseSceneInteractionParams): UseSceneInteractionReturn {
   const isPaintingRef = useRef(false);
+  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
   const fillPreviewCacheRef = useRef<{
     tileKey: string | null;
     layer: TileLayer | null;
@@ -242,6 +243,216 @@ export function useSceneInteraction({
     },
     [scaledTile, mapW, mapH],
   );
+
+  const clearOverlay = useCallback(() => {
+    const overlay = overlayCanvasRef.current;
+    if (!overlay) return;
+
+    const ctx = overlay.getContext("2d");
+    ctx?.clearRect(0, 0, overlay.width, overlay.height);
+  }, [overlayCanvasRef]);
+
+  const drawOverlayPreview = useCallback(
+    (
+      pointer: { x: number; y: number } | null,
+      pointerGridPos = pointer ? getGridPos(pointer.x, pointer.y) : null,
+    ) => {
+      const overlay = overlayCanvasRef.current;
+      if (!overlay) return;
+
+      const ctx = overlay.getContext("2d");
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      ctx.imageSmoothingEnabled = false;
+
+      if (!pointerGridPos || currentTool === "select") return;
+
+      const activeLayer =
+        layers.find((layer) => layer.id === activeLayerId) ?? null;
+      const isBlockedDrawPreview =
+        objectLayers.some((layer) => layer.id === activeLayerId) &&
+        (currentTool === "paint" ||
+          currentTool === "erase" ||
+          currentTool === "fill");
+      const selectedStamp =
+        currentTool === "paint" && selectedTile
+          ? createTileStamp(selectedTile, selectedTileSize)
+          : null;
+      let fillPreviewRegion: [number, number][] = [];
+
+      if (currentTool === "fill" && canPreviewFill && activeLayer) {
+        const tileKey = `${pointerGridPos.x},${pointerGridPos.y}`;
+        const cachedPreview = fillPreviewCacheRef.current;
+
+        if (
+          cachedPreview.tileKey === tileKey &&
+          cachedPreview.layer === activeLayer &&
+          cachedPreview.fillMode === fillMode &&
+          cachedPreview.selectedTile === selectedTile &&
+          cachedPreview.activeFillTerrain === activeFillTerrain
+        ) {
+          fillPreviewRegion = cachedPreview.region;
+        } else {
+          fillPreviewRegion = getFillRegion({
+            layer: activeLayer,
+            mapWidth: mapW,
+            mapHeight: mapH,
+            startX: pointerGridPos.x,
+            startY: pointerGridPos.y,
+            fillMode,
+            selectedTile,
+            activeFillTerrain,
+          });
+          fillPreviewCacheRef.current = {
+            tileKey,
+            layer: activeLayer,
+            fillMode,
+            selectedTile,
+            activeFillTerrain,
+            region: fillPreviewRegion,
+          };
+        }
+      }
+
+      const brushNum = parseInt(brushSize);
+      const hx = pointerGridPos.x * scaledTile;
+      const hy = pointerGridPos.y * scaledTile;
+
+      if (isBlockedDrawPreview) {
+        const previewWidth =
+          currentTool === "paint" &&
+          selectedStamp &&
+          isMultiTileStamp(selectedStamp)
+            ? selectedStamp.width
+            : currentTool === "fill"
+              ? 1
+              : brushNum;
+        const previewHeight =
+          currentTool === "paint" &&
+          selectedStamp &&
+          isMultiTileStamp(selectedStamp)
+            ? selectedStamp.height
+            : currentTool === "fill"
+              ? 1
+              : brushNum;
+        const hw = Math.min(previewWidth, mapW - pointerGridPos.x) * scaledTile;
+        const hh =
+          Math.min(previewHeight, mapH - pointerGridPos.y) * scaledTile;
+
+        drawBlockedPreview(ctx, hx, hy, hw, hh);
+        return;
+      }
+
+      if (currentTool === "fill") {
+        if (fillPreviewRegion.length === 0) return;
+
+        ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+        ctx.strokeStyle = "rgba(255, 165, 0, 0.55)";
+        ctx.lineWidth = 1;
+        for (const [tx, ty] of fillPreviewRegion) {
+          const fillX = tx * scaledTile;
+          const fillY = ty * scaledTile;
+          ctx.fillRect(fillX, fillY, scaledTile, scaledTile);
+          ctx.strokeRect(
+            fillX + 0.5,
+            fillY + 0.5,
+            scaledTile - 1,
+            scaledTile - 1,
+          );
+        }
+        return;
+      }
+
+      const previewWidth =
+        selectedStamp && isMultiTileStamp(selectedStamp)
+          ? selectedStamp.width
+          : brushNum;
+      const previewHeight =
+        selectedStamp && isMultiTileStamp(selectedStamp)
+          ? selectedStamp.height
+          : brushNum;
+      const hw = Math.min(previewWidth, mapW - pointerGridPos.x) * scaledTile;
+      const hh = Math.min(previewHeight, mapH - pointerGridPos.y) * scaledTile;
+      ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
+      ctx.fillRect(hx, hy, hw, hh);
+      ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(hx, hy, hw, hh);
+
+      if (currentTool !== "paint" || !selectedTile || !selectedStamp) return;
+
+      const tileImg = getTileImage(selectedTile);
+      if (!tileImg) return;
+
+      ctx.globalAlpha = 0.5;
+      if (isMultiTileStamp(selectedStamp)) {
+        for (const cell of selectedStamp.cells) {
+          const tx = pointerGridPos.x + cell.dx;
+          const ty = pointerGridPos.y + cell.dy;
+          if (tx >= mapW || ty >= mapH) continue;
+          ctx.drawImage(
+            tileImg,
+            cell.ref.sx,
+            cell.ref.sy,
+            cell.ref.sw,
+            cell.ref.sh,
+            tx * scaledTile,
+            ty * scaledTile,
+            scaledTile,
+            scaledTile,
+          );
+        }
+      } else {
+        const ref = selectedStamp.cells[0].ref;
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const tx = pointerGridPos.x + dx;
+            const ty = pointerGridPos.y + dy;
+            if (tx >= mapW || ty >= mapH) continue;
+            ctx.drawImage(
+              tileImg,
+              ref.sx,
+              ref.sy,
+              ref.sw,
+              ref.sh,
+              tx * scaledTile,
+              ty * scaledTile,
+              scaledTile,
+              scaledTile,
+            );
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    },
+    [
+      activeFillTerrain,
+      activeLayerId,
+      brushSize,
+      canPreviewFill,
+      currentTool,
+      fillMode,
+      getGridPos,
+      layers,
+      mapH,
+      mapW,
+      objectLayers,
+      overlayCanvasRef,
+      scaledTile,
+      selectedTile,
+      selectedTileSize,
+    ],
+  );
+
+  useEffect(() => {
+    if (lastPointerPosRef.current) {
+      drawOverlayPreview(lastPointerPosRef.current);
+      return;
+    }
+
+    clearOverlay();
+  }, [clearOverlay, drawOverlayPreview]);
 
   const isInsideSelection = useCallback(
     (globalX: number, globalY: number, sel: MapSelection): boolean => {
@@ -733,173 +944,9 @@ export function useSceneInteraction({
 
   const handlePointerMove = useCallback(
     (e: { x: number; y: number }) => {
+      lastPointerPosRef.current = e;
       const pos = getGridPos(e.x, e.y);
-      const activeLayer =
-        layers.find((layer) => layer.id === activeLayerId) ?? null;
-      const isBlockedDrawPreview =
-        objectLayers.some((layer) => layer.id === activeLayerId) &&
-        (currentTool === "paint" ||
-          currentTool === "erase" ||
-          currentTool === "fill");
-      const selectedStamp =
-        currentTool === "paint" && selectedTile
-          ? createTileStamp(selectedTile, tileSize)
-          : null;
-      let fillPreviewRegion: [number, number][] = [];
-
-      if (pos && currentTool === "fill" && canPreviewFill && activeLayer) {
-        const tileKey = `${pos.x},${pos.y}`;
-        const cachedPreview = fillPreviewCacheRef.current;
-
-        if (
-          cachedPreview.tileKey === tileKey &&
-          cachedPreview.layer === activeLayer &&
-          cachedPreview.fillMode === fillMode &&
-          cachedPreview.selectedTile === selectedTile &&
-          cachedPreview.activeFillTerrain === activeFillTerrain
-        ) {
-          fillPreviewRegion = cachedPreview.region;
-        } else {
-          fillPreviewRegion = getFillRegion({
-            layer: activeLayer,
-            mapWidth: mapW,
-            mapHeight: mapH,
-            startX: pos.x,
-            startY: pos.y,
-            fillMode,
-            selectedTile,
-            activeFillTerrain,
-          });
-          fillPreviewCacheRef.current = {
-            tileKey,
-            layer: activeLayer,
-            fillMode,
-            selectedTile,
-            activeFillTerrain,
-            region: fillPreviewRegion,
-          };
-        }
-      }
-
-      // Draw the yellow hover box directly on the overlay canvas —
-      // no React state update, no re-render.
-      const overlay = overlayCanvasRef.current;
-      if (overlay) {
-        const ctx = overlay.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, overlay.width, overlay.height);
-          ctx.imageSmoothingEnabled = false;
-          if (pos && currentTool !== "select") {
-            if (isBlockedDrawPreview) {
-              const brushNum = parseInt(brushSize);
-              const hx = pos.x * scaledTile;
-              const hy = pos.y * scaledTile;
-              const previewWidth =
-                currentTool === "paint" &&
-                selectedStamp &&
-                isMultiTileStamp(selectedStamp)
-                  ? selectedStamp.width
-                  : currentTool === "fill"
-                    ? 1
-                    : brushNum;
-              const previewHeight =
-                currentTool === "paint" &&
-                selectedStamp &&
-                isMultiTileStamp(selectedStamp)
-                  ? selectedStamp.height
-                  : currentTool === "fill"
-                    ? 1
-                    : brushNum;
-              const hw = Math.min(previewWidth, mapW - pos.x) * scaledTile;
-              const hh = Math.min(previewHeight, mapH - pos.y) * scaledTile;
-
-              drawBlockedPreview(ctx, hx, hy, hw, hh);
-            } else if (currentTool === "fill") {
-              if (fillPreviewRegion.length > 0) {
-                ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
-                ctx.strokeStyle = "rgba(255, 165, 0, 0.55)";
-                ctx.lineWidth = 1;
-                for (const [tx, ty] of fillPreviewRegion) {
-                  const hx = tx * scaledTile;
-                  const hy = ty * scaledTile;
-                  ctx.fillRect(hx, hy, scaledTile, scaledTile);
-                  ctx.strokeRect(
-                    hx + 0.5,
-                    hy + 0.5,
-                    scaledTile - 1,
-                    scaledTile - 1,
-                  );
-                }
-              }
-            } else {
-              const brushNum = parseInt(brushSize);
-              const hx = pos.x * scaledTile;
-              const hy = pos.y * scaledTile;
-              const previewWidth =
-                selectedStamp && isMultiTileStamp(selectedStamp)
-                  ? selectedStamp.width
-                  : brushNum;
-              const previewHeight =
-                selectedStamp && isMultiTileStamp(selectedStamp)
-                  ? selectedStamp.height
-                  : brushNum;
-              const hw = Math.min(previewWidth, mapW - pos.x) * scaledTile;
-              const hh = Math.min(previewHeight, mapH - pos.y) * scaledTile;
-              ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
-              ctx.fillRect(hx, hy, hw, hh);
-              ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
-              ctx.lineWidth = 2;
-              ctx.strokeRect(hx, hy, hw, hh);
-              // Draw tile preview directly on overlay — no React state, no re-render
-              if (currentTool === "paint" && selectedTile && selectedStamp) {
-                const tileImg = getTileImage(selectedTile);
-                if (tileImg) {
-                  ctx.globalAlpha = 0.5;
-                  if (isMultiTileStamp(selectedStamp)) {
-                    for (const cell of selectedStamp.cells) {
-                      const tx = pos.x + cell.dx;
-                      const ty = pos.y + cell.dy;
-                      if (tx >= mapW || ty >= mapH) continue;
-                      ctx.drawImage(
-                        tileImg,
-                        cell.ref.sx,
-                        cell.ref.sy,
-                        cell.ref.sw,
-                        cell.ref.sh,
-                        tx * scaledTile,
-                        ty * scaledTile,
-                        scaledTile,
-                        scaledTile,
-                      );
-                    }
-                  } else {
-                    const ref = selectedStamp.cells[0].ref;
-                    for (let dy = 0; dy < brushNum; dy++) {
-                      for (let dx = 0; dx < brushNum; dx++) {
-                        const tx = pos.x + dx;
-                        const ty = pos.y + dy;
-                        if (tx >= mapW || ty >= mapH) continue;
-                        ctx.drawImage(
-                          tileImg,
-                          ref.sx,
-                          ref.sy,
-                          ref.sw,
-                          ref.sh,
-                          tx * scaledTile,
-                          ty * scaledTile,
-                          scaledTile,
-                          scaledTile,
-                        );
-                      }
-                    }
-                  }
-                  ctx.globalAlpha = 1;
-                }
-              }
-            }
-          }
-        }
-      }
+      drawOverlayPreview(e, pos);
 
       if (isDrawingPolygon) {
         setPolygonCursorPos({ x: e.x / zoom, y: e.y / zoom });
@@ -1148,15 +1195,9 @@ export function useSceneInteraction({
     },
     [
       getGridPos,
-      layers,
       currentTool,
-      fillMode,
-      activeFillTerrain,
-      canPreviewFill,
-      brushSize,
-      selectedTile,
       onPaintTile,
-      tileSize,
+      drawOverlayPreview,
       scaledTile,
       mapW,
       mapH,
@@ -1167,7 +1208,6 @@ export function useSceneInteraction({
       activeLayerId,
       activeObjectId,
       isDrawingPolygon,
-      overlayCanvasRef,
     ],
   );
 
@@ -1315,13 +1355,10 @@ export function useSceneInteraction({
   );
 
   const handlePointerLeave = useCallback(() => {
+    lastPointerPosRef.current = null;
     fillPreviewCacheRef.current.tileKey = null;
     fillPreviewCacheRef.current.region = [];
-    const overlay = overlayCanvasRef.current;
-    if (overlay) {
-      const ctx = overlay.getContext("2d");
-      ctx?.clearRect(0, 0, overlay.width, overlay.height);
-    }
+    clearOverlay();
 
     if (currentTool === "select" && objectPlaceRef.current) {
       objectPlaceRef.current = null;
@@ -1428,7 +1465,7 @@ export function useSceneInteraction({
     livePolyVertex,
     objects,
     onUpdatePolygonPoints,
-    overlayCanvasRef,
+    clearOverlay,
   ]);
 
   return {

@@ -1,6 +1,4 @@
-- Fix CI/CD
 - Bug Fixes for Tilesets different brush sizes: Preview wrong. Dont remember
-- Add a link topright to github repo, and website
 
 Image/sprite Editor:
   Layer styling is too narrow initially

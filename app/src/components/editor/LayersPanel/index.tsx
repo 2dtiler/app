@@ -78,8 +78,8 @@ export function LayersPanel() {
             Layers
           </span>
         </div>
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-text-disabled">
-          [ NO MAP SELECTED ]
+        <div className="flex flex-1 items-center justify-center px-6 text-center text-muted-foreground text-xs">
+          No Map Selected
         </div>
       </div>
     );
