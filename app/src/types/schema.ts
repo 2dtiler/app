@@ -137,6 +137,12 @@ export interface ImageLayer {
   width: number;
   /** Display height in pixels */
   height: number;
+  /** Clockwise rotation in degrees (0, 90, 180, 270) */
+  rotation?: 0 | 90 | 180 | 270;
+  /** Flip horizontally (after rotation) */
+  flipX?: boolean;
+  /** Flip vertically (after rotation) */
+  flipY?: boolean;
   /** Layer opacity as a percentage from 0 to 100 */
   opacity: number;
 }

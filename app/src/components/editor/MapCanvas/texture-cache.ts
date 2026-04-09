@@ -1,5 +1,6 @@
 import { getAssetUrl } from "@/lib/db";
-import type { AssetId, TilesetId, TileRef } from "@/types";
+import type { AssetId, ImageLayer, TilesetId, TileRef } from "@/types";
+import { getImageLayerCenter } from "./image-layer-transform";
 
 // ---------------------------------------------------------------------------
 // Tileset image cache — loads and caches HTMLImageElement for tilesets
@@ -138,6 +139,43 @@ export function drawTileWithOrientation(
     -half,
     scaledTile,
     scaledTile,
+  );
+  ctx.restore();
+}
+
+export function drawImageLayerWithOrientation(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  layer: Pick<
+    ImageLayer,
+    "x" | "y" | "width" | "height" | "rotation" | "flipX" | "flipY"
+  >,
+) {
+  const rotation = layer.rotation ?? 0;
+  const flipX = layer.flipX ?? false;
+  const flipY = layer.flipY ?? false;
+
+  if (rotation === 0 && !flipX && !flipY) {
+    ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
+    return;
+  }
+
+  const center = getImageLayerCenter(layer);
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  if (rotation !== 0) {
+    ctx.rotate((rotation * Math.PI) / 180);
+  }
+  if (flipX || flipY) {
+    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  }
+  ctx.drawImage(
+    img,
+    -layer.width / 2,
+    -layer.height / 2,
+    layer.width,
+    layer.height,
   );
   ctx.restore();
 }

@@ -26,6 +26,11 @@ import type {
   UseSceneInteractionReturn,
 } from "@/types/map-canvas";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
+import {
+  getImageLayerHandlePositions,
+  pointInImageLayer,
+  resizeImageLayerFromHandle,
+} from "./image-layer-transform";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
 import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
@@ -474,27 +479,32 @@ export function useSceneInteraction({
     [scaledTile],
   );
 
+  const getInteractiveImageLayer = useCallback(
+    (imgLayer: ImageLayer) => {
+      const resize = liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
+      const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
+
+      return {
+        ...imgLayer,
+        x: resize?.x ?? drag?.x ?? imgLayer.x,
+        y: resize?.y ?? drag?.y ?? imgLayer.y,
+        width: resize?.width ?? imgLayer.width,
+        height: resize?.height ?? imgLayer.height,
+        rotation: imgLayer.rotation ?? 0,
+        flipX: imgLayer.flipX ?? false,
+        flipY: imgLayer.flipY ?? false,
+      };
+    },
+    [liveImagePos, liveImageResize],
+  );
+
   const getImageLayerHandles = useCallback(
     (imgLayer: ImageLayer): [ResizeHandle, number, number][] => {
-      const resize =
-        liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
-      const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
-      const px = (resize?.x ?? drag?.x ?? imgLayer.x) * zoom;
-      const py = (resize?.y ?? drag?.y ?? imgLayer.y) * zoom;
-      const pw = (resize?.width ?? imgLayer.width) * zoom;
-      const ph = (resize?.height ?? imgLayer.height) * zoom;
-      return [
-        ["nw", px, py],
-        ["n", px + pw / 2, py],
-        ["ne", px + pw, py],
-        ["w", px, py + ph / 2],
-        ["e", px + pw, py + ph / 2],
-        ["sw", px, py + ph],
-        ["s", px + pw / 2, py + ph],
-        ["se", px + pw, py + ph],
-      ];
+      return getImageLayerHandlePositions(getInteractiveImageLayer(imgLayer)).map(
+        ([handle, x, y]) => [handle, x * zoom, y * zoom],
+      );
     },
-    [zoom, liveImageResize, liveImagePos],
+    [getInteractiveImageLayer, zoom],
   );
 
   const handleHitSize = 12;
@@ -829,6 +839,9 @@ export function useSceneInteraction({
               origY: resizeImgLayer.y,
               origWidth: resizeImgLayer.width,
               origHeight: resizeImgLayer.height,
+              rotation: resizeImgLayer.rotation ?? 0,
+              flipX: resizeImgLayer.flipX ?? false,
+              flipY: resizeImgLayer.flipY ?? false,
             };
             setResizingHandle(resizeHandle);
             return;
@@ -838,36 +851,19 @@ export function useSceneInteraction({
         // --- Image layer drag ---
         const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
         if (activeImgLayer) {
-          const imgX = activeImgLayer.x * zoom;
-          const imgY = activeImgLayer.y * zoom;
-          const imgW = activeImgLayer.width * zoom;
-          const imgH = activeImgLayer.height * zoom;
-          const posX =
-            liveImagePos?.layerId === activeImgLayer.id
-              ? liveImagePos.x * zoom
-              : imgX;
-          const posY =
-            liveImagePos?.layerId === activeImgLayer.id
-              ? liveImagePos.y * zoom
-              : imgY;
+          const interactiveLayer = getInteractiveImageLayer(activeImgLayer);
           if (
-            e.x >= posX &&
-            e.x <= posX + imgW &&
-            e.y >= posY &&
-            e.y <= posY + imgH
+            pointInImageLayer(interactiveLayer, {
+              x: e.x / zoom,
+              y: e.y / zoom,
+            })
           ) {
             imageDragRef.current = {
               layerId: activeImgLayer.id,
               startX: e.x,
               startY: e.y,
-              origX:
-                liveImagePos?.layerId === activeImgLayer.id
-                  ? liveImagePos.x
-                  : activeImgLayer.x,
-              origY:
-                liveImagePos?.layerId === activeImgLayer.id
-                  ? liveImagePos.y
-                  : activeImgLayer.y,
+              origX: interactiveLayer.x,
+              origY: interactiveLayer.y,
             };
             setIsMoving(true);
             return;
@@ -930,7 +926,7 @@ export function useSceneInteraction({
       activeLayerId,
       imageLayers,
       zoom,
-      liveImagePos,
+      getInteractiveImageLayer,
       hitTestResizeHandle,
       pendingObjectType,
       objects,
@@ -1023,16 +1019,21 @@ export function useSceneInteraction({
         // Image layer resize
         const resizeAction = imageResizeRef.current;
         if (resizeAction) {
-          const rdx = (e.x - resizeAction.startX) / zoom;
-          const rdy = (e.y - resizeAction.startY) / zoom;
-          const result = computeResize(
+          const result = resizeImageLayerFromHandle(
+            {
+              x: resizeAction.origX,
+              y: resizeAction.origY,
+              width: resizeAction.origWidth,
+              height: resizeAction.origHeight,
+              rotation: resizeAction.rotation,
+              flipX: resizeAction.flipX,
+              flipY: resizeAction.flipY,
+            },
             resizeAction.handle,
-            resizeAction.origX,
-            resizeAction.origY,
-            resizeAction.origWidth,
-            resizeAction.origHeight,
-            rdx,
-            rdy,
+            {
+              x: e.x / zoom,
+              y: e.y / zoom,
+            },
             shiftKeyRef.current,
           );
           setLiveImageResize({ layerId: resizeAction.layerId, ...result });

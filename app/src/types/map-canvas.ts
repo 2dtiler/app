@@ -105,6 +105,9 @@ export interface ImageResizeAction {
   origY: number;
   origWidth: number;
   origHeight: number;
+  rotation: 0 | 90 | 180 | 270;
+  flipX: boolean;
+  flipY: boolean;
 }
 
 export interface ObjectPlaceAction {

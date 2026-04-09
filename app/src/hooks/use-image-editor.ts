@@ -18,7 +18,10 @@ import {
   getImageEditorStore,
   isImageEditorStoreReady,
   destroyImageEditorStore,
+  subscribeToImageEditorStoreInstance,
 } from "@/lib/image-editor-store";
+import { getPendingImageLayerEditorRequest } from "@/lib/image-layer-editor-context";
+import { getPendingTileEditorRequest } from "@/lib/tile-editor-context";
 import * as pixelHistory from "@/lib/image-editor-history";
 import { parseAsePalette, writeAsePalette } from "@/lib/ase-palette";
 import { parsePhotoshopAse, writePhotoshopAse } from "@/lib/photoshop-ase";
@@ -296,8 +299,20 @@ function insertAfterInOrder(
 function ensureStoreReady() {
   if (isImageEditorStoreReady()) return;
 
-  const w = 16;
-  const h = 16;
+  const pendingTileRequest = getPendingTileEditorRequest();
+  const pendingImageLayerRequest = getPendingImageLayerEditorRequest();
+  const w = pendingTileRequest?.context.sw
+    ? pendingTileRequest.context.sw
+    : pendingImageLayerRequest?.context.width &&
+        pendingImageLayerRequest.context.width > 0
+      ? pendingImageLayerRequest.context.width
+      : 16;
+  const h = pendingTileRequest?.context.sh
+    ? pendingTileRequest.context.sh
+    : pendingImageLayerRequest?.context.height &&
+        pendingImageLayerRequest.context.height > 0
+      ? pendingImageLayerRequest.context.height
+      : 16;
   initImageEditorStore(w, h);
 
   const store = getImageEditorStore();
@@ -328,8 +343,22 @@ export function useImageEditor() {
   // -----------------------------------------------------------------------
 
   const subscribe = useCallback((cb: () => void) => {
-    if (!isImageEditorStoreReady()) return () => {};
-    return getImageEditorStore().subscribe(cb);
+    let unsubscribeStore = isImageEditorStoreReady()
+      ? getImageEditorStore().subscribe(cb)
+      : () => {};
+
+    const unsubscribeInstance = subscribeToImageEditorStoreInstance(() => {
+      unsubscribeStore();
+      unsubscribeStore = isImageEditorStoreReady()
+        ? getImageEditorStore().subscribe(cb)
+        : () => {};
+      cb();
+    });
+
+    return () => {
+      unsubscribeInstance();
+      unsubscribeStore();
+    };
   }, []);
 
   const getSnapshot = useCallback((): ImageEditorState | null => {

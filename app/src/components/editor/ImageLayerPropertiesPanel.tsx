@@ -144,7 +144,7 @@ export function ImageLayerPropertiesPanel() {
         <div className="space-y-3 p-3">
           <p className="text-xs text-muted-foreground">
             {activeImageLayer.locked
-              ? "Unlock this layer to edit width, height, and opacity."
+              ? "Unlock this layer to edit its transform and rendering settings."
               : "Adjust how this image layer is rendered on the map."}
           </p>
 

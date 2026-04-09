@@ -62,6 +62,8 @@ export interface TileEditorContext {
 export interface ImageLayerEditorContext {
   layerId: LayerId;
   assetId: AssetId;
+  width: number;
+  height: number;
 }
 
 export interface TileClipboard {

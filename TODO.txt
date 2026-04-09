@@ -1,7 +1,9 @@
-Open tile in image editor should also work for images
-  - Events are not binding on load
-  - Saving dimensions
-  
+- Image Layer: Allow Copy/Cut/Paste
+- Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
+- Enable map export to serialize image layers  
+- Add Text to Object Layer 
+- Delete button should delete the selected thing
+
 Image/sprite Editor:
   Layer styling is too narrow initially
   Add frame should be a primary button
@@ -12,6 +14,8 @@ Image/sprite Editor:
   Saving should show popup
   Add ability to export
   Pencil/Eraser should draw square, not a blob
+  Blur size doesnt work
+  Add ability to crop
 
 Import Options
 ===================================
@@ -51,9 +55,9 @@ Exploration:
 
 Manage Tilesets
 Manage Maps
+Royalty free packs
 Add unit tests and add to CI/CD
 Write documentation for website. Use /nothing-design
-Royalty free packs
 High touch animations
 Add tutorial video
 Add roadmap voting on home page

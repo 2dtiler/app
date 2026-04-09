@@ -22,7 +22,13 @@ import {
   evictUnusedTilesets,
   getTileImage,
   drawTileWithOrientation,
+  drawImageLayerWithOrientation,
 } from "./texture-cache";
+import {
+  getImageLayerHandlePositions,
+  getImageLayerPolygon,
+  getImageLayerResizeCursor,
+} from "./image-layer-transform";
 import { useSceneInteraction } from "./use-scene-interaction";
 
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
@@ -265,6 +271,36 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const moveTiles = useMemo(() => moveTilesSnapshot ?? [], [moveTilesSnapshot]);
   const moveDestSel = moveTilesSnapshot ? liveSelection : null;
 
+  const getDisplayImageLayer = useCallback(
+    (imgLayer: ImageLayer) => {
+      const resize = liveImageResize?.layerId === imgLayer.id ? liveImageResize : null;
+      const drag = liveImagePos?.layerId === imgLayer.id ? liveImagePos : null;
+
+      return {
+        ...imgLayer,
+        x: resize?.x ?? drag?.x ?? imgLayer.x,
+        y: resize?.y ?? drag?.y ?? imgLayer.y,
+        width: resize?.width ?? imgLayer.width,
+        height: resize?.height ?? imgLayer.height,
+        rotation: imgLayer.rotation ?? 0,
+        flipX: imgLayer.flipX ?? false,
+        flipY: imgLayer.flipY ?? false,
+      };
+    },
+    [liveImagePos, liveImageResize],
+  );
+
+  const scaleImageLayer = useCallback(
+    (imgLayer: ReturnType<typeof getDisplayImageLayer>) => ({
+      ...imgLayer,
+      x: imgLayer.x * zoom,
+      y: imgLayer.y * zoom,
+      width: imgLayer.width * zoom,
+      height: imgLayer.height * zoom,
+    }),
+    [zoom],
+  );
+
   // ---------------------------------------------------------------------------
   // Background offscreen canvases — pre-render inactive layers split around
   // the active layer so the hot paint loop only composites + redraws the
@@ -299,13 +335,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           if (!imgLayer.visible) continue;
           const img = imageLayerImageCache.get(imgLayer.assetId);
           if (!img) continue;
-          const posX = imgLayer.x * zoom;
-          const posY = imgLayer.y * zoom;
-          const spriteW = imgLayer.width * zoom;
-          const spriteH = imgLayer.height * zoom;
+          const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(imgLayer));
           offCtx.globalAlpha =
             (0.7 * Math.max(0, Math.min(100, imgLayer.opacity ?? 100))) / 100;
-          offCtx.drawImage(img, posX, posY, spriteW, spriteH);
+          drawImageLayerWithOrientation(offCtx, img, scaledImageLayer);
           offCtx.globalAlpha = 1;
           continue;
         }
@@ -342,6 +375,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     canvasH,
     imagesReady,
     zoom,
+    getDisplayImageLayer,
+    scaleImageLayer,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -382,28 +417,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         if (imgLayer.visible) {
           const img = imageLayerImageCache.get(imgLayer.assetId);
           if (img) {
-            const imgIsResizing = liveImageResize?.layerId === imgLayer.id;
-            const imgIsDragging = liveImagePos?.layerId === imgLayer.id;
-            const posX =
-              (imgIsResizing
-                ? liveImageResize!.x
-                : imgIsDragging
-                  ? liveImagePos!.x
-                  : imgLayer.x) * zoom;
-            const posY =
-              (imgIsResizing
-                ? liveImageResize!.y
-                : imgIsDragging
-                  ? liveImagePos!.y
-                  : imgLayer.y) * zoom;
-            const spriteW =
-              (imgIsResizing ? liveImageResize!.width : imgLayer.width) * zoom;
-            const spriteH =
-              (imgIsResizing ? liveImageResize!.height : imgLayer.height) *
-              zoom;
+            const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(imgLayer));
             ctx.globalAlpha =
               Math.max(0, Math.min(100, imgLayer.opacity ?? 100)) / 100;
-            ctx.drawImage(img, posX, posY, spriteW, spriteH);
+            drawImageLayerWithOrientation(ctx, img, scaledImageLayer);
             ctx.globalAlpha = 1;
           }
         }
@@ -440,6 +457,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     liveImagePos,
     liveImageResize,
     paintBufferVersion,
+    getDisplayImageLayer,
+    scaleImageLayer,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -494,49 +513,42 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     if (currentTool === "select") {
       const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
       if (activeImgLayer) {
-        const imgIsResizing = liveImageResize?.layerId === activeImgLayer.id;
-        const imgIsDragging = liveImagePos?.layerId === activeImgLayer.id;
-        const posX =
-          (imgIsResizing
-            ? liveImageResize!.x
-            : imgIsDragging
-              ? liveImagePos!.x
-              : activeImgLayer.x) * zoom;
-        const posY =
-          (imgIsResizing
-            ? liveImageResize!.y
-            : imgIsDragging
-              ? liveImagePos!.y
-              : activeImgLayer.y) * zoom;
-        const w =
-          (imgIsResizing ? liveImageResize!.width : activeImgLayer.width) *
-          zoom;
-        const h =
-          (imgIsResizing ? liveImageResize!.height : activeImgLayer.height) *
-          zoom;
+        const scaledImageLayer = scaleImageLayer(getDisplayImageLayer(activeImgLayer));
+        const polygon = getImageLayerPolygon(scaledImageLayer);
+        const handlePositions = getImageLayerHandlePositions(scaledImageLayer);
 
+        ctx.beginPath();
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (const point of polygon.slice(1)) {
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
         ctx.fillStyle = "rgba(59, 130, 246, 0.08)";
-        ctx.fillRect(posX, posY, w, h);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (const point of polygon.slice(1)) {
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
         ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(posX + 0.5, posY + 0.5, w - 1, h - 1);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (const point of polygon.slice(1)) {
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
         ctx.strokeStyle = "rgba(59, 130, 246, 1)";
         ctx.lineWidth = 2;
-        ctx.strokeRect(posX - 0.5, posY - 0.5, w + 1, h + 1);
+        ctx.stroke();
 
         const hs = 8;
         const hh = hs / 2;
-        const handlePositions: [number, number][] = [
-          [posX, posY],
-          [posX + w / 2, posY],
-          [posX + w, posY],
-          [posX, posY + h / 2],
-          [posX + w, posY + h / 2],
-          [posX, posY + h],
-          [posX + w / 2, posY + h],
-          [posX + w, posY + h],
-        ];
-        for (const [hx, hy] of handlePositions) {
+        for (const [, hx, hy] of handlePositions) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(hx - hh, hy - hh, hs, hs);
           ctx.strokeStyle = "rgba(59, 130, 246, 1)";
@@ -819,6 +831,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     polygonCursorPos,
     moveDestSel,
     moveTiles,
+    getDisplayImageLayer,
+    scaleImageLayer,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -886,9 +900,23 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       ? pendingObjectType
         ? "crosshair"
         : resizingHandle
-          ? RESIZE_CURSORS[resizingHandle]
+          ? (() => {
+              const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+              if (!activeImgLayer) return RESIZE_CURSORS[resizingHandle];
+              return getImageLayerResizeCursor(
+                scaleImageLayer(getDisplayImageLayer(activeImgLayer)),
+                resizingHandle,
+              );
+            })()
           : hoveredHandle
-            ? RESIZE_CURSORS[hoveredHandle]
+            ? (() => {
+                const activeImgLayer = imageLayers.find((l) => l.id === activeLayerId);
+                if (!activeImgLayer) return RESIZE_CURSORS[hoveredHandle];
+                return getImageLayerResizeCursor(
+                  scaleImageLayer(getDisplayImageLayer(activeImgLayer)),
+                  hoveredHandle,
+                );
+              })()
             : (hoveredObjectCursor ?? (isMoving ? "grabbing" : "default"))
       : "crosshair";
 

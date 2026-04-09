@@ -145,8 +145,10 @@ export function ImageEditor() {
       return;
     }
 
-    const width = img.naturalWidth || img.width;
-    const height = img.naturalHeight || img.height;
+    const sourceWidth = img.naturalWidth || img.width;
+    const sourceHeight = img.naturalHeight || img.height;
+    const width = ctx.width > 0 ? ctx.width : sourceWidth;
+    const height = ctx.height > 0 ? ctx.height : sourceHeight;
     const tmpCanvas = document.createElement("canvas");
     tmpCanvas.width = width;
     tmpCanvas.height = height;
@@ -156,7 +158,7 @@ export function ImageEditor() {
     }
 
     tmpCtx.imageSmoothingEnabled = false;
-    tmpCtx.drawImage(img, 0, 0, width, height);
+    tmpCtx.drawImage(img, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
     const imageData = tmpCtx.getImageData(0, 0, width, height);
     if (!isCurrentRun()) {
       return;

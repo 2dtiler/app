@@ -419,6 +419,9 @@ export function LayersPanel() {
           y: 0,
           width: imgWidth,
           height: imgHeight,
+          rotation: 0,
+          flipX: false,
+          flipY: false,
           opacity: 100,
         };
         draft.project.imageLayers.push(imageLayer);
@@ -710,6 +713,9 @@ export function LayersPanel() {
           y: imgLayer.y,
           width: imgLayer.width,
           height: imgLayer.height,
+          rotation: imgLayer.rotation ?? 0,
+          flipX: imgLayer.flipX ?? false,
+          flipY: imgLayer.flipY ?? false,
           opacity: imgLayer.opacity ?? 100,
         };
         draft.project.imageLayers.push(copy);
@@ -857,6 +863,9 @@ export function LayersPanel() {
             y: il.y,
             width: il.width,
             height: il.height,
+            rotation: il.rotation ?? 0,
+            flipX: il.flipX ?? false,
+            flipY: il.flipY ?? false,
             opacity: il.opacity ?? 100,
           };
           draft.project.imageLayers.push(copy);

@@ -1,6 +1,7 @@
 import type { Project, TileSize, Tileset, TilesetId } from "@/types";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
+const IMAGE_LAYER_ROTATIONS = new Set([0, 90, 180, 270]);
 
 export function getTilesetTileSize(
   tileset: Tileset | null | undefined,
@@ -48,12 +49,18 @@ export function normalizeProject(project: Project): Project {
   for (const imageLayer of project.imageLayers) {
     if (typeof imageLayer.opacity !== "number") {
       imageLayer.opacity = 100;
-      continue;
+    } else {
+      imageLayer.opacity = Math.max(
+        0,
+        Math.min(100, Math.round(imageLayer.opacity)),
+      );
     }
-    imageLayer.opacity = Math.max(
-      0,
-      Math.min(100, Math.round(imageLayer.opacity)),
-    );
+
+    imageLayer.rotation = IMAGE_LAYER_ROTATIONS.has(imageLayer.rotation ?? 0)
+      ? imageLayer.rotation
+      : 0;
+    imageLayer.flipX = Boolean(imageLayer.flipX);
+    imageLayer.flipY = Boolean(imageLayer.flipY);
   }
 
   return project;

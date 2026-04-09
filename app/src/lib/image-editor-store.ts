@@ -22,6 +22,13 @@ import type { ImageEditorTravels } from "@/types/image-editor-internals";
 import { v4 as uuidv4 } from "uuid";
 
 let instance: ImageEditorTravels | null = null;
+const instanceListeners = new Set<() => void>();
+
+function notifyInstanceListeners(): void {
+  for (const listener of instanceListeners) {
+    listener();
+  }
+}
 
 /**
  * Create (or re-create) the image editor store for a new canvas.
@@ -73,6 +80,8 @@ export function initImageEditorStore(
     { maxHistory: 50 },
   );
 
+  notifyInstanceListeners();
+
   return instance;
 }
 
@@ -96,8 +105,21 @@ export function isImageEditorStoreReady(): boolean {
 }
 
 /**
+ * Subscribe to store instance swaps so React bindings can follow reinitialization.
+ */
+export function subscribeToImageEditorStoreInstance(
+  listener: () => void,
+): () => void {
+  instanceListeners.add(listener);
+  return () => {
+    instanceListeners.delete(listener);
+  };
+}
+
+/**
  * Tear down the image editor store (when the editor is closed).
  */
 export function destroyImageEditorStore(): void {
   instance = null;
+  notifyInstanceListeners();
 }
