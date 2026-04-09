@@ -35,6 +35,7 @@ import {
 } from "@/lib/format";
 import { generateMapId, generateLayerId, generateObjectId } from "@/lib/ids";
 import { getAllLayerIds } from "@/lib/layers";
+import { clearTileEditorContext } from "@/lib/tile-editor-context";
 import { getActiveTilesetTileSize } from "@/lib/project";
 import type {
   TilesetGroupId,
@@ -720,6 +721,13 @@ function AppShell({
   const workspaceButtonLabel = showDetailsPanel
     ? (detailsTabLabel ?? "Details")
     : "Layers";
+  const handleOpenTool = useCallback((tool: ToolName) => {
+    if (tool === "image-editor") {
+      clearTileEditorContext();
+    }
+
+    setActiveTool(tool);
+  }, [setActiveTool]);
 
   return (
     <div className="flex h-full flex-col">
@@ -743,7 +751,7 @@ function AppShell({
         onKeyboardShortcuts={() => setShortcutsOpen(true)}
         onSubmitBug={() => setBugReportOpen(true)}
         onFindReplace={() => setFindReplaceOpen(true)}
-        onOpenTool={(tool) => setActiveTool(tool)}
+        onOpenTool={handleOpenTool}
       />
 
       {hasProject ? (

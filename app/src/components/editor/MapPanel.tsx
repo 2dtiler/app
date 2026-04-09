@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
 import type { MapCanvasImperativeHandle } from "@/types/map-canvas";
-import { tilesetImageCache } from "./MapCanvas/texture-cache";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
@@ -591,10 +590,6 @@ export function MapPanel() {
     ];
     const tileset = allTilesets.find((t) => t.id === tileRef.tilesetId);
     if (!tileset) return;
-
-    // Only proceed if the tileset image is already cached (it should be visible
-    // on the map canvas at the time the user right-clicks it).
-    if (!tilesetImageCache.has(tileRef.tilesetId)) return;
 
     setTileEditorContext({
       tilesetId: tileRef.tilesetId,

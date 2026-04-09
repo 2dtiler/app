@@ -480,8 +480,11 @@ export function useImageEditor() {
    */
   const setFrameData = useCallback(
     (frameId: FrameId, data: ImageData) => {
-      if (!state?.activeLayerId) return;
-      const key = layerDataKey(frameId, state.activeLayerId as string);
+      if (!isImageEditorStoreReady()) return;
+      const activeLayerId = getImageEditorStore().getState().activeLayerId;
+      if (!activeLayerId) return;
+
+      const key = layerDataKey(frameId, activeLayerId as string);
       moduleLayerFrameData.set(key, data);
       // Bump the version counter so all useSyncExternalStore subscribers
       // (including the TimelinePanel) re-render and refresh frame thumbnails.
@@ -489,7 +492,7 @@ export function useImageEditor() {
         d.pixelDataVersion = (d.pixelDataVersion ?? 0) + 1;
       });
     },
-    [state?.activeLayerId, setState],
+    [setState],
   );
 
   /** Return the raw pixels of the active layer for the current frame. */

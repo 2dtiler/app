@@ -6,7 +6,10 @@ import { loadPaletteLibrary, savePaletteLibrary, saveAsset } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
 import type { TileEditorContext } from "@/types/editor-helpers";
 import { generateAssetId, generateTilesetId } from "@/lib/ids";
-import { consumeTileEditorContext } from "@/lib/tile-editor-context";
+import {
+  clearTileEditorContext,
+  getPendingTileEditorRequest,
+} from "@/lib/tile-editor-context";
 import {
   tilesetImageCache,
   loadTilesetImage,
@@ -37,62 +40,103 @@ export function ImageEditor() {
   const [activeTileCtx, setActiveTileCtx] = useState<TileEditorContext | null>(
     null,
   );
+  const handledTileRequestIdRef = useRef<number | null>(null);
+  const loadRunIdRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   // ---------------------------------------------------------------------------
-  // On mount: check if the editor was opened from a map tile and load it.
+  // Load any pending map-tile request on mount or while the editor is already open.
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const ctx = consumeTileEditorContext();
-    if (!ctx) return;
-
-    async function loadTile() {
-      if (!ctx) return;
-      // Ensure the tileset image is in the cache (it should be if the tile was
-      // visible on the map, but load it if not).
-      let img = tilesetImageCache.get(ctx.tilesetId);
-      if (!img) {
-        img = (await loadTilesetImage(ctx.tilesetId, ctx.assetId)) ?? undefined;
-      }
-      if (!img) return;
-
-      // Extract the tile's pixel region
-      const tmpCanvas = document.createElement("canvas");
-      tmpCanvas.width = ctx.sw;
-      tmpCanvas.height = ctx.sh;
-      const tmpCtx = tmpCanvas.getContext("2d");
-      if (!tmpCtx) return;
-      tmpCtx.imageSmoothingEnabled = false;
-      tmpCtx.drawImage(
-        img,
-        ctx.sx,
-        ctx.sy,
-        ctx.sw,
-        ctx.sh,
-        0,
-        0,
-        ctx.sw,
-        ctx.sh,
-      );
-      const imageData = tmpCtx.getImageData(0, 0, ctx.sw, ctx.sh);
-
-      // Initialise the editor with the tile's dimensions
-      const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
-      editor.initProject(ctx.sw, ctx.sh, savedPalettes ?? undefined);
-
-      // Write the pixel data into the blank first frame created by initProject
-      if (isImageEditorStoreReady()) {
-        const s = getImageEditorStore().getState();
-        if (s.frames.length > 0) {
-          editor.setFrameData(s.frames[0].id, imageData);
-        }
-      }
-
-      setActiveTileCtx(ctx);
+  const loadPendingTileRequest = useCallback(async () => {
+    const pendingRequest = getPendingTileEditorRequest();
+    if (!pendingRequest) {
+      return;
     }
 
-    void loadTile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const { requestId, context: ctx } = pendingRequest;
+    if (handledTileRequestIdRef.current === requestId) {
+      return;
+    }
+
+    const runId = ++loadRunIdRef.current;
+    const isCurrentRun = () =>
+      isMountedRef.current && loadRunIdRef.current === runId;
+
+    let img = tilesetImageCache.get(ctx.tilesetId);
+    if (!img) {
+      img = (await loadTilesetImage(ctx.tilesetId, ctx.assetId)) ?? undefined;
+    }
+    if (!img || !isCurrentRun()) {
+      return;
+    }
+
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = ctx.sw;
+    tmpCanvas.height = ctx.sh;
+    const tmpCtx = tmpCanvas.getContext("2d");
+    if (!tmpCtx || !isCurrentRun()) {
+      return;
+    }
+
+    tmpCtx.imageSmoothingEnabled = false;
+    tmpCtx.drawImage(
+      img,
+      ctx.sx,
+      ctx.sy,
+      ctx.sw,
+      ctx.sh,
+      0,
+      0,
+      ctx.sw,
+      ctx.sh,
+    );
+    const imageData = tmpCtx.getImageData(0, 0, ctx.sw, ctx.sh);
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
+    editor.initProject(ctx.sw, ctx.sh, savedPalettes ?? undefined);
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    if (isImageEditorStoreReady()) {
+      const s = getImageEditorStore().getState();
+      if (s.frames.length > 0) {
+        editor.setFrameData(s.frames[0].id, imageData);
+      }
+    }
+
+    if (!isCurrentRun()) {
+      return;
+    }
+
+    handledTileRequestIdRef.current = requestId;
+    clearTileEditorContext(requestId);
+    setShowNewDialog(false);
+    setActiveTileCtx(ctx);
+  }, [editor, projectId]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    const pendingLoadTimer = window.setTimeout(() => {
+      void loadPendingTileRequest();
+    }, 0);
+
+    function handleOpenImageEditor() {
+      void loadPendingTileRequest();
+    }
+
+    window.addEventListener("open-image-editor", handleOpenImageEditor);
+
+    return () => {
+      isMountedRef.current = false;
+      loadRunIdRef.current += 1;
+      window.clearTimeout(pendingLoadTimer);
+      window.removeEventListener("open-image-editor", handleOpenImageEditor);
+    };
+  }, [loadPendingTileRequest]);
 
   const handleCreate = useCallback(
     (w: number, h: number) => {

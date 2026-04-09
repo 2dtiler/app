@@ -1,4 +1,3 @@
-- Blocked CSP in prod
 - Open tile in image editor should also work for images
 
 Image/sprite Editor:
@@ -7,8 +6,12 @@ Image/sprite Editor:
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
   Add opacity operator for palettes
-
+  Navigating away should ask to save changes
+  Brush size not working
+  Saving should show sonar
+  
 Import Options
+===================================
 Export Options
 
 AI Asset Generation:
@@ -28,7 +31,7 @@ Exploration:
   LDTK
   Pixelorama
   PixiEditor
-  Tiled (mapeditor.org)
+  Tiled (mapeditor.org) + Plugins
   Aseprite
   Libresprite
   Autotile
