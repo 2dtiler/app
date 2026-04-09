@@ -312,8 +312,14 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
 
     const minX = Math.max(0, cropSelection.x);
     const minY = Math.max(0, cropSelection.y);
-    const maxX = Math.min(layerData.width, cropSelection.x + cropSelection.width);
-    const maxY = Math.min(layerData.height, cropSelection.y + cropSelection.height);
+    const maxX = Math.min(
+      layerData.width,
+      cropSelection.x + cropSelection.width,
+    );
+    const maxY = Math.min(
+      layerData.height,
+      cropSelection.y + cropSelection.height,
+    );
     if (maxX <= minX || maxY <= minY) return;
 
     editor.pushUndoSnapshot();
@@ -869,7 +875,10 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
             <Button variant="outline" onClick={handleDiscardAndClose}>
               Don't Save
             </Button>
-            <Button onClick={() => void handleSaveAndClose()} disabled={isClosingAfterSave}>
+            <Button
+              onClick={() => void handleSaveAndClose()}
+              disabled={isClosingAfterSave}
+            >
               {isClosingAfterSave ? "Saving..." : "Save"}
             </Button>
           </AlertDialogFooter>

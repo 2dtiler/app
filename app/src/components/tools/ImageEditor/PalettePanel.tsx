@@ -164,7 +164,10 @@ export function PalettePanel({
 
   const handleOpacityChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const nextOpacity = Math.max(0, Math.min(100, Number(event.target.value)));
+      const nextOpacity = Math.max(
+        0,
+        Math.min(100, Number(event.target.value)),
+      );
       setOpacityPercent(nextOpacity);
 
       const baseColor =

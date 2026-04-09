@@ -112,7 +112,9 @@ function buildSaveFingerprint(state: ImageEditorState | null): string | null {
 
   for (const frame of state.frames) {
     for (const layerId of allLayerIds) {
-      const imageData = moduleLayerFrameData.get(layerDataKey(frame.id, layerId));
+      const imageData = moduleLayerFrameData.get(
+        layerDataKey(frame.id, layerId),
+      );
       parts.push(
         `${frame.id}:${layerId}:${imageData ? hashPixelBuffer(imageData.data) : "empty"}`,
       );
@@ -122,7 +124,9 @@ function buildSaveFingerprint(state: ImageEditorState | null): string | null {
   return parts.join("|");
 }
 
-async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+async function canvasToPngBlob(
+  canvas: HTMLCanvasElement,
+): Promise<Blob | null> {
   return new Promise((resolve) => {
     canvas.toBlob(resolve, "image/png");
   });

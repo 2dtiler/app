@@ -207,11 +207,7 @@ export function EditorToolbar({
               >
                 Cancel
               </Button>
-              <Button
-                size="xs"
-                onClick={onApplyCrop}
-                disabled={!canApplyCrop}
-              >
+              <Button size="xs" onClick={onApplyCrop} disabled={!canApplyCrop}>
                 Apply Crop
               </Button>
             </div>
