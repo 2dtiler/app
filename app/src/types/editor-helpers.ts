@@ -66,6 +66,21 @@ export interface ImageLayerEditorContext {
   height: number;
 }
 
+export interface ImageLayerClipboard {
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: 0 | 90 | 180 | 270;
+  flipX: boolean;
+  flipY: boolean;
+  opacity: number;
+  mimeType: string;
+  data: ArrayBuffer;
+  operation: "copy" | "cut";
+}
+
 export interface TileClipboard {
   tiles: { dx: number; dy: number; ref: TileRef }[];
   width: number;

@@ -1,22 +1,24 @@
 - Image Layer: Allow Copy/Cut/Paste
-- Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
-- Enable map export to serialize image layers  
-- Add Text to Object Layer 
-- Delete button should delete the selected thing
 
 Image/sprite Editor:
   Layer styling is too narrow initially
   Add frame should be a primary button
-  Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-    - Sitemap is not reliable
   Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
   Add opacity operator for palettes
   Navigating away should ask to save changes
   Saving should show popup
-  Add ability to export
   Pencil/Eraser should draw square, not a blob
   Blur size doesnt work
   Add ability to crop
+  ---
+  Add ability to export
+  Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
+    - Sitemap is not reliable
+
+- Delete button should delete the selected thing
+- Enable map export to serialize image layers  
+- Add Text to Object Layer 
+- Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
 
 Import Options
 ===================================

@@ -84,9 +84,12 @@ import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import {
   generateMapId,
   generateMapGroupId,
+  generateAssetId,
   generateLayerId,
   generateLayerGroupId,
+  generateObjectId,
 } from "@/lib/ids";
+import { getAsset, saveAsset } from "@/lib/db";
 import {
   flattenLayerTree,
   flattenImageLayers,
@@ -115,8 +118,10 @@ import {
   type ObjectType,
   type PropertyValue,
 } from "@/types";
-import type { TileClipboard } from "@/types/editor-helpers";
-import { generateObjectId } from "@/lib/ids";
+import type {
+  ImageLayerClipboard,
+  TileClipboard,
+} from "@/types/editor-helpers";
 import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
 import {
   areTileRefsEqual,
@@ -125,6 +130,10 @@ import {
   isMultiTileStamp,
 } from "@/lib/tile-stamp";
 import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
+import {
+  getImageLayerClipboard,
+  setImageLayerClipboard,
+} from "@/lib/image-layer-clipboard";
 import { setImageLayerEditorContext } from "@/lib/image-layer-editor-context";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { zoomStore } from "@/lib/zoom-store";
@@ -143,6 +152,53 @@ function getAdjacentItemId<T extends { id: string }>(
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
+const IMAGE_LAYER_PASTE_OFFSET = 16;
+
+function cloneArrayBuffer(data: ArrayBuffer): ArrayBuffer {
+  return data.slice(0);
+}
+
+function insertLayerAfter(
+  refId: string,
+  newId: string,
+  topOrder: (LayerId | LayerGroupId)[],
+  groups: LayerGroup[],
+): boolean {
+  const topIdx = (topOrder as string[]).indexOf(refId);
+  if (topIdx !== -1) {
+    topOrder.splice(topIdx + 1, 0, newId as LayerId | LayerGroupId);
+    return true;
+  }
+
+  for (const group of groups) {
+    const idx = (group.childOrder as string[]).indexOf(refId);
+    if (idx !== -1) {
+      group.childOrder.splice(idx + 1, 0, newId as LayerId | LayerGroupId);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function removeLayerFromOrders(
+  layerId: string,
+  topOrder: (LayerId | LayerGroupId)[],
+  groups: LayerGroup[],
+): void {
+  const removeFromOrder = (order: (LayerId | LayerGroupId)[]) => {
+    const index = (order as string[]).indexOf(layerId);
+    if (index !== -1) {
+      order.splice(index, 1);
+    }
+  };
+
+  removeFromOrder(topOrder);
+  for (const group of groups) {
+    removeFromOrder(group.childOrder);
+  }
+}
+
 export function MapPanel() {
   "use no memo";
 
@@ -159,9 +215,12 @@ export function MapPanel() {
   const contextMenuTileRef = useRef<{ x: number; y: number } | null>(null);
   /** Tile grid position under the mouse cursor, updated on every mouse move over the map. */
   const hoverTileRef = useRef<{ x: number; y: number } | null>(null);
-  /** Tracks whether the tile clipboard has content so Paste can be enabled. */
-  const [hasClipboard, setHasClipboard] = useState(
+  /** Track clipboard content so Paste can be enabled for tiles and image layers. */
+  const [hasTileClipboard, setHasTileClipboard] = useState(
     () => getClipboard() !== null,
+  );
+  const [hasImageLayerClipboard, setHasImageLayerClipboard] = useState(
+    () => getImageLayerClipboard() !== null,
   );
   /**
    * Tracks whether the right-clicked position has a tile (to enable
@@ -238,6 +297,19 @@ export function MapPanel() {
     : [];
   const activeImageLayer =
     flatImageLayers.find((layer) => layer.id === state.activeLayerId) ?? null;
+
+  const setExclusiveTileClipboard = useCallback((data: TileClipboard | null) => {
+    setClipboard(data);
+    setImageLayerClipboard(null);
+  }, []);
+
+  const setExclusiveImageLayerClipboard = useCallback(
+    (data: ImageLayerClipboard | null) => {
+      setImageLayerClipboard(data);
+      setClipboard(null);
+    },
+    [],
+  );
 
   // Paint tile handler — called by MapCanvas on pointer events.
   // Paint/erase write to a lightweight buffer for instant rendering;
@@ -772,7 +844,11 @@ export function MapPanel() {
             if (ref) tiles.push({ dx, dy, ref: { ...ref } });
           }
         }
-        setClipboard({ tiles, width: sel.width, height: sel.height });
+        setExclusiveTileClipboard({
+          tiles,
+          width: sel.width,
+          height: sel.height,
+        });
         return;
       }
 
@@ -792,14 +868,18 @@ export function MapPanel() {
             if (ref) tiles.push({ dx, dy, ref: { ...ref } });
           }
         }
-        setClipboard({ tiles, width: brushNum, height: brushNum });
+        setExclusiveTileClipboard({
+          tiles,
+          width: brushNum,
+          height: brushNum,
+        });
         return;
       }
 
       // Priority 3 (keyboard fallback): copy from selected tileset tile
       if (!fromContextMenu && state.selectedTile) {
         const stamp = createTileStamp(state.selectedTile, state.tileSize);
-        setClipboard({
+        setExclusiveTileClipboard({
           tiles: stamp.cells.map((cell) => ({
             dx: cell.dx,
             dy: cell.dy,
@@ -817,6 +897,7 @@ export function MapPanel() {
       state.tileSize,
       activeLayer,
       activeMap,
+      setExclusiveTileClipboard,
     ],
   );
 
@@ -859,7 +940,11 @@ export function MapPanel() {
           if (ref) tiles.push({ dx, dy, ref: { ...ref } });
         }
       }
-      setClipboard({ tiles, width: region.width, height: region.height });
+      setExclusiveTileClipboard({
+        tiles,
+        width: region.width,
+        height: region.height,
+      });
 
       // Erase source
       const r = region;
@@ -882,6 +967,7 @@ export function MapPanel() {
       state.brushSize,
       state.activeLayerId,
       setState,
+      setExclusiveTileClipboard,
     ],
   );
 
@@ -935,6 +1021,180 @@ export function MapPanel() {
       });
     },
     [activeMap, activeLayer, state.mapSelection, state.activeLayerId, setState],
+  );
+
+  const handleCopyImageLayer = useCallback(async () => {
+    if (!activeImageLayer) return;
+
+    const asset = await getAsset(activeImageLayer.assetId);
+    if (!asset) return;
+
+    setExclusiveImageLayerClipboard({
+      name: activeImageLayer.name,
+      x: activeImageLayer.x,
+      y: activeImageLayer.y,
+      width: activeImageLayer.width,
+      height: activeImageLayer.height,
+      rotation: activeImageLayer.rotation ?? 0,
+      flipX: activeImageLayer.flipX ?? false,
+      flipY: activeImageLayer.flipY ?? false,
+      opacity: activeImageLayer.opacity ?? 100,
+      mimeType: asset.mimeType,
+      data: cloneArrayBuffer(asset.data),
+      operation: "copy",
+    });
+  }, [activeImageLayer, setExclusiveImageLayerClipboard]);
+
+  const handleCutImageLayer = useCallback(async () => {
+    if (!activeImageLayer || activeImageLayer.locked) return;
+
+    const asset = await getAsset(activeImageLayer.assetId);
+    if (!asset) return;
+
+    setExclusiveImageLayerClipboard({
+      name: activeImageLayer.name,
+      x: activeImageLayer.x,
+      y: activeImageLayer.y,
+      width: activeImageLayer.width,
+      height: activeImageLayer.height,
+      rotation: activeImageLayer.rotation ?? 0,
+      flipX: activeImageLayer.flipX ?? false,
+      flipY: activeImageLayer.flipY ?? false,
+      opacity: activeImageLayer.opacity ?? 100,
+      mimeType: asset.mimeType,
+      data: cloneArrayBuffer(asset.data),
+      operation: "cut",
+    });
+
+    setState((draft) => {
+      if (!draft.project) return;
+
+      const map = draft.project.maps.find((entry) => entry.id === state.activeMapId);
+      if (!map) return;
+
+      const groups = draft.project.layerGroups ?? [];
+      removeLayerFromOrders(activeImageLayer.id, map.layerOrder, groups);
+      draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
+        (layer) => layer.id !== activeImageLayer.id,
+      );
+
+      if (draft.activeLayerId === activeImageLayer.id) {
+        draft.activeLayerId =
+          findLastLayerId(
+            map.layerOrder,
+            draft.project.layers,
+            groups,
+            draft.project.imageLayers ?? [],
+            draft.project.objectLayers ?? [],
+          ) ?? null;
+      }
+    });
+  }, [
+    activeImageLayer,
+    setExclusiveImageLayerClipboard,
+    setState,
+    state.activeMapId,
+  ]);
+
+  const handlePasteImageLayer = useCallback(async () => {
+    if (!activeMap) return;
+
+    const clipboard = getImageLayerClipboard();
+    if (!clipboard) return;
+
+    const newLayerId = generateLayerId();
+    const newAssetId = generateAssetId();
+    await saveAsset(
+      newAssetId,
+      cloneArrayBuffer(clipboard.data),
+      clipboard.mimeType,
+    );
+
+    setState((draft) => {
+      if (!draft.project) return;
+
+      const map = draft.project.maps.find((entry) => entry.id === activeMap.id);
+      if (!map) return;
+
+      const groups = draft.project.layerGroups ?? [];
+      const nextLayer: ImageLayer = {
+        id: newLayerId,
+        mapId: activeMap.id,
+        name:
+          clipboard.operation === "copy"
+            ? `${clipboard.name} copy`
+            : clipboard.name,
+        type: "image",
+        visible: true,
+        locked: false,
+        assetId: newAssetId,
+        x: clipboard.x + IMAGE_LAYER_PASTE_OFFSET,
+        y: clipboard.y + IMAGE_LAYER_PASTE_OFFSET,
+        width: clipboard.width,
+        height: clipboard.height,
+        rotation: clipboard.rotation,
+        flipX: clipboard.flipX,
+        flipY: clipboard.flipY,
+        opacity: clipboard.opacity,
+      };
+
+      const imageLayers =
+        draft.project.imageLayers ?? (draft.project.imageLayers = []);
+      imageLayers.push(nextLayer);
+
+      const inserted = draft.activeLayerId
+        ? insertLayerAfter(draft.activeLayerId, newLayerId, map.layerOrder, groups)
+        : false;
+      if (!inserted) {
+        map.layerOrder.push(newLayerId);
+      }
+
+      draft.activeLayerId = newLayerId;
+      draft.currentTool = "select";
+    });
+
+    if (clipboard.operation === "cut") {
+      setExclusiveImageLayerClipboard({
+        ...clipboard,
+        operation: "copy",
+      });
+    }
+  }, [activeMap, setExclusiveImageLayerClipboard, setState]);
+
+  const handleCopySelection = useCallback(
+    async (fromContextMenu = false) => {
+      if (activeImageLayer) {
+        await handleCopyImageLayer();
+        return;
+      }
+
+      handleCopyTiles(fromContextMenu);
+    },
+    [activeImageLayer, handleCopyImageLayer, handleCopyTiles],
+  );
+
+  const handleCutSelection = useCallback(
+    async (fromContextMenu = false) => {
+      if (activeImageLayer) {
+        await handleCutImageLayer();
+        return;
+      }
+
+      handleCutTiles(fromContextMenu);
+    },
+    [activeImageLayer, handleCutImageLayer, handleCutTiles],
+  );
+
+  const handlePasteSelection = useCallback(
+    async (fromContextMenu = false) => {
+      if (getImageLayerClipboard()) {
+        await handlePasteImageLayer();
+        return;
+      }
+
+      handlePasteTiles(fromContextMenu);
+    },
+    [handlePasteImageLayer, handlePasteTiles],
   );
 
   // ---------------------------------------------------------------------------
@@ -1109,19 +1369,44 @@ export function MapPanel() {
     [activeImageLayer, handleOrientImageLayer, handleOrientTiles],
   );
 
-  // Keep hasClipboard in sync when clipboard changes
+  // Keep clipboard availability in sync with module-level clipboard stores.
   useEffect(() => {
-    const onClipboardChange = () => setHasClipboard(getClipboard() !== null);
-    window.addEventListener("tile-clipboard-change", onClipboardChange);
-    return () =>
-      window.removeEventListener("tile-clipboard-change", onClipboardChange);
+    const onTileClipboardChange = () => {
+      setHasTileClipboard(getClipboard() !== null);
+    };
+    const onImageClipboardChange = () => {
+      setHasImageLayerClipboard(getImageLayerClipboard() !== null);
+    };
+
+    window.addEventListener("tile-clipboard-change", onTileClipboardChange);
+    window.addEventListener(
+      "image-layer-clipboard-change",
+      onImageClipboardChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "tile-clipboard-change",
+        onTileClipboardChange,
+      );
+      window.removeEventListener(
+        "image-layer-clipboard-change",
+        onImageClipboardChange,
+      );
+    };
   }, []);
 
   // Listen for keyboard shortcut events dispatched by use-keyboard-shortcuts
   useEffect(() => {
-    const onCopy = () => handleCopyTiles(false);
-    const onCut = () => handleCutTiles(false);
-    const onPaste = () => handlePasteTiles(false);
+    const onCopy = () => {
+      void handleCopySelection(false);
+    };
+    const onCut = () => {
+      void handleCutSelection(false);
+    };
+    const onPaste = () => {
+      void handlePasteSelection(false);
+    };
     window.addEventListener("tile-copy", onCopy);
     window.addEventListener("tile-cut", onCut);
     window.addEventListener("tile-paste", onPaste);
@@ -1130,14 +1415,19 @@ export function MapPanel() {
       window.removeEventListener("tile-cut", onCut);
       window.removeEventListener("tile-paste", onPaste);
     };
-  }, [handleCopyTiles, handleCutTiles, handlePasteTiles]);
+  }, [handleCopySelection, handleCutSelection, handlePasteSelection]);
 
   // Derived flags for context menu item enablement
   const isTileLayerActive = !!activeLayer && !activeLayer.locked;
-  const canCopy = !!activeMap && !!activeLayer;
-  const canCut = !!activeMap && isTileLayerActive;
-  const canCutToolbar = canCut && !!state.mapSelection;
-  const canPaste = hasClipboard && !!activeMap && isTileLayerActive;
+  const isImageLayerActive = !!activeImageLayer;
+  const isImageLayerEditable = !!activeImageLayer && !activeImageLayer.locked;
+  const canCopy = !!activeMap && (!!activeLayer || isImageLayerActive);
+  const canCut = !!activeMap && (isTileLayerActive || isImageLayerEditable);
+  const canCutToolbar =
+    isImageLayerEditable || (canCut && !!state.mapSelection);
+  const canPaste =
+    !!activeMap &&
+    (hasImageLayerClipboard || (hasTileClipboard && isTileLayerActive));
   const canOpenTileInEditor =
     !!activeMap && !!activeLayer && hasContextMenuTile;
   const canOpenImageLayerInEditor =
@@ -1687,12 +1977,14 @@ export function MapPanel() {
               size="icon"
               className="h-6 w-6"
               disabled={!canCutToolbar}
-              onMouseDown={() => handleCutTiles(false)}
+              onMouseDown={() => {
+                void handleCutSelection(false);
+              }}
             >
               <Scissors className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Cut Selection (Ctrl+X)</TooltipContent>
+          <TooltipContent>Cut (Ctrl+X)</TooltipContent>
         </Tooltip>
 
         {/* Orientation dropdown — active only when select tool is chosen */}
@@ -2080,7 +2372,9 @@ export function MapPanel() {
         <ContextMenuContent>
           <ContextMenuItem
             disabled={!canCopy}
-            onSelect={() => handleCopyTiles(true)}
+            onSelect={() => {
+              void handleCopySelection(true);
+            }}
           >
             <Copy className="h-3.5 w-3.5" />
             Copy
@@ -2088,7 +2382,9 @@ export function MapPanel() {
           </ContextMenuItem>
           <ContextMenuItem
             disabled={!canCut}
-            onSelect={() => handleCutTiles(true)}
+            onSelect={() => {
+              void handleCutSelection(true);
+            }}
           >
             <Scissors className="h-3.5 w-3.5" />
             Cut
@@ -2097,7 +2393,9 @@ export function MapPanel() {
           <ContextMenuSeparator />
           <ContextMenuItem
             disabled={!canPaste}
-            onSelect={() => handlePasteTiles(true)}
+            onSelect={() => {
+              void handlePasteSelection(true);
+            }}
           >
             <ClipboardPaste className="h-3.5 w-3.5" />
             Paste
