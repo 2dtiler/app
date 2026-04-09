@@ -68,7 +68,7 @@ export const GroupRow = memo(function GroupRow({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "layer-item group/item relative flex items-center gap-1 border-b border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent",
+            "layer-item group/item relative grid min-w-0 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 border-b border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent",
             isDragging && "opacity-40",
             dropIndicator === "inside" && "bg-secondary",
           )}
@@ -94,71 +94,73 @@ export const GroupRow = memo(function GroupRow({
             <div className="pointer-events-none absolute inset-x-3 inset-y-1 rounded-[10px] border border-border-visible" />
           )}
 
-          <span
-            className="shrink-0 cursor-grab text-text-disabled transition-colors active:cursor-grabbing group-hover/item:text-text-secondary"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-3 w-3" />
-          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span
+              className="shrink-0 cursor-grab text-text-disabled transition-colors active:cursor-grabbing group-hover/item:text-text-secondary"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3 w-3" />
+            </span>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onToggleVisibility(group.id, true);
-                }}
-              >
-                {group.visible ? (
-                  <Eye className="h-3 w-3 text-foreground" />
-                ) : (
-                  <EyeOff className="h-3 w-3 text-text-disabled" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {group.visible ? "Hide Group" : "Show Group"}
-            </TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    onToggleVisibility(group.id, true);
+                  }}
+                >
+                  {group.visible ? (
+                    <Eye className="h-3 w-3 text-foreground" />
+                  ) : (
+                    <EyeOff className="h-3 w-3 text-text-disabled" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {group.visible ? "Hide Group" : "Show Group"}
+              </TooltipContent>
+            </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onToggleLock(group.id, true);
-                }}
-              >
-                {group.locked ? (
-                  <Lock className="h-3 w-3 text-foreground" />
-                ) : (
-                  <Unlock className="h-3 w-3 text-text-disabled" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {group.locked ? "Unlock Group" : "Lock Group"}
-            </TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    onToggleLock(group.id, true);
+                  }}
+                >
+                  {group.locked ? (
+                    <Lock className="h-3 w-3 text-foreground" />
+                  ) : (
+                    <Unlock className="h-3 w-3 text-text-disabled" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {group.locked ? "Unlock Group" : "Lock Group"}
+              </TooltipContent>
+            </Tooltip>
 
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
-            {group.expanded ? (
-              <FolderOpen className="h-3 w-3" />
-            ) : (
-              <Folder className="h-3 w-3" />
-            )}
-          </span>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
+              {group.expanded ? (
+                <FolderOpen className="h-3 w-3" />
+              ) : (
+                <Folder className="h-3 w-3" />
+              )}
+            </span>
+          </div>
 
           {isRenaming ? (
             <input
               ref={renameInputRef}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
+              className="h-10 min-w-0 w-full rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
               onBlur={onCommitRename}
@@ -170,7 +172,7 @@ export const GroupRow = memo(function GroupRow({
             />
           ) : (
             <div
-              className="min-w-0 flex-1 basis-0 overflow-hidden"
+              className="min-w-0 overflow-hidden"
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onDoubleClick(group.id, group.name);
@@ -179,7 +181,10 @@ export const GroupRow = memo(function GroupRow({
               <div className="truncate font-mono text-[10px] uppercase tracking-widest text-text-secondary">
                 Group
               </div>
-              <div className="mt-1 truncate text-[13px] leading-none text-foreground">
+              <div
+                className="mt-1 truncate text-[13px] leading-none text-foreground"
+                title={group.name}
+              >
                 {group.name}
               </div>
             </div>

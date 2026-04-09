@@ -1,5 +1,4 @@
-- Open image properties for opacity
-- Max length for layer names
+- Blocked CSP in prod
 - Open tile in image editor should also work for images
 
 Image/sprite Editor:

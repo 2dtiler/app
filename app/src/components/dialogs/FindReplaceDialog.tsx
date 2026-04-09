@@ -305,7 +305,9 @@ function LayerMultiSelect({
                   checked={selectedIds.has(l.id as string)}
                   onChange={() => onToggle(l.id)}
                 />
-                <span className="truncate">{l.name}</span>
+                <span className="truncate" title={l.name}>
+                  {l.name}
+                </span>
               </label>
             ))}
           </div>

@@ -69,7 +69,7 @@ export const LayerRow = memo(function LayerRow({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "layer-item group/item relative flex items-center gap-1 border-b border-border px-3 py-3 text-sm transition-colors",
+            "layer-item group/item relative grid min-w-0 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 border-b border-border px-3 py-3 text-sm transition-colors",
             isActive
               ? "bg-secondary text-foreground"
               : "text-foreground hover:bg-accent",
@@ -98,69 +98,71 @@ export const LayerRow = memo(function LayerRow({
             <div className="pointer-events-none absolute left-3 right-3 bottom-0 h-px bg-foreground" />
           )}
 
-          <span
-            className="shrink-0 cursor-grab text-text-disabled transition-opacity active:cursor-grabbing group-hover/item:text-text-secondary"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-3 w-3" />
-          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span
+              className="shrink-0 cursor-grab text-text-disabled transition-opacity active:cursor-grabbing group-hover/item:text-text-secondary"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3 w-3" />
+            </span>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onToggleVisibility(layer.id, false);
-                }}
-              >
-                {layer.visible ? (
-                  <Eye className="h-3 w-3 text-foreground" />
-                ) : (
-                  <EyeOff className="h-3 w-3 text-text-disabled" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{layer.visible ? "Hide" : "Show"}</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    onToggleVisibility(layer.id, false);
+                  }}
+                >
+                  {layer.visible ? (
+                    <Eye className="h-3 w-3 text-foreground" />
+                  ) : (
+                    <EyeOff className="h-3 w-3 text-text-disabled" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{layer.visible ? "Hide" : "Show"}</TooltipContent>
+            </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 shrink-0"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onToggleLock(layer.id, false);
-                }}
-              >
-                {layer.locked ? (
-                  <Lock className="h-3 w-3 text-foreground" />
-                ) : (
-                  <Unlock className="h-3 w-3 text-text-disabled" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    onToggleLock(layer.id, false);
+                  }}
+                >
+                  {layer.locked ? (
+                    <Lock className="h-3 w-3 text-foreground" />
+                  ) : (
+                    <Unlock className="h-3 w-3 text-text-disabled" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{layer.locked ? "Unlock" : "Lock"}</TooltipContent>
+            </Tooltip>
 
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
-            {layer.type === "image" ? (
-              <Image className="h-3 w-3" />
-            ) : layer.type === "object" ? (
-              <Shapes className="h-3 w-3" />
-            ) : (
-              <Grid3X3 className="h-3 w-3" />
-            )}
-          </span>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-secondary">
+              {layer.type === "image" ? (
+                <Image className="h-3 w-3" />
+              ) : layer.type === "object" ? (
+                <Shapes className="h-3 w-3" />
+              ) : (
+                <Grid3X3 className="h-3 w-3" />
+              )}
+            </span>
+          </div>
 
           {isRenaming ? (
             <input
               ref={renameInputRef}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
+              className="h-10 min-w-0 w-full rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
               onBlur={onCommitRename}
@@ -172,10 +174,13 @@ export const LayerRow = memo(function LayerRow({
             />
           ) : (
             <div
-              className="min-w-0 flex-1 basis-0 overflow-hidden"
+              className="min-w-0 overflow-hidden"
               onDoubleClick={() => onDoubleClick(layer.id, layer.name)}
             >
-              <div className="truncate text-[13px] leading-none text-foreground">
+              <div
+                className="truncate text-[13px] leading-none text-foreground"
+                title={layer.name}
+              >
                 {layer.name}
               </div>
             </div>
