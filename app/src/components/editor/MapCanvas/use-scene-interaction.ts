@@ -270,8 +270,11 @@ export function useSceneInteraction({
 
       const activeLayer =
         layers.find((layer) => layer.id === activeLayerId) ?? null;
+      const isNonTileLayerActive =
+        objectLayers.some((layer) => layer.id === activeLayerId) ||
+        imageLayers.some((layer) => layer.id === activeLayerId);
       const isBlockedDrawPreview =
-        objectLayers.some((layer) => layer.id === activeLayerId) &&
+        isNonTileLayerActive &&
         (currentTool === "paint" ||
           currentTool === "erase" ||
           currentTool === "fill");
@@ -434,6 +437,7 @@ export function useSceneInteraction({
       currentTool,
       fillMode,
       getGridPos,
+      imageLayers,
       layers,
       mapH,
       mapW,

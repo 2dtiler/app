@@ -1,7 +1,7 @@
-- Bug Fixes for Tilesets different brush sizes: Dont remember
 - Do not allow painting on image layer
 - Open image properties for opacity
 - Max length for layer names
+- Open tile in image editor should also work for images
 
 Image/sprite Editor:
   Layer styling is too narrow initially
