@@ -9,6 +9,7 @@ import {
   Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,15 +49,19 @@ import {
 import type { Color } from "@/types/image-editor";
 import type { PalettePanelProps } from "@/types/image-editor-ui";
 
-function colorToHex(c: Color): string {
-  const r = c.r.toString(16).padStart(2, "0");
-  const g = c.g.toString(16).padStart(2, "0");
-  const b = c.b.toString(16).padStart(2, "0");
+function colorToHex(color: Color): string {
+  const r = color.r.toString(16).padStart(2, "0");
+  const g = color.g.toString(16).padStart(2, "0");
+  const b = color.b.toString(16).padStart(2, "0");
   return `#${r}${g}${b}`;
 }
 
 function colorsMatch(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
+}
+
+function toOpacityPercent(color: Color): number {
+  return Math.round((color.a / 255) * 100);
 }
 
 export function PalettePanel({
@@ -81,24 +86,16 @@ export function PalettePanel({
 }: PalettePanelProps) {
   const importRef = useRef<HTMLInputElement>(null);
 
-  // Rename inline state
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
-
-  // Color picker popover state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [opacityPercent, setOpacityPercent] = useState(100);
   const pickedColorRef = useRef<Color | null>(null);
 
-  // Drag-and-drop swatch reorder state
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-
-  // -----------------------------------------------------------------------
-  // Rename handlers
-  // -----------------------------------------------------------------------
-
   const handleRenameStart = useCallback(() => {
-    const current = palettes.find((p) => p.id === activePaletteId);
+    const current = palettes.find((palette) => palette.id === activePaletteId);
     setRenameDraft(current?.name ?? "");
     setIsRenaming(true);
   }, [palettes, activePaletteId]);
@@ -116,49 +113,72 @@ export function PalettePanel({
   }, []);
 
   const handleRenameKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
         handleRenameCommit();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
         handleRenameCancel();
       }
     },
     [handleRenameCommit, handleRenameCancel],
   );
 
-  // -----------------------------------------------------------------------
-  // Color picker handlers
-  // -----------------------------------------------------------------------
-
   const getInitialHex = useCallback(() => {
-    if (editingIndex !== null) return colorToHex(colors[editingIndex]);
+    if (editingIndex !== null) {
+      return colorToHex(colors[editingIndex]!);
+    }
     return colorToHex(primaryColor);
   }, [editingIndex, colors, primaryColor]);
 
   const openPickerForAdd = useCallback(() => {
+    pickedColorRef.current = { ...primaryColor };
+    setOpacityPercent(toOpacityPercent(primaryColor));
     setEditingIndex(null);
-    pickedColorRef.current = null;
     setPickerOpen(true);
-  }, []);
+  }, [primaryColor]);
 
-  const openPickerForEdit = useCallback((index: number) => {
-    setEditingIndex(index);
-    pickedColorRef.current = null;
-    setPickerOpen(true);
-  }, []);
+  const openPickerForEdit = useCallback(
+    (index: number) => {
+      const baseColor = colors[index]!;
+      pickedColorRef.current = { ...baseColor };
+      setOpacityPercent(toOpacityPercent(baseColor));
+      setEditingIndex(index);
+      setPickerOpen(true);
+    },
+    [colors],
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePickerChange = useCallback((value: any) => {
-    const arr = value as number[];
+    const rgba = value as number[];
     pickedColorRef.current = {
-      r: Math.round(arr[0]),
-      g: Math.round(arr[1]),
-      b: Math.round(arr[2]),
-      a: Math.round((arr[3] ?? 1) * 255),
+      r: Math.round(rgba[0]),
+      g: Math.round(rgba[1]),
+      b: Math.round(rgba[2]),
+      a: Math.round((rgba[3] ?? 1) * 255),
     };
+    setOpacityPercent(Math.round((rgba[3] ?? 1) * 100));
   }, []);
+
+  const handleOpacityChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextOpacity = Math.max(0, Math.min(100, Number(event.target.value)));
+      setOpacityPercent(nextOpacity);
+
+      const baseColor =
+        pickedColorRef.current ??
+        (editingIndex !== null ? colors[editingIndex] : primaryColor);
+      if (!baseColor) return;
+
+      pickedColorRef.current = {
+        ...baseColor,
+        a: Math.round((nextOpacity / 100) * 255),
+      };
+    },
+    [colors, editingIndex, primaryColor],
+  );
 
   const handlePickerConfirm = useCallback(() => {
     const color = pickedColorRef.current;
@@ -178,39 +198,38 @@ export function PalettePanel({
     setEditingIndex(null);
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Swatch click handlers
-  // -----------------------------------------------------------------------
-
   const handleSwatchClick = useCallback(
-    (color: Color, e: React.MouseEvent) => {
-      e.preventDefault();
+    (color: Color, event: React.MouseEvent) => {
+      event.preventDefault();
       onSelectPrimary(color);
     },
     [onSelectPrimary],
   );
 
   const handleSwatchContextMenu = useCallback(
-    (color: Color, e: React.MouseEvent) => {
-      e.preventDefault();
+    (color: Color, event: React.MouseEvent) => {
+      event.preventDefault();
       onSelectSecondary(color);
     },
     [onSelectSecondary],
   );
 
-  const selectedIndex = colors.findIndex((c) => colorsMatch(c, primaryColor));
+  const selectedIndex = colors.findIndex((color) =>
+    colorsMatch(color, primaryColor),
+  );
 
   return (
     <TooltipProvider>
       <div className="flex flex-col w-full border-l border-border bg-card shrink-0">
-        {/* Palette selector row */}
         <div className="flex items-center gap-0.5 p-1.5 border-b border-border">
           {isRenaming ? (
             <input
+              id="palette-rename-input"
+              name="palette-rename-input"
               autoFocus
               className="flex-1 h-6 min-w-0 text-xs px-1.5 bg-background border border-input rounded focus:outline-none focus:ring-1 focus:ring-ring"
               value={renameDraft}
-              onChange={(e) => setRenameDraft(e.target.value)}
+              onChange={(event) => setRenameDraft(event.target.value)}
               onKeyDown={handleRenameKeyDown}
               onBlur={handleRenameCommit}
             />
@@ -223,9 +242,13 @@ export function PalettePanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {palettes.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name}
+                {palettes.map((palette) => (
+                  <SelectItem
+                    key={palette.id}
+                    value={palette.id}
+                    className="text-xs"
+                  >
+                    {palette.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -273,17 +296,14 @@ export function PalettePanel({
           </Tooltip>
         </div>
 
-        {/* Primary / Secondary color preview */}
         <div className="p-2 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="relative w-10 h-10">
-              {/* Secondary (behind, offset) */}
               <div
                 className="absolute bottom-0 right-0 w-7 h-7 rounded border border-border"
                 style={{ backgroundColor: colorToHex(secondaryColor) }}
                 title="Secondary color (right-click)"
               />
-              {/* Primary (front) */}
               <div
                 className="absolute top-0 left-0 w-7 h-7 rounded border-2 border-white shadow"
                 style={{ backgroundColor: colorToHex(primaryColor) }}
@@ -297,35 +317,34 @@ export function PalettePanel({
           </div>
         </div>
 
-        {/* Palette swatches */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="grid grid-cols-6 gap-0.5 p-1.5 w-44">
-            {colors.map((color, i) => (
+            {colors.map((color, index) => (
               <button
-                key={i}
+                key={index}
                 draggable
-                className={`w-5 h-5 rounded-sm border cursor-grab hover:ring-1 hover:ring-white/50 transition-shadow ${
-                  i === selectedIndex
+                className={`w-5 h-5 rounded-sm border hover:ring-1 hover:ring-white/50 transition-shadow ${
+                  index === selectedIndex
                     ? "ring-2 ring-white border-white"
                     : "border-border"
-                } ${draggingIndex === i ? "opacity-40" : ""}`}
+                } ${draggingIndex === index ? "cursor-grabbing opacity-40" : "cursor-pointer"}`}
                 style={{ backgroundColor: colorToHex(color) }}
-                onClick={(e) => handleSwatchClick(color, e)}
-                onContextMenu={(e) => handleSwatchContextMenu(color, e)}
-                onDoubleClick={() => openPickerForEdit(i)}
+                onClick={(event) => handleSwatchClick(color, event)}
+                onContextMenu={(event) => handleSwatchContextMenu(color, event)}
+                onDoubleClick={() => openPickerForEdit(index)}
                 title={`${colorToHex(color)} (dbl-click to edit, drag to reorder)`}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  setDraggingIndex(i);
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  setDraggingIndex(index);
                 }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
                 }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggingIndex !== null && draggingIndex !== i) {
-                    onReorderColors(draggingIndex, i);
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggingIndex !== null && draggingIndex !== index) {
+                    onReorderColors(draggingIndex, index);
                   }
                   setDraggingIndex(null);
                 }}
@@ -335,7 +354,6 @@ export function PalettePanel({
           </div>
         </ScrollArea>
 
-        {/* Actions */}
         <div className="flex flex-wrap gap-0.5 p-1 border-t border-border">
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <Tooltip>
@@ -374,6 +392,25 @@ export function PalettePanel({
                 <div className="flex items-center gap-2">
                   <ColorPickerOutput />
                   <ColorPickerFormat />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="palette-opacity"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Opacity
+                  </label>
+                  <Input
+                    id="palette-opacity"
+                    name="palette-opacity"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={opacityPercent}
+                    onChange={handleOpacityChange}
+                    className="h-8 w-20 px-2 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">%</span>
                 </div>
                 <div className="flex justify-end gap-1.5">
                   <Button
@@ -517,16 +554,17 @@ export function PalettePanel({
           </Tooltip>
         </div>
 
-        {/* Hidden import input */}
         <input
           ref={importRef}
+          id="palette-import-input"
+          name="palette-import-input"
           type="file"
           accept=".ase,.aseprite,.gpl,.pal,.txt,.hex,.png"
           className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
+          onChange={(event) => {
+            const file = event.target.files?.[0];
             if (file) onImport(file);
-            e.target.value = "";
+            event.target.value = "";
           }}
         />
       </div>

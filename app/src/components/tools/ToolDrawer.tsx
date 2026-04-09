@@ -1,7 +1,7 @@
 import {
-  type ComponentType,
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -21,21 +21,24 @@ const AiAssets = lazy(() =>
   import("@/components/tools/AiAssets").then((m) => ({ default: m.AiAssets })),
 );
 
-const TOOL_CONFIG: Record<
-  ToolName,
-  { label: string; component: ComponentType }
-> = {
-  "image-editor": { label: "Image/Sprite Editor", component: ImageEditor },
-  "ai-assets": { label: "AI Assets Generator", component: AiAssets },
+const TOOL_LABELS: Record<ToolName, string> = {
+  "image-editor": "Image/Sprite Editor",
+  "ai-assets": "AI Assets Generator",
 };
 
 const SLIDE_DURATION = 350;
 
 export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
-  const config = activeTool ? TOOL_CONFIG[activeTool] : null;
-  const ToolComponent = config?.component ?? null;
+  const toolLabel = activeTool ? TOOL_LABELS[activeTool] : "";
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const handleCloseRequest = useCallback(() => {
+    if (activeTool === "image-editor") {
+      window.dispatchEvent(new Event("image-editor-request-close"));
+      return;
+    }
+    onClose();
+  }, [activeTool, onClose]);
 
   // CSS keyframe animations (drawer-enter / drawer-exit) auto-play when the
   // class is applied — no before/after state flip needed, no flushSync.
@@ -78,11 +81,11 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
   useEffect(() => {
     if (!isMounted || isClosing) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleCloseRequest();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isMounted, isClosing, onClose]);
+  }, [handleCloseRequest, isMounted, isClosing]);
 
   function handleAnimationEnd(e: React.AnimationEvent) {
     // Ignore bubbled events from child elements.
@@ -103,7 +106,7 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
         className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-[opacity,backdrop-filter] duration-350 ease-out ${
           isClosing ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-        onClick={onClose}
+        onClick={handleCloseRequest}
       />
 
       {/* Panel — drawer-enter/drawer-exit keyframes defined in index.css */}
@@ -119,11 +122,11 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b p-4">
           <h2 id={titleId} className="text-lg font-semibold">
-            {config?.label ?? ""}
+            {toolLabel}
           </h2>
           <button
             ref={closeButtonRef}
-            onClick={onClose}
+            onClick={handleCloseRequest}
             className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
             aria-label="Close"
           >
@@ -137,9 +140,14 @@ export function ToolDrawer({ activeTool, onClose }: ToolDrawerProps) {
             isContentVisible ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
-          {ToolComponent && (
+          {activeTool === "image-editor" && (
             <Suspense>
-              <ToolComponent />
+              <ImageEditor onRequestClose={onClose} />
+            </Suspense>
+          )}
+          {activeTool === "ai-assets" && (
+            <Suspense>
+              <AiAssets />
             </Suspense>
           )}
         </div>

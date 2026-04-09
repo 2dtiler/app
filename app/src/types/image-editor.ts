@@ -63,6 +63,7 @@ export type ImageEditorTool =
   | "pencil"
   | "eraser"
   | "selection"
+  | "crop"
   | "move"
   | "paint-bucket"
   | "line"

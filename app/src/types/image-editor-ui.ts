@@ -39,12 +39,15 @@ export interface EditorToolbarProps {
   tool: ImageEditorTool;
   blurSize: number;
   blurIntensity: number;
+  canApplyCrop: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onZoom: (z: number) => void;
   onBrushSize: (s: number) => void;
   onBlurSize: (s: number) => void;
   onBlurIntensity: (i: number) => void;
+  onApplyCrop: () => void;
+  onCancelCrop: () => void;
   onNew: () => void;
   onResize: () => void;
   onSave: () => void;
@@ -58,9 +61,13 @@ export interface SaveFormatDialogProps {
   open: boolean;
   totalFrames: number;
   onClose: () => void;
-  onSavePng: () => void;
-  onSaveGif: () => void;
-  onSaveSpriteSheet: (columns: number) => void;
+  onSavePng: () => Promise<boolean> | boolean;
+  onSaveGif: () => Promise<boolean> | boolean;
+  onSaveSpriteSheet: (columns: number) => Promise<boolean> | boolean;
+}
+
+export interface ImageEditorProps {
+  onRequestClose?: () => void;
 }
 
 export interface NewImageDialogProps {

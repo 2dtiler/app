@@ -8,6 +8,7 @@ import {
   SquareDashed,
   Droplets,
   MousePointer2,
+  Crop,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -26,6 +27,7 @@ const TOOLS: {
   shortcut?: string;
 }[] = [
   { id: "selection", icon: MousePointer2, label: "Selection", shortcut: "S" },
+  { id: "crop", icon: Crop, label: "Crop", shortcut: "C" },
   { id: "pencil", icon: Pencil, label: "Pencil", shortcut: "B" },
   { id: "eraser", icon: Eraser, label: "Eraser", shortcut: "E" },
   { id: "move", icon: Move, label: "Move", shortcut: "V" },

@@ -24,12 +24,15 @@ export function EditorToolbar({
   tool,
   blurSize,
   blurIntensity,
+  canApplyCrop,
   canUndo,
   canRedo,
   onZoom,
   onBrushSize,
   onBlurSize,
   onBlurIntensity,
+  onApplyCrop,
+  onCancelCrop,
   onNew,
   onResize,
   onSave,
@@ -188,6 +191,29 @@ export function EditorToolbar({
                 onValueChange={([v]) => onBlurIntensity(v)}
                 className="w-20"
               />
+            </div>
+          </>
+        )}
+
+        {tool === "crop" && (
+          <>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={onCancelCrop}
+                disabled={!canApplyCrop}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="xs"
+                onClick={onApplyCrop}
+                disabled={!canApplyCrop}
+              >
+                Apply Crop
+              </Button>
             </div>
           </>
         )}

@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
+import { toast } from "sonner";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary, saveAsset } from "@/lib/db";
 import { getActivePalette } from "@/types/image-editor";
+import type { ImageEditorProps } from "@/types/image-editor-ui";
 import type {
   ImageLayerEditorContext,
   TileEditorContext,
@@ -36,9 +38,20 @@ import { EditorToolbar } from "./EditorToolbar";
 import { PalettePanel } from "./PalettePanel";
 import { TimelinePanel } from "./TimelinePanel";
 import { SaveFormatDialog } from "./SaveFormatDialog";
+import { Button } from "@/components/ui/Button";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/AlertDialog";
 import type { ImageEditorTool } from "@/types/image-editor";
+import { resetCropState } from "@/lib/image-editor-tools";
 
-export function ImageEditor() {
+export function ImageEditor({ onRequestClose }: ImageEditorProps) {
   const editor = useImageEditor();
   const { state: mainState, setState: setMainState } = useEditorStore();
   const projectId = mainState.project?.id;
@@ -46,6 +59,8 @@ export function ImageEditor() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [isClosingAfterSave, setIsClosingAfterSave] = useState(false);
   /** Context set by MapPanel when opening a specific tile for editing. */
   const [activeTileCtx, setActiveTileCtx] = useState<TileEditorContext | null>(
     null,
@@ -56,6 +71,27 @@ export function ImageEditor() {
   const handledImageLayerRequestIdRef = useRef<number | null>(null);
   const loadRunIdRef = useRef(0);
   const isMountedRef = useRef(true);
+  const closeAfterSaveRef = useRef(false);
+
+  const finalizeSuccessfulSave = useCallback(() => {
+    editor.markSavePoint();
+    toast.success("Image saved");
+    setShowUnsavedDialog(false);
+    setIsClosingAfterSave(false);
+
+    if (closeAfterSaveRef.current) {
+      closeAfterSaveRef.current = false;
+      onRequestClose?.();
+    }
+  }, [editor, onRequestClose]);
+
+  const requestEditorClose = useCallback(() => {
+    if (editor.hasUnsavedImageChanges()) {
+      setShowUnsavedDialog(true);
+      return;
+    }
+    onRequestClose?.();
+  }, [editor, onRequestClose]);
 
   // ---------------------------------------------------------------------------
   // Load any pending map-tile request on mount or while the editor is already open.
@@ -108,6 +144,7 @@ export function ImageEditor() {
       const s = getImageEditorStore().getState();
       if (s.frames.length > 0) {
         editor.setFrameData(s.frames[0].id, imageData);
+        editor.markSavePoint();
       }
     }
 
@@ -174,6 +211,7 @@ export function ImageEditor() {
       const s = getImageEditorStore().getState();
       if (s.frames.length > 0) {
         editor.setFrameData(s.frames[0].id, imageData);
+        editor.markSavePoint();
       }
     }
 
@@ -217,6 +255,22 @@ export function ImageEditor() {
     };
   }, [loadPendingEditorRequest]);
 
+  useEffect(() => {
+    if (!onRequestClose) return;
+
+    const handleCloseRequest = () => {
+      requestEditorClose();
+    };
+
+    window.addEventListener("image-editor-request-close", handleCloseRequest);
+    return () => {
+      window.removeEventListener(
+        "image-editor-request-close",
+        handleCloseRequest,
+      );
+    };
+  }, [onRequestClose, requestEditorClose]);
+
   const handleCreate = useCallback(
     (w: number, h: number) => {
       const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
@@ -245,6 +299,49 @@ export function ImageEditor() {
     [editor],
   );
 
+  const handleCancelCrop = useCallback(() => {
+    resetCropState();
+    editor.setSelection(null);
+  }, [editor]);
+
+  const handleApplyCrop = useCallback(() => {
+    const cropSelection = editor.state?.selection;
+    const frameId = editor.getCurrentFrameId();
+    const layerData = editor.getActiveLayerData();
+    if (!cropSelection || !frameId || !layerData) return;
+
+    const minX = Math.max(0, cropSelection.x);
+    const minY = Math.max(0, cropSelection.y);
+    const maxX = Math.min(layerData.width, cropSelection.x + cropSelection.width);
+    const maxY = Math.min(layerData.height, cropSelection.y + cropSelection.height);
+    if (maxX <= minX || maxY <= minY) return;
+
+    editor.pushUndoSnapshot();
+
+    const nextData = new ImageData(
+      new Uint8ClampedArray(layerData.data),
+      layerData.width,
+      layerData.height,
+    );
+
+    for (let y = 0; y < layerData.height; y += 1) {
+      for (let x = 0; x < layerData.width; x += 1) {
+        if (x >= minX && x < maxX && y >= minY && y < maxY) {
+          continue;
+        }
+        const index = (y * layerData.width + x) * 4;
+        nextData.data[index] = 0;
+        nextData.data[index + 1] = 0;
+        nextData.data[index + 2] = 0;
+        nextData.data[index + 3] = 0;
+      }
+    }
+
+    editor.setFrameData(frameId, nextData);
+    resetCropState();
+    editor.setSelection(null);
+  }, [editor]);
+
   // ---------------------------------------------------------------------------
   // Save — writes changes back ONLY to the specific map tile instance by
   // creating (or updating) a per-tile override tileset.  The source tileset is
@@ -254,21 +351,21 @@ export function ImageEditor() {
   const handleSaveTile = useCallback(
     async (ctx: TileEditorContext) => {
       const frameData = editor.getCurrentFrameData();
-      if (!frameData) return;
+      if (!frameData) return false;
 
       // Render the edited frame into a standalone canvas (tile dimensions only)
       const canvas = document.createElement("canvas");
       canvas.width = ctx.sw;
       canvas.height = ctx.sh;
       const canvasCtx = canvas.getContext("2d");
-      if (!canvasCtx) return;
+      if (!canvasCtx) return false;
       canvasCtx.imageSmoothingEnabled = false;
       canvasCtx.putImageData(frameData, 0, 0);
 
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/png");
       });
-      if (!blob) return;
+      if (!blob) return false;
 
       const buffer = await blob.arrayBuffer();
       const newAssetId = generateAssetId();
@@ -329,27 +426,30 @@ export function ImageEditor() {
           };
         }
       });
+
+      finalizeSuccessfulSave();
+      return true;
     },
-    [editor, setMainState],
+    [editor, finalizeSuccessfulSave, setMainState],
   );
 
   const handleSaveImageLayer = useCallback(
     async (ctx: ImageLayerEditorContext) => {
       const frameData = editor.getCurrentFrameData();
-      if (!frameData) return;
+      if (!frameData) return false;
 
       const canvas = document.createElement("canvas");
       canvas.width = frameData.width;
       canvas.height = frameData.height;
       const canvasCtx = canvas.getContext("2d");
-      if (!canvasCtx) return;
+      if (!canvasCtx) return false;
       canvasCtx.imageSmoothingEnabled = false;
       canvasCtx.putImageData(frameData, 0, 0);
 
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/png");
       });
-      if (!blob) return;
+      if (!blob) return false;
 
       const buffer = await blob.arrayBuffer();
       const newAssetId = generateAssetId();
@@ -369,7 +469,7 @@ export function ImageEditor() {
       });
 
       if (!didUpdateLayer) {
-        return;
+        return false;
       }
 
       evictImageLayer(ctx.assetId);
@@ -378,17 +478,21 @@ export function ImageEditor() {
           ? { ...current, assetId: newAssetId }
           : current,
       );
+
+      finalizeSuccessfulSave();
+      return true;
     },
-    [editor, setMainState],
+    [editor, finalizeSuccessfulSave, setMainState],
   );
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
     if (activeImageLayerCtx) {
-      void handleSaveImageLayer(activeImageLayerCtx);
+      return handleSaveImageLayer(activeImageLayerCtx);
     } else if (activeTileCtx) {
-      void handleSaveTile(activeTileCtx);
+      return handleSaveTile(activeTileCtx);
     } else {
       setShowSaveDialog(true);
+      return false;
     }
   }, [
     activeImageLayerCtx,
@@ -396,6 +500,62 @@ export function ImageEditor() {
     handleSaveImageLayer,
     handleSaveTile,
   ]);
+
+  const handleExportPng = useCallback(async (): Promise<boolean> => {
+    const didSave = await editor.exportPng();
+    if (didSave) {
+      finalizeSuccessfulSave();
+    }
+    return didSave;
+  }, [editor, finalizeSuccessfulSave]);
+
+  const handleExportGif = useCallback(async (): Promise<boolean> => {
+    const didSave = await editor.exportGif();
+    if (didSave) {
+      finalizeSuccessfulSave();
+    }
+    return didSave;
+  }, [editor, finalizeSuccessfulSave]);
+
+  const handleExportSpriteSheet = useCallback(
+    async (columns: number): Promise<boolean> => {
+      const didSave = await editor.exportSpriteSheet(columns);
+      if (didSave) {
+        finalizeSuccessfulSave();
+      }
+      return didSave;
+    },
+    [editor, finalizeSuccessfulSave],
+  );
+
+  const handleSaveAndClose = useCallback(async () => {
+    closeAfterSaveRef.current = true;
+
+    if (activeImageLayerCtx || activeTileCtx) {
+      setIsClosingAfterSave(true);
+      const didSave = await handleSave();
+      if (!didSave) {
+        closeAfterSaveRef.current = false;
+        setIsClosingAfterSave(false);
+      }
+      return;
+    }
+
+    setShowUnsavedDialog(false);
+    setShowSaveDialog(true);
+  }, [activeImageLayerCtx, activeTileCtx, handleSave]);
+
+  const handleDiscardAndClose = useCallback(() => {
+    closeAfterSaveRef.current = false;
+    setShowUnsavedDialog(false);
+    onRequestClose?.();
+  }, [onRequestClose]);
+
+  const handleCloseSaveDialog = useCallback(() => {
+    setShowSaveDialog(false);
+    closeAfterSaveRef.current = false;
+    setIsClosingAfterSave(false);
+  }, []);
 
   // Restore palette library when the active project changes
   useEffect(() => {
@@ -417,6 +577,7 @@ export function ImageEditor() {
   useEffect(() => {
     const shortcuts: Record<string, ImageEditorTool> = {
       s: "selection",
+      c: "crop",
       b: "pencil",
       e: "eraser",
       v: "move",
@@ -457,7 +618,7 @@ export function ImageEditor() {
       if ((ev.ctrlKey || ev.metaKey) && ev.key === "s") {
         ev.preventDefault();
         ev.stopImmediatePropagation();
-        handleSave();
+        void handleSave();
         return;
       }
 
@@ -516,6 +677,11 @@ export function ImageEditor() {
   const belowComposite = editor.getCompositeBelowActiveLayer();
   const aboveComposite = editor.getCompositeAboveActiveLayer();
   const previousFrameData = editor.getPreviousFrameData();
+  const canApplyCrop =
+    tool === "crop" &&
+    !!selection &&
+    selection.width > 0 &&
+    selection.height > 0;
 
   // Determine whether the active layer is locked
   const activeLayerId = editor.state?.activeLayerId as
@@ -543,12 +709,15 @@ export function ImageEditor() {
         tool={tool}
         blurSize={blurSize}
         blurIntensity={blurIntensity}
+        canApplyCrop={canApplyCrop}
         canUndo={editor.canUndo}
         canRedo={editor.canRedo}
         onZoom={editor.setZoom}
         onBrushSize={editor.setBrushSize}
         onBlurSize={editor.setBlurSize}
         onBlurIntensity={editor.setBlurIntensity}
+        onApplyCrop={handleApplyCrop}
+        onCancelCrop={handleCancelCrop}
         onNew={handleNew}
         onResize={handleResize}
         onSave={handleSave}
@@ -603,7 +772,7 @@ export function ImageEditor() {
                 </div>
               </Panel>
 
-              <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+              <Separator className="w-1.5 bg-border-visible/90 hover:bg-primary/50 transition-colors" />
 
               {/* Right-side panel: Palette */}
               <Panel defaultSize="25%" minSize="10%" maxSize="60%">
@@ -632,7 +801,7 @@ export function ImageEditor() {
           </div>
         </Panel>
 
-        <Separator className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+        <Separator className="h-1.5 bg-border-visible/90 hover:bg-primary/50 transition-colors" />
 
         {/* Bottom section: unified layers + frames timeline */}
         <Panel defaultSize="30%" minSize="15%">
@@ -673,11 +842,39 @@ export function ImageEditor() {
       <SaveFormatDialog
         open={showSaveDialog}
         totalFrames={frames.length}
-        onClose={() => setShowSaveDialog(false)}
-        onSavePng={editor.exportPng}
-        onSaveGif={editor.exportGif}
-        onSaveSpriteSheet={editor.exportSpriteSheet}
+        onClose={handleCloseSaveDialog}
+        onSavePng={handleExportPng}
+        onSaveGif={handleExportGif}
+        onSaveSpriteSheet={handleExportSpriteSheet}
       />
+      <AlertDialog open={showUnsavedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save changes before closing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved image changes. Save them before closing the
+              Image/Sprite Editor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                closeAfterSaveRef.current = false;
+                setShowUnsavedDialog(false);
+                setIsClosingAfterSave(false);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button variant="outline" onClick={handleDiscardAndClose}>
+              Don't Save
+            </Button>
+            <Button onClick={() => void handleSaveAndClose()} disabled={isClosingAfterSave}>
+              {isClosingAfterSave ? "Saving..." : "Save"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

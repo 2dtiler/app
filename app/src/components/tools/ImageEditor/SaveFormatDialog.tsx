@@ -45,17 +45,23 @@ export function SaveFormatDialog({
 }: SaveFormatDialogProps) {
   const [format, setFormat] = useState<SaveFormat>("png");
   const [columns, setColumns] = useState(totalFrames);
+  const [isSaving, setIsSaving] = useState(false);
 
-  function handleSave() {
-    if (format === "png") {
-      onSavePng();
-      onClose();
-    } else if (format === "gif") {
-      onSaveGif();
-      onClose();
-    } else {
-      onSaveSpriteSheet(Math.max(1, columns));
-      onClose();
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const didSave =
+        format === "png"
+          ? await onSavePng()
+          : format === "gif"
+            ? await onSaveGif()
+            : await onSaveSpriteSheet(Math.max(1, columns));
+
+      if (didSave) {
+        onClose();
+      }
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -114,6 +120,7 @@ export function SaveFormatDialog({
                 </Label>
                 <Input
                   id="save-fmt-cols"
+                  name="save-fmt-cols"
                   type="number"
                   min={1}
                   max={totalFrames}
@@ -131,10 +138,12 @@ export function SaveFormatDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={() => void handleSave()} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

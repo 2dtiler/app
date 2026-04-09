@@ -67,6 +67,75 @@ import type {
 // ---------------------------------------------------------------------------
 
 const moduleLayerFrameData: Map<string, ImageData> = new Map();
+let savedDocumentFingerprint: string | null = null;
+
+function hashPixelBuffer(data: Uint8ClampedArray): string {
+  let hash = 2166136261;
+  for (let index = 0; index < data.length; index += 1) {
+    hash ^= data[index]!;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function buildSaveFingerprint(state: ImageEditorState | null): string | null {
+  if (!state) return null;
+
+  const allLayerIds = getLeafLayerIds(
+    state.layerOrder,
+    state.layers,
+    state.imageLayers,
+    state.layerGroups,
+    true,
+  );
+
+  const parts: string[] = [
+    `size:${state.width}x${state.height}`,
+    `fps:${state.fps}`,
+    `frames:${state.frames
+      .map((frame) => `${frame.id}:${frame.duration}`)
+      .join(",")}`,
+    `layers:${state.layers
+      .map((layer) => `${layer.id}:${layer.visible ? 1 : 0}`)
+      .join(",")}`,
+    `images:${state.imageLayers
+      .map((layer) => `${layer.id}:${layer.visible ? 1 : 0}`)
+      .join(",")}`,
+    `groups:${state.layerGroups
+      .map(
+        (group) =>
+          `${group.id}:${group.visible ? 1 : 0}:${group.childOrder.join(".")}`,
+      )
+      .join(",")}`,
+    `order:${state.layerOrder.join(",")}`,
+  ];
+
+  for (const frame of state.frames) {
+    for (const layerId of allLayerIds) {
+      const imageData = moduleLayerFrameData.get(layerDataKey(frame.id, layerId));
+      parts.push(
+        `${frame.id}:${layerId}:${imageData ? hashPixelBuffer(imageData.data) : "empty"}`,
+      );
+    }
+  }
+
+  return parts.join("|");
+}
+
+async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 /** Build the map key for a frame + layer combination. */
 function layerDataKey(frameId: string, layerId: string): string {
@@ -324,6 +393,10 @@ function ensureStoreReady() {
       moduleLayerFrameData.set(key, new ImageData(w, h));
     }
   }
+
+  if (savedDocumentFingerprint === null) {
+    savedDocumentFingerprint = buildSaveFingerprint(s);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +466,7 @@ export function useImageEditor() {
       frameOpRedoStack.length = 0;
       actionLog.length = 0;
       redoLog.length = 0;
+      savedDocumentFingerprint = null;
 
       initImageEditorStore(width, height, initialPalettes);
 
@@ -1474,10 +1548,10 @@ export function useImageEditor() {
   // Export PNG (single frame)
   // -----------------------------------------------------------------------
 
-  const exportPng = useCallback(() => {
-    if (!state) return;
+  const exportPng = useCallback(async (): Promise<boolean> => {
+    if (!state) return false;
     const frameId = getCurrentFrameId();
-    if (!frameId) return;
+    if (!frameId) return false;
     const data = computeComposite(frameId, state);
 
     const canvas = document.createElement("canvas");
@@ -1486,23 +1560,18 @@ export function useImageEditor() {
     const ctx = canvas.getContext("2d")!;
     ctx.putImageData(data, 0, 0);
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "sprite.png";
-      a.click();
-      URL.revokeObjectURL(url);
-    }, "image/png");
+    const blob = await canvasToPngBlob(canvas);
+    if (!blob) return false;
+    downloadBlob(blob, "sprite.png");
+    return true;
   }, [state, getCurrentFrameId]);
 
   // -----------------------------------------------------------------------
   // Export animated GIF
   // -----------------------------------------------------------------------
 
-  const exportGif = useCallback(async () => {
-    if (!state || state.frames.length === 0) return;
+  const exportGif = useCallback(async (): Promise<boolean> => {
+    if (!state || state.frames.length === 0) return false;
 
     // Dynamic import gifenc
     const { GIFEncoder, quantize, applyPalette } = await import("gifenc");
@@ -1528,12 +1597,8 @@ export function useImageEditor() {
 
     const bytes = gif.bytes();
     const blob = new Blob([new Uint8Array(bytes)], { type: "image/gif" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "animation.gif";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, "animation.gif");
+    return true;
   }, [state]);
 
   // -----------------------------------------------------------------------
@@ -1541,8 +1606,8 @@ export function useImageEditor() {
   // -----------------------------------------------------------------------
 
   const exportSpriteSheet = useCallback(
-    (columns?: number) => {
-      if (!state || state.frames.length === 0) return;
+    async (columns?: number): Promise<boolean> => {
+      if (!state || state.frames.length === 0) return false;
 
       const cols = columns ?? state.frames.length;
       const rows = Math.ceil(state.frames.length / cols);
@@ -1561,15 +1626,10 @@ export function useImageEditor() {
         ctx.putImageData(data, col * state.width, row * state.height);
       });
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "spritesheet.png";
-        a.click();
-        URL.revokeObjectURL(url);
-      }, "image/png");
+      const blob = await canvasToPngBlob(canvas);
+      if (!blob) return false;
+      downloadBlob(blob, "spritesheet.png");
+      return true;
     },
     [state],
   );
@@ -1583,6 +1643,16 @@ export function useImageEditor() {
     const prevFrame = state.frames[state.currentFrameIndex - 1];
     if (!prevFrame) return null;
     return computeComposite(prevFrame.id, state);
+  }, [state]);
+
+  const markSavePoint = useCallback(() => {
+    savedDocumentFingerprint = buildSaveFingerprint(state);
+  }, [state]);
+
+  const hasUnsavedImageChanges = useCallback((): boolean => {
+    const currentFingerprint = buildSaveFingerprint(state);
+    if (!currentFingerprint) return false;
+    return currentFingerprint !== savedDocumentFingerprint;
   }, [state]);
 
   // -----------------------------------------------------------------------
@@ -2124,6 +2194,8 @@ export function useImageEditor() {
     setFps,
     setBlurSize,
     setBlurIntensity,
+    markSavePoint,
+    hasUnsavedImageChanges,
 
     // Palette
     addPaletteColor,

@@ -10,9 +10,12 @@ import {
   commitFloatingSelection,
   resetSelectionState,
   getSelectionState,
+  getCropState,
+  resetCropState,
   copySelectionPixels,
   pasteSelectionPixels,
   hitTestResizeHandle,
+  hitTestCropHandle,
   getResizeHandleCursor,
   drawFloatingOnOverlay,
 } from "@/lib/image-editor-tools";
@@ -93,8 +96,17 @@ export function ImageCanvas({
         }
       }
     }
+    if (prevToolRef.current === "crop" && tool !== "crop") {
+      const overlay = overlayRef.current;
+      const overlayCtx = overlay?.getContext("2d", {
+        willReadFrequently: true,
+      });
+      overlayCtx?.clearRect(0, 0, width, height);
+      resetCropState();
+      onSelectionChange(null);
+    }
     // Reset cursor when leaving selection tool
-    if (tool !== "selection") {
+    if (tool !== "selection" && tool !== "crop") {
       const canvas = canvasRef.current;
       if (canvas) canvas.style.cursor = "";
     }
@@ -292,6 +304,24 @@ export function ImageCanvas({
     }
   }, [tool, selection, width, height, getToolContext]);
 
+  useEffect(() => {
+    if (tool !== "crop") return;
+    const tc = getToolContext();
+    if (!tc) return;
+
+    tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
+    if (!selection) return;
+
+    tc.overlayCtx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    tc.overlayCtx.fillRect(0, 0, tc.width, tc.height);
+    tc.overlayCtx.clearRect(
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height,
+    );
+  }, [tool, selection, getToolContext]);
+
   // Animated marching-ants selection border (screen-resolution canvas)
   const selectionRef = useRef(selection);
   useLayoutEffect(() => {
@@ -302,7 +332,7 @@ export function ImageCanvas({
     const c = selBorderRef.current;
     if (!c) return;
 
-    if (tool !== "selection") {
+    if (tool !== "selection" && tool !== "crop") {
       const ctx = c.getContext("2d");
       ctx?.clearRect(0, 0, c.width, c.height);
       return;
@@ -368,7 +398,40 @@ export function ImageCanvas({
 
       // Resize handles for floating selection
       const ss = getSelectionState();
-      if (ss.floatingPixels) {
+      if (tool === "selection" && ss.floatingPixels) {
+        const hs = 4;
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+
+        const handles: [number, number][] = [
+          [sx, sy],
+          [sx + sw / 2, sy],
+          [sx + sw, sy],
+          [sx, sy + sh / 2],
+          [sx + sw, sy + sh / 2],
+          [sx, sy + sh],
+          [sx + sw / 2, sy + sh],
+          [sx + sw, sy + sh],
+        ];
+
+        for (const [hx, hy] of handles) {
+          ctx.fillRect(
+            Math.round(hx) - hs,
+            Math.round(hy) - hs,
+            hs * 2,
+            hs * 2,
+          );
+          ctx.strokeRect(
+            Math.round(hx) - hs + 0.5,
+            Math.round(hy) - hs + 0.5,
+            hs * 2 - 1,
+            hs * 2 - 1,
+          );
+        }
+      }
+
+      if (tool === "crop") {
         const hs = 4;
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#333";
@@ -538,8 +601,9 @@ export function ImageCanvas({
         tc.color = secondaryColor;
       }
 
-      // Push undo snapshot before modifying
-      onPushUndo();
+      if (tool !== "crop") {
+        onPushUndo();
+      }
 
       const [px, py] = toPixel(e as unknown as React.MouseEvent);
       dispatchDown(tool, tc, px, py, strokeRef.current);
@@ -589,6 +653,31 @@ export function ImageCanvas({
         return;
       }
 
+      if (tool === "crop" && !strokeRef.current.active) {
+        const cropState = getCropState();
+        const canvas = canvasRef.current;
+        if (canvas) {
+          if (cropState.rect) {
+            const handle = hitTestCropHandle(px, py);
+            if (handle) {
+              canvas.style.cursor = getResizeHandleCursor(handle);
+            } else if (
+              px >= cropState.rect.x &&
+              py >= cropState.rect.y &&
+              px < cropState.rect.x + cropState.rect.width &&
+              py < cropState.rect.y + cropState.rect.height
+            ) {
+              canvas.style.cursor = "move";
+            } else {
+              canvas.style.cursor = "crosshair";
+            }
+          } else {
+            canvas.style.cursor = "crosshair";
+          }
+        }
+        return;
+      }
+
       if (!strokeRef.current.active) return;
       const tc = getToolContext({ shiftKey: e.shiftKey });
       if (!tc) return;
@@ -600,7 +689,7 @@ export function ImageCanvas({
 
       const sel = dispatchMove(tool, tc, px, py, strokeRef.current);
 
-      if (tool === "selection" && sel) {
+      if ((tool === "selection" || tool === "crop") && sel) {
         onSelectionChange(sel);
       }
     },
@@ -620,12 +709,12 @@ export function ImageCanvas({
       const [px, py] = toPixel(e as unknown as React.MouseEvent);
       const sel = dispatchUp(tool, tc, px, py, strokeRef.current);
 
-      if (tool === "selection") {
+      if (tool === "selection" || tool === "crop") {
         onSelectionChange(sel);
       }
 
       // Save updated frame data back
-      if (currentFrameId) {
+      if (tool !== "crop" && currentFrameId) {
         const imgData = tc.ctx.getImageData(0, 0, width, height);
         onFrameDataChange(currentFrameId, imgData);
       }

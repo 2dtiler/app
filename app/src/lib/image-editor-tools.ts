@@ -115,6 +115,28 @@ export function drawBrush(
   }
 }
 
+export function drawSquareBrush(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  size: number,
+  color: Color,
+): void {
+  if (size <= 1) {
+    setPixel(data, width, height, cx, cy, color);
+    return;
+  }
+
+  const radius = Math.floor(size / 2);
+  for (let py = cy - radius; py <= cy + radius; py++) {
+    for (let px = cx - radius; px <= cx + radius; px++) {
+      setPixel(data, width, height, px, py, color);
+    }
+  }
+}
+
 /** Check if two colors match exactly. */
 function colorsEqual(a: Color, b: Color): boolean {
   return a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
@@ -196,7 +218,15 @@ export function pencilDown(
   ss.lastX = x;
   ss.lastY = y;
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  drawBrush(imgData.data, tc.width, tc.height, x, y, tc.brushSize, tc.color);
+  drawSquareBrush(
+    imgData.data,
+    tc.width,
+    tc.height,
+    x,
+    y,
+    tc.brushSize,
+    tc.color,
+  );
   tc.ctx.putImageData(imgData, 0, 0);
 }
 
@@ -210,7 +240,7 @@ export function pencilMove(
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
   const points = bresenhamLine(ss.lastX, ss.lastY, x, y);
   for (const [px, py] of points) {
-    drawBrush(
+    drawSquareBrush(
       imgData.data,
       tc.width,
       tc.height,
@@ -250,7 +280,15 @@ export function eraserDown(
   ss.lastX = x;
   ss.lastY = y;
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  drawBrush(imgData.data, tc.width, tc.height, x, y, tc.brushSize, TRANSPARENT);
+  drawSquareBrush(
+    imgData.data,
+    tc.width,
+    tc.height,
+    x,
+    y,
+    tc.brushSize,
+    TRANSPARENT,
+  );
   tc.ctx.putImageData(imgData, 0, 0);
 }
 
@@ -264,7 +302,7 @@ export function eraserMove(
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
   const points = bresenhamLine(ss.lastX, ss.lastY, x, y);
   for (const [px, py] of points) {
-    drawBrush(
+    drawSquareBrush(
       imgData.data,
       tc.width,
       tc.height,
@@ -811,6 +849,231 @@ export function pasteSelectionPixels(
 }
 
 // ---------------------------------------------------------------------------
+// Crop tool
+// ---------------------------------------------------------------------------
+
+type CropRect = { x: number; y: number; width: number; height: number };
+
+type CropState = {
+  rect: CropRect | null;
+  dragging: boolean;
+  resizingHandle: ResizeHandle;
+  dragOffsetX: number;
+  dragOffsetY: number;
+  resizeStartX: number;
+  resizeStartY: number;
+  resizeStartRect: CropRect | null;
+};
+
+let cropState: CropState = {
+  rect: null,
+  dragging: false,
+  resizingHandle: null,
+  dragOffsetX: 0,
+  dragOffsetY: 0,
+  resizeStartX: 0,
+  resizeStartY: 0,
+  resizeStartRect: null,
+};
+
+export function getCropState(): CropState {
+  return cropState;
+}
+
+export function resetCropState(): void {
+  cropState = {
+    rect: null,
+    dragging: false,
+    resizingHandle: null,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    resizeStartX: 0,
+    resizeStartY: 0,
+    resizeStartRect: null,
+  };
+}
+
+function clampCropRect(tc: ToolContext, rect: CropRect): CropRect {
+  const x = Math.max(0, Math.min(tc.width - 1, rect.x));
+  const y = Math.max(0, Math.min(tc.height - 1, rect.y));
+  const width = Math.max(1, Math.min(rect.width, tc.width - x));
+  const height = Math.max(1, Math.min(rect.height, tc.height - y));
+  return { x, y, width, height };
+}
+
+function isInsideCropRect(x: number, y: number, rect: CropRect): boolean {
+  return (
+    x >= rect.x &&
+    y >= rect.y &&
+    x < rect.x + rect.width &&
+    y < rect.y + rect.height
+  );
+}
+
+export function hitTestCropHandle(x: number, y: number): ResizeHandle {
+  const rect = cropState.rect;
+  if (!rect) return null;
+
+  const hs = HANDLE_SIZE;
+  const rx = rect.x;
+  const ry = rect.y;
+  const rw = rect.width;
+  const rh = rect.height;
+
+  if (Math.abs(x - rx) <= hs && Math.abs(y - ry) <= hs) return "nw";
+  if (Math.abs(x - (rx + rw)) <= hs && Math.abs(y - ry) <= hs) return "ne";
+  if (Math.abs(x - rx) <= hs && Math.abs(y - (ry + rh)) <= hs) return "sw";
+  if (Math.abs(x - (rx + rw)) <= hs && Math.abs(y - (ry + rh)) <= hs) {
+    return "se";
+  }
+  if (Math.abs(y - ry) <= hs && x > rx + hs && x < rx + rw - hs) return "n";
+  if (Math.abs(y - (ry + rh)) <= hs && x > rx + hs && x < rx + rw - hs) {
+    return "s";
+  }
+  if (Math.abs(x - rx) <= hs && y > ry + hs && y < ry + rh - hs) return "w";
+  if (Math.abs(x - (rx + rw)) <= hs && y > ry + hs && y < ry + rh - hs) {
+    return "e";
+  }
+  return null;
+}
+
+export function cropDown(
+  _tc: ToolContext,
+  x: number,
+  y: number,
+  ss: StrokeState,
+): void {
+  ss.active = true;
+
+  if (cropState.rect) {
+    const handle = hitTestCropHandle(x, y);
+    if (handle) {
+      cropState.resizingHandle = handle;
+      cropState.resizeStartX = x;
+      cropState.resizeStartY = y;
+      cropState.resizeStartRect = { ...cropState.rect };
+      return;
+    }
+
+    if (isInsideCropRect(x, y, cropState.rect)) {
+      cropState.dragging = true;
+      cropState.dragOffsetX = x - cropState.rect.x;
+      cropState.dragOffsetY = y - cropState.rect.y;
+      return;
+    }
+  }
+
+  ss.startX = x;
+  ss.startY = y;
+  cropState.rect = null;
+  cropState.dragging = false;
+  cropState.resizingHandle = null;
+}
+
+export function cropMove(
+  tc: ToolContext,
+  x: number,
+  y: number,
+  ss: StrokeState,
+): CropRect | null {
+  if (!ss.active) return cropState.rect;
+
+  if (cropState.resizingHandle && cropState.resizeStartRect) {
+    const handle = cropState.resizingHandle;
+    const startRect = cropState.resizeStartRect;
+    const dx = x - cropState.resizeStartX;
+    const dy = y - cropState.resizeStartY;
+
+    let nextX = startRect.x;
+    let nextY = startRect.y;
+    let nextWidth = startRect.width;
+    let nextHeight = startRect.height;
+
+    if (handle.includes("w")) {
+      nextX = startRect.x + dx;
+      nextWidth = startRect.width - dx;
+    }
+    if (handle.includes("e")) {
+      nextWidth = startRect.width + dx;
+    }
+    if (handle.includes("n")) {
+      nextY = startRect.y + dy;
+      nextHeight = startRect.height - dy;
+    }
+    if (handle.includes("s")) {
+      nextHeight = startRect.height + dy;
+    }
+
+    if (nextWidth < 1) {
+      nextWidth = 1;
+      if (handle.includes("w")) nextX = startRect.x + startRect.width - 1;
+    }
+    if (nextHeight < 1) {
+      nextHeight = 1;
+      if (handle.includes("n")) nextY = startRect.y + startRect.height - 1;
+    }
+
+    cropState.rect = clampCropRect(tc, {
+      x: nextX,
+      y: nextY,
+      width: nextWidth,
+      height: nextHeight,
+    });
+    return cropState.rect;
+  }
+
+  if (cropState.dragging && cropState.rect) {
+    cropState.rect = clampCropRect(tc, {
+      x: x - cropState.dragOffsetX,
+      y: y - cropState.dragOffsetY,
+      width: cropState.rect.width,
+      height: cropState.rect.height,
+    });
+    return cropState.rect;
+  }
+
+  const minX = Math.min(ss.startX, x);
+  const minY = Math.min(ss.startY, y);
+  const maxX = Math.max(ss.startX, x);
+  const maxY = Math.max(ss.startY, y);
+
+  cropState.rect = clampCropRect(tc, {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+  });
+
+  return cropState.rect;
+}
+
+export function cropUp(
+  tc: ToolContext,
+  x: number,
+  y: number,
+  ss: StrokeState,
+): CropRect | null {
+  if (!ss.active) return cropState.rect;
+  ss.active = false;
+
+  const rect = cropMove(tc, x, y, {
+    ...ss,
+    active: true,
+  });
+
+  cropState.dragging = false;
+  cropState.resizingHandle = null;
+  cropState.resizeStartRect = null;
+
+  if (!rect || rect.width < 1 || rect.height < 1) {
+    cropState.rect = null;
+    return null;
+  }
+
+  return rect;
+}
+
+// ---------------------------------------------------------------------------
 // Move tool
 // ---------------------------------------------------------------------------
 
@@ -1232,7 +1495,7 @@ function applyBlurAt(tc: ToolContext, cx: number, cy: number): void {
   const w = tc.width;
   const h = tc.height;
 
-  const brushRadius = Math.max(1, Math.floor(tc.brushSize / 2));
+  const brushRadius = Math.max(0, tc.blurSize - 1);
   const kernelRadius = Math.max(1, tc.blurSize);
   const intensity = Math.max(1, Math.min(100, tc.blurIntensity)) / 100;
 
@@ -1241,8 +1504,6 @@ function applyBlurAt(tc: ToolContext, cx: number, cy: number): void {
 
   for (let dy = -brushRadius; dy <= brushRadius; dy++) {
     for (let dx = -brushRadius; dx <= brushRadius; dx++) {
-      if (dx * dx + dy * dy > brushRadius * brushRadius) continue;
-
       const px = cx + dx;
       const py = cy + dy;
       if (px < 0 || py < 0 || px >= w || py >= h) continue;
@@ -1300,6 +1561,9 @@ export function dispatchDown(
     case "selection":
       selectionDown(tc, x, y, ss);
       return null;
+    case "crop":
+      cropDown(tc, x, y, ss);
+      return null;
     case "pencil":
       pencilDown(tc, x, y, ss);
       return null;
@@ -1337,6 +1601,8 @@ export function dispatchMove(
   switch (tool) {
     case "selection":
       return selectionMove(tc, x, y, ss);
+    case "crop":
+      return cropMove(tc, x, y, ss);
     case "pencil":
       pencilMove(tc, x, y, ss);
       return null;
@@ -1373,6 +1639,8 @@ export function dispatchUp(
   switch (tool) {
     case "selection":
       return selectionUp(tc, x, y, ss);
+    case "crop":
+      return cropUp(tc, x, y, ss);
     case "pencil":
       pencilUp(tc, x, y, ss);
       return null;

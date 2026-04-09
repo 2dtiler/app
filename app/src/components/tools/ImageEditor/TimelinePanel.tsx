@@ -66,7 +66,7 @@ import type { Frame, FrameId } from "@/types/image-editor";
 /** Pixel height of every timeline row. Must match frame-cell height. */
 const ROW_H = 64;
 /** Default pixel width of the sticky layer-name column. User can drag to resize. */
-const DEFAULT_NAME_W = 160;
+const DEFAULT_NAME_W = 240;
 /** Thumbnail size rendered inside each frame cell. */
 const THUMB = 40;
 
@@ -228,6 +228,7 @@ export function TimelinePanel({
 }: TimelinePanelProps) {
   const editor = useImageEditor();
   const state = editor.state;
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // ── layer panel state (mirrors ImageEditorLayersPanel) ──────────────────────
   const [addLayerOpen, setAddLayerOpen] = useState(false);
@@ -252,9 +253,38 @@ export function TimelinePanel({
     startX: number;
     startW: number;
   }>({ active: false, startX: 0, startW: DEFAULT_NAME_W });
+  const userResizedRef = useRef(false);
+  const initializedWidthRef = useRef(false);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const applyInitialWidth = () => {
+      if (userResizedRef.current || initializedWidthRef.current) return;
+      const initialWidth = Math.round(root.clientWidth * 0.25);
+      if (initialWidth <= 0) return;
+      const clampedWidth = Math.max(160, Math.min(420, initialWidth));
+      setNameW(clampedWidth);
+      dividerDragRef.current.startW = clampedWidth;
+      initializedWidthRef.current = true;
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      applyInitialWidth();
+    });
+
+    resizeObserver.observe(root);
+    applyInitialWidth();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   function handleDividerMouseDown(e: React.MouseEvent) {
     e.preventDefault();
+    userResizedRef.current = true;
     dividerDragRef.current = { active: true, startX: e.clientX, startW: nameW };
 
     function onMouseMove(ev: MouseEvent) {
@@ -380,10 +410,13 @@ export function TimelinePanel({
 
   return (
     <TooltipProvider>
-      <div className="relative flex flex-col h-full border-t border-border bg-card overflow-hidden">
+      <div
+        ref={rootRef}
+        className="relative flex flex-col h-full border-t border-border bg-card overflow-hidden"
+      >
         {/* Draggable vertical divider between the layer-name column and frames */}
         <div
-          className="absolute top-0 bottom-0 z-20 w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+          className="absolute top-0 bottom-0 z-20 w-1.5 bg-border-visible/90 cursor-col-resize shadow-[0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-primary/50 active:bg-primary/70 transition-colors"
           style={{ left: nameW - 2 }}
           onMouseDown={handleDividerMouseDown}
         />
@@ -543,14 +576,15 @@ export function TimelinePanel({
           {/* Frame actions */}
           <div className="flex items-center gap-2 px-2 overflow-x-auto">
             {/* Add frame */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-xs" onClick={onAddFrame}>
-                  <Plus className="size-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Add Frame</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-5 px-2 text-[10px]"
+              onClick={onAddFrame}
+            >
+              <Plus className="h-3 w-3" />
+              Add Frame
+            </Button>
 
             <div className="w-px h-4 bg-border" />
 
@@ -614,6 +648,7 @@ export function TimelinePanel({
               <Label className="text-[10px] text-muted-foreground">FPS:</Label>
               <Input
                 id="animation-fps"
+                name="animation-fps"
                 type="number"
                 min={1}
                 max={60}

@@ -1,20 +1,11 @@
-- Image Layer: Allow Copy/Cut/Paste
-
 Image/sprite Editor:
-  Layer styling is too narrow initially
-  Add frame should be a primary button
-  Wrong cursor for palette selector. It's a hand, should be a cursor-pointer
-  Add opacity operator for palettes
-  Navigating away should ask to save changes
+  Opacity at the wrong spot
+  Confusion about saving and exporting
   Saving should show popup
-  Pencil/Eraser should draw square, not a blob
-  Blur size doesnt work
-  Add ability to crop
-  ---
-  Add ability to export
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-    - Sitemap is not reliable
+    - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
 
+- Object properties are not saving
 - Delete button should delete the selected thing
 - Enable map export to serialize image layers  
 - Add Text to Object Layer 
