@@ -1,3 +1,5 @@
+Check why sentry is not working in prod
+
 Image/sprite Editor:
   Opacity not real opacity
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes

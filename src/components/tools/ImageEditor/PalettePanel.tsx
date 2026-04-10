@@ -324,7 +324,9 @@ export function PalettePanel({
             <div className="flex-1 space-y-1 text-[10px] text-muted-foreground leading-tight">
               <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-1.5">
                 <span>Left Click</span>
-                <span className="truncate uppercase">{colorToHex(primaryColor)}</span>
+                <span className="truncate uppercase">
+                  {colorToHex(primaryColor)}
+                </span>
                 <Input
                   id="primary-color-opacity"
                   name="primary-color-opacity"
@@ -339,7 +341,9 @@ export function PalettePanel({
               </div>
               <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-1.5">
                 <span>Right Click</span>
-                <span className="truncate uppercase">{colorToHex(secondaryColor)}</span>
+                <span className="truncate uppercase">
+                  {colorToHex(secondaryColor)}
+                </span>
                 <Input
                   id="secondary-color-opacity"
                   name="secondary-color-opacity"
