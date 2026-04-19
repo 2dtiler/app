@@ -78,8 +78,9 @@ import { FillTerrainDialog } from "@/components/dialogs/FillTerrainDialog";
 import { MapOptionsDialog } from "@/components/dialogs/MapOptionsDialog";
 import { NewMapDialog } from "@/components/dialogs/NewMapDialog";
 import { NewMapGroupDialog } from "@/components/dialogs/NewMapGroupDialog";
-import { ObjectPropertiesDialog } from "@/components/dialogs/ObjectPropertiesDialog";
+import { ObjectPropertiesDialogManager } from "@/components/editor/ObjectPropertiesDialogManager";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { useTextObjectEditing } from "@/hooks/use-text-object-editing";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import {
   generateMapId,
@@ -136,7 +137,13 @@ import {
 } from "@/lib/image-layer-clipboard";
 import { setImageLayerEditorContext } from "@/lib/image-layer-editor-context";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
+import {
+  clampTextObjectBounds,
+  getDefaultTextObjectProperties,
+  isTextObject,
+} from "@/lib/text-objects";
 import { zoomStore } from "@/lib/zoom-store";
+import { TEXT_OBJECT_DEFAULTS } from "@/types";
 
 function clampMapDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
@@ -306,6 +313,7 @@ export function MapPanel() {
     ? (flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ??
       null)
     : null;
+  const textObjectEditing = useTextObjectEditing(project?.objects ?? [], setState);
 
   const setExclusiveTileClipboard = useCallback(
     (data: TileClipboard | null) => {
@@ -593,6 +601,10 @@ export function MapPanel() {
     ) => {
       if (!state.activeLayerId) return;
       const objectId = generateObjectId();
+      const isText = type === "text";
+      const textBounds = isText
+        ? clampTextObjectBounds(width, height)
+        : { width, height };
       const objCount = (project?.objects ?? []).filter(
         (o) => o.layerId === state.activeLayerId,
       ).length;
@@ -606,13 +618,13 @@ export function MapPanel() {
           type,
           x,
           y,
-          width,
-          height,
+          width: textBounds.width,
+          height: textBounds.height,
           rotation: 0,
           points,
           visible: true,
           locked: false,
-          properties: {},
+          properties: isText ? getDefaultTextObjectProperties() : {},
         };
         draft.project.objects.push(newObj);
         // Add to object layer's objectOrder
@@ -625,8 +637,11 @@ export function MapPanel() {
         draft.activeObjectId = objectId;
         draft.pendingObjectType = null;
       });
+      if (isText) {
+        textObjectEditing.startEditing(objectId, TEXT_OBJECT_DEFAULTS.text);
+      }
     },
-    [setState, state.activeLayerId, project?.objects],
+    [setState, state.activeLayerId, project?.objects, textObjectEditing],
   );
 
   // Cancel pending object placement (e.g. Escape during polygon drawing)
@@ -660,10 +675,14 @@ export function MapPanel() {
           (o) => o.id === objectId,
         );
         if (obj) {
+          const textBounds =
+            obj.type === "text"
+              ? clampTextObjectBounds(width, height)
+              : { width, height };
           obj.x = x;
           obj.y = y;
-          obj.width = width;
-          obj.height = height;
+          obj.width = textBounds.width;
+          obj.height = textBounds.height;
         }
       });
     },
@@ -2564,7 +2583,20 @@ export function MapPanel() {
                     draft.activeObjectId = id as ObjectId | null;
                   })
                 }
-                onDoubleClickObject={(id) => setPropsObjectId(id as ObjectId)}
+                editingTextObject={textObjectEditing.editing}
+                onEditingTextChange={textObjectEditing.updateText}
+                onCommitTextEditing={textObjectEditing.commitEditing}
+                onCancelTextEditing={textObjectEditing.cancelEditing}
+                onDoubleClickObject={(id) => {
+                  const object = (project.objects ?? []).find(
+                    (candidate) => candidate.id === id,
+                  );
+                  if (isTextObject(object)) {
+                    textObjectEditing.beginEditing(id as ObjectId);
+                    return;
+                  }
+                  setPropsObjectId(id as ObjectId);
+                }}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
@@ -2731,32 +2763,11 @@ export function MapPanel() {
       </AlertDialog>
 
       {/* Object properties dialog (opened by double-clicking object on canvas) */}
-      {(() => {
-        const propsObject = propsObjectId
-          ? (project.objects ?? []).find((o) => o.id === propsObjectId)
-          : null;
-        if (!propsObject) return null;
-        return (
-          <ObjectPropertiesDialog
-            key={propsObject.id}
-            open={!!propsObjectId}
-            onOpenChange={(o) => !o && setPropsObjectId(null)}
-            object={propsObject}
-            onSave={(updatedProps, updatedName) => {
-              setState((draft) => {
-                const obj = (draft.project?.objects ?? []).find(
-                  (o) => o.id === propsObjectId,
-                );
-                if (obj) {
-                  obj.properties = updatedProps as typeof obj.properties;
-                  if (updatedName) obj.name = updatedName;
-                }
-              });
-              setPropsObjectId(null);
-            }}
-          />
-        );
-      })()}
+      <ObjectPropertiesDialogManager
+        objectId={propsObjectId}
+        open={!!propsObjectId}
+        onOpenChange={(open) => !open && setPropsObjectId(null)}
+      />
     </div>
   );
 }

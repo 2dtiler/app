@@ -12,6 +12,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
+import { isTextObject } from "@/lib/text-objects";
 import type {
   MapCanvasProps,
   MapResizeAction,
@@ -34,6 +35,8 @@ import {
   getImageLayerPolygon,
   getImageLayerResizeCursor,
 } from "./image-layer-transform";
+import { drawLiveObjectPlacementPreview, drawMapObjects } from "./draw-map-objects";
+import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
 import { useSceneInteraction } from "./use-scene-interaction";
 
 const MAP_RESIZE_GUTTER = 14;
@@ -87,6 +90,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onResizeObject,
     onUpdatePolygonPoints,
     onSelectObject,
+    editingTextObject,
+    onEditingTextChange,
+    onCommitTextEditing,
+    onCancelTextEditing,
     onCancelPendingObject,
     onDoubleClickObject,
   } = props;
@@ -403,6 +410,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
   const moveTiles = useMemo(() => moveTilesSnapshot ?? [], [moveTilesSnapshot]);
   const moveDestSel = moveTilesSnapshot ? liveSelection : null;
+  const editingObject = editingTextObject
+    ? objects.find((object) => object.id === editingTextObject.objectId) ?? null
+    : null;
+  const editingTextCanvasObject =
+    editingObject && isTextObject(editingObject) ? editingObject : null;
 
   const getDisplayImageLayer = useCallback(
     (imgLayer: ImageLayer) => {
@@ -698,160 +710,19 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       }
     }
 
-    // ---- Objects ----
-    for (const objLayer of objectLayers) {
-      if (!objLayer.visible) continue;
-      const layerObjects = objects.filter((o) => o.layerId === objLayer.id);
-      for (const obj of layerObjects) {
-        if (!obj.visible) continue;
-        const isActive = obj.id === activeObjectId;
-        const colorBase = isActive ? "rgba(0, 170, 255," : "rgba(0, 204, 170,";
-        const colorAlpha = isActive ? 1 : 0.7;
-        const lineWidth = isActive ? 2 : 1.5;
-
-        const drag = liveObjectPos?.objectId === obj.id ? liveObjectPos : null;
-        const resize =
-          liveObjectResize?.objectId === obj.id ? liveObjectResize : null;
-        const ox = (resize?.x ?? drag?.x ?? obj.x) * zoom;
-        const oy = (resize?.y ?? drag?.y ?? obj.y) * zoom;
-        const ow = (resize?.width ?? obj.width) * zoom;
-        const oh = (resize?.height ?? obj.height) * zoom;
-
-        ctx.strokeStyle = `${colorBase} ${colorAlpha})`;
-        ctx.lineWidth = lineWidth;
-
-        if (obj.type === "rectangle") {
-          ctx.strokeRect(ox, oy, ow, oh);
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fillRect(ox, oy, ow, oh);
-        } else if (obj.type === "ellipse") {
-          ctx.beginPath();
-          ctx.ellipse(
-            ox + ow / 2,
-            oy + oh / 2,
-            ow / 2,
-            oh / 2,
-            0,
-            0,
-            Math.PI * 2,
-          );
-          ctx.stroke();
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fill();
-        } else if (obj.type === "point") {
-          const ps = 6 * zoom;
-          ctx.beginPath();
-          ctx.moveTo(ox - ps, oy);
-          ctx.lineTo(ox + ps, oy);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(ox, oy - ps);
-          ctx.lineTo(ox, oy + ps);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(ox, oy - ps * 0.7);
-          ctx.lineTo(ox + ps * 0.7, oy);
-          ctx.lineTo(ox, oy + ps * 0.7);
-          ctx.lineTo(ox - ps * 0.7, oy);
-          ctx.closePath();
-          ctx.fillStyle = `${colorBase} 0.3)`;
-          ctx.fill();
-          ctx.stroke();
-        } else if (obj.type === "polygon" && obj.points.length >= 2) {
-          const pts = obj.points.map((p, i) =>
-            livePolyVertex &&
-            livePolyVertex.objectId === obj.id &&
-            livePolyVertex.vertexIndex === i
-              ? livePolyVertex
-              : p,
-          );
-          ctx.beginPath();
-          ctx.moveTo(ox + pts[0].x * zoom, oy + pts[0].y * zoom);
-          for (let i = 1; i < pts.length; i++) {
-            ctx.lineTo(ox + pts[i].x * zoom, oy + pts[i].y * zoom);
-          }
-          ctx.closePath();
-          ctx.stroke();
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fill();
-        }
-
-        // Resize handles for active rect / ellipse
-        if (isActive && (obj.type === "rectangle" || obj.type === "ellipse")) {
-          const hs = 6;
-          const hh = hs / 2;
-          const hps: [number, number][] = [
-            [ox, oy],
-            [ox + ow / 2, oy],
-            [ox + ow, oy],
-            [ox, oy + oh / 2],
-            [ox + ow, oy + oh / 2],
-            [ox, oy + oh],
-            [ox + ow / 2, oy + oh],
-            [ox + ow, oy + oh],
-          ];
-          for (const [hx, hy] of hps) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(hx - hh, hy - hh, hs, hs);
-            ctx.strokeStyle = `${colorBase} 1)`;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(hx - hh, hy - hh, hs, hs);
-          }
-        }
-
-        // Vertex handles for active polygon
-        if (isActive && obj.type === "polygon") {
-          for (let vi = 0; vi < obj.points.length; vi++) {
-            const pt = obj.points[vi];
-            const liveVt =
-              livePolyVertex &&
-              livePolyVertex.objectId === obj.id &&
-              livePolyVertex.vertexIndex === vi
-                ? livePolyVertex
-                : null;
-            const vx = ox + (liveVt ? liveVt.x : pt.x) * zoom;
-            const vy = oy + (liveVt ? liveVt.y : pt.y) * zoom;
-            ctx.beginPath();
-            ctx.arc(vx, vy, 4, 0, Math.PI * 2);
-            ctx.fillStyle = `${colorBase} 0.9)`;
-            ctx.fill();
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-    }
+    drawMapObjects(
+      ctx,
+      objectLayers,
+      objects,
+      activeObjectId,
+      liveObjectPos,
+      liveObjectResize,
+      livePolyVertex,
+      zoom,
+    );
 
     // ---- Live object placement preview ----
-    if (liveObjectPlace) {
-      const { type, x, y, width, height } = liveObjectPlace;
-      const px = x * zoom;
-      const py = y * zoom;
-      const pw = width * zoom;
-      const ph = height * zoom;
-      ctx.strokeStyle = "rgba(0, 170, 255, 0.8)";
-      ctx.lineWidth = 2;
-      if (type === "rectangle") {
-        ctx.strokeRect(px, py, pw, ph);
-        ctx.fillStyle = "rgba(0, 170, 255, 0.1)";
-        ctx.fillRect(px, py, pw, ph);
-      } else if (type === "ellipse") {
-        ctx.beginPath();
-        ctx.ellipse(
-          px + pw / 2,
-          py + ph / 2,
-          pw / 2,
-          ph / 2,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        ctx.stroke();
-        ctx.fillStyle = "rgba(0, 170, 255, 0.1)";
-        ctx.fill();
-      }
-    }
+    drawLiveObjectPlacementPreview(ctx, liveObjectPlace, zoom);
 
     // ---- Polygon being drawn ----
     if (isDrawingPolygon && polygonPoints.length > 0) {
@@ -1156,6 +1027,16 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             imageRendering: "pixelated",
           }}
         />
+        {editingTextObject && editingTextCanvasObject && (
+          <TextObjectEditorOverlay
+            object={editingTextCanvasObject}
+            text={editingTextObject.text}
+            zoom={zoom}
+            onTextChange={onEditingTextChange}
+            onCommit={onCommitTextEditing}
+            onCancel={onCancelTextEditing}
+          />
+        )}
       </div>
       <div
         aria-hidden="true"

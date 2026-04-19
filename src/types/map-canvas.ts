@@ -10,6 +10,10 @@ import type {
   TileMapData,
   TileRef,
 } from "./schema";
+import type {
+  TextObjectEditingState,
+  TextObjectMapObject,
+} from "./text-object";
 
 export interface MapCanvasImperativeHandle {
   drawBufferTile: (gx: number, gy: number, ref: TileRef) => void;
@@ -92,8 +96,21 @@ export interface MapCanvasProps {
     points: { x: number; y: number }[],
   ) => void;
   onSelectObject: (objectId: string | null) => void;
+  editingTextObject: TextObjectEditingState | null;
+  onEditingTextChange: (text: string) => void;
+  onCommitTextEditing: () => void;
+  onCancelTextEditing: () => void;
   onCancelPendingObject?: () => void;
   onDoubleClickObject?: (objectId: string) => void;
+}
+
+export interface TextObjectEditorOverlayProps {
+  object: TextObjectMapObject;
+  text: string;
+  zoom: number;
+  onTextChange: (text: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
 }
 
 export type SelectionAction =

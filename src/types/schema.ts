@@ -173,7 +173,12 @@ export interface TileRef {
 // Object Layer
 // ---------------------------------------------------------------------------
 
-export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon";
+export type ObjectType =
+  | "rectangle"
+  | "point"
+  | "ellipse"
+  | "polygon"
+  | "text";
 
 /** Property types for Tiled-compatible custom properties (values are always stored as strings) */
 export const PROPERTY_TYPES = [

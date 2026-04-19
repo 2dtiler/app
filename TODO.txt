@@ -1,8 +1,10 @@
-Add Text to Object Layer 
+Objects should have right click options.
+Double clicking on a text object should bring up it's properties
+Enable map export to serialize image layers etc. No data should be lost when exporting and then re-importing maps, tilesets and projects.
+Text Layer custom fonts not working. Should also display custom font in dropdown
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-Enable map export to serialize image layers 
 Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
 
 Import Options
@@ -44,8 +46,6 @@ Manage Tilesets
 Manage Maps
 Royalty free packs
 Add unit tests and add to CI/CD
-Write documentation for website
-High touch animations
 Add tutorial video
 Add roadmap voting on home page
 Windows/Mac/Linux Apps

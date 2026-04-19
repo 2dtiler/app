@@ -1,4 +1,5 @@
 import type { Project, TileSize, Tileset, TilesetId } from "@/types";
+import { normalizeTextObject } from "./text-objects";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
 const IMAGE_LAYER_ROTATIONS = new Set([0, 90, 180, 270]);
@@ -61,6 +62,10 @@ export function normalizeProject(project: Project): Project {
       : 0;
     imageLayer.flipX = Boolean(imageLayer.flipX);
     imageLayer.flipY = Boolean(imageLayer.flipY);
+  }
+
+  for (const object of project.objects) {
+    normalizeTextObject(object);
   }
 
   return project;

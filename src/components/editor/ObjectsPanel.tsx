@@ -40,7 +40,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
-import { ObjectPropertiesDialog } from "@/components/dialogs/ObjectPropertiesDialog";
+import { ObjectPropertiesDialogManager } from "@/components/editor/ObjectPropertiesDialogManager";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateObjectId } from "@/lib/ids";
 import type { ObjectId, ObjectType, MapObject } from "@/types";
@@ -52,6 +52,7 @@ const OBJECT_TYPE_ICONS: Record<ObjectType, typeof Square> = {
   point: MapPin,
   ellipse: Circle,
   polygon: Pentagon,
+  text: TextCursorInput,
 };
 
 export function ObjectsPanel() {
@@ -104,10 +105,6 @@ export function ObjectsPanel() {
     .map((oid) => objects.find((o) => o.id === oid))
     .filter((o): o is MapObject => o !== undefined)
     .reverse(); // display top-to-bottom = reverse of render order
-
-  const propsObject = propsObjectId
-    ? (project.objects ?? []).find((o) => o.id === propsObjectId)
-    : null;
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -298,6 +295,7 @@ export function ObjectsPanel() {
               ["point", "Point", MapPin],
               ["ellipse", "Ellipse", Circle],
               ["polygon", "Polygon", Pentagon],
+              ["text", "Text", TextCursorInput],
             ] as const
           ).map(([type, label, Icon]) => (
             <Tooltip key={type}>
@@ -385,26 +383,11 @@ export function ObjectsPanel() {
       </AlertDialog>
 
       {/* Object properties dialog */}
-      {propsObject && (
-        <ObjectPropertiesDialog
-          key={propsObject.id}
-          open={!!propsObjectId}
-          onOpenChange={(o) => !o && setPropsObjectId(null)}
-          object={propsObject}
-          onSave={(updatedProps, updatedName) => {
-            setState((draft) => {
-              const obj = (draft.project?.objects ?? []).find(
-                (o) => o.id === propsObjectId,
-              );
-              if (obj) {
-                obj.properties = updatedProps as typeof obj.properties;
-                if (updatedName) obj.name = updatedName;
-              }
-            });
-            setPropsObjectId(null);
-          }}
-        />
-      )}
+      <ObjectPropertiesDialogManager
+        objectId={propsObjectId}
+        open={!!propsObjectId}
+        onOpenChange={(open) => !open && setPropsObjectId(null)}
+      />
     </div>
   );
 }

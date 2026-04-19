@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ToolName } from "./components";
 import type {
   MapObject,
+  ObjectId,
   PropertyType,
   PropertyValue,
   TerrainTile,
@@ -59,6 +60,12 @@ export interface ObjectPropertiesDialogProps {
   onOpenChange: (open: boolean) => void;
   object: MapObject;
   onSave: (properties: Record<string, PropertyValue>, name?: string) => void;
+}
+
+export interface ObjectPropertiesDialogManagerProps {
+  objectId: ObjectId | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export interface EditablePropertyEntry {

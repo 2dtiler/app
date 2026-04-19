@@ -7,6 +7,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type {
   ImageLayer,
+  MapObject,
   ObjectType,
   TileLayer,
   TileRef,
@@ -31,11 +32,31 @@ import {
   pointInImageLayer,
   resizeImageLayerFromHandle,
 } from "./image-layer-transform";
+import {
+  getBoxObjectHandlePositions,
+  pointHitsObjectBody,
+  isBoxObjectType,
+} from "./object-utils";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
 import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
 
 export type { UseSceneInteractionReturn } from "@/types/map-canvas";
+
+function getObjectInteractionOverrides(
+  object: MapObject,
+  liveObjectPos: UseSceneInteractionReturn["liveObjectPos"],
+  liveObjectResize: UseSceneInteractionReturn["liveObjectResize"],
+) {
+  const resize = liveObjectResize?.objectId === object.id ? liveObjectResize : null;
+  const drag = liveObjectPos?.objectId === object.id ? liveObjectPos : null;
+  return {
+    x: resize?.x ?? drag?.x,
+    y: resize?.y ?? drag?.y,
+    width: resize?.width,
+    height: resize?.height,
+  };
+}
 
 function drawBlockedPreview(
   ctx: CanvasRenderingContext2D,
@@ -698,30 +719,16 @@ export function useSceneInteraction({
 
         // --- Object resize handle hit test ---
         const activeObj = objects.find((o) => o.id === activeObjectId);
-        if (
-          activeObj &&
-          (activeObj.type === "rectangle" || activeObj.type === "ellipse")
-        ) {
-          const resize =
-            liveObjectResize?.objectId === activeObj.id
-              ? liveObjectResize
-              : null;
-          const drag =
-            liveObjectPos?.objectId === activeObj.id ? liveObjectPos : null;
-          const aox = (resize?.x ?? drag?.x ?? activeObj.x) * zoom;
-          const aoy = (resize?.y ?? drag?.y ?? activeObj.y) * zoom;
-          const aow = (resize?.width ?? activeObj.width) * zoom;
-          const aoh = (resize?.height ?? activeObj.height) * zoom;
-          const handles: [ResizeHandle, number, number][] = [
-            ["nw", aox, aoy],
-            ["n", aox + aow / 2, aoy],
-            ["ne", aox + aow, aoy],
-            ["w", aox, aoy + aoh / 2],
-            ["e", aox + aow, aoy + aoh / 2],
-            ["sw", aox, aoy + aoh],
-            ["s", aox + aow / 2, aoy + aoh],
-            ["se", aox + aow, aoy + aoh],
-          ];
+        if (activeObj && isBoxObjectType(activeObj)) {
+          const handles = getBoxObjectHandlePositions(
+            activeObj,
+            zoom,
+            getObjectInteractionOverrides(
+              activeObj,
+              liveObjectPos,
+              liveObjectResize,
+            ),
+          );
           const hSize = 8;
           for (const [handle, cx, cy] of handles) {
             if (Math.abs(e.x - cx) <= hSize && Math.abs(e.y - cy) <= hSize) {
@@ -767,25 +774,7 @@ export function useSceneInteraction({
             .filter((o) => o.layerId === activeLayerId && o.visible)
             .reverse();
           for (const obj of layerObjects) {
-            const ox = obj.x * zoom;
-            const oy = obj.y * zoom;
-            const ow = obj.width * zoom;
-            const oh = obj.height * zoom;
-            let hit = false;
-            if (obj.type === "rectangle" || obj.type === "ellipse") {
-              hit = e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
-            } else if (obj.type === "point") {
-              const ps = 8 * zoom;
-              hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
-            } else if (obj.type === "polygon" && obj.points.length >= 3) {
-              const pts = obj.points;
-              const minX = Math.min(...pts.map((p) => p.x)) * zoom + ox;
-              const maxX = Math.max(...pts.map((p) => p.x)) * zoom + ox;
-              const minY = Math.min(...pts.map((p) => p.y)) * zoom + oy;
-              const maxY = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-              hit = e.x >= minX && e.x <= maxX && e.y >= minY && e.y <= maxY;
-            }
-            if (hit) {
+            if (pointHitsObjectBody(obj, e.x, e.y, zoom)) {
               const now = Date.now();
               const lastObjClick = lastObjectClickRef.current;
               const isObjDoubleClick =
@@ -1068,24 +1057,16 @@ export function useSceneInteraction({
             let objCursor: string | null = null;
 
             const activeObj = objects.find((o) => o.id === activeObjectId);
-            if (
-              activeObj &&
-              (activeObj.type === "rectangle" || activeObj.type === "ellipse")
-            ) {
-              const aox = activeObj.x * zoom;
-              const aoy = activeObj.y * zoom;
-              const aow = activeObj.width * zoom;
-              const aoh = activeObj.height * zoom;
-              const objHandles: [ResizeHandle, number, number][] = [
-                ["nw", aox, aoy],
-                ["n", aox + aow / 2, aoy],
-                ["ne", aox + aow, aoy],
-                ["w", aox, aoy + aoh / 2],
-                ["e", aox + aow, aoy + aoh / 2],
-                ["sw", aox, aoy + aoh],
-                ["s", aox + aow / 2, aoy + aoh],
-                ["se", aox + aow, aoy + aoh],
-              ];
+            if (activeObj && isBoxObjectType(activeObj)) {
+              const objHandles = getBoxObjectHandlePositions(
+                activeObj,
+                zoom,
+                getObjectInteractionOverrides(
+                  activeObj,
+                  liveObjectPos,
+                  liveObjectResize,
+                ),
+              );
               const hSize = 8;
               for (const [h, cx, cy] of objHandles) {
                 if (
@@ -1116,30 +1097,7 @@ export function useSceneInteraction({
                 .filter((o) => o.layerId === activeLayerId && o.visible)
                 .reverse();
               for (const obj of layerObjects) {
-                const ox = obj.x * zoom;
-                const oy = obj.y * zoom;
-                const ow = obj.width * zoom;
-                const oh = obj.height * zoom;
-                let hit = false;
-                if (obj.type === "rectangle" || obj.type === "ellipse") {
-                  hit =
-                    e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
-                } else if (obj.type === "point") {
-                  const ps = 8 * zoom;
-                  hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
-                } else if (obj.type === "polygon" && obj.points.length >= 3) {
-                  const pts = obj.points;
-                  const minPx = Math.min(...pts.map((p) => p.x)) * zoom + ox;
-                  const maxPx = Math.max(...pts.map((p) => p.x)) * zoom + ox;
-                  const minPy = Math.min(...pts.map((p) => p.y)) * zoom + oy;
-                  const maxPy = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-                  hit =
-                    e.x >= minPx &&
-                    e.x <= maxPx &&
-                    e.y >= minPy &&
-                    e.y <= maxPy;
-                }
-                if (hit) {
+                if (pointHitsObjectBody(obj, e.x, e.y, zoom)) {
                   objCursor = obj.locked ? "not-allowed" : "move";
                   break;
                 }
@@ -1214,6 +1172,8 @@ export function useSceneInteraction({
       activeLayerId,
       activeObjectId,
       isDrawingPolygon,
+      liveObjectPos,
+      liveObjectResize,
     ],
   );
 
