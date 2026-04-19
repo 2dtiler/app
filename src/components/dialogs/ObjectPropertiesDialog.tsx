@@ -12,11 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Separator } from "@/components/ui/Separator";
-import {
-  PROPERTY_TYPES,
-  type PropertyType,
-  type PropertyValue,
-} from "@/types";
+import { PROPERTY_TYPES, type PropertyType, type PropertyValue } from "@/types";
 import {
   Select,
   SelectContent,
@@ -36,8 +32,7 @@ function objectPropertiesToEntries(
     key,
     value:
       typeof propertyValue === "string" ? propertyValue : propertyValue.value,
-    type:
-      typeof propertyValue === "string" ? "string" : propertyValue.type,
+    type: typeof propertyValue === "string" ? "string" : propertyValue.type,
   }));
 }
 
