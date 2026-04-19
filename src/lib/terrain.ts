@@ -2,6 +2,7 @@
  * terrain.ts — Utility functions for fill and fill-terrain behavior.
  */
 
+import { getAdjacentMapCells } from "./map-geometry";
 import type { TerrainTile, TileRef } from "@/types";
 import type { FillRegionOptions } from "@/types/editor-helpers";
 
@@ -16,6 +17,7 @@ function sameTileSource(a: TileRef | null, b: TileRef | null) {
 }
 
 export function getFillRegion({
+  map,
   layer,
   mapWidth,
   mapHeight,
@@ -59,7 +61,9 @@ export function getFillRegion({
     if (!matchesTarget) continue;
 
     toFill.push([x, y]);
-    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    for (const cell of getAdjacentMapCells(map, x, y)) {
+      queue.push([cell.x, cell.y]);
+    }
   }
 
   return toFill;

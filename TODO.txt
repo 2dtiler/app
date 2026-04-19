@@ -1,18 +1,8 @@
-Check why sentry is not working in prod
+Refactor files longer than 1000 lines of code
 
-Image/sprite Editor:
-  Opacity not real opacity
-  Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-    - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-
-- Object properties are not saving
-- Delete button should delete the selected thing
-- Enable map export to serialize image layers  
-- Add Text to Object Layer 
-- Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
+Add Isometric map type
 
 Import Options
-===================================
 Export Options
 
 AI Asset Generation:
@@ -28,6 +18,7 @@ Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Exploration:
+  Universal lpc spritesheet generator
   Ogmo Editor
   LDTK
   Pixelorama
@@ -37,7 +28,6 @@ Exploration:
   Libresprite
   Autotile
   SpriteFusion
-  Universal lpc spritesheet generator
   Tilekit
   Tilesetter
   Tileforge
@@ -47,12 +37,15 @@ Exploration:
   Makko.ai
   Keep Notes
 
+Text Layer custom fonts not working
+
+Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
+  - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
+
 Manage Tilesets
 Manage Maps
 Royalty free packs
 Add unit tests and add to CI/CD
-Write documentation for website. Use /nothing-design
-High touch animations
 Add tutorial video
 Add roadmap voting on home page
 Windows/Mac/Linux Apps

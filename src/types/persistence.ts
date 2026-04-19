@@ -1,5 +1,7 @@
 import type {
   AssetId,
+  ImageLayer,
+  LayerGroup,
   MapObject,
   ObjectLayer,
   Project,
@@ -50,6 +52,9 @@ export interface PackedMap {
   map: TileMapData;
   layers: TileLayer[];
   tilesets: Tileset[];
+  overrideTilesets?: Tileset[];
+  imageLayers?: ImageLayer[];
+  layerGroups?: LayerGroup[];
   objectLayers?: ObjectLayer[];
   objects?: MapObject[];
   manifest: AssetManifestEntry[];

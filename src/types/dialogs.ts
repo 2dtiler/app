@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import type { ToolName } from "./components";
+import type { NewMapType } from "./map-geometry";
 import type {
   MapObject,
+  ObjectId,
   PropertyType,
   PropertyValue,
   TerrainTile,
@@ -61,6 +63,12 @@ export interface ObjectPropertiesDialogProps {
   onSave: (properties: Record<string, PropertyValue>, name?: string) => void;
 }
 
+export interface ObjectPropertiesDialogManagerProps {
+  objectId: ObjectId | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 export interface EditablePropertyEntry {
   key: string;
   value: string;
@@ -84,10 +92,12 @@ export interface NewMapDialogProps {
   name: string;
   width: number;
   height: number;
+  mapType: NewMapType;
   tileSize: number;
   onNameChange: (value: string) => void;
   onWidthChange: (value: number) => void;
   onHeightChange: (value: number) => void;
+  onMapTypeChange: (value: NewMapType) => void;
   onCreate: () => void;
 }
 

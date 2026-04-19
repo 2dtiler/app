@@ -32,8 +32,14 @@ import {
   downloadFile,
   readFileAsUint8Array,
 } from "@/lib/format";
-import { generateMapId, generateLayerId, generateObjectId } from "@/lib/ids";
-import { getAllLayerIds } from "@/lib/layers";
+import {
+  generateMapId,
+  generateLayerId,
+  generateLayerGroupId,
+  generateObjectId,
+  generateTilesetId,
+} from "@/lib/ids";
+import { findLastLayerId, getAllGroupIds, getAllLayerIds } from "@/lib/layers";
 import { clearTileEditorContext } from "@/lib/tile-editor-context";
 import {
   hydrateZoomStoreForProject,
@@ -42,9 +48,17 @@ import {
 import { getActiveTilesetTileSize } from "@/lib/project";
 import { zoomStore } from "@/lib/zoom-store";
 import type {
+  ImageLayer,
+  LayerGroup,
   TilesetGroupId,
   MapGroupId,
+  MapObject,
+  ObjectLayer,
+  PropertyValue,
   TileLayer,
+  TileRef,
+  Tileset,
+  TilesetId,
   LayerId,
   LayerGroupId,
   ObjectId,
@@ -120,6 +134,51 @@ const NARROW_LAYOUT_BREAKPOINT = 768;
 
 // Init-once guard: prevents double-init in React StrictMode (advanced-init-once)
 let storeInitStarted = false;
+
+function clonePropertyValues(
+  values: Record<string, PropertyValue> = {},
+): Record<string, PropertyValue> {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, { ...value }]),
+  );
+}
+
+function remapLayerTreeId(
+  id: LayerId | LayerGroupId,
+  layerIdMap: ReadonlyMap<string, LayerId>,
+  groupIdMap: ReadonlyMap<string, LayerGroupId>,
+): LayerId | LayerGroupId {
+  return (layerIdMap.get(id as string) ??
+    groupIdMap.get(id as string) ??
+    id) as LayerId | LayerGroupId;
+}
+
+function remapTileEntries(
+  tiles: TileLayer["tiles"],
+  tilesetIdMap: ReadonlyMap<string, TilesetId>,
+): TileLayer["tiles"] {
+  return Object.fromEntries(
+    Object.entries(tiles).map(([coordinate, ref]) => [
+      coordinate,
+      {
+        ...ref,
+        tilesetId: tilesetIdMap.get(ref.tilesetId as string) ?? ref.tilesetId,
+      } satisfies TileRef,
+    ]),
+  );
+}
+
+function cloneImportedTileset(
+  tileset: Tileset,
+  tilesetIdMap: ReadonlyMap<string, TilesetId>,
+  groupId: TilesetGroupId,
+): Tileset {
+  return {
+    ...tileset,
+    id: tilesetIdMap.get(tileset.id as string) ?? tileset.id,
+    groupId,
+  };
+}
 
 function App() {
   const [ready, setReady] = useState(false);
@@ -546,20 +605,32 @@ function AppShell({
     if (!state.project || !state.activeMapId) return;
     const map = state.project.maps.find((m) => m.id === state.activeMapId);
     if (!map) return;
-    const allLayerIds = getAllLayerIds(
-      map.layerOrder,
-      state.project.layerGroups ?? [],
-    );
+    const projectLayerGroups = state.project.layerGroups ?? [];
+    const allLayerIds = getAllLayerIds(map.layerOrder, projectLayerGroups);
+    const allGroupIds = getAllGroupIds(map.layerOrder, projectLayerGroups);
     // js-set-map-lookups: O(1) membership check instead of O(n) .includes()
     const layerIdSet = new Set<string>(allLayerIds as string[]);
+    const groupIdSet = new Set<string>(allGroupIds as string[]);
     const layers = state.project.layers.filter((l) =>
       layerIdSet.has(l.id as string),
+    );
+    const imageLayers = (state.project.imageLayers ?? []).filter((layer) =>
+      layerIdSet.has(layer.id as string),
+    );
+    const layerGroups = projectLayerGroups.filter((group) =>
+      groupIdSet.has(group.id as string),
+    );
+    const objectLayers = (state.project.objectLayers ?? []).filter((layer) =>
+      layerIdSet.has(layer.id as string),
     );
     const data = await exportMap(
       map,
       layers,
       state.project.tilesets,
-      state.project.objectLayers ?? [],
+      state.project.overrideTilesets ?? [],
+      imageLayers,
+      layerGroups,
+      objectLayers,
       state.project.objects ?? [],
     );
     downloadFile(data, `${map.name}.2dm`);
@@ -574,105 +645,184 @@ function AppShell({
       const file = input.files?.[0];
       if (!file) return;
       try {
+        const currentProject = state.project;
+        if (!currentProject) return;
+
         const raw = await readFileAsUint8Array(file);
         const {
           map,
           layers,
           tilesets,
+          overrideTilesets,
+          imageLayers: importedImageLayers,
+          layerGroups: importedLayerGroups,
           objectLayers: importedObjLayers,
           objects: importedObjects,
         } = await importMap(raw);
 
-        // Assign new IDs to avoid collisions with existing project data
+        const targetMapGroupId =
+          state.activeMapGroupId ?? currentProject.mapGroups[0]?.id;
+        const targetTilesetGroupId =
+          state.activeTilesetGroupId ?? currentProject.tilesetGroups[0]?.id;
+        if (!targetMapGroupId || !targetTilesetGroupId) return;
+
         const newMapId = generateMapId();
-        const layerIdMap = new Map<string, string>();
-        const newLayers: TileLayer[] = layers.map((l) => {
-          const newLayerId = generateLayerId();
-          layerIdMap.set(l.id, newLayerId);
-          return { ...l, id: newLayerId, mapId: newMapId } as TileLayer;
-        });
+        const layerIdMap = new Map<string, LayerId>();
+        const groupIdMap = new Map<string, LayerGroupId>();
+        const objectIdMap = new Map<string, ObjectId>();
+        const tilesetIdMap = new Map<string, TilesetId>();
 
-        // Ensure the target map group exists
-        const targetGroupId =
-          state.activeMapGroupId ?? state.project!.mapGroups[0]?.id;
-        if (!targetGroupId) return;
+        for (const layer of layers) {
+          layerIdMap.set(layer.id as string, generateLayerId());
+        }
+        for (const layer of importedImageLayers) {
+          layerIdMap.set(layer.id as string, generateLayerId());
+        }
+        for (const layer of importedObjLayers) {
+          layerIdMap.set(layer.id as string, generateLayerId());
+        }
+        for (const group of importedLayerGroups) {
+          groupIdMap.set(group.id as string, generateLayerGroupId());
+        }
+        for (const object of importedObjects) {
+          objectIdMap.set(object.id as string, generateObjectId());
+        }
 
-        // Merge tilesets that don't already exist in the project
-        const existingTilesetIds = new Set(
-          state.project!.tilesets.map((t) => t.id),
+        const reservedTilesetIds = new Set(
+          [
+            ...currentProject.tilesets,
+            ...(currentProject.overrideTilesets ?? []),
+          ].map((tileset) => tileset.id as string),
         );
-        const newTilesets = tilesets.filter(
-          (t) => !existingTilesetIds.has(t.id),
+        const reserveImportedTilesetId = (tilesetId: TilesetId): TilesetId => {
+          const existingId = tilesetIdMap.get(tilesetId as string);
+          if (existingId) return existingId;
+
+          const nextId = reservedTilesetIds.has(tilesetId as string)
+            ? generateTilesetId()
+            : tilesetId;
+          reservedTilesetIds.add(nextId as string);
+          tilesetIdMap.set(tilesetId as string, nextId);
+          return nextId;
+        };
+
+        for (const tileset of tilesets) {
+          reserveImportedTilesetId(tileset.id);
+        }
+        for (const tileset of overrideTilesets) {
+          reserveImportedTilesetId(tileset.id);
+        }
+
+        const remappedTilesets = tilesets.map((tileset) =>
+          cloneImportedTileset(
+            tileset,
+            tilesetIdMap,
+            targetTilesetGroupId as TilesetGroupId,
+          ),
         );
+        const remappedOverrideTilesets = overrideTilesets.map((tileset) =>
+          cloneImportedTileset(
+            tileset,
+            tilesetIdMap,
+            targetTilesetGroupId as TilesetGroupId,
+          ),
+        );
+        const remappedLayers: TileLayer[] = layers.map((layer) => ({
+          ...layer,
+          id: layerIdMap.get(layer.id as string) ?? layer.id,
+          mapId: newMapId,
+          tiles: remapTileEntries(layer.tiles, tilesetIdMap),
+        }));
+        const remappedImageLayers: ImageLayer[] = importedImageLayers.map(
+          (layer) => ({
+            ...layer,
+            id: layerIdMap.get(layer.id as string) ?? layer.id,
+            mapId: newMapId,
+          }),
+        );
+        const remappedObjectLayers: ObjectLayer[] = importedObjLayers.map(
+          (layer) => ({
+            ...layer,
+            id: layerIdMap.get(layer.id as string) ?? layer.id,
+            mapId: newMapId,
+            objectOrder: layer.objectOrder.map(
+              (objectId) => objectIdMap.get(objectId as string) ?? objectId,
+            ),
+          }),
+        );
+        const remappedLayerGroups: LayerGroup[] = importedLayerGroups.map(
+          (group) => ({
+            ...group,
+            id: groupIdMap.get(group.id as string) ?? group.id,
+            mapId: newMapId,
+            childOrder: group.childOrder.map((id) =>
+              remapLayerTreeId(id, layerIdMap, groupIdMap),
+            ),
+          }),
+        );
+        const remappedObjects: MapObject[] = importedObjects.map((object) => ({
+          ...object,
+          id: objectIdMap.get(object.id as string) ?? object.id,
+          layerId: (layerIdMap.get(object.layerId as string) ??
+            object.layerId) as LayerId,
+          points: object.points.map((point) => ({ ...point })),
+          properties: clonePropertyValues(object.properties),
+        }));
+        const remappedMap = {
+          ...map,
+          id: newMapId,
+          groupId: targetMapGroupId as MapGroupId,
+          layerOrder: map.layerOrder.map((id) =>
+            remapLayerTreeId(id, layerIdMap, groupIdMap),
+          ),
+          properties: clonePropertyValues(map.properties),
+          createdAt: Date.now(),
+        };
 
         setState((draft) => {
           if (!draft.project) return;
-
-          // Add tilesets that aren't already present
-          for (const ts of newTilesets) {
-            // Assign to the first tileset group
-            const groupId =
-              draft.project.tilesetGroups[0]?.id ??
-              (null as unknown as TilesetGroupId);
-            if (groupId) {
-              draft.project.tilesets.push({ ...ts, groupId });
-            }
-          }
-
-          // Add the map
-          const newMap = {
-            ...map,
-            id: newMapId,
-            groupId: targetGroupId as MapGroupId,
-            layerOrder: map.layerOrder.map(
-              (lid) => (layerIdMap.get(lid) ?? lid) as LayerId | LayerGroupId,
-            ),
-            createdAt: Date.now(),
-          };
-          draft.project.maps.push(newMap);
-
-          // Add layers
-          for (const layer of newLayers) {
-            draft.project.layers.push(layer);
-          }
-
-          // Add imported object layers and objects (re-ID to avoid collisions)
+          if (!draft.project.imageLayers) draft.project.imageLayers = [];
+          if (!draft.project.layerGroups) draft.project.layerGroups = [];
           if (!draft.project.objectLayers) draft.project.objectLayers = [];
           if (!draft.project.objects) draft.project.objects = [];
-          for (const ol of importedObjLayers) {
-            const newOlId = generateLayerId();
-            layerIdMap.set(ol.id, newOlId);
-            draft.project.objectLayers.push({
-              ...ol,
-              id: newOlId,
-              mapId: newMapId,
-              objectOrder: ol.objectOrder.map((oid) => {
-                // object IDs will be remapped below
-                return oid;
-              }),
-            });
+          if (!draft.project.overrideTilesets)
+            draft.project.overrideTilesets = [];
+
+          for (const tileset of remappedTilesets) {
+            draft.project.tilesets.push(tileset);
           }
-          const objectIdMap = new Map<string, string>();
-          for (const obj of importedObjects) {
-            const newObjId = generateObjectId();
-            objectIdMap.set(obj.id, newObjId);
-            const newLayerId = layerIdMap.get(obj.layerId) ?? obj.layerId;
-            draft.project.objects.push({
-              ...obj,
-              id: newObjId,
-              layerId: newLayerId as LayerId,
-            });
+          for (const tileset of remappedOverrideTilesets) {
+            draft.project.overrideTilesets.push(tileset);
           }
-          // Fix up objectOrder references
-          for (const ol of draft.project.objectLayers) {
-            ol.objectOrder = ol.objectOrder.map(
-              (oid) => (objectIdMap.get(oid as string) ?? oid) as ObjectId,
-            );
+
+          draft.project.maps.push(remappedMap);
+
+          for (const layer of remappedLayers) {
+            draft.project.layers.push(layer);
+          }
+          for (const layer of remappedImageLayers) {
+            draft.project.imageLayers.push(layer);
+          }
+          for (const group of remappedLayerGroups) {
+            draft.project.layerGroups.push(group);
+          }
+          for (const layer of remappedObjectLayers) {
+            draft.project.objectLayers.push(layer);
+          }
+          for (const object of remappedObjects) {
+            draft.project.objects.push(object);
           }
 
           draft.activeMapId = newMapId;
-          draft.activeLayerId = newLayers[newLayers.length - 1]?.id ?? null;
-          draft.activeMapGroupId = targetGroupId as MapGroupId;
+          draft.activeLayerId =
+            findLastLayerId(
+              remappedMap.layerOrder,
+              remappedLayers,
+              remappedLayerGroups,
+              remappedImageLayers,
+              remappedObjectLayers,
+            ) ?? null;
+          draft.activeMapGroupId = targetMapGroupId as MapGroupId;
         });
       } catch (err) {
         console.error("[Import Map] Failed:", err);
@@ -680,7 +830,12 @@ function AppShell({
       }
     };
     input.click();
-  }, [state.project, state.activeMapGroupId, setState]);
+  }, [
+    state.project,
+    state.activeMapGroupId,
+    state.activeTilesetGroupId,
+    setState,
+  ]);
 
   // --- Tileset Import/Export ---
 

@@ -11,7 +11,11 @@ import type { PaletteExportFormat, PngSwatchSize } from "./image-editor-hook";
 
 export interface ToolSidebarProps {
   currentTool: ImageEditorTool;
+  brushSize: number;
+  blurSize: number;
   onSelectTool: (tool: ImageEditorTool) => void;
+  onBrushSize: (size: number) => void;
+  onBlurSize: (size: number) => void;
 }
 
 export interface TimelinePanelProps {
@@ -35,17 +39,13 @@ export interface TimelinePanelProps {
 
 export interface EditorToolbarProps {
   zoom: number;
-  brushSize: number;
   tool: ImageEditorTool;
-  blurSize: number;
   blurIntensity: number;
   canApplyCrop: boolean;
   canSave: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onZoom: (z: number) => void;
-  onBrushSize: (s: number) => void;
-  onBlurSize: (s: number) => void;
   onBlurIntensity: (i: number) => void;
   onApplyCrop: () => void;
   onCancelCrop: () => void;
@@ -80,6 +80,23 @@ export interface NewImageDialogProps {
   initialHeight?: number;
 }
 
+export type ImageCanvasResizeHandle = "e" | "s" | "se" | null;
+
+export interface ImageCanvasResizeAction {
+  handle: Exclude<ImageCanvasResizeHandle, null>;
+  startClientX: number;
+  startClientY: number;
+  origWidth: number;
+  origHeight: number;
+  nextWidth: number;
+  nextHeight: number;
+}
+
+export interface ImageCanvasResizePreview {
+  width: number;
+  height: number;
+}
+
 export interface ImageCanvasProps {
   width: number;
   height: number;
@@ -102,6 +119,7 @@ export interface ImageCanvasProps {
   onPushUndo: () => void;
   onSelectionChange: (sel: PixelSelection | null) => void;
   onFrameDataChange: (frameId: FrameId, data: ImageData) => void;
+  onResizeCanvas: (width: number, height: number) => void;
 }
 
 export interface PalettePanelProps {

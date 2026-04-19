@@ -2,8 +2,12 @@ import type { Travels } from "travels";
 import type { Color, ImageEditorState, ImageEditorTool } from "./image-editor";
 
 export interface FrameHistory {
-  undoStack: Uint8ClampedArray[];
-  redoStack: Uint8ClampedArray[];
+  undoStack: ImageEditorHistorySnapshot[];
+  redoStack: ImageEditorHistorySnapshot[];
+}
+
+export interface ImageEditorHistorySnapshot {
+  pixels: Uint8ClampedArray;
   width: number;
   height: number;
 }
@@ -34,6 +38,7 @@ export interface StrokeState {
   lastX: number;
   lastY: number;
   snapshot: ImageData | null;
+  path: [number, number][];
   moveOffsetX: number;
   moveOffsetY: number;
   active: boolean;

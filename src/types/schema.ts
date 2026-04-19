@@ -5,6 +5,12 @@
  * Binary data (images) is stored separately in IndexedDB and referenced by ID.
  */
 
+import type {
+  MapOrientation,
+  MapStaggerAxis,
+  MapStaggerIndex,
+} from "./map-geometry";
+
 // ---------------------------------------------------------------------------
 // Identifiers
 // ---------------------------------------------------------------------------
@@ -61,6 +67,12 @@ export interface TileMapData {
   id: MapId;
   name: string;
   groupId: MapGroupId;
+  /** Grid orientation, aligned with Tiled map orientation semantics */
+  orientation: MapOrientation;
+  /** Axis whose rows or columns are staggered on hex maps */
+  staggerAxis?: MapStaggerAxis;
+  /** Whether odd or even row/column indexes are shifted on hex maps */
+  staggerIndex?: MapStaggerIndex;
   /** Width of the map in tile units */
   widthInTiles: number;
   /** Height of the map in tile units */
@@ -173,7 +185,7 @@ export interface TileRef {
 // Object Layer
 // ---------------------------------------------------------------------------
 
-export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon";
+export type ObjectType = "rectangle" | "point" | "ellipse" | "polygon" | "text";
 
 /** Property types for Tiled-compatible custom properties (values are always stored as strings) */
 export const PROPERTY_TYPES = [

@@ -21,17 +21,13 @@ import type { EditorToolbarProps } from "@/types/image-editor-ui";
 
 export function EditorToolbar({
   zoom,
-  brushSize,
   tool,
-  blurSize,
   blurIntensity,
   canApplyCrop,
   canSave,
   canUndo,
   canRedo,
   onZoom,
-  onBrushSize,
-  onBlurSize,
   onBlurIntensity,
   onApplyCrop,
   onCancelCrop,
@@ -129,22 +125,6 @@ export function EditorToolbar({
 
         <div className="w-px h-5 bg-border" />
 
-        {/* Brush size */}
-        {(tool === "pencil" || tool === "eraser" || tool === "line") && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Brush: {brushSize}px
-            </span>
-            <Slider
-              min={1}
-              max={16}
-              value={[brushSize]}
-              onValueChange={([v]) => onBrushSize(v)}
-              className="w-24"
-            />
-          </div>
-        )}
-
         {/* Zoom */}
         <div className="flex items-center gap-1">
           <Tooltip>
@@ -188,18 +168,6 @@ export function EditorToolbar({
         {tool === "blur" && (
           <>
             <div className="w-px h-5 bg-border" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Size: {blurSize}
-              </span>
-              <Slider
-                min={1}
-                max={8}
-                value={[blurSize]}
-                onValueChange={([v]) => onBlurSize(v)}
-                className="w-20"
-              />
-            </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 Intensity: {blurIntensity}%

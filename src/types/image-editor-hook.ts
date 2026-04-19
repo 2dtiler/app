@@ -25,4 +25,15 @@ export interface PaletteLibrarySnapshot {
   activePaletteId: PaletteId;
 }
 
-export type UndoableActionType = "pixel" | "frame" | "palette";
+export interface ResizeSnapshot {
+  width: number;
+  height: number;
+  layerData: Map<string, ImageData>;
+}
+
+export interface ResizeOperation {
+  before: ResizeSnapshot;
+  after: ResizeSnapshot;
+}
+
+export type UndoableActionType = "pixel" | "frame" | "palette" | "resize";

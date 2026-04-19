@@ -7,6 +7,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type {
   ImageLayer,
+  MapObject,
   ObjectType,
   TileLayer,
   TileRef,
@@ -25,43 +26,43 @@ import type {
   UseSceneInteractionParams,
   UseSceneInteractionReturn,
 } from "@/types/map-canvas";
+import {
+  getMapCellAtPoint,
+  getMapCellOrigin,
+  getMapCellPolygon,
+  getMapPixelSize,
+} from "@/lib/map-geometry";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
 import {
   getImageLayerHandlePositions,
   pointInImageLayer,
   resizeImageLayerFromHandle,
 } from "./image-layer-transform";
+import {
+  getBoxObjectHandlePositions,
+  pointHitsObjectBody,
+  isBoxObjectType,
+} from "./object-utils";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
 import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";
 
 export type { UseSceneInteractionReturn } from "@/types/map-canvas";
 
-function drawBlockedPreview(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+function getObjectInteractionOverrides(
+  object: MapObject,
+  liveObjectPos: UseSceneInteractionReturn["liveObjectPos"],
+  liveObjectResize: UseSceneInteractionReturn["liveObjectResize"],
 ) {
-  if (width <= 0 || height <= 0) return;
-
-  const inset = Math.max(
-    1,
-    Math.min(6, Math.floor(Math.min(width, height) * 0.18)),
-  );
-
-  ctx.fillStyle = "rgba(220, 38, 38, 0.22)";
-  ctx.fillRect(x, y, width, height);
-  ctx.strokeStyle = "rgba(220, 38, 38, 0.95)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
-  ctx.beginPath();
-  ctx.moveTo(x + inset, y + inset);
-  ctx.lineTo(x + width - inset, y + height - inset);
-  ctx.moveTo(x + width - inset, y + inset);
-  ctx.lineTo(x + inset, y + height - inset);
-  ctx.stroke();
+  const resize =
+    liveObjectResize?.objectId === object.id ? liveObjectResize : null;
+  const drag = liveObjectPos?.objectId === object.id ? liveObjectPos : null;
+  return {
+    x: resize?.x ?? drag?.x,
+    y: resize?.y ?? drag?.y,
+    width: resize?.width,
+    height: resize?.height,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ function drawBlockedPreview(
 // ---------------------------------------------------------------------------
 
 export function useSceneInteraction({
+  map,
   layers,
   zoom,
   activeLayerId,
@@ -239,14 +241,55 @@ export function useSceneInteraction({
   // Helpers
   // ---------------------------------------------------------------------------
 
+  const mapPixelSize = getMapPixelSize(map, zoom);
+
   const getGridPos = useCallback(
     (globalX: number, globalY: number) => {
-      const gx = Math.floor(globalX / scaledTile);
-      const gy = Math.floor(globalY / scaledTile);
-      if (gx < 0 || gy < 0 || gx >= mapW || gy >= mapH) return null;
-      return { x: gx, y: gy };
+      return getMapCellAtPoint(map, zoom, { x: globalX, y: globalY });
     },
-    [scaledTile, mapW, mapH],
+    [map, zoom],
+  );
+
+  const getClampedGridPos = useCallback(
+    (globalX: number, globalY: number) => {
+      const clampedX = Math.max(0, Math.min(globalX, mapPixelSize.width - 1));
+      const clampedY = Math.max(0, Math.min(globalY, mapPixelSize.height - 1));
+      return getGridPos(clampedX, clampedY);
+    },
+    [getGridPos, mapPixelSize.height, mapPixelSize.width],
+  );
+
+  const traceCellPath = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+      const polygon = getMapCellPolygon(map, zoom, x, y);
+      ctx.beginPath();
+      ctx.moveTo(polygon[0].x, polygon[0].y);
+      for (const point of polygon.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.closePath();
+    },
+    [map, zoom],
+  );
+
+  const drawCellHighlight = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      fillStyle: string,
+      strokeStyle: string,
+      lineWidth: number,
+    ) => {
+      traceCellPath(ctx, x, y);
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+      traceCellPath(ctx, x, y);
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+    },
+    [traceCellPath],
   );
 
   const clearOverlay = useCallback(() => {
@@ -303,6 +346,7 @@ export function useSceneInteraction({
           fillPreviewRegion = cachedPreview.region;
         } else {
           fillPreviewRegion = getFillRegion({
+            map,
             layer: activeLayer,
             mapWidth: mapW,
             mapHeight: mapH,
@@ -324,8 +368,6 @@ export function useSceneInteraction({
       }
 
       const brushNum = parseInt(brushSize);
-      const hx = pointerGridPos.x * scaledTile;
-      const hy = pointerGridPos.y * scaledTile;
 
       if (isBlockedDrawPreview) {
         const previewWidth =
@@ -344,29 +386,35 @@ export function useSceneInteraction({
             : currentTool === "fill"
               ? 1
               : brushNum;
-        const hw = Math.min(previewWidth, mapW - pointerGridPos.x) * scaledTile;
-        const hh =
-          Math.min(previewHeight, mapH - pointerGridPos.y) * scaledTile;
-
-        drawBlockedPreview(ctx, hx, hy, hw, hh);
+        for (let dy = 0; dy < previewHeight; dy++) {
+          for (let dx = 0; dx < previewWidth; dx++) {
+            const tx = pointerGridPos.x + dx;
+            const ty = pointerGridPos.y + dy;
+            if (tx >= mapW || ty >= mapH) continue;
+            drawCellHighlight(
+              ctx,
+              tx,
+              ty,
+              "rgba(220, 38, 38, 0.22)",
+              "rgba(220, 38, 38, 0.95)",
+              2,
+            );
+          }
+        }
         return;
       }
 
       if (currentTool === "fill") {
         if (fillPreviewRegion.length === 0) return;
 
-        ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
-        ctx.strokeStyle = "rgba(255, 165, 0, 0.55)";
-        ctx.lineWidth = 1;
         for (const [tx, ty] of fillPreviewRegion) {
-          const fillX = tx * scaledTile;
-          const fillY = ty * scaledTile;
-          ctx.fillRect(fillX, fillY, scaledTile, scaledTile);
-          ctx.strokeRect(
-            fillX + 0.5,
-            fillY + 0.5,
-            scaledTile - 1,
-            scaledTile - 1,
+          drawCellHighlight(
+            ctx,
+            tx,
+            ty,
+            "rgba(255, 165, 0, 0.2)",
+            "rgba(255, 165, 0, 0.55)",
+            1,
           );
         }
         return;
@@ -380,13 +428,21 @@ export function useSceneInteraction({
         selectedStamp && isMultiTileStamp(selectedStamp)
           ? selectedStamp.height
           : brushNum;
-      const hw = Math.min(previewWidth, mapW - pointerGridPos.x) * scaledTile;
-      const hh = Math.min(previewHeight, mapH - pointerGridPos.y) * scaledTile;
-      ctx.fillStyle = "rgba(255, 165, 0, 0.2)";
-      ctx.fillRect(hx, hy, hw, hh);
-      ctx.strokeStyle = "rgba(255, 165, 0, 0.8)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(hx, hy, hw, hh);
+      for (let dy = 0; dy < previewHeight; dy++) {
+        for (let dx = 0; dx < previewWidth; dx++) {
+          const tx = pointerGridPos.x + dx;
+          const ty = pointerGridPos.y + dy;
+          if (tx >= mapW || ty >= mapH) continue;
+          drawCellHighlight(
+            ctx,
+            tx,
+            ty,
+            "rgba(255, 165, 0, 0.2)",
+            "rgba(255, 165, 0, 0.8)",
+            2,
+          );
+        }
+      }
 
       if (currentTool !== "paint" || !selectedTile || !selectedStamp) return;
 
@@ -399,14 +455,15 @@ export function useSceneInteraction({
           const tx = pointerGridPos.x + cell.dx;
           const ty = pointerGridPos.y + cell.dy;
           if (tx >= mapW || ty >= mapH) continue;
+          const origin = getMapCellOrigin(map, zoom, tx, ty);
           ctx.drawImage(
             tileImg,
             cell.ref.sx,
             cell.ref.sy,
             cell.ref.sw,
             cell.ref.sh,
-            tx * scaledTile,
-            ty * scaledTile,
+            origin.x,
+            origin.y,
             scaledTile,
             scaledTile,
           );
@@ -418,14 +475,15 @@ export function useSceneInteraction({
             const tx = pointerGridPos.x + dx;
             const ty = pointerGridPos.y + dy;
             if (tx >= mapW || ty >= mapH) continue;
+            const origin = getMapCellOrigin(map, zoom, tx, ty);
             ctx.drawImage(
               tileImg,
               ref.sx,
               ref.sy,
               ref.sw,
               ref.sh,
-              tx * scaledTile,
-              ty * scaledTile,
+              origin.x,
+              origin.y,
               scaledTile,
               scaledTile,
             );
@@ -440,10 +498,12 @@ export function useSceneInteraction({
       brushSize,
       canPreviewFill,
       currentTool,
+      drawCellHighlight,
       fillMode,
       getGridPos,
       imageLayers,
       layers,
+      map,
       mapH,
       mapW,
       objectLayers,
@@ -451,6 +511,7 @@ export function useSceneInteraction({
       scaledTile,
       selectedTile,
       selectedTileSize,
+      zoom,
     ],
   );
 
@@ -465,18 +526,16 @@ export function useSceneInteraction({
 
   const isInsideSelection = useCallback(
     (globalX: number, globalY: number, sel: MapSelection): boolean => {
-      const sx = sel.x * scaledTile;
-      const sy = sel.y * scaledTile;
-      const sw = sel.width * scaledTile;
-      const sh = sel.height * scaledTile;
+      const cell = getGridPos(globalX, globalY);
+      if (!cell) return false;
       return (
-        globalX >= sx &&
-        globalX <= sx + sw &&
-        globalY >= sy &&
-        globalY <= sy + sh
+        cell.x >= sel.x &&
+        cell.x < sel.x + sel.width &&
+        cell.y >= sel.y &&
+        cell.y < sel.y + sel.height
       );
     },
-    [scaledTile],
+    [getGridPos],
   );
 
   const getInteractiveImageLayer = useCallback(
@@ -698,30 +757,16 @@ export function useSceneInteraction({
 
         // --- Object resize handle hit test ---
         const activeObj = objects.find((o) => o.id === activeObjectId);
-        if (
-          activeObj &&
-          (activeObj.type === "rectangle" || activeObj.type === "ellipse")
-        ) {
-          const resize =
-            liveObjectResize?.objectId === activeObj.id
-              ? liveObjectResize
-              : null;
-          const drag =
-            liveObjectPos?.objectId === activeObj.id ? liveObjectPos : null;
-          const aox = (resize?.x ?? drag?.x ?? activeObj.x) * zoom;
-          const aoy = (resize?.y ?? drag?.y ?? activeObj.y) * zoom;
-          const aow = (resize?.width ?? activeObj.width) * zoom;
-          const aoh = (resize?.height ?? activeObj.height) * zoom;
-          const handles: [ResizeHandle, number, number][] = [
-            ["nw", aox, aoy],
-            ["n", aox + aow / 2, aoy],
-            ["ne", aox + aow, aoy],
-            ["w", aox, aoy + aoh / 2],
-            ["e", aox + aow, aoy + aoh / 2],
-            ["sw", aox, aoy + aoh],
-            ["s", aox + aow / 2, aoy + aoh],
-            ["se", aox + aow, aoy + aoh],
-          ];
+        if (activeObj && isBoxObjectType(activeObj)) {
+          const handles = getBoxObjectHandlePositions(
+            activeObj,
+            zoom,
+            getObjectInteractionOverrides(
+              activeObj,
+              liveObjectPos,
+              liveObjectResize,
+            ),
+          );
           const hSize = 8;
           for (const [handle, cx, cy] of handles) {
             if (Math.abs(e.x - cx) <= hSize && Math.abs(e.y - cy) <= hSize) {
@@ -767,25 +812,7 @@ export function useSceneInteraction({
             .filter((o) => o.layerId === activeLayerId && o.visible)
             .reverse();
           for (const obj of layerObjects) {
-            const ox = obj.x * zoom;
-            const oy = obj.y * zoom;
-            const ow = obj.width * zoom;
-            const oh = obj.height * zoom;
-            let hit = false;
-            if (obj.type === "rectangle" || obj.type === "ellipse") {
-              hit = e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
-            } else if (obj.type === "point") {
-              const ps = 8 * zoom;
-              hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
-            } else if (obj.type === "polygon" && obj.points.length >= 3) {
-              const pts = obj.points;
-              const minX = Math.min(...pts.map((p) => p.x)) * zoom + ox;
-              const maxX = Math.max(...pts.map((p) => p.x)) * zoom + ox;
-              const minY = Math.min(...pts.map((p) => p.y)) * zoom + oy;
-              const maxY = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-              hit = e.x >= minX && e.x <= maxX && e.y >= minY && e.y <= maxY;
-            }
-            if (hit) {
+            if (pointHitsObjectBody(obj, e.x, e.y, zoom)) {
               const now = Date.now();
               const lastObjClick = lastObjectClickRef.current;
               const isObjDoubleClick =
@@ -871,8 +898,10 @@ export function useSceneInteraction({
           }
         }
 
-        const gx = Math.floor(e.x / scaledTile);
-        const gy = Math.floor(e.y / scaledTile);
+        const selectionPos = getClampedGridPos(e.x, e.y);
+        if (!selectionPos) return;
+        const gx = selectionPos.x;
+        const gy = selectionPos.y;
 
         if (
           renderedSelection &&
@@ -902,10 +931,8 @@ export function useSceneInteraction({
         }
 
         // Start drawing a new selection
-        if (gx >= 0 && gy >= 0 && gx < mapW && gy < mapH) {
-          selActionRef.current = { type: "draw", startX: gx, startY: gy };
-          setLiveSelection({ x: gx, y: gy, width: 1, height: 1 });
-        }
+        selActionRef.current = { type: "draw", startX: gx, startY: gy };
+        setLiveSelection({ x: gx, y: gy, width: 1, height: 1 });
         return;
       }
 
@@ -915,12 +942,10 @@ export function useSceneInteraction({
       onPaintTile(pos.x, pos.y);
     },
     [
+      getClampedGridPos,
       getGridPos,
       onPaintTile,
       currentTool,
-      scaledTile,
-      mapW,
-      mapH,
       renderedSelection,
       isInsideSelection,
       layers,
@@ -1068,24 +1093,16 @@ export function useSceneInteraction({
             let objCursor: string | null = null;
 
             const activeObj = objects.find((o) => o.id === activeObjectId);
-            if (
-              activeObj &&
-              (activeObj.type === "rectangle" || activeObj.type === "ellipse")
-            ) {
-              const aox = activeObj.x * zoom;
-              const aoy = activeObj.y * zoom;
-              const aow = activeObj.width * zoom;
-              const aoh = activeObj.height * zoom;
-              const objHandles: [ResizeHandle, number, number][] = [
-                ["nw", aox, aoy],
-                ["n", aox + aow / 2, aoy],
-                ["ne", aox + aow, aoy],
-                ["w", aox, aoy + aoh / 2],
-                ["e", aox + aow, aoy + aoh / 2],
-                ["sw", aox, aoy + aoh],
-                ["s", aox + aow / 2, aoy + aoh],
-                ["se", aox + aow, aoy + aoh],
-              ];
+            if (activeObj && isBoxObjectType(activeObj)) {
+              const objHandles = getBoxObjectHandlePositions(
+                activeObj,
+                zoom,
+                getObjectInteractionOverrides(
+                  activeObj,
+                  liveObjectPos,
+                  liveObjectResize,
+                ),
+              );
               const hSize = 8;
               for (const [h, cx, cy] of objHandles) {
                 if (
@@ -1116,30 +1133,7 @@ export function useSceneInteraction({
                 .filter((o) => o.layerId === activeLayerId && o.visible)
                 .reverse();
               for (const obj of layerObjects) {
-                const ox = obj.x * zoom;
-                const oy = obj.y * zoom;
-                const ow = obj.width * zoom;
-                const oh = obj.height * zoom;
-                let hit = false;
-                if (obj.type === "rectangle" || obj.type === "ellipse") {
-                  hit =
-                    e.x >= ox && e.x <= ox + ow && e.y >= oy && e.y <= oy + oh;
-                } else if (obj.type === "point") {
-                  const ps = 8 * zoom;
-                  hit = Math.abs(e.x - ox) <= ps && Math.abs(e.y - oy) <= ps;
-                } else if (obj.type === "polygon" && obj.points.length >= 3) {
-                  const pts = obj.points;
-                  const minPx = Math.min(...pts.map((p) => p.x)) * zoom + ox;
-                  const maxPx = Math.max(...pts.map((p) => p.x)) * zoom + ox;
-                  const minPy = Math.min(...pts.map((p) => p.y)) * zoom + oy;
-                  const maxPy = Math.max(...pts.map((p) => p.y)) * zoom + oy;
-                  hit =
-                    e.x >= minPx &&
-                    e.x <= maxPx &&
-                    e.y >= minPy &&
-                    e.y <= maxPy;
-                }
-                if (hit) {
+                if (pointHitsObjectBody(obj, e.x, e.y, zoom)) {
                   objCursor = obj.locked ? "not-allowed" : "move";
                   break;
                 }
@@ -1154,8 +1148,10 @@ export function useSceneInteraction({
           return;
         }
 
-        const gx = Math.floor(e.x / scaledTile);
-        const gy = Math.floor(e.y / scaledTile);
+        const selectionPos = getClampedGridPos(e.x, e.y);
+        if (!selectionPos) return;
+        const gx = selectionPos.x;
+        const gy = selectionPos.y;
 
         if (action.type === "draw") {
           const x1 = Math.min(
@@ -1200,11 +1196,11 @@ export function useSceneInteraction({
       onPaintTile(pos.x, pos.y);
     },
     [
+      getClampedGridPos,
       getGridPos,
       currentTool,
       onPaintTile,
       drawOverlayPreview,
-      scaledTile,
       mapW,
       mapH,
       zoom,
@@ -1214,6 +1210,8 @@ export function useSceneInteraction({
       activeLayerId,
       activeObjectId,
       isDrawingPolygon,
+      liveObjectPos,
+      liveObjectResize,
     ],
   );
 

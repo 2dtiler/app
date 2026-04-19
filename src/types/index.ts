@@ -1,4 +1,5 @@
 export * from "./schema";
+export * from "./map-geometry";
 export * from "./image-editor";
 export * from "./components";
 export * from "./dialogs";
@@ -12,3 +13,4 @@ export * from "./editor-helpers";
 export * from "./image-editor-internals";
 export * from "./api-keys";
 export * from "./ai-assets";
+export * from "./text-object";

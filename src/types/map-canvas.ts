@@ -10,6 +10,10 @@ import type {
   TileMapData,
   TileRef,
 } from "./schema";
+import type {
+  TextObjectEditingState,
+  TextObjectMapObject,
+} from "./text-object";
 
 export interface MapCanvasImperativeHandle {
   drawBufferTile: (gx: number, gy: number, ref: TileRef) => void;
@@ -18,6 +22,23 @@ export interface MapCanvasImperativeHandle {
 }
 
 export type ResizeHandle = "nw" | "n" | "ne" | "w" | "e" | "sw" | "s" | "se";
+
+export type MapResizeHandle = "e" | "s" | "se";
+
+export interface MapResizePreview {
+  width: number;
+  height: number;
+}
+
+export interface MapResizeAction {
+  handle: MapResizeHandle;
+  startClientX: number;
+  startClientY: number;
+  origWidth: number;
+  origHeight: number;
+  nextWidth: number;
+  nextHeight: number;
+}
 
 export interface MapCanvasProps {
   map: TileMapData;
@@ -32,6 +53,7 @@ export interface MapCanvasProps {
   brushSize: EditorState["brushSize"];
   selectedTileSize: EditorState["tileSize"];
   selectedTile: EditorState["selectedTile"];
+  onResizeMap: (width: number, height: number) => void;
   onPaintTile: (gx: number, gy: number) => void;
   onPaintEnd: () => void;
   paintBuffer: Map<string, TileRef | null>;
@@ -74,8 +96,21 @@ export interface MapCanvasProps {
     points: { x: number; y: number }[],
   ) => void;
   onSelectObject: (objectId: string | null) => void;
+  editingTextObject: TextObjectEditingState | null;
+  onEditingTextChange: (text: string) => void;
+  onCommitTextEditing: () => void;
+  onCancelTextEditing: () => void;
   onCancelPendingObject?: () => void;
   onDoubleClickObject?: (objectId: string) => void;
+}
+
+export interface TextObjectEditorOverlayProps {
+  object: TextObjectMapObject;
+  text: string;
+  zoom: number;
+  onTextChange: (text: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
 }
 
 export type SelectionAction =
@@ -144,6 +179,7 @@ export interface PolyVertexDragAction {
 }
 
 export interface UseSceneInteractionParams {
+  map: TileMapData;
   layers: TileLayer[];
   zoom: number;
   activeLayerId: string | null;

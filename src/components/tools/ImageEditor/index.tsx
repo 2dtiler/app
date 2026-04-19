@@ -716,17 +716,13 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
       {/* Top toolbar */}
       <EditorToolbar
         zoom={zoom}
-        brushSize={brushSize}
         tool={tool}
-        blurSize={blurSize}
         blurIntensity={blurIntensity}
         canApplyCrop={canApplyCrop}
         canSave={canSaveToContext}
         canUndo={editor.canUndo}
         canRedo={editor.canRedo}
         onZoom={editor.setZoom}
-        onBrushSize={editor.setBrushSize}
-        onBlurSize={editor.setBlurSize}
         onBlurIntensity={editor.setBlurIntensity}
         onApplyCrop={handleApplyCrop}
         onCancelCrop={handleCancelCrop}
@@ -748,7 +744,14 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
         <Panel defaultSize="70%" minSize="40%">
           <div className="flex h-full min-h-0">
             {/* Tool sidebar */}
-            <ToolSidebar currentTool={tool} onSelectTool={editor.setTool} />
+            <ToolSidebar
+              currentTool={tool}
+              brushSize={brushSize}
+              blurSize={blurSize}
+              onSelectTool={editor.setTool}
+              onBrushSize={editor.setBrushSize}
+              onBlurSize={editor.setBlurSize}
+            />
 
             {/* Canvas + Palette with resizable divider */}
             <Group
@@ -781,6 +784,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
                     onPushUndo={editor.pushUndoSnapshot}
                     onSelectionChange={editor.setSelection}
                     onFrameDataChange={editor.setFrameData}
+                    onResizeCanvas={editor.resizeCanvas}
                   />
                 </div>
               </Panel>

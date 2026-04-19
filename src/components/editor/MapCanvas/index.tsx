@@ -12,7 +12,20 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
-import type { MapCanvasProps } from "@/types/map-canvas";
+import {
+  getMapCellBounds,
+  getMapCellOrigin,
+  getMapCellPolygon,
+  getMapPixelSize,
+  isHexagonalMap,
+} from "@/lib/map-geometry";
+import { isTextObject } from "@/lib/text-objects";
+import type {
+  MapCanvasProps,
+  MapResizeAction,
+  MapResizeHandle,
+  MapResizePreview,
+} from "@/types/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,
@@ -29,7 +42,29 @@ import {
   getImageLayerPolygon,
   getImageLayerResizeCursor,
 } from "./image-layer-transform";
+import {
+  drawLiveObjectPlacementPreview,
+  drawMapObjects,
+} from "./draw-map-objects";
+import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
 import { useSceneInteraction } from "./use-scene-interaction";
+
+const MAP_RESIZE_GUTTER = 14;
+const MAP_RESIZE_RAIL_SIZE = 10;
+const MAP_RESIZE_BADGE_OFFSET = 6;
+
+function clampMapDimension(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(256, Math.max(1, Math.round(value)));
+}
+
+function getResizeDeltaInTiles(delta: number, scaledTile: number): number {
+  if (scaledTile <= 0) return 0;
+  if (delta >= 0) {
+    return Math.floor(delta / scaledTile);
+  }
+  return Math.ceil(delta / scaledTile);
+}
 
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {
@@ -45,6 +80,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     brushSize,
     selectedTileSize,
     selectedTile,
+    onResizeMap,
     onPaintTile,
     onPaintEnd,
     paintBufferVersion,
@@ -64,6 +100,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onResizeObject,
     onUpdatePolygonPoints,
     onSelectObject,
+    editingTextObject,
+    onEditingTextChange,
+    onCommitTextEditing,
+    onCancelTextEditing,
     onCancelPendingObject,
     onDoubleClickObject,
   } = props;
@@ -77,13 +117,143 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imagesReady, setImagesReady] = useState(0);
+  const mapResizeActionRef = useRef<MapResizeAction | null>(null);
+  const [activeMapResizeHandle, setActiveMapResizeHandle] =
+    useState<MapResizeHandle | null>(null);
+  const [hoveredMapResizeHandle, setHoveredMapResizeHandle] =
+    useState<MapResizeHandle | null>(null);
+  const [mapResizePreview, setMapResizePreview] =
+    useState<MapResizePreview | null>(null);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
   const mapH = map.heightInTiles;
+  const previewMapW = mapResizePreview?.width ?? mapW;
+  const previewMapH = mapResizePreview?.height ?? mapH;
   const scaledTile = tileSize * zoom;
-  const canvasW = mapW * scaledTile;
-  const canvasH = mapH * scaledTile;
+  const previewMap = {
+    ...map,
+    widthInTiles: previewMapW,
+    heightInTiles: previewMapH,
+  };
+  const previewPixelSize = getMapPixelSize(previewMap, zoom);
+  const canvasW = Math.ceil(previewPixelSize.width);
+  const canvasH = Math.ceil(previewPixelSize.height);
+  const isHexMap = isHexagonalMap(map);
+
+  const traceCellPath = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+      const polygon = getMapCellPolygon(map, zoom, x, y);
+      ctx.beginPath();
+      ctx.moveTo(polygon[0].x, polygon[0].y);
+      for (const point of polygon.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.closePath();
+    },
+    [map, zoom],
+  );
+
+  const endMapResize = useCallback(
+    (commit: boolean) => {
+      const action = mapResizeActionRef.current;
+      if (!action) return;
+
+      mapResizeActionRef.current = null;
+      setActiveMapResizeHandle(null);
+      setHoveredMapResizeHandle(null);
+      setMapResizePreview(null);
+
+      if (
+        commit &&
+        (action.nextWidth !== action.origWidth ||
+          action.nextHeight !== action.origHeight)
+      ) {
+        onResizeMap(action.nextWidth, action.nextHeight);
+      }
+    },
+    [onResizeMap],
+  );
+
+  const updateMapResizePreview = useCallback(
+    (clientX: number, clientY: number) => {
+      const action = mapResizeActionRef.current;
+      if (!action) return;
+
+      const deltaTilesX = getResizeDeltaInTiles(
+        clientX - action.startClientX,
+        scaledTile,
+      );
+      const deltaTilesY = getResizeDeltaInTiles(
+        clientY - action.startClientY,
+        scaledTile,
+      );
+      const nextWidth = clampMapDimension(
+        action.origWidth +
+          (action.handle === "e" || action.handle === "se" ? deltaTilesX : 0),
+        action.origWidth,
+      );
+      const nextHeight = clampMapDimension(
+        action.origHeight +
+          (action.handle === "s" || action.handle === "se" ? deltaTilesY : 0),
+        action.origHeight,
+      );
+
+      action.nextWidth = nextWidth;
+      action.nextHeight = nextHeight;
+      setMapResizePreview({ width: nextWidth, height: nextHeight });
+    },
+    [scaledTile],
+  );
+
+  const beginMapResize = useCallback(
+    (handle: MapResizeHandle, e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      mapResizeActionRef.current = {
+        handle,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        origWidth: mapW,
+        origHeight: mapH,
+        nextWidth: mapW,
+        nextHeight: mapH,
+      };
+      setActiveMapResizeHandle(handle);
+      setHoveredMapResizeHandle(handle);
+      setMapResizePreview({ width: mapW, height: mapH });
+    },
+    [mapW, mapH],
+  );
+
+  useEffect(() => {
+    if (!activeMapResizeHandle) return;
+
+    function handleWindowPointerMove(e: PointerEvent) {
+      e.preventDefault();
+      updateMapResizePreview(e.clientX, e.clientY);
+    }
+
+    function handleWindowPointerUp(e: PointerEvent) {
+      if (e.button !== 0) return;
+      endMapResize(true);
+    }
+
+    function handleWindowPointerCancel() {
+      endMapResize(false);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerCancel);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel);
+    };
+  }, [activeMapResizeHandle, endMapResize, updateMapResizePreview]);
 
   // ---------------------------------------------------------------------------
   // Image loading
@@ -164,16 +334,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const img = getTileImage(ref);
         if (!img) return;
         ctx.imageSmoothingEnabled = false;
-        // Clear that cell first so erase/repaint is correct
-        ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
-        drawTileWithOrientation(
-          ctx,
-          img,
-          ref,
-          gx * scaledTile,
-          gy * scaledTile,
-          scaledTile,
-        );
+        const bounds = getMapCellBounds(map, zoom, gx, gy);
+        if (!isHexMap) {
+          ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        }
+        drawTileWithOrientation(ctx, img, ref, bounds.x, bounds.y, scaledTile);
       },
       eraseBufferTile(gx: number, gy: number) {
         const canvas = paintCanvasRef.current;
@@ -181,7 +346,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.imageSmoothingEnabled = false;
-        ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
+        if (isHexMap) return;
+        const bounds = getMapCellBounds(map, zoom, gx, gy);
+        ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
       },
       clearPaintCanvas() {
         const canvas = paintCanvasRef.current;
@@ -218,6 +385,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     handlePointerUp,
     handlePointerLeave,
   } = useSceneInteraction({
+    map,
     layers,
     zoom,
     activeLayerId,
@@ -270,6 +438,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
   const moveTiles = useMemo(() => moveTilesSnapshot ?? [], [moveTilesSnapshot]);
   const moveDestSel = moveTilesSnapshot ? liveSelection : null;
+  const editingObject = editingTextObject
+    ? (objects.find((object) => object.id === editingTextObject.objectId) ??
+      null)
+    : null;
+  const editingTextCanvasObject =
+    editingObject && isTextObject(editingObject) ? editingObject : null;
 
   const getDisplayImageLayer = useCallback(
     (imgLayer: ImageLayer) => {
@@ -355,12 +529,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           const img = getTileImage(ref);
           if (!img) continue;
           const [gx, gy] = key.split(",").map(Number);
+          const origin = getMapCellOrigin(map, zoom, gx, gy);
           drawTileWithOrientation(
             offCtx,
             img,
             ref,
-            gx * scaledTile,
-            gy * scaledTile,
+            origin.x,
+            origin.y,
             scaledTile,
           );
         }
@@ -377,6 +552,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     canvasW,
     canvasH,
     imagesReady,
+    map,
     zoom,
     getDisplayImageLayer,
     scaleImageLayer,
@@ -439,12 +615,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             const img = getTileImage(ref);
             if (!img) continue;
             const [gx, gy] = key.split(",").map(Number);
+            const origin = getMapCellOrigin(map, zoom, gx, gy);
             drawTileWithOrientation(
               ctx,
               img,
               ref,
-              gx * scaledTile,
-              gy * scaledTile,
+              origin.x,
+              origin.y,
               scaledTile,
             );
           }
@@ -454,6 +631,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   }, [
     canvasW,
     canvasH,
+    map,
     scaledTile,
     zoom,
     orderedLayerEntries,
@@ -485,33 +663,62 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     // ---- Grid ----
     ctx.strokeStyle = "rgba(255, 165, 0, 0.15)";
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = 0; x <= canvasW; x += scaledTile) {
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, canvasH);
+    if (isHexMap) {
+      for (let y = 0; y < mapH; y++) {
+        for (let x = 0; x < mapW; x++) {
+          traceCellPath(ctx, x, y);
+          ctx.stroke();
+        }
+      }
+    } else {
+      ctx.beginPath();
+      for (let x = 0; x <= canvasW; x += scaledTile) {
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvasH);
+      }
+      for (let y = 0; y <= canvasH; y += scaledTile) {
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvasW, y + 0.5);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
     }
-    for (let y = 0; y <= canvasH; y += scaledTile) {
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(canvasW, y + 0.5);
-    }
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
 
     // ---- Selection overlay ----
     if (currentTool === "select" && renderedSelection) {
-      const sx = renderedSelection.x * scaledTile;
-      const sy = renderedSelection.y * scaledTile;
-      const sw = renderedSelection.width * scaledTile;
-      const sh = renderedSelection.height * scaledTile;
-      ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-      ctx.fillRect(sx, sy, sw, sh);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
-      ctx.strokeStyle = "rgba(59, 130, 246, 1)";
-      ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+      if (isHexMap) {
+        for (let dy = 0; dy < renderedSelection.height; dy++) {
+          for (let dx = 0; dx < renderedSelection.width; dx++) {
+            const tx = renderedSelection.x + dx;
+            const ty = renderedSelection.y + dy;
+            traceCellPath(ctx, tx, ty);
+            ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
+            ctx.fill();
+            traceCellPath(ctx, tx, ty);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            traceCellPath(ctx, tx, ty);
+            ctx.strokeStyle = "rgba(59, 130, 246, 1)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        }
+      } else {
+        const sx = renderedSelection.x * scaledTile;
+        const sy = renderedSelection.y * scaledTile;
+        const sw = renderedSelection.width * scaledTile;
+        const sh = renderedSelection.height * scaledTile;
+        ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
+        ctx.fillRect(sx, sy, sw, sh);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+        ctx.strokeStyle = "rgba(59, 130, 246, 1)";
+        ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+      }
     }
 
     // ---- Image layer selection border + handles ----
@@ -565,160 +772,19 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       }
     }
 
-    // ---- Objects ----
-    for (const objLayer of objectLayers) {
-      if (!objLayer.visible) continue;
-      const layerObjects = objects.filter((o) => o.layerId === objLayer.id);
-      for (const obj of layerObjects) {
-        if (!obj.visible) continue;
-        const isActive = obj.id === activeObjectId;
-        const colorBase = isActive ? "rgba(0, 170, 255," : "rgba(0, 204, 170,";
-        const colorAlpha = isActive ? 1 : 0.7;
-        const lineWidth = isActive ? 2 : 1.5;
-
-        const drag = liveObjectPos?.objectId === obj.id ? liveObjectPos : null;
-        const resize =
-          liveObjectResize?.objectId === obj.id ? liveObjectResize : null;
-        const ox = (resize?.x ?? drag?.x ?? obj.x) * zoom;
-        const oy = (resize?.y ?? drag?.y ?? obj.y) * zoom;
-        const ow = (resize?.width ?? obj.width) * zoom;
-        const oh = (resize?.height ?? obj.height) * zoom;
-
-        ctx.strokeStyle = `${colorBase} ${colorAlpha})`;
-        ctx.lineWidth = lineWidth;
-
-        if (obj.type === "rectangle") {
-          ctx.strokeRect(ox, oy, ow, oh);
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fillRect(ox, oy, ow, oh);
-        } else if (obj.type === "ellipse") {
-          ctx.beginPath();
-          ctx.ellipse(
-            ox + ow / 2,
-            oy + oh / 2,
-            ow / 2,
-            oh / 2,
-            0,
-            0,
-            Math.PI * 2,
-          );
-          ctx.stroke();
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fill();
-        } else if (obj.type === "point") {
-          const ps = 6 * zoom;
-          ctx.beginPath();
-          ctx.moveTo(ox - ps, oy);
-          ctx.lineTo(ox + ps, oy);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(ox, oy - ps);
-          ctx.lineTo(ox, oy + ps);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(ox, oy - ps * 0.7);
-          ctx.lineTo(ox + ps * 0.7, oy);
-          ctx.lineTo(ox, oy + ps * 0.7);
-          ctx.lineTo(ox - ps * 0.7, oy);
-          ctx.closePath();
-          ctx.fillStyle = `${colorBase} 0.3)`;
-          ctx.fill();
-          ctx.stroke();
-        } else if (obj.type === "polygon" && obj.points.length >= 2) {
-          const pts = obj.points.map((p, i) =>
-            livePolyVertex &&
-            livePolyVertex.objectId === obj.id &&
-            livePolyVertex.vertexIndex === i
-              ? livePolyVertex
-              : p,
-          );
-          ctx.beginPath();
-          ctx.moveTo(ox + pts[0].x * zoom, oy + pts[0].y * zoom);
-          for (let i = 1; i < pts.length; i++) {
-            ctx.lineTo(ox + pts[i].x * zoom, oy + pts[i].y * zoom);
-          }
-          ctx.closePath();
-          ctx.stroke();
-          ctx.fillStyle = `${colorBase} 0.08)`;
-          ctx.fill();
-        }
-
-        // Resize handles for active rect / ellipse
-        if (isActive && (obj.type === "rectangle" || obj.type === "ellipse")) {
-          const hs = 6;
-          const hh = hs / 2;
-          const hps: [number, number][] = [
-            [ox, oy],
-            [ox + ow / 2, oy],
-            [ox + ow, oy],
-            [ox, oy + oh / 2],
-            [ox + ow, oy + oh / 2],
-            [ox, oy + oh],
-            [ox + ow / 2, oy + oh],
-            [ox + ow, oy + oh],
-          ];
-          for (const [hx, hy] of hps) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(hx - hh, hy - hh, hs, hs);
-            ctx.strokeStyle = `${colorBase} 1)`;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(hx - hh, hy - hh, hs, hs);
-          }
-        }
-
-        // Vertex handles for active polygon
-        if (isActive && obj.type === "polygon") {
-          for (let vi = 0; vi < obj.points.length; vi++) {
-            const pt = obj.points[vi];
-            const liveVt =
-              livePolyVertex &&
-              livePolyVertex.objectId === obj.id &&
-              livePolyVertex.vertexIndex === vi
-                ? livePolyVertex
-                : null;
-            const vx = ox + (liveVt ? liveVt.x : pt.x) * zoom;
-            const vy = oy + (liveVt ? liveVt.y : pt.y) * zoom;
-            ctx.beginPath();
-            ctx.arc(vx, vy, 4, 0, Math.PI * 2);
-            ctx.fillStyle = `${colorBase} 0.9)`;
-            ctx.fill();
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-    }
+    drawMapObjects(
+      ctx,
+      objectLayers,
+      objects,
+      activeObjectId,
+      liveObjectPos,
+      liveObjectResize,
+      livePolyVertex,
+      zoom,
+    );
 
     // ---- Live object placement preview ----
-    if (liveObjectPlace) {
-      const { type, x, y, width, height } = liveObjectPlace;
-      const px = x * zoom;
-      const py = y * zoom;
-      const pw = width * zoom;
-      const ph = height * zoom;
-      ctx.strokeStyle = "rgba(0, 170, 255, 0.8)";
-      ctx.lineWidth = 2;
-      if (type === "rectangle") {
-        ctx.strokeRect(px, py, pw, ph);
-        ctx.fillStyle = "rgba(0, 170, 255, 0.1)";
-        ctx.fillRect(px, py, pw, ph);
-      } else if (type === "ellipse") {
-        ctx.beginPath();
-        ctx.ellipse(
-          px + pw / 2,
-          py + ph / 2,
-          pw / 2,
-          ph / 2,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        ctx.stroke();
-        ctx.fillStyle = "rgba(0, 170, 255, 0.1)";
-        ctx.fill();
-      }
-    }
+    drawLiveObjectPlacementPreview(ctx, liveObjectPlace, zoom);
 
     // ---- Polygon being drawn ----
     if (isDrawingPolygon && polygonPoints.length > 0) {
@@ -800,20 +866,16 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const tx = moveDestSel.x + tdx;
         const ty = moveDestSel.y + tdy;
         if (tx >= mapW || ty >= mapH) continue;
-        drawTileWithOrientation(
-          ctx,
-          img,
-          ref,
-          tx * scaledTile,
-          ty * scaledTile,
-          scaledTile,
-        );
+        const origin = getMapCellOrigin(map, zoom, tx, ty);
+        drawTileWithOrientation(ctx, img, ref, origin.x, origin.y, scaledTile);
       }
       ctx.globalAlpha = 1;
     }
   }, [
     canvasW,
     canvasH,
+    isHexMap,
+    map,
     scaledTile,
     mapW,
     mapH,
@@ -840,6 +902,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     moveTiles,
     getDisplayImageLayer,
     scaleImageLayer,
+    traceCellPath,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -932,80 +995,259 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       : "crosshair";
 
   const checkSize = 8 * zoom;
+  const wrapperWidth = canvasW + MAP_RESIZE_GUTTER;
+  const wrapperHeight = canvasH + MAP_RESIZE_GUTTER;
+  const sizeLabel = `${previewMapW} × ${previewMapH}`;
+  const rightGripActive =
+    activeMapResizeHandle === "e" || activeMapResizeHandle === "se";
+  const bottomGripActive =
+    activeMapResizeHandle === "s" || activeMapResizeHandle === "se";
+  const rightGripHovered =
+    hoveredMapResizeHandle === "e" || hoveredMapResizeHandle === "se";
+  const bottomGripHovered =
+    hoveredMapResizeHandle === "s" || hoveredMapResizeHandle === "se";
+  const cornerGripActive = activeMapResizeHandle === "se";
+  const cornerGripHovered = hoveredMapResizeHandle === "se";
 
   return (
     <div
       style={{
         position: "relative",
-        width: canvasW,
-        height: canvasH,
-        // CSS checkerboard — no canvas redraws needed for background
-        backgroundColor: "var(--checkerboard-base)",
-        backgroundImage:
-          "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
-          "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
-          "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
-          "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
-        backgroundSize: `${checkSize * 2}px ${checkSize * 2}px`,
-        backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
+        width: wrapperWidth,
+        height: wrapperHeight,
       }}
     >
-      {/* Base canvas: inactive layers below the active layer */}
-      <canvas
-        ref={mainCanvasRef}
-        width={canvasW}
-        height={canvasH}
+      <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          imageRendering: "pixelated",
-          cursor,
+          width: canvasW,
+          height: canvasH,
+          backgroundColor: "var(--checkerboard-base)",
+          backgroundImage:
+            "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+            "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+            "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
+            "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
+          backgroundSize: `${checkSize * 2}px ${checkSize * 2}px`,
+          backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
         }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-      />
-      {/* Active-layer canvas: committed content plus live brush updates */}
-      <canvas
-        ref={paintCanvasRef}
-        width={canvasW}
-        height={canvasH}
+      >
+        <canvas
+          ref={mainCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            imageRendering: "pixelated",
+            cursor,
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerLeave}
+        />
+        <canvas
+          ref={paintCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+        <canvas
+          ref={topCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+        {editingTextObject && editingTextCanvasObject && (
+          <TextObjectEditorOverlay
+            object={editingTextCanvasObject}
+            text={editingTextObject.text}
+            zoom={zoom}
+            onTextChange={onEditingTextChange}
+            onCommit={onCommitTextEditing}
+            onCancel={onCancelTextEditing}
+          />
+        )}
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
-          left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          left: canvasW,
+          width: MAP_RESIZE_GUTTER,
+          height: canvasH,
+          cursor: RESIZE_CURSORS.e,
+          touchAction: "none",
         }}
-      />
-      {/* Top canvas: inactive layers above the active layer plus editor UI */}
-      <canvas
-        ref={topCanvasRef}
-        width={canvasW}
-        height={canvasH}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("e")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
+        onPointerDown={(e) => beginMapResize("e", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            bottom: 4,
+            left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            width: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background: rightGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : rightGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: rightGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: rightGripHovered
+              ? "0 0 10px rgba(251, 146, 60, 0.18)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
-          top: 0,
+          top: canvasH,
           left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          width: canvasW,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.s,
+          touchAction: "none",
         }}
-      />
-      {/* Overlay canvas: imperative hover brush highlight */}
-      <canvas
-        ref={overlayCanvasRef}
-        width={canvasW}
-        height={canvasH}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("s")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
+        onPointerDown={(e) => beginMapResize("s", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 4,
+            right: 4,
+            top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            height: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background: bottomGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : bottomGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: bottomGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: bottomGripHovered
+              ? "0 0 10px rgba(251, 146, 60, 0.18)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          top: canvasH,
+          left: canvasW,
+          width: MAP_RESIZE_GUTTER,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.se,
+          touchAction: "none",
         }}
-      />
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("se")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
+        onPointerDown={(e) => beginMapResize("se", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 2,
+            borderRadius: 4,
+            background: cornerGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : cornerGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: cornerGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: cornerGripHovered
+              ? "0 0 12px rgba(251, 146, 60, 0.2)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      {mapResizePreview && (
+        <div
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            top: Math.max(0, canvasH - MAP_RESIZE_GUTTER - 24),
+            left: Math.max(0, canvasW - 70 - MAP_RESIZE_BADGE_OFFSET),
+            minWidth: 70,
+            padding: "2px 6px",
+            borderRadius: 999,
+            background: "rgba(15, 23, 42, 0.88)",
+            color: "rgba(248, 250, 252, 0.95)",
+            border: "1px solid rgba(251, 146, 60, 0.35)",
+            fontSize: 11,
+            lineHeight: 1.4,
+            textAlign: "center",
+            pointerEvents: "none",
+          }}
+        >
+          {sizeLabel}
+        </div>
+      )}
     </div>
   );
 });
