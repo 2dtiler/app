@@ -1,6 +1,5 @@
-Just retry in vscode: Ability to make canvas size bigger by just dragging
-
 Image/sprite Editor: Opacity not real opacity (See prompt in sublime text)
+
 Object properties are not saving
 
 Image/sprite Editor:

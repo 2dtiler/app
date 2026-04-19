@@ -45,6 +45,14 @@ function clampMapDimension(value: number, fallback: number): number {
   return Math.min(256, Math.max(1, Math.round(value)));
 }
 
+function getResizeDeltaInTiles(delta: number, scaledTile: number): number {
+  if (scaledTile <= 0) return 0;
+  if (delta >= 0) {
+    return Math.floor(delta / scaledTile);
+  }
+  return Math.ceil(delta / scaledTile);
+}
+
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {
     map,
@@ -95,6 +103,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const mapResizeActionRef = useRef<MapResizeAction | null>(null);
   const [activeMapResizeHandle, setActiveMapResizeHandle] =
     useState<MapResizeHandle | null>(null);
+  const [hoveredMapResizeHandle, setHoveredMapResizeHandle] =
+    useState<MapResizeHandle | null>(null);
   const [mapResizePreview, setMapResizePreview] =
     useState<MapResizePreview | null>(null);
 
@@ -114,6 +124,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
       mapResizeActionRef.current = null;
       setActiveMapResizeHandle(null);
+      setHoveredMapResizeHandle(null);
       setMapResizePreview(null);
 
       if (
@@ -132,11 +143,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       const action = mapResizeActionRef.current;
       if (!action) return;
 
-      const deltaTilesX = Math.round(
-        (clientX - action.startClientX) / scaledTile,
+      const deltaTilesX = getResizeDeltaInTiles(
+        clientX - action.startClientX,
+        scaledTile,
       );
-      const deltaTilesY = Math.round(
-        (clientY - action.startClientY) / scaledTile,
+      const deltaTilesY = getResizeDeltaInTiles(
+        clientY - action.startClientY,
+        scaledTile,
       );
       const nextWidth = clampMapDimension(
         action.origWidth +
@@ -172,6 +185,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         nextHeight: mapH,
       };
       setActiveMapResizeHandle(handle);
+      setHoveredMapResizeHandle(handle);
       setMapResizePreview({ width: mapW, height: mapH });
     },
     [mapW, mapH],
@@ -1054,6 +1068,16 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const wrapperWidth = canvasW + MAP_RESIZE_GUTTER;
   const wrapperHeight = canvasH + MAP_RESIZE_GUTTER;
   const sizeLabel = `${previewMapW} × ${previewMapH}`;
+  const rightGripActive =
+    activeMapResizeHandle === "e" || activeMapResizeHandle === "se";
+  const bottomGripActive =
+    activeMapResizeHandle === "s" || activeMapResizeHandle === "se";
+  const rightGripHovered =
+    hoveredMapResizeHandle === "e" || hoveredMapResizeHandle === "se";
+  const bottomGripHovered =
+    hoveredMapResizeHandle === "s" || hoveredMapResizeHandle === "se";
+  const cornerGripActive = activeMapResizeHandle === "se";
+  const cornerGripHovered = hoveredMapResizeHandle === "se";
 
   return (
     <div
@@ -1145,6 +1169,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           touchAction: "none",
         }}
         onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("e")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
         onPointerDown={(e) => beginMapResize("e", e)}
       >
         <div
@@ -1156,10 +1186,19 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             width: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
             background:
-              activeMapResizeHandle === "e" || activeMapResizeHandle === "se"
+              rightGripActive
                 ? "rgba(251, 146, 60, 0.45)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
+                : rightGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+            border: rightGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: rightGripHovered
+              ? "0 0 10px rgba(251, 146, 60, 0.18)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
         />
       </div>
@@ -1175,6 +1214,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           touchAction: "none",
         }}
         onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("s")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
         onPointerDown={(e) => beginMapResize("s", e)}
       >
         <div
@@ -1186,10 +1231,19 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             height: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
             background:
-              activeMapResizeHandle === "s" || activeMapResizeHandle === "se"
+              bottomGripActive
                 ? "rgba(251, 146, 60, 0.45)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
+                : bottomGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+            border: bottomGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: bottomGripHovered
+              ? "0 0 10px rgba(251, 146, 60, 0.18)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
         />
       </div>
@@ -1205,6 +1259,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           touchAction: "none",
         }}
         onContextMenu={(e) => e.preventDefault()}
+        onPointerEnter={() => setHoveredMapResizeHandle("se")}
+        onPointerLeave={() => {
+          if (!mapResizeActionRef.current) {
+            setHoveredMapResizeHandle(null);
+          }
+        }}
         onPointerDown={(e) => beginMapResize("se", e)}
       >
         <div
@@ -1213,10 +1273,19 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             inset: 2,
             borderRadius: 4,
             background:
-              activeMapResizeHandle === "se"
+              cornerGripActive
                 ? "rgba(251, 146, 60, 0.45)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
+                : cornerGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+            border: cornerGripHovered
+              ? "1px solid rgba(251, 146, 60, 0.35)"
+              : "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: cornerGripHovered
+              ? "0 0 12px rgba(251, 146, 60, 0.2)"
+              : "none",
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
         />
       </div>
