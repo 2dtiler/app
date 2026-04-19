@@ -12,7 +12,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Separator } from "@/components/ui/Separator";
-import type { PropertyType, PropertyValue } from "@/types";
+import {
+  PROPERTY_TYPES,
+  type PropertyType,
+  type PropertyValue,
+} from "@/types";
 import {
   Select,
   SelectContent,
@@ -20,17 +24,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import type { ObjectPropertiesDialogProps } from "@/types/dialogs";
+import type {
+  EditablePropertyEntry,
+  ObjectPropertiesDialogProps,
+} from "@/types/dialogs";
 
-const PROPERTY_TYPES: PropertyType[] = [
-  "bool",
-  "color",
-  "float",
-  "file",
-  "int",
-  "object",
-  "string",
-];
+function objectPropertiesToEntries(
+  properties: Record<string, PropertyValue>,
+): EditablePropertyEntry[] {
+  return Object.entries(properties ?? {}).map(([key, propertyValue]) => ({
+    key,
+    value:
+      typeof propertyValue === "string" ? propertyValue : propertyValue.value,
+    type:
+      typeof propertyValue === "string" ? "string" : propertyValue.type,
+  }));
+}
+
+function buildPropertyRecord(
+  entries: EditablePropertyEntry[],
+): Record<string, PropertyValue> {
+  const properties: Record<string, PropertyValue> = {};
+
+  for (const { key, value, type } of entries) {
+    const trimmedKey = key.trim();
+    if (!trimmedKey) continue;
+    properties[trimmedKey] = { value, type };
+  }
+
+  return properties;
+}
 
 export function ObjectPropertiesDialog({
   open,
@@ -39,26 +62,9 @@ export function ObjectPropertiesDialog({
   onSave,
 }: ObjectPropertiesDialogProps) {
   const [name, setName] = useState(object.name);
-  const [entries, setEntries] = useState<
-    { key: string; value: string; type: PropertyType }[]
-  >([]);
-
-  // Sync local state when dialog opens or object changes (render-time
-  // adjustment avoids the "setState in effect" cascading-render lint error).
-  const [prevSyncDeps, setPrevSyncDeps] = useState({ open, object });
-  if (open && (open !== prevSyncDeps.open || object !== prevSyncDeps.object)) {
-    setPrevSyncDeps({ open, object });
-    setName(object.name);
-    setEntries(
-      Object.entries(object.properties ?? {}).map(([key, pv]) => ({
-        key,
-        value: typeof pv === "string" ? pv : pv.value,
-        type: (typeof pv === "string" ? "string" : pv.type) as PropertyType,
-      })),
-    );
-  } else if (open !== prevSyncDeps.open || object !== prevSyncDeps.object) {
-    setPrevSyncDeps({ open, object });
-  }
+  const [entries, setEntries] = useState<EditablePropertyEntry[]>(() =>
+    objectPropertiesToEntries(object.properties),
+  );
 
   function handleAddProperty() {
     setEntries((prev) => [
@@ -90,14 +96,7 @@ export function ObjectPropertiesDialog({
   }
 
   function handleSave() {
-    const properties: Record<string, PropertyValue> = {};
-    for (const { key, value, type } of entries) {
-      const trimmedKey = key.trim();
-      if (trimmedKey) {
-        properties[trimmedKey] = { value, type };
-      }
-    }
-    onSave(properties, name.trim() || object.name);
+    onSave(buildPropertyRecord(entries), name.trim() || object.name);
   }
 
   return (
@@ -113,9 +112,13 @@ export function ObjectPropertiesDialog({
         <div className="space-y-3">
           {/* Object name */}
           <div className="space-y-1">
-            <Label className="text-xs">Name</Label>
+            <Label htmlFor="object-name" className="text-xs">
+              Name
+            </Label>
             <Input
               id="object-name"
+              name="object-name"
+              aria-label="Object name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -163,18 +166,25 @@ export function ObjectPropertiesDialog({
               <div key={idx} className="flex items-center gap-2">
                 <Input
                   id={`property-key-${idx}`}
+                  name={`property-key-${idx}`}
+                  aria-label={`Object property ${idx + 1} key`}
                   placeholder="Key"
                   value={entry.key}
                   onChange={(e) => handleKeyChange(idx, e.target.value)}
                   className="flex-2 min-w-0 h-7 text-xs"
                 />
                 <Select
+                  name={`property-type-${idx}`}
                   value={entry.type}
                   onValueChange={(v) =>
                     handleTypeChange(idx, v as PropertyType)
                   }
                 >
-                  <SelectTrigger className="w-22 h-7 text-xs shrink-0">
+                  <SelectTrigger
+                    id={`property-type-${idx}`}
+                    aria-label={`Object property ${idx + 1} type`}
+                    className="w-22 h-7 text-xs shrink-0"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -187,6 +197,8 @@ export function ObjectPropertiesDialog({
                 </Select>
                 <Input
                   id={`property-value-${idx}`}
+                  name={`property-value-${idx}`}
+                  aria-label={`Object property ${idx + 1} value`}
                   placeholder="Value"
                   value={entry.value}
                   onChange={(e) => handleValueChange(idx, e.target.value)}
@@ -195,6 +207,7 @@ export function ObjectPropertiesDialog({
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`Remove object property ${idx + 1}`}
                   className="h-7 w-7 text-destructive shrink-0"
                   onMouseDown={() => handleRemoveProperty(idx)}
                 >

@@ -92,7 +92,9 @@ export function setPixel(
   const destinationWeight =
     (destinationAlpha * (1 - sourceAlpha)) / outputAlpha;
 
-  data[i] = Math.round(color.r * sourceWeight + destinationRed * destinationWeight);
+  data[i] = Math.round(
+    color.r * sourceWeight + destinationRed * destinationWeight,
+  );
   data[i + 1] = Math.round(
     color.g * sourceWeight + destinationGreen * destinationWeight,
   );
@@ -223,6 +225,7 @@ export function createStrokeState(): StrokeState {
     lastX: 0,
     lastY: 0,
     snapshot: null,
+    path: [],
     moveOffsetX: 0,
     moveOffsetY: 0,
     active: false,
@@ -278,6 +281,67 @@ export function constrainSquare(
 // Pencil tool
 // ---------------------------------------------------------------------------
 
+function drawSquareBrushOnce(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  size: number,
+  color: Color,
+  visited: Set<number>,
+): void {
+  if (size <= 1) {
+    if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
+    const index = cy * width + cx;
+    if (visited.has(index)) return;
+    visited.add(index);
+    setPixel(data, width, height, cx, cy, color);
+    return;
+  }
+
+  const radius = Math.floor(size / 2);
+  for (let py = cy - radius; py <= cy + radius; py++) {
+    for (let px = cx - radius; px <= cx + radius; px++) {
+      if (px < 0 || py < 0 || px >= width || py >= height) continue;
+      const index = py * width + px;
+      if (visited.has(index)) continue;
+      visited.add(index);
+      setPixel(data, width, height, px, py, color);
+    }
+  }
+}
+
+function renderPencilStroke(tc: ToolContext, ss: StrokeState): void {
+  if (!ss.snapshot || ss.path.length === 0) return;
+
+  const imgData = tc.ctx.createImageData(tc.width, tc.height);
+  imgData.data.set(ss.snapshot.data);
+
+  const visited = new Set<number>();
+
+  for (let pathIndex = 0; pathIndex < ss.path.length; pathIndex += 1) {
+    const [startX, startY] = ss.path[pathIndex]!;
+    const [endX, endY] = ss.path[pathIndex + 1] ?? ss.path[pathIndex]!;
+    const points = bresenhamLine(startX, startY, endX, endY);
+
+    for (const [px, py] of points) {
+      drawSquareBrushOnce(
+        imgData.data,
+        tc.width,
+        tc.height,
+        px,
+        py,
+        tc.brushSize,
+        tc.color,
+        visited,
+      );
+    }
+  }
+
+  tc.ctx.putImageData(imgData, 0, 0);
+}
+
 export function pencilDown(
   tc: ToolContext,
   x: number,
@@ -285,19 +349,13 @@ export function pencilDown(
   ss: StrokeState,
 ): void {
   ss.active = true;
+  ss.startX = x;
+  ss.startY = y;
   ss.lastX = x;
   ss.lastY = y;
-  const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  drawSquareBrush(
-    imgData.data,
-    tc.width,
-    tc.height,
-    x,
-    y,
-    tc.brushSize,
-    tc.color,
-  );
-  tc.ctx.putImageData(imgData, 0, 0);
+  ss.snapshot = tc.ctx.getImageData(0, 0, tc.width, tc.height);
+  ss.path = [[x, y]];
+  renderPencilStroke(tc, ss);
 }
 
 export function pencilMove(
@@ -306,32 +364,33 @@ export function pencilMove(
   y: number,
   ss: StrokeState,
 ): void {
-  if (!ss.active) return;
-  const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  const points = bresenhamLine(ss.lastX, ss.lastY, x, y);
-  for (const [px, py] of points) {
-    drawSquareBrush(
-      imgData.data,
-      tc.width,
-      tc.height,
-      px,
-      py,
-      tc.brushSize,
-      tc.color,
-    );
+  if (!ss.active || !ss.snapshot) return;
+  if (ss.lastX !== x || ss.lastY !== y) {
+    ss.path.push([x, y]);
   }
-  tc.ctx.putImageData(imgData, 0, 0);
+  renderPencilStroke(tc, ss);
   ss.lastX = x;
   ss.lastY = y;
 }
 
 export function pencilUp(
-  _tc: ToolContext,
-  _x: number,
-  _y: number,
+  tc: ToolContext,
+  x: number,
+  y: number,
   ss: StrokeState,
 ): void {
+  if (ss.active && ss.snapshot) {
+    if (ss.lastX !== x || ss.lastY !== y) {
+      ss.path.push([x, y]);
+      ss.lastX = x;
+      ss.lastY = y;
+    }
+    renderPencilStroke(tc, ss);
+  }
+
   ss.active = false;
+  ss.snapshot = null;
+  ss.path = [];
 }
 
 // ---------------------------------------------------------------------------

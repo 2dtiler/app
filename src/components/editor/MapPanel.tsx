@@ -2543,6 +2543,7 @@ export function MapPanel() {
         if (!propsObject) return null;
         return (
           <ObjectPropertiesDialog
+            key={propsObject.id}
             open={!!propsObjectId}
             onOpenChange={(o) => !o && setPropsObjectId(null)}
             object={propsObject}

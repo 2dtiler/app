@@ -1,18 +1,18 @@
-> Image/sprite Editor: Opacity not real opacity (See prompt in sublime text)
+> Object properties are not saving
 
->> Object properties are not saving
+>> Delete button should delete the selected thing
+
+Bush size should never be a slider
 
 Image/sprite Editor:
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
     - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-- Delete button should delete the selected thing
 - Enable map export to serialize image layers  
 - Add Text to Object Layer 
 - Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
 
 Import Options
 Export Options
-Bush size should never be a slider
 
 AI Asset Generation:
   AI Generation not working currently
@@ -27,6 +27,7 @@ Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Exploration:
+  Universal lpc spritesheet generator
   Ogmo Editor
   LDTK
   Pixelorama
@@ -36,7 +37,6 @@ Exploration:
   Libresprite
   Autotile
   SpriteFusion
-  Universal lpc spritesheet generator
   Tilekit
   Tilesetter
   Tileforge

@@ -34,6 +34,7 @@ export interface StrokeState {
   lastX: number;
   lastY: number;
   snapshot: ImageData | null;
+  path: [number, number][];
   moveOffsetX: number;
   moveOffsetY: number;
   active: boolean;

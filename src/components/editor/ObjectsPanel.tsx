@@ -387,6 +387,7 @@ export function ObjectsPanel() {
       {/* Object properties dialog */}
       {propsObject && (
         <ObjectPropertiesDialog
+          key={propsObject.id}
           open={!!propsObjectId}
           onOpenChange={(o) => !o && setPropsObjectId(null)}
           object={propsObject}
