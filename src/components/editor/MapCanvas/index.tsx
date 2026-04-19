@@ -35,7 +35,10 @@ import {
   getImageLayerPolygon,
   getImageLayerResizeCursor,
 } from "./image-layer-transform";
-import { drawLiveObjectPlacementPreview, drawMapObjects } from "./draw-map-objects";
+import {
+  drawLiveObjectPlacementPreview,
+  drawMapObjects,
+} from "./draw-map-objects";
 import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
 import { useSceneInteraction } from "./use-scene-interaction";
 
@@ -411,7 +414,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const moveTiles = useMemo(() => moveTilesSnapshot ?? [], [moveTilesSnapshot]);
   const moveDestSel = moveTilesSnapshot ? liveSelection : null;
   const editingObject = editingTextObject
-    ? objects.find((object) => object.id === editingTextObject.objectId) ?? null
+    ? (objects.find((object) => object.id === editingTextObject.objectId) ??
+      null)
     : null;
   const editingTextCanvasObject =
     editingObject && isTextObject(editingObject) ? editingObject : null;

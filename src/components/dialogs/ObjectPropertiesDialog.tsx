@@ -87,9 +87,8 @@ export function ObjectPropertiesDialog({
   const [textFields, setTextFields] = useState<TextObjectEditableFields | null>(
     () => (isTextObject(object) ? getTextObjectEditableFields(object) : null),
   );
-  const [fontOptions, setFontOptions] = useState<TextObjectFontOption[]>(
-    FONT_FAMILY_PRESETS,
-  );
+  const [fontOptions, setFontOptions] =
+    useState<TextObjectFontOption[]>(FONT_FAMILY_PRESETS);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
   const [loadingLocalFonts, setLoadingLocalFonts] = useState(false);
 
@@ -296,7 +295,9 @@ export function ObjectPropertiesDialog({
                     className="h-6 px-2 text-[11px]"
                     onMouseDown={handleLoadLocalFonts}
                   >
-                    {loadingLocalFonts ? "Loading fonts..." : "Browse installed fonts"}
+                    {loadingLocalFonts
+                      ? "Loading fonts..."
+                      : "Browse installed fonts"}
                   </Button>
                 </div>
                 <Input
@@ -312,7 +313,9 @@ export function ObjectPropertiesDialog({
                 <Select
                   name="text-object-font-preset"
                   value={
-                    fontOptions.some((option) => option.family === textFields.font)
+                    fontOptions.some(
+                      (option) => option.family === textFields.font,
+                    )
                       ? textFields.font
                       : "__custom__"
                   }
@@ -350,7 +353,9 @@ export function ObjectPropertiesDialog({
                   family string.
                 </p>
                 {fontLoadError && (
-                  <p className="text-[11px] text-destructive">{fontLoadError}</p>
+                  <p className="text-[11px] text-destructive">
+                    {fontLoadError}
+                  </p>
                 )}
               </div>
 

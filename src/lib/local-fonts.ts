@@ -16,7 +16,9 @@ export const FONT_FAMILY_PRESETS: TextObjectFontOption[] = [
 ];
 
 export function canQueryLocalFonts(): boolean {
-  return typeof (window as QueryLocalFontsWindow).queryLocalFonts === "function";
+  return (
+    typeof (window as QueryLocalFontsWindow).queryLocalFonts === "function"
+  );
 }
 
 export async function loadLocalFontFamilies(): Promise<TextObjectFontOption[]> {

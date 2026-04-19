@@ -10,7 +10,9 @@ export function ObjectPropertiesDialogManager({
 }: ObjectPropertiesDialogManagerProps) {
   const { state, setState } = useEditorStore();
   const object = objectId
-    ? (state.project?.objects ?? []).find((candidate) => candidate.id === objectId)
+    ? (state.project?.objects ?? []).find(
+        (candidate) => candidate.id === objectId,
+      )
     : null;
 
   if (!object) return null;

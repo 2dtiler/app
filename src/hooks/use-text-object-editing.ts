@@ -4,16 +4,10 @@ import {
   getTextObjectSettings,
   isTextObject,
 } from "@/lib/text-objects";
-import type {
-  MapObject,
-  ObjectId,
-  TextObjectEditingState,
-} from "@/types";
+import type { MapObject, ObjectId, TextObjectEditingState } from "@/types";
 
 type SetEditorState = (
-  updater: (draft: {
-    project: { objects: MapObject[] } | null;
-  }) => void,
+  updater: (draft: { project: { objects: MapObject[] } | null }) => void,
 ) => void;
 
 export function useTextObjectEditing(
@@ -54,7 +48,9 @@ export function useTextObjectEditing(
 
   const commitEditing = useCallback(() => {
     if (!editing) return;
-    const object = objects.find((candidate) => candidate.id === editing.objectId);
+    const object = objects.find(
+      (candidate) => candidate.id === editing.objectId,
+    );
     if (!object || !isTextObject(object)) {
       setEditing(null);
       return;

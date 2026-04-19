@@ -169,7 +169,7 @@ export function buildTextObjectPatch(
   const nextRotation = Number.parseFloat(fields.rotation);
   const rotation = Number.isFinite(nextRotation)
     ? nextRotation
-    : object.rotation ?? TEXT_OBJECT_DEFAULTS.rotation;
+    : (object.rotation ?? TEXT_OBJECT_DEFAULTS.rotation);
   const nextFont = fields.font.trim() || TEXT_OBJECT_DEFAULTS.font;
   const nextColor = fields.color.trim() || TEXT_OBJECT_DEFAULTS.color;
 

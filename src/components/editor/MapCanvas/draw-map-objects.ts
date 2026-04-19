@@ -19,7 +19,9 @@ export function drawMapObjects(
 ) {
   for (const objLayer of objectLayers) {
     if (!objLayer.visible) continue;
-    const layerObjects = objects.filter((object) => object.layerId === objLayer.id);
+    const layerObjects = objects.filter(
+      (object) => object.layerId === objLayer.id,
+    );
     for (const obj of layerObjects) {
       if (!obj.visible) continue;
 
@@ -132,7 +134,11 @@ export function drawMapObjects(
       }
 
       if (isActive && obj.type === "polygon") {
-        for (let vertexIndex = 0; vertexIndex < obj.points.length; vertexIndex++) {
+        for (
+          let vertexIndex = 0;
+          vertexIndex < obj.points.length;
+          vertexIndex++
+        ) {
           const point = obj.points[vertexIndex];
           const liveVertex =
             livePolyVertex &&
@@ -180,15 +186,7 @@ export function drawLiveObjectPlacementPreview(
 
   if (type === "ellipse") {
     ctx.beginPath();
-    ctx.ellipse(
-      px + pw / 2,
-      py + ph / 2,
-      pw / 2,
-      ph / 2,
-      0,
-      0,
-      Math.PI * 2,
-    );
+    ctx.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = "rgba(0, 170, 255, 0.1)";
     ctx.fill();

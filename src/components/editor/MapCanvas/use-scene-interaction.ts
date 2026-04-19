@@ -48,7 +48,8 @@ function getObjectInteractionOverrides(
   liveObjectPos: UseSceneInteractionReturn["liveObjectPos"],
   liveObjectResize: UseSceneInteractionReturn["liveObjectResize"],
 ) {
-  const resize = liveObjectResize?.objectId === object.id ? liveObjectResize : null;
+  const resize =
+    liveObjectResize?.objectId === object.id ? liveObjectResize : null;
   const drag = liveObjectPos?.objectId === object.id ? liveObjectPos : null;
   return {
     x: resize?.x ?? drag?.x,

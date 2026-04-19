@@ -1,5 +1,5 @@
-Objects should have right click options.
-Double clicking on a text object should bring up it's properties
+Objects should have right click options. Double clicking on a text object should bring up it's properties
+
 Enable map export to serialize image layers etc. No data should be lost when exporting and then re-importing maps, tilesets and projects.
 Text Layer custom fonts not working. Should also display custom font in dropdown
 

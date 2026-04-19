@@ -313,7 +313,10 @@ export function MapPanel() {
     ? (flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ??
       null)
     : null;
-  const textObjectEditing = useTextObjectEditing(project?.objects ?? [], setState);
+  const textObjectEditing = useTextObjectEditing(
+    project?.objects ?? [],
+    setState,
+  );
 
   const setExclusiveTileClipboard = useCallback(
     (data: TileClipboard | null) => {
