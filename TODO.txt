@@ -1,4 +1,4 @@
-Check why sentry is not working in prod
+Ability to make canvas size bigger by just dragging
 
 Image/sprite Editor:
   Opacity not real opacity
@@ -12,7 +12,6 @@ Image/sprite Editor:
 - Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
 
 Import Options
-===================================
 Export Options
 
 AI Asset Generation:
@@ -51,7 +50,7 @@ Manage Tilesets
 Manage Maps
 Royalty free packs
 Add unit tests and add to CI/CD
-Write documentation for website. Use /nothing-design
+Write documentation for website
 High touch animations
 Add tutorial video
 Add roadmap voting on home page

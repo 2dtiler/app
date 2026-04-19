@@ -11,6 +11,9 @@
     "deploy": "bun run build && wrangler pages deploy dist --project-name 2dtiler-app"
   },
   "dependencies": {
+    "@fontsource/doto": "^5.2.10",
+    "@fontsource/space-grotesk": "^5.2.10",
+    "@fontsource/space-mono": "^5.2.9",
     "@msgpack/msgpack": "^3.1.3",
     "@sentry/react": "^10.47.0",
     "class-variance-authority": "^0.7.1",
