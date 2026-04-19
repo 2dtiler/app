@@ -15,6 +15,7 @@ const shortcuts = [
       { keys: "Ctrl+Z", description: "Undo" },
       { keys: "Ctrl+Shift+Z", description: "Redo" },
       { keys: "Ctrl+Y", description: "Redo (alt)" },
+      { keys: "Delete / Backspace", description: "Delete selection" },
     ],
   },
   {

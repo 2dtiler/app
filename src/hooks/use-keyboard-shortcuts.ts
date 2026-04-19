@@ -10,6 +10,7 @@
  *   Ctrl+Z / Cmd+Z — Undo
  *   Ctrl+Shift+Z / Cmd+Shift+Z — Redo
  *   Ctrl+S / Cmd+S — Manual save
+ *   Delete / Backspace — Delete current selection
  *   + / = — Zoom in (map)
  *   - — Zoom out (map)
  */
@@ -100,6 +101,12 @@ export function useKeyboardShortcuts() {
       if (isCtrlOrCmd && e.key === "v") {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("tile-paste"));
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("map-delete-selection"));
         return;
       }
 

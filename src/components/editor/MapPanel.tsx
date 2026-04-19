@@ -297,6 +297,14 @@ export function MapPanel() {
     : [];
   const activeImageLayer =
     flatImageLayers.find((layer) => layer.id === state.activeLayerId) ?? null;
+  const activeObject =
+    (project?.objects ?? []).find(
+      (obj) =>
+        obj.id === state.activeObjectId && obj.layerId === state.activeLayerId,
+    ) ?? null;
+  const activeObjectLayer = activeObject
+    ? flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ?? null
+    : null;
 
   const setExclusiveTileClipboard = useCallback(
     (data: TileClipboard | null) => {
@@ -1207,6 +1215,145 @@ export function MapPanel() {
     [handlePasteImageLayer, handlePasteTiles],
   );
 
+  const handleDeleteTiles = useCallback(
+    (fromContextMenu = false) => {
+      if (!activeLayer || !activeMap) return;
+
+      const effectivelyLocked = isLayerEffectivelyLocked(
+        activeLayer.id,
+        activeMap.layerOrder,
+        project?.layers ?? [],
+        project?.layerGroups ?? [],
+      );
+      if (effectivelyLocked) return;
+
+      let region: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      } | null = null;
+
+      if (state.mapSelection) {
+        region = state.mapSelection;
+      } else if (fromContextMenu && contextMenuTileRef.current && hasContextMenuTile) {
+        region = {
+          x: contextMenuTileRef.current.x,
+          y: contextMenuTileRef.current.y,
+          width: 1,
+          height: 1,
+        };
+      }
+
+      if (!region) return;
+
+      const r = region;
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (l) => l.id === state.activeLayerId,
+        );
+        if (!layer) return;
+        for (let dy = 0; dy < r.height; dy++) {
+          for (let dx = 0; dx < r.width; dx++) {
+            delete layer.tiles[`${r.x + dx},${r.y + dy}`];
+          }
+        }
+      });
+    },
+    [
+      activeLayer,
+      activeMap,
+      hasContextMenuTile,
+      project?.layers,
+      project?.layerGroups,
+      setState,
+      state.mapSelection,
+      state.activeLayerId,
+    ],
+  );
+
+  const handleDeleteImageLayer = useCallback(() => {
+    if (!activeImageLayer || !activeMap || activeImageLayer.locked) return;
+
+    setState((draft) => {
+      if (!draft.project) return;
+
+      const map = draft.project.maps.find((entry) => entry.id === activeMap.id);
+      if (!map) return;
+
+      const groups = draft.project.layerGroups ?? [];
+      removeLayerFromOrders(activeImageLayer.id, map.layerOrder, groups);
+      draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
+        (layer) => layer.id !== activeImageLayer.id,
+      );
+
+      if (draft.activeLayerId === activeImageLayer.id) {
+        draft.activeLayerId =
+          findLastLayerId(
+            map.layerOrder,
+            draft.project.layers,
+            groups,
+            draft.project.imageLayers ?? [],
+            draft.project.objectLayers ?? [],
+          ) ?? null;
+      }
+
+      draft.mapSelection = null;
+    });
+  }, [activeImageLayer, activeMap, setState]);
+
+  const handleDeleteObject = useCallback(() => {
+    if (!activeObject || !activeObjectLayer) return;
+    if (activeObject.locked || activeObjectLayer.locked) return;
+
+    setState((draft) => {
+      if (!draft.project) return;
+
+      draft.project.objects = (draft.project.objects ?? []).filter(
+        (obj) => obj.id !== activeObject.id,
+      );
+
+      const layer = (draft.project.objectLayers ?? []).find(
+        (entry) => entry.id === activeObject.layerId,
+      );
+      if (layer) {
+        layer.objectOrder = layer.objectOrder.filter(
+          (objectId) => objectId !== activeObject.id,
+        );
+      }
+
+      if (draft.activeObjectId === activeObject.id) {
+        draft.activeObjectId = null;
+      }
+    });
+  }, [activeObject, activeObjectLayer, setState]);
+
+  const handleDeleteSelection = useCallback(
+    (fromContextMenu = false) => {
+      if (state.currentTool !== "select") return;
+
+      if (activeObject) {
+        handleDeleteObject();
+        return;
+      }
+
+      if (activeImageLayer) {
+        handleDeleteImageLayer();
+        return;
+      }
+
+      handleDeleteTiles(fromContextMenu);
+    },
+    [
+      activeImageLayer,
+      activeObject,
+      handleDeleteImageLayer,
+      handleDeleteObject,
+      handleDeleteTiles,
+      state.currentTool,
+    ],
+  );
+
   // ---------------------------------------------------------------------------
   // Orientation operations (rotate / flip) on a tile or selection
   // ---------------------------------------------------------------------------
@@ -1417,15 +1564,25 @@ export function MapPanel() {
     const onPaste = () => {
       void handlePasteSelection(false);
     };
+    const onDeleteSelection = () => {
+      handleDeleteSelection(false);
+    };
     window.addEventListener("tile-copy", onCopy);
     window.addEventListener("tile-cut", onCut);
     window.addEventListener("tile-paste", onPaste);
+    window.addEventListener("map-delete-selection", onDeleteSelection);
     return () => {
       window.removeEventListener("tile-copy", onCopy);
       window.removeEventListener("tile-cut", onCut);
       window.removeEventListener("tile-paste", onPaste);
+      window.removeEventListener("map-delete-selection", onDeleteSelection);
     };
-  }, [handleCopySelection, handleCutSelection, handlePasteSelection]);
+  }, [
+    handleCopySelection,
+    handleCutSelection,
+    handleDeleteSelection,
+    handlePasteSelection,
+  ]);
 
   // Derived flags for context menu item enablement
   const isTileLayerActive = !!activeLayer && !activeLayer.locked;
@@ -1450,6 +1607,23 @@ export function MapPanel() {
     ? canOpenImageLayerInEditor
     : canOpenTileInEditor;
   const isSelectTool = state.currentTool === "select";
+  const canDeleteObject =
+    isSelectTool &&
+    !!activeObject &&
+    !!activeObjectLayer &&
+    !activeObject.locked &&
+    !activeObjectLayer.locked;
+  const canDeleteImageLayer =
+    isSelectTool && !!activeImageLayer && !activeImageLayer.locked;
+  const canDeleteTiles =
+    isSelectTool && !!state.mapSelection && !!activeLayer && !activeLayerEffectivelyLocked;
+  const canDeleteContextTile =
+    isSelectTool && !!activeLayer && !activeLayerEffectivelyLocked && hasContextMenuTile;
+  const canDeleteSelection =
+    canDeleteObject ||
+    canDeleteImageLayer ||
+    canDeleteTiles ||
+    canDeleteContextTile;
   const canOrientToolbar =
     isSelectTool &&
     ((!!state.mapSelection && isTileLayerActive) ||
@@ -2410,6 +2584,16 @@ export function MapPanel() {
             <Scissors className="h-3.5 w-3.5" />
             Cut
             <ContextMenuShortcut>Ctrl+X</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!canDeleteSelection}
+            onSelect={() => {
+              handleDeleteSelection(true);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+            <ContextMenuShortcut>Del</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
