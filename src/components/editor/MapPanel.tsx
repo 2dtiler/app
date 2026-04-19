@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/preserve-manual-memoization */
-
 import {
   useRef,
   useState,
@@ -18,19 +16,18 @@ import {
   Eraser,
   Settings,
   Trash2,
-  Copy,
-  Scissors,
-  ClipboardPaste,
-  Undo2,
-  Redo2,
-  Pencil,
   RotateCcw,
   RotateCw,
   FlipHorizontal2,
   FlipVertical2,
   RefreshCw,
+  Scissors,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { MapCanvas } from "./MapCanvas";
+import { MapCanvasContextMenuContent } from "./MapPanel/MapCanvasContextMenuContent";
+import { useMapCanvasContextMenu } from "./MapPanel/use-map-canvas-context-menu";
 import type { MapCanvasImperativeHandle } from "@/types/map-canvas";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -65,13 +62,8 @@ import {
 } from "@/components/ui/AlertDialog";
 import {
   ContextMenu,
-  ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
+  ContextMenuContent,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
 import { FillTerrainDialog } from "@/components/dialogs/FillTerrainDialog";
@@ -119,6 +111,7 @@ import {
   type ObjectType,
   type PropertyValue,
 } from "@/types";
+import type { OrientAction } from "@/types/map-panel-context-menu";
 import type {
   ImageLayerClipboard,
   TileClipboard,
@@ -140,7 +133,6 @@ import { setTileEditorContext } from "@/lib/tile-editor-context";
 import {
   clampTextObjectBounds,
   getDefaultTextObjectProperties,
-  isTextObject,
 } from "@/lib/text-objects";
 import { zoomStore } from "@/lib/zoom-store";
 import { TEXT_OBJECT_DEFAULTS } from "@/types";
@@ -218,10 +210,6 @@ export function MapPanel() {
   const projectId = project?.id ?? null;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  /** Tile grid position captured on the most recent right-click (context menu). */
-  const contextMenuTileRef = useRef<{ x: number; y: number } | null>(null);
-  /** Tile grid position under the mouse cursor, updated on every mouse move over the map. */
-  const hoverTileRef = useRef<{ x: number; y: number } | null>(null);
   /** Track clipboard content so Paste can be enabled for tiles and image layers. */
   const [hasTileClipboard, setHasTileClipboard] = useState(
     () => getClipboard() !== null,
@@ -229,14 +217,6 @@ export function MapPanel() {
   const [hasImageLayerClipboard, setHasImageLayerClipboard] = useState(
     () => getImageLayerClipboard() !== null,
   );
-  /**
-   * Tracks whether the right-clicked position has a tile (to enable
-   * "Open tile in Image Editor").
-   */
-  const [hasContextMenuTile, setHasContextMenuTile] = useState(false);
-  const [hasContextMenuImageLayer, setHasContextMenuImageLayer] =
-    useState(false);
-
   // --- Paint buffer for instant visual feedback ---
   // Tile changes are written here during a stroke.
   // The buffer is flushed to the store (single undo step) on pointer-up.
@@ -302,6 +282,13 @@ export function MapPanel() {
         layerGroups,
       )
     : [];
+  const flatObjectLayerIds = new Set(
+    flatObjectLayers.map((layer) => layer.id as string),
+  );
+  const projectObjects = project?.objects ?? [];
+  const flatObjects = projectObjects.filter((object) =>
+    flatObjectLayerIds.has(object.layerId as string),
+  );
   const activeImageLayer =
     flatImageLayers.find((layer) => layer.id === state.activeLayerId) ?? null;
   const activeObject =
@@ -317,6 +304,30 @@ export function MapPanel() {
     project?.objects ?? [],
     setState,
   );
+  const {
+    contextMenuTileRef,
+    hoverTileRef,
+    contextMenuObjectId,
+    hasContextMenuTile,
+    hasContextMenuImageLayer,
+    hasContextMenuObject,
+    handleMapContextMenu,
+    handleMapMouseMove,
+    clearHoverTile,
+  } = useMapCanvasContextMenu({
+    containerRef,
+    activeMap: activeMap ?? null,
+    activeTileLayer: activeLayer ?? null,
+    activeImageLayer,
+    activeLayerId: state.activeLayerId,
+    mapZoom,
+    objects: flatObjects,
+    onSelectObject: (id) => {
+      setState((draft) => {
+        draft.activeObjectId = id;
+      });
+    },
+  });
 
   const setExclusiveTileClipboard = useCallback(
     (data: TileClipboard | null) => {
@@ -774,91 +785,6 @@ export function MapPanel() {
   // ---------------------------------------------------------------------------
 
   /**
-   * Shared helper: convert a MouseEvent position to a clamped tile coordinate.
-   */
-  const eventToMapPoint = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = containerRef.current;
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left + el.scrollLeft,
-      y: e.clientY - rect.top + el.scrollTop,
-    };
-  }, []);
-
-  const eventToTile = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeMap) return null;
-      const point = eventToMapPoint(e);
-      if (!point) return null;
-      const scaledTile = activeMap.tileSize * mapZoom;
-      return {
-        x: Math.max(
-          0,
-          Math.min(
-            Math.floor(point.x / scaledTile),
-            activeMap.widthInTiles - 1,
-          ),
-        ),
-        y: Math.max(
-          0,
-          Math.min(
-            Math.floor(point.y / scaledTile),
-            activeMap.heightInTiles - 1,
-          ),
-        ),
-      };
-    },
-    [activeMap, eventToMapPoint, mapZoom],
-  );
-
-  /**
-   * Capture tile position from a right-click on the map canvas container.
-   * The div handles scrolling so we subtract the scroll offset from client coords.
-   */
-  const handleMapContextMenu = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const point = eventToMapPoint(e);
-      const tile = eventToTile(e);
-      if (tile) {
-        contextMenuTileRef.current = tile;
-        const tileRef = activeLayer?.tiles[`${tile.x},${tile.y}`] ?? null;
-        setHasContextMenuTile(!!tileRef);
-      } else {
-        setHasContextMenuTile(false);
-      }
-
-      if (point && activeImageLayer?.visible) {
-        const scaledX = activeImageLayer.x * mapZoom;
-        const scaledY = activeImageLayer.y * mapZoom;
-        const scaledWidth = activeImageLayer.width * mapZoom;
-        const scaledHeight = activeImageLayer.height * mapZoom;
-        const withinImageLayer =
-          point.x >= scaledX &&
-          point.x <= scaledX + scaledWidth &&
-          point.y >= scaledY &&
-          point.y <= scaledY + scaledHeight;
-        setHasContextMenuImageLayer(withinImageLayer);
-      } else {
-        setHasContextMenuImageLayer(false);
-      }
-    },
-    [activeImageLayer, activeLayer, eventToMapPoint, eventToTile, mapZoom],
-  );
-
-  /**
-   * Track the cursor tile position so keyboard paste (Ctrl+V) can paste at
-   * the mouse location rather than always at the copy origin.
-   */
-  const handleMapMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const tile = eventToTile(e);
-      hoverTileRef.current = tile;
-    },
-    [eventToTile],
-  );
-
-  /**
    * Copy tiles to the clipboard.
    * - If a map selection exists, copies the full selection.
    * - If called from the context menu with no selection, copies a brush-sized
@@ -931,6 +857,7 @@ export function MapPanel() {
       state.tileSize,
       activeLayer,
       activeMap,
+      contextMenuTileRef,
       setExclusiveTileClipboard,
     ],
   );
@@ -997,6 +924,7 @@ export function MapPanel() {
     [
       activeLayer,
       activeMap,
+      contextMenuTileRef,
       state.mapSelection,
       state.brushSize,
       state.activeLayerId,
@@ -1054,7 +982,15 @@ export function MapPanel() {
         draft.currentTool = "select";
       });
     },
-    [activeMap, activeLayer, state.mapSelection, state.activeLayerId, setState],
+    [
+      activeMap,
+      activeLayer,
+      contextMenuTileRef,
+      hoverTileRef,
+      state.mapSelection,
+      state.activeLayerId,
+      setState,
+    ],
   );
 
   const handleCopyImageLayer = useCallback(async () => {
@@ -1290,6 +1226,7 @@ export function MapPanel() {
     [
       activeLayer,
       activeMap,
+      contextMenuTileRef,
       hasContextMenuTile,
       project?.layers,
       project?.layerGroups,
@@ -1384,8 +1321,6 @@ export function MapPanel() {
   // ---------------------------------------------------------------------------
   // Orientation operations (rotate / flip) on a tile or selection
   // ---------------------------------------------------------------------------
-
-  type OrientAction = "rotateLeft" | "rotateRight" | "flipH" | "flipV";
 
   const handleOrientTiles = useCallback(
     (action: OrientAction, fromContextMenu = false) => {
@@ -1496,6 +1431,7 @@ export function MapPanel() {
     [
       activeLayer,
       activeMap,
+      contextMenuTileRef,
       state.mapSelection,
       state.activeLayerId,
       setState,
@@ -1680,14 +1616,6 @@ export function MapPanel() {
     (m) => m.groupId === state.activeMapGroupId,
   );
 
-  // Collect all objects for flat object layers
-  const flatObjectLayerIds = new Set(
-    flatObjectLayers.map((l) => l.id as string),
-  );
-  const projectObjects = project.objects ?? [];
-  const flatObjects = projectObjects.filter((o) =>
-    flatObjectLayerIds.has(o.layerId as string),
-  );
   // Create a virtual map with all flattened layer IDs in correct tree order.
   // getAllLayerIds walks the tree and returns all leaf IDs (tile + image) in order.
   const flatAllIds = activeMap
@@ -2539,9 +2467,7 @@ export function MapPanel() {
             className="flex-1 overflow-auto min-h-0"
             onContextMenu={handleMapContextMenu}
             onMouseMove={handleMapMouseMove}
-            onMouseLeave={() => {
-              hoverTileRef.current = null;
-            }}
+            onMouseLeave={clearHoverTile}
           >
             {activeMap && flatMap ? (
               <MapCanvas
@@ -2591,13 +2517,6 @@ export function MapPanel() {
                 onCommitTextEditing={textObjectEditing.commitEditing}
                 onCancelTextEditing={textObjectEditing.cancelEditing}
                 onDoubleClickObject={(id) => {
-                  const object = (project.objects ?? []).find(
-                    (candidate) => candidate.id === id,
-                  );
-                  if (isTextObject(object)) {
-                    textObjectEditing.beginEditing(id as ObjectId);
-                    return;
-                  }
                   setPropsObjectId(id as ObjectId);
                 }}
               />
@@ -2610,91 +2529,36 @@ export function MapPanel() {
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem
-            disabled={!canCopy}
-            onSelect={() => {
-              void handleCopySelection(true);
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy
-            <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={!canCut}
-            onSelect={() => {
-              void handleCutSelection(true);
-            }}
-          >
-            <Scissors className="h-3.5 w-3.5" />
-            Cut
-            <ContextMenuShortcut>Ctrl+X</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={!canDeleteSelection}
-            onSelect={() => {
-              handleDeleteSelection(true);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-            <ContextMenuShortcut>Del</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            disabled={!canPaste}
-            onSelect={() => {
-              void handlePasteSelection(true);
-            }}
-          >
-            <ClipboardPaste className="h-3.5 w-3.5" />
-            Paste
-            <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            disabled={!canEditInImageEditor}
-            onSelect={handleEditInImageEditor}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit in Image Editor
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuSub>
-            <ContextMenuSubTrigger disabled={!canOrientContextMenu}>
-              <RefreshCw className="h-3.5 w-3.5" />
-              Orientation
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
-              <ContextMenuItem
-                onSelect={() => handleOrientSelection("rotateLeft", true)}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Rotate Left 90°
-              </ContextMenuItem>
-              <ContextMenuItem
-                onSelect={() => handleOrientSelection("rotateRight", true)}
-              >
-                <RotateCw className="h-3.5 w-3.5" />
-                Rotate Right 90°
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                onSelect={() => handleOrientSelection("flipH", true)}
-              >
-                <FlipHorizontal2 className="h-3.5 w-3.5" />
-                Flip Horizontal
-              </ContextMenuItem>
-              <ContextMenuItem
-                onSelect={() => handleOrientSelection("flipV", true)}
-              >
-                <FlipVertical2 className="h-3.5 w-3.5" />
-                Flip Vertical
-              </ContextMenuItem>
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-        </ContextMenuContent>
+        <MapCanvasContextMenuContent
+          canCopy={canCopy}
+          canCut={canCut}
+          canDeleteSelection={canDeleteSelection}
+          canPaste={canPaste}
+          canEditInImageEditor={canEditInImageEditor}
+          canOrientContextMenu={canOrientContextMenu}
+          hasContextMenuObject={hasContextMenuObject}
+          onCopy={() => {
+            void handleCopySelection(true);
+          }}
+          onCut={() => {
+            void handleCutSelection(true);
+          }}
+          onDelete={() => {
+            handleDeleteSelection(true);
+          }}
+          onPaste={() => {
+            void handlePasteSelection(true);
+          }}
+          onEditInImageEditor={handleEditInImageEditor}
+          onEditObjectProperties={() => {
+            if (contextMenuObjectId) {
+              setPropsObjectId(contextMenuObjectId);
+            }
+          }}
+          onOrientSelection={(action) => {
+            handleOrientSelection(action, true);
+          }}
+        />
       </ContextMenu>
 
       <NewMapDialog
