@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { UseMapResizeParams, UseMapResizeReturn } from "@/types/map-canvas";
+import type {
+  UseMapResizeParams,
+  UseMapResizeReturn,
+} from "@/types/map-canvas";
 
 function clampMapDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
@@ -20,7 +23,8 @@ export function useMapResize({
   scaledTile,
   onResizeMap,
 }: UseMapResizeParams): UseMapResizeReturn {
-  const mapResizeActionRef = useRef<UseMapResizeReturn["mapResizeActionRef"]["current"]>(null);
+  const mapResizeActionRef =
+    useRef<UseMapResizeReturn["mapResizeActionRef"]["current"]>(null);
   const [activeMapResizeHandle, setActiveMapResizeHandle] =
     useState<UseMapResizeReturn["activeMapResizeHandle"]>(null);
   const [hoveredMapResizeHandle, setHoveredMapResizeHandle] =
