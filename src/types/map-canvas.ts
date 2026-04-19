@@ -179,6 +179,7 @@ export interface PolyVertexDragAction {
 }
 
 export interface UseSceneInteractionParams {
+  map: TileMapData;
   layers: TileLayer[];
   zoom: number;
   activeLayerId: string | null;

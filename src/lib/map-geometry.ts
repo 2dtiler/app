@@ -1,0 +1,336 @@
+import {
+  DEFAULT_HEX_STAGGER_INDEX,
+  type MapCell,
+  type MapPixelSize,
+  type MapPoint,
+  type MapRect,
+  type NewMapType,
+  type TileMapData,
+  type TileMapGeometry,
+} from "@/types";
+
+const HEX_STEP_RATIO = 0.75;
+const HALF_TILE_RATIO = 0.5;
+
+type TileMapGeometryLike = Pick<
+  TileMapData,
+  | "orientation"
+  | "staggerAxis"
+  | "staggerIndex"
+  | "tileSize"
+  | "widthInTiles"
+  | "heightInTiles"
+>;
+
+export const NEW_MAP_TYPE_OPTIONS = [
+  { value: "orthogonal", label: "Orthogonal" },
+  { value: "hexagonal-row", label: "Hexagonal (Staggered Rows)" },
+  { value: "hexagonal-column", label: "Hexagonal (Staggered Columns)" },
+] as const satisfies readonly { value: NewMapType; label: string }[];
+
+export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
+  switch (mapType) {
+    case "hexagonal-row":
+      return {
+        orientation: "hexagonal",
+        staggerAxis: "y",
+        staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
+      };
+    case "hexagonal-column":
+      return {
+        orientation: "hexagonal",
+        staggerAxis: "x",
+        staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
+      };
+    default:
+      return {
+        orientation: "orthogonal",
+      };
+  }
+}
+
+export function isHexagonalMap(map: TileMapGeometryLike): boolean {
+  return map.orientation === "hexagonal";
+}
+
+export function isStaggeredIndex(
+  index: number,
+  map: Pick<TileMapGeometryLike, "staggerIndex">,
+): boolean {
+  const isOddIndex = Math.abs(index % 2) === 1;
+  return map.staggerIndex === "even" ? !isOddIndex : isOddIndex;
+}
+
+function hasShiftedIndex(
+  count: number,
+  map: Pick<TileMapGeometryLike, "staggerIndex">,
+): boolean {
+  if (count <= 0) return false;
+  return map.staggerIndex === "even" ? count >= 1 : count >= 2;
+}
+
+export function getMapCellOrigin(
+  map: TileMapGeometryLike,
+  zoom: number,
+  x: number,
+  y: number,
+): MapPoint {
+  const scaledTile = map.tileSize * zoom;
+
+  if (!isHexagonalMap(map)) {
+    return {
+      x: x * scaledTile,
+      y: y * scaledTile,
+    };
+  }
+
+  if (map.staggerAxis === "y") {
+    return {
+      x: x * scaledTile + (isStaggeredIndex(y, map) ? scaledTile / 2 : 0),
+      y: y * scaledTile * HEX_STEP_RATIO,
+    };
+  }
+
+  return {
+    x: x * scaledTile * HEX_STEP_RATIO,
+    y: y * scaledTile + (isStaggeredIndex(x, map) ? scaledTile / 2 : 0),
+  };
+}
+
+export function getMapCellBounds(
+  map: TileMapGeometryLike,
+  zoom: number,
+  x: number,
+  y: number,
+): MapRect {
+  const origin = getMapCellOrigin(map, zoom, x, y);
+  const scaledTile = map.tileSize * zoom;
+
+  return {
+    x: origin.x,
+    y: origin.y,
+    width: scaledTile,
+    height: scaledTile,
+  };
+}
+
+export function getMapCellPolygon(
+  map: TileMapGeometryLike,
+  zoom: number,
+  x: number,
+  y: number,
+): MapPoint[] {
+  const origin = getMapCellOrigin(map, zoom, x, y);
+  const scaledTile = map.tileSize * zoom;
+
+  if (!isHexagonalMap(map)) {
+    return [
+      { x: origin.x, y: origin.y },
+      { x: origin.x + scaledTile, y: origin.y },
+      { x: origin.x + scaledTile, y: origin.y + scaledTile },
+      { x: origin.x, y: origin.y + scaledTile },
+    ];
+  }
+
+  if (map.staggerAxis === "y") {
+    return [
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y },
+      { x: origin.x + scaledTile, y: origin.y + scaledTile * 0.25 },
+      { x: origin.x + scaledTile, y: origin.y + scaledTile * 0.75 },
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y + scaledTile },
+      { x: origin.x, y: origin.y + scaledTile * 0.75 },
+      { x: origin.x, y: origin.y + scaledTile * 0.25 },
+    ];
+  }
+
+  return [
+    { x: origin.x + scaledTile * 0.25, y: origin.y },
+    { x: origin.x + scaledTile * 0.75, y: origin.y },
+    { x: origin.x + scaledTile, y: origin.y + scaledTile * HALF_TILE_RATIO },
+    { x: origin.x + scaledTile * 0.75, y: origin.y + scaledTile },
+    { x: origin.x + scaledTile * 0.25, y: origin.y + scaledTile },
+    { x: origin.x, y: origin.y + scaledTile * HALF_TILE_RATIO },
+  ];
+}
+
+export function getMapPixelSize(
+  map: TileMapGeometryLike,
+  zoom: number,
+  widthInTiles = map.widthInTiles,
+  heightInTiles = map.heightInTiles,
+): MapPixelSize {
+  const scaledTile = map.tileSize * zoom;
+
+  if (widthInTiles <= 0 || heightInTiles <= 0) {
+    return { width: 0, height: 0 };
+  }
+
+  if (!isHexagonalMap(map)) {
+    return {
+      width: widthInTiles * scaledTile,
+      height: heightInTiles * scaledTile,
+    };
+  }
+
+  if (map.staggerAxis === "y") {
+    return {
+      width:
+        widthInTiles * scaledTile +
+        (hasShiftedIndex(heightInTiles, map) ? scaledTile / 2 : 0),
+      height: scaledTile + (heightInTiles - 1) * scaledTile * HEX_STEP_RATIO,
+    };
+  }
+
+  return {
+    width: scaledTile + (widthInTiles - 1) * scaledTile * HEX_STEP_RATIO,
+    height:
+      heightInTiles * scaledTile +
+      (hasShiftedIndex(widthInTiles, map) ? scaledTile / 2 : 0),
+  };
+}
+
+function pointInPolygon(point: MapPoint, polygon: MapPoint[]): boolean {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersects =
+      yi > point.y !== yj > point.y &&
+      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
+export function getMapCellAtPoint(
+  map: TileMapGeometryLike,
+  zoom: number,
+  point: MapPoint,
+): MapCell | null {
+  const scaledTile = map.tileSize * zoom;
+
+  if (!isHexagonalMap(map)) {
+    const x = Math.floor(point.x / scaledTile);
+    const y = Math.floor(point.y / scaledTile);
+
+    if (x < 0 || y < 0 || x >= map.widthInTiles || y >= map.heightInTiles) {
+      return null;
+    }
+
+    return { x, y };
+  }
+
+  const xCandidates = new Set<number>();
+  const yCandidates = new Set<number>();
+
+  if (map.staggerAxis === "y") {
+    const approxY = Math.floor(point.y / (scaledTile * HEX_STEP_RATIO));
+
+    for (let y = approxY - 1; y <= approxY + 1; y++) {
+      if (y < 0 || y >= map.heightInTiles) continue;
+      yCandidates.add(y);
+      const offsetX = isStaggeredIndex(y, map) ? scaledTile / 2 : 0;
+      const approxX = Math.floor((point.x - offsetX) / scaledTile);
+
+      for (let x = approxX - 1; x <= approxX + 1; x++) {
+        if (x >= 0 && x < map.widthInTiles) {
+          xCandidates.add(x);
+        }
+      }
+    }
+  } else {
+    const approxX = Math.floor(point.x / (scaledTile * HEX_STEP_RATIO));
+
+    for (let x = approxX - 1; x <= approxX + 1; x++) {
+      if (x < 0 || x >= map.widthInTiles) continue;
+      xCandidates.add(x);
+      const offsetY = isStaggeredIndex(x, map) ? scaledTile / 2 : 0;
+      const approxY = Math.floor((point.y - offsetY) / scaledTile);
+
+      for (let y = approxY - 1; y <= approxY + 1; y++) {
+        if (y >= 0 && y < map.heightInTiles) {
+          yCandidates.add(y);
+        }
+      }
+    }
+  }
+
+  for (const y of yCandidates) {
+    for (const x of xCandidates) {
+      const polygon = getMapCellPolygon(map, zoom, x, y);
+      if (pointInPolygon(point, polygon)) {
+        return { x, y };
+      }
+    }
+  }
+
+  return null;
+}
+
+export function getAdjacentMapCells(
+  map: TileMapGeometryLike,
+  x: number,
+  y: number,
+): MapCell[] {
+  let candidates: MapCell[];
+
+  if (!isHexagonalMap(map)) {
+    candidates = [
+      { x: x + 1, y },
+      { x: x - 1, y },
+      { x, y: y + 1 },
+      { x, y: y - 1 },
+    ];
+  } else if (map.staggerAxis === "y") {
+    const shifted = isStaggeredIndex(y, map);
+    candidates = shifted
+      ? [
+          { x: x - 1, y },
+          { x: x + 1, y },
+          { x, y: y - 1 },
+          { x: x + 1, y: y - 1 },
+          { x, y: y + 1 },
+          { x: x + 1, y: y + 1 },
+        ]
+      : [
+          { x: x - 1, y },
+          { x: x + 1, y },
+          { x: x - 1, y: y - 1 },
+          { x, y: y - 1 },
+          { x: x - 1, y: y + 1 },
+          { x, y: y + 1 },
+        ];
+  } else {
+    const shifted = isStaggeredIndex(x, map);
+    candidates = shifted
+      ? [
+          { x, y: y - 1 },
+          { x: x + 1, y },
+          { x: x + 1, y: y + 1 },
+          { x, y: y + 1 },
+          { x: x - 1, y: y + 1 },
+          { x: x - 1, y },
+        ]
+      : [
+          { x, y: y - 1 },
+          { x: x + 1, y: y - 1 },
+          { x: x + 1, y },
+          { x, y: y + 1 },
+          { x: x - 1, y },
+          { x: x - 1, y: y - 1 },
+        ];
+  }
+
+  return candidates.filter(
+    (cell) =>
+      cell.x >= 0 &&
+      cell.y >= 0 &&
+      cell.x < map.widthInTiles &&
+      cell.y < map.heightInTiles,
+  );
+}

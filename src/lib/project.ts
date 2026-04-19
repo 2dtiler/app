@@ -1,4 +1,14 @@
-import type { Project, TileSize, Tileset, TilesetId } from "@/types";
+import type {
+  Project,
+  TileMapData,
+  TileSize,
+  Tileset,
+  TilesetId,
+} from "@/types";
+import {
+  DEFAULT_HEX_STAGGER_AXIS,
+  DEFAULT_HEX_STAGGER_INDEX,
+} from "@/types";
 import { normalizeTextObject } from "./text-objects";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
@@ -19,6 +29,20 @@ export function normalizeTileset(
     tileset.tileSize = fallbackTileSize;
   }
   return tileset;
+}
+
+export function normalizeTileMap(map: TileMapData): TileMapData {
+  map.orientation = map.orientation ?? "orthogonal";
+
+  if (map.orientation === "hexagonal") {
+    map.staggerAxis = map.staggerAxis ?? DEFAULT_HEX_STAGGER_AXIS;
+    map.staggerIndex = map.staggerIndex ?? DEFAULT_HEX_STAGGER_INDEX;
+  } else {
+    delete map.staggerAxis;
+    delete map.staggerIndex;
+  }
+
+  return map;
 }
 
 export function normalizeProject(project: Project): Project {
@@ -46,6 +70,9 @@ export function normalizeProject(project: Project): Project {
   }
   for (const tileset of project.overrideTilesets) {
     normalizeTileset(tileset, fallbackTileSize);
+  }
+  for (const map of project.maps) {
+    normalizeTileMap(map);
   }
   for (const imageLayer of project.imageLayers) {
     if (typeof imageLayer.opacity !== "number") {

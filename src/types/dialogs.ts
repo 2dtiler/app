@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { ToolName } from "./components";
+import type { NewMapType } from "./map-geometry";
 import type {
   MapObject,
   ObjectId,
@@ -91,10 +92,12 @@ export interface NewMapDialogProps {
   name: string;
   width: number;
   height: number;
+  mapType: NewMapType;
   tileSize: number;
   onNameChange: (value: string) => void;
   onWidthChange: (value: number) => void;
   onHeightChange: (value: number) => void;
+  onMapTypeChange: (value: NewMapType) => void;
   onCreate: () => void;
 }
 

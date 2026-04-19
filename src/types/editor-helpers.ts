@@ -9,6 +9,7 @@ import type {
   SelectedTile,
   TerrainTile,
   TileLayer,
+  TileMapData,
   TileRef,
   TilesetId,
 } from "./schema";
@@ -20,6 +21,7 @@ import type {
 } from "./image-editor";
 
 export interface FillRegionOptions {
+  map: TileMapData;
   layer: TileLayer;
   mapWidth: number;
   mapHeight: number;

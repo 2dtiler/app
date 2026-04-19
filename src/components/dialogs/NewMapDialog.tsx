@@ -9,6 +9,14 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import { NEW_MAP_TYPE_OPTIONS } from "@/lib/map-geometry";
 import type { NewMapDialogProps } from "@/types/dialogs";
 
 export function NewMapDialog({
@@ -17,10 +25,12 @@ export function NewMapDialog({
   name,
   width,
   height,
+  mapType,
   tileSize,
   onNameChange,
   onWidthChange,
   onHeightChange,
+  onMapTypeChange,
   onCreate,
 }: NewMapDialogProps) {
   return (
@@ -78,9 +88,34 @@ export function NewMapDialog({
               />
             </div>
           </div>
+          <div>
+            <Label htmlFor="new-map-type" className="text-xs">
+              Map Type
+            </Label>
+            <Select value={mapType} onValueChange={onMapTypeChange}>
+              <SelectTrigger
+                id="new-map-type"
+                aria-label="Map Type"
+                className="mt-1 w-full"
+              >
+                <SelectValue placeholder="Select a map type" />
+              </SelectTrigger>
+              <SelectContent>
+                {NEW_MAP_TYPE_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <p className="text-[10px] text-muted-foreground">
-            Map pixel size: {width * tileSize} × {height * tileSize}px (tile
-            size: {tileSize}px)
+            Map grid size: {width} × {height} tiles (base tile size: {tileSize}
+            px)
           </p>
         </div>
         <DialogFooter>

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { pointHitsObjectBody } from "@/components/editor/MapCanvas/object-utils";
+import { getMapCellAtPoint } from "@/lib/map-geometry";
 import type { ObjectId } from "@/types";
 import type {
   MapCanvasContextMenuTile,
@@ -46,23 +47,7 @@ export function useMapCanvasContextMenu({
       const point = eventToMapPoint(e);
       if (!point) return null;
 
-      const scaledTile = activeMap.tileSize * mapZoom;
-      return {
-        x: Math.max(
-          0,
-          Math.min(
-            Math.floor(point.x / scaledTile),
-            activeMap.widthInTiles - 1,
-          ),
-        ),
-        y: Math.max(
-          0,
-          Math.min(
-            Math.floor(point.y / scaledTile),
-            activeMap.heightInTiles - 1,
-          ),
-        ),
-      };
+      return getMapCellAtPoint(activeMap, mapZoom, point);
     },
     [activeMap, eventToMapPoint, mapZoom],
   );

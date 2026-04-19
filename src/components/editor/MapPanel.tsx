@@ -110,12 +110,15 @@ import {
   type ObjectId,
   type ObjectType,
   type PropertyValue,
+  DEFAULT_NEW_MAP_TYPE,
+  type NewMapType,
 } from "@/types";
 import type { OrientAction } from "@/types/map-panel-context-menu";
 import type {
   ImageLayerClipboard,
   TileClipboard,
 } from "@/types/editor-helpers";
+import { getGeometryForNewMapType } from "@/lib/map-geometry";
 import { getFillRegion, pickWeightedTile } from "@/lib/terrain";
 import {
   areTileRefsEqual,
@@ -237,6 +240,9 @@ export function MapPanel() {
   const [newMapName, setNewMapName] = useState("Untitled Map");
   const [newMapWidth, setNewMapWidth] = useState(20);
   const [newMapHeight, setNewMapHeight] = useState(15);
+  const [newMapType, setNewMapType] = useState<NewMapType>(
+    DEFAULT_NEW_MAP_TYPE,
+  );
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
@@ -428,6 +434,7 @@ export function MapPanel() {
       } else if (state.currentTool === "fill") {
         const isTerrain = state.fillMode === "fillTerrain";
         const toFill = getFillRegion({
+          map: activeMap,
           layer: activeLayer,
           mapWidth: activeMap.widthInTiles,
           mapHeight: activeMap.heightInTiles,
@@ -1632,6 +1639,7 @@ export function MapPanel() {
     setNewMapName("Untitled Map");
     setNewMapWidth(20);
     setNewMapHeight(15);
+    setNewMapType(DEFAULT_NEW_MAP_TYPE);
   }
 
   function handleCreateMap() {
@@ -1639,6 +1647,7 @@ export function MapPanel() {
     const name = newMapName.trim() || "Untitled Map";
     const mapId = generateMapId();
     const layerId = generateLayerId();
+    const geometry = getGeometryForNewMapType(newMapType);
 
     setState((draft) => {
       if (!draft.project) return;
@@ -1646,6 +1655,7 @@ export function MapPanel() {
         id: mapId,
         name,
         groupId: activeGroup.id,
+        ...geometry,
         widthInTiles: newMapWidth,
         heightInTiles: newMapHeight,
         tileSize: draft.tileSize,
@@ -1836,6 +1846,9 @@ export function MapPanel() {
         id: newMapId,
         name: `${sourceMap.name}_copy`,
         groupId: sourceMap.groupId,
+        orientation: sourceMap.orientation,
+        staggerAxis: sourceMap.staggerAxis,
+        staggerIndex: sourceMap.staggerIndex,
         widthInTiles: sourceMap.widthInTiles,
         heightInTiles: sourceMap.heightInTiles,
         tileSize: sourceMap.tileSize,
@@ -2567,10 +2580,12 @@ export function MapPanel() {
         name={newMapName}
         width={newMapWidth}
         height={newMapHeight}
+        mapType={newMapType}
         tileSize={state.tileSize}
         onNameChange={setNewMapName}
         onWidthChange={setNewMapWidth}
         onHeightChange={setNewMapHeight}
+        onMapTypeChange={setNewMapType}
         onCreate={handleCreateMap}
       />
 

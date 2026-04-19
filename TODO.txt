@@ -1,10 +1,6 @@
-Enable map export to serialize image layers etc. No data should be lost when exporting and then re-importing maps, tilesets and projects.
+Refactor files longer than 1000 lines of code
 
-Text Layer custom fonts not working
-
-Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-  - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
+Add Isometric map type
 
 Import Options
 Export Options
@@ -40,6 +36,11 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
+
+Text Layer custom fonts not working
+
+Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
+  - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
 
 Manage Tilesets
 Manage Maps

@@ -12,6 +12,13 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
+import {
+  getMapCellBounds,
+  getMapCellOrigin,
+  getMapCellPolygon,
+  getMapPixelSize,
+  isHexagonalMap,
+} from "@/lib/map-geometry";
 import { isTextObject } from "@/lib/text-objects";
 import type {
   MapCanvasProps,
@@ -124,8 +131,28 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const previewMapW = mapResizePreview?.width ?? mapW;
   const previewMapH = mapResizePreview?.height ?? mapH;
   const scaledTile = tileSize * zoom;
-  const canvasW = previewMapW * scaledTile;
-  const canvasH = previewMapH * scaledTile;
+  const previewMap = {
+    ...map,
+    widthInTiles: previewMapW,
+    heightInTiles: previewMapH,
+  };
+  const previewPixelSize = getMapPixelSize(previewMap, zoom);
+  const canvasW = Math.ceil(previewPixelSize.width);
+  const canvasH = Math.ceil(previewPixelSize.height);
+  const isHexMap = isHexagonalMap(map);
+
+  const traceCellPath = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+      const polygon = getMapCellPolygon(map, zoom, x, y);
+      ctx.beginPath();
+      ctx.moveTo(polygon[0].x, polygon[0].y);
+      for (const point of polygon.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.closePath();
+    },
+    [map, zoom],
+  );
 
   const endMapResize = useCallback(
     (commit: boolean) => {
@@ -307,14 +334,16 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const img = getTileImage(ref);
         if (!img) return;
         ctx.imageSmoothingEnabled = false;
-        // Clear that cell first so erase/repaint is correct
-        ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
+        const bounds = getMapCellBounds(map, zoom, gx, gy);
+        if (!isHexMap) {
+          ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        }
         drawTileWithOrientation(
           ctx,
           img,
           ref,
-          gx * scaledTile,
-          gy * scaledTile,
+          bounds.x,
+          bounds.y,
           scaledTile,
         );
       },
@@ -324,7 +353,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.imageSmoothingEnabled = false;
-        ctx.clearRect(gx * scaledTile, gy * scaledTile, scaledTile, scaledTile);
+        if (isHexMap) return;
+        const bounds = getMapCellBounds(map, zoom, gx, gy);
+        ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
       },
       clearPaintCanvas() {
         const canvas = paintCanvasRef.current;
@@ -361,6 +392,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     handlePointerUp,
     handlePointerLeave,
   } = useSceneInteraction({
+    map,
     layers,
     zoom,
     activeLayerId,
@@ -504,12 +536,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           const img = getTileImage(ref);
           if (!img) continue;
           const [gx, gy] = key.split(",").map(Number);
+          const origin = getMapCellOrigin(map, zoom, gx, gy);
           drawTileWithOrientation(
             offCtx,
             img,
             ref,
-            gx * scaledTile,
-            gy * scaledTile,
+            origin.x,
+            origin.y,
             scaledTile,
           );
         }
@@ -526,6 +559,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     canvasW,
     canvasH,
     imagesReady,
+    map,
     zoom,
     getDisplayImageLayer,
     scaleImageLayer,
@@ -588,12 +622,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             const img = getTileImage(ref);
             if (!img) continue;
             const [gx, gy] = key.split(",").map(Number);
+            const origin = getMapCellOrigin(map, zoom, gx, gy);
             drawTileWithOrientation(
               ctx,
               img,
               ref,
-              gx * scaledTile,
-              gy * scaledTile,
+              origin.x,
+              origin.y,
               scaledTile,
             );
           }
@@ -603,6 +638,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   }, [
     canvasW,
     canvasH,
+    map,
     scaledTile,
     zoom,
     orderedLayerEntries,
@@ -634,33 +670,62 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     // ---- Grid ----
     ctx.strokeStyle = "rgba(255, 165, 0, 0.15)";
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = 0; x <= canvasW; x += scaledTile) {
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, canvasH);
+    if (isHexMap) {
+      for (let y = 0; y < mapH; y++) {
+        for (let x = 0; x < mapW; x++) {
+          traceCellPath(ctx, x, y);
+          ctx.stroke();
+        }
+      }
+    } else {
+      ctx.beginPath();
+      for (let x = 0; x <= canvasW; x += scaledTile) {
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvasH);
+      }
+      for (let y = 0; y <= canvasH; y += scaledTile) {
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvasW, y + 0.5);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
     }
-    for (let y = 0; y <= canvasH; y += scaledTile) {
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(canvasW, y + 0.5);
-    }
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
 
     // ---- Selection overlay ----
     if (currentTool === "select" && renderedSelection) {
-      const sx = renderedSelection.x * scaledTile;
-      const sy = renderedSelection.y * scaledTile;
-      const sw = renderedSelection.width * scaledTile;
-      const sh = renderedSelection.height * scaledTile;
-      ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-      ctx.fillRect(sx, sy, sw, sh);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
-      ctx.strokeStyle = "rgba(59, 130, 246, 1)";
-      ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+      if (isHexMap) {
+        for (let dy = 0; dy < renderedSelection.height; dy++) {
+          for (let dx = 0; dx < renderedSelection.width; dx++) {
+            const tx = renderedSelection.x + dx;
+            const ty = renderedSelection.y + dy;
+            traceCellPath(ctx, tx, ty);
+            ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
+            ctx.fill();
+            traceCellPath(ctx, tx, ty);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            traceCellPath(ctx, tx, ty);
+            ctx.strokeStyle = "rgba(59, 130, 246, 1)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        }
+      } else {
+        const sx = renderedSelection.x * scaledTile;
+        const sy = renderedSelection.y * scaledTile;
+        const sw = renderedSelection.width * scaledTile;
+        const sh = renderedSelection.height * scaledTile;
+        ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
+        ctx.fillRect(sx, sy, sw, sh);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+        ctx.strokeStyle = "rgba(59, 130, 246, 1)";
+        ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+      }
     }
 
     // ---- Image layer selection border + handles ----
@@ -808,12 +873,13 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const tx = moveDestSel.x + tdx;
         const ty = moveDestSel.y + tdy;
         if (tx >= mapW || ty >= mapH) continue;
+        const origin = getMapCellOrigin(map, zoom, tx, ty);
         drawTileWithOrientation(
           ctx,
           img,
           ref,
-          tx * scaledTile,
-          ty * scaledTile,
+          origin.x,
+          origin.y,
           scaledTile,
         );
       }
@@ -822,6 +888,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   }, [
     canvasW,
     canvasH,
+    isHexMap,
+    map,
     scaledTile,
     mapW,
     mapH,
@@ -848,6 +916,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     moveTiles,
     getDisplayImageLayer,
     scaleImageLayer,
+    traceCellPath,
   ]);
 
   // ---------------------------------------------------------------------------

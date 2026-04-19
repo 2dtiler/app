@@ -28,7 +28,7 @@ import type {
   LayerGroup,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
-import { normalizeProject, normalizeTileset } from "./project";
+import { normalizeProject, normalizeTileMap, normalizeTileset } from "./project";
 import type {
   AssetManifestEntry,
   PackedMap,
@@ -196,14 +196,15 @@ export async function importMap(data: Uint8Array): Promise<{
 }> {
   const packed = decompressPack<PackedMap>(data);
   await unpackAssets(packed.manifest, packed.assetBlob);
+  const map = normalizeTileMap(packed.map);
   return {
-    map: packed.map,
+    map,
     layers: packed.layers,
     tilesets: packed.tilesets.map((tileset) =>
-      normalizeTileset(tileset, packed.map.tileSize),
+      normalizeTileset(tileset, map.tileSize),
     ),
     overrideTilesets: (packed.overrideTilesets ?? []).map((tileset) =>
-      normalizeTileset(tileset, packed.map.tileSize),
+      normalizeTileset(tileset, map.tileSize),
     ),
     imageLayers: packed.imageLayers ?? [],
     layerGroups: packed.layerGroups ?? [],
