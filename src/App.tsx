@@ -148,9 +148,9 @@ function remapLayerTreeId(
   layerIdMap: ReadonlyMap<string, LayerId>,
   groupIdMap: ReadonlyMap<string, LayerGroupId>,
 ): LayerId | LayerGroupId {
-  return (layerIdMap.get(id as string) ?? groupIdMap.get(id as string) ?? id) as
-    | LayerId
-    | LayerGroupId;
+  return (layerIdMap.get(id as string) ??
+    groupIdMap.get(id as string) ??
+    id) as LayerId | LayerGroupId;
 }
 
 function remapTileEntries(
@@ -162,8 +162,7 @@ function remapTileEntries(
       coordinate,
       {
         ...ref,
-        tilesetId:
-          tilesetIdMap.get(ref.tilesetId as string) ?? ref.tilesetId,
+        tilesetId: tilesetIdMap.get(ref.tilesetId as string) ?? ref.tilesetId,
       } satisfies TileRef,
     ]),
   );
@@ -690,9 +689,10 @@ function AppShell({
         }
 
         const reservedTilesetIds = new Set(
-          [...currentProject.tilesets, ...(currentProject.overrideTilesets ?? [])].map(
-            (tileset) => tileset.id as string,
-          ),
+          [
+            ...currentProject.tilesets,
+            ...(currentProject.overrideTilesets ?? []),
+          ].map((tileset) => tileset.id as string),
         );
         const reserveImportedTilesetId = (tilesetId: TilesetId): TilesetId => {
           const existingId = tilesetIdMap.get(tilesetId as string);
@@ -746,8 +746,7 @@ function AppShell({
             id: layerIdMap.get(layer.id as string) ?? layer.id,
             mapId: newMapId,
             objectOrder: layer.objectOrder.map(
-              (objectId) =>
-                objectIdMap.get(objectId as string) ?? objectId,
+              (objectId) => objectIdMap.get(objectId as string) ?? objectId,
             ),
           }),
         );
@@ -764,8 +763,8 @@ function AppShell({
         const remappedObjects: MapObject[] = importedObjects.map((object) => ({
           ...object,
           id: objectIdMap.get(object.id as string) ?? object.id,
-          layerId:
-            (layerIdMap.get(object.layerId as string) ?? object.layerId) as LayerId,
+          layerId: (layerIdMap.get(object.layerId as string) ??
+            object.layerId) as LayerId,
           points: object.points.map((point) => ({ ...point })),
           properties: clonePropertyValues(object.properties),
         }));
