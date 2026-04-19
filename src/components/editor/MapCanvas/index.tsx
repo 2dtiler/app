@@ -1185,12 +1185,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
             width: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
-            background:
-              rightGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : rightGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
+            background: rightGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : rightGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
             border: rightGripHovered
               ? "1px solid rgba(251, 146, 60, 0.35)"
               : "1px solid rgba(255, 255, 255, 0.18)",
@@ -1230,12 +1229,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
             height: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
-            background:
-              bottomGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : bottomGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
+            background: bottomGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : bottomGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
             border: bottomGripHovered
               ? "1px solid rgba(251, 146, 60, 0.35)"
               : "1px solid rgba(255, 255, 255, 0.18)",
@@ -1272,12 +1270,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             position: "absolute",
             inset: 2,
             borderRadius: 4,
-            background:
-              cornerGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : cornerGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
+            background: cornerGripActive
+              ? "rgba(251, 146, 60, 0.45)"
+              : cornerGripHovered
+                ? "rgba(251, 146, 60, 0.24)"
+                : "rgba(148, 163, 184, 0.28)",
             border: cornerGripHovered
               ? "1px solid rgba(251, 146, 60, 0.35)"
               : "1px solid rgba(255, 255, 255, 0.18)",
