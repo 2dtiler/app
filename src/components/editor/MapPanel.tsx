@@ -303,7 +303,8 @@ export function MapPanel() {
         obj.id === state.activeObjectId && obj.layerId === state.activeLayerId,
     ) ?? null;
   const activeObjectLayer = activeObject
-    ? flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ?? null
+    ? (flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ??
+      null)
     : null;
 
   const setExclusiveTileClipboard = useCallback(
@@ -1236,7 +1237,11 @@ export function MapPanel() {
 
       if (state.mapSelection) {
         region = state.mapSelection;
-      } else if (fromContextMenu && contextMenuTileRef.current && hasContextMenuTile) {
+      } else if (
+        fromContextMenu &&
+        contextMenuTileRef.current &&
+        hasContextMenuTile
+      ) {
         region = {
           x: contextMenuTileRef.current.x,
           y: contextMenuTileRef.current.y,
@@ -1616,9 +1621,15 @@ export function MapPanel() {
   const canDeleteImageLayer =
     isSelectTool && !!activeImageLayer && !activeImageLayer.locked;
   const canDeleteTiles =
-    isSelectTool && !!state.mapSelection && !!activeLayer && !activeLayerEffectivelyLocked;
+    isSelectTool &&
+    !!state.mapSelection &&
+    !!activeLayer &&
+    !activeLayerEffectivelyLocked;
   const canDeleteContextTile =
-    isSelectTool && !!activeLayer && !activeLayerEffectivelyLocked && hasContextMenuTile;
+    isSelectTool &&
+    !!activeLayer &&
+    !activeLayerEffectivelyLocked &&
+    hasContextMenuTile;
   const canDeleteSelection =
     canDeleteObject ||
     canDeleteImageLayer ||
