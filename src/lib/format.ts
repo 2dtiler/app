@@ -24,6 +24,8 @@ import type {
   TileSize,
   ObjectLayer,
   MapObject,
+  ImageLayer,
+  LayerGroup,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
 import { normalizeProject, normalizeTileset } from "./project";
@@ -67,6 +69,10 @@ async function packAssets(
   return { manifest, assetBlob };
 }
 
+function dedupeAssetIds(assetIds: AssetId[]): AssetId[] {
+  return [...new Set(assetIds)];
+}
+
 async function unpackAssets(
   manifest: AssetManifestEntry[],
   assetBlob: Uint8Array,
@@ -97,7 +103,11 @@ function decompressPack<T>(data: Uint8Array): T {
  * Export a project + all its assets to a compressed .2dp binary.
  */
 export async function exportProject(project: Project): Promise<Uint8Array> {
-  const assetIds = project.tilesets.map((t) => t.assetId);
+  const assetIds = dedupeAssetIds([
+    ...project.tilesets.map((t) => t.assetId),
+    ...(project.overrideTilesets ?? []).map((t) => t.assetId),
+    ...(project.imageLayers ?? []).map((layer) => layer.assetId),
+  ]);
   const { manifest, assetBlob } = await packAssets(assetIds);
   const packed: PackedProject = { project, manifest, assetBlob };
   return compressPack(packed);
@@ -123,6 +133,9 @@ export async function exportMap(
   map: TileMapData,
   layers: TileLayer[],
   projectTilesets: Tileset[],
+  overrideTilesets: Tileset[] = [],
+  imageLayers: ImageLayer[] = [],
+  layerGroups: LayerGroup[] = [],
   objectLayers: ObjectLayer[] = [],
   objects: MapObject[] = [],
 ): Promise<Uint8Array> {
@@ -134,11 +147,18 @@ export async function exportMap(
     }
   }
 
-  // Include only the tilesets actually used
+  // Include only the tilesets actually used by tile layers.
   const tilesets = projectTilesets.filter((t) =>
     referencedTilesetIds.has(t.id),
   );
-  const assetIds = tilesets.map((t) => t.assetId);
+  const referencedOverrideTilesets = overrideTilesets.filter((tileset) =>
+    referencedTilesetIds.has(tileset.id),
+  );
+  const assetIds = dedupeAssetIds([
+    ...tilesets.map((t) => t.assetId),
+    ...referencedOverrideTilesets.map((t) => t.assetId),
+    ...imageLayers.map((layer) => layer.assetId),
+  ]);
   const { manifest, assetBlob } = await packAssets(assetIds);
 
   const mapObjectLayers = objectLayers.filter((ol) => ol.mapId === map.id);
@@ -149,6 +169,9 @@ export async function exportMap(
     map,
     layers,
     tilesets,
+    overrideTilesets: referencedOverrideTilesets,
+    imageLayers,
+    layerGroups,
     objectLayers: mapObjectLayers,
     objects: mapObjects,
     manifest,
@@ -165,6 +188,9 @@ export async function importMap(data: Uint8Array): Promise<{
   map: TileMapData;
   layers: TileLayer[];
   tilesets: Tileset[];
+  overrideTilesets: Tileset[];
+  imageLayers: ImageLayer[];
+  layerGroups: LayerGroup[];
   objectLayers: ObjectLayer[];
   objects: MapObject[];
 }> {
@@ -176,6 +202,11 @@ export async function importMap(data: Uint8Array): Promise<{
     tilesets: packed.tilesets.map((tileset) =>
       normalizeTileset(tileset, packed.map.tileSize),
     ),
+    overrideTilesets: (packed.overrideTilesets ?? []).map((tileset) =>
+      normalizeTileset(tileset, packed.map.tileSize),
+    ),
+    imageLayers: packed.imageLayers ?? [],
+    layerGroups: packed.layerGroups ?? [],
     objectLayers: packed.objectLayers ?? [],
     objects: packed.objects ?? [],
   };

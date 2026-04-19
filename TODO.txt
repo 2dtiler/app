@@ -1,6 +1,6 @@
 Enable map export to serialize image layers etc. No data should be lost when exporting and then re-importing maps, tilesets and projects.
 
-Text Layer custom fonts not working. Should also display custom font in dropdown
+Text Layer custom fonts not working
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
