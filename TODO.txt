@@ -1,11 +1,8 @@
->P Bush size should never be a slider
-
->> Add ability to resize canvas 
+Add Text to Object Layer 
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
 Enable map export to serialize image layers 
-Add Text to Object Layer 
 Add map should allow options for Orientation: Orthogonal (Default), Isometric, Isometric (Staggered), Hexagonal (Staggered)
 
 Import Options

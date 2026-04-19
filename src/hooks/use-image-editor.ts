@@ -23,6 +23,7 @@ import {
 import { getPendingImageLayerEditorRequest } from "@/lib/image-layer-editor-context";
 import { getPendingTileEditorRequest } from "@/lib/tile-editor-context";
 import * as pixelHistory from "@/lib/image-editor-history";
+import { resetCropState, resetSelectionState } from "@/lib/image-editor-tools";
 import { parseAsePalette, writeAsePalette } from "@/lib/ase-palette";
 import { parsePhotoshopAse, writePhotoshopAse } from "@/lib/photoshop-ase";
 import {
@@ -58,6 +59,8 @@ import type {
   PaletteExportFormat,
   PaletteLibrarySnapshot,
   PngSwatchSize,
+  ResizeOperation,
+  ResizeSnapshot,
   UndoableActionType,
 } from "@/types/image-editor-hook";
 
@@ -146,6 +149,14 @@ function layerDataKey(frameId: string, layerId: string): string {
   return `${frameId}:${layerId}`;
 }
 
+function cloneImageData(imageData: ImageData): ImageData {
+  return new ImageData(
+    new Uint8ClampedArray(imageData.data),
+    imageData.width,
+    imageData.height,
+  );
+}
+
 /**
  * Return all leaf (non-group) layer IDs in bottom-to-top render order,
  * respecting group visibility. Pass `ignoreVisibility = true` to include
@@ -186,6 +197,73 @@ function getLeafLayerIds(
     }
   }
   return result;
+}
+
+function getDocumentLayerDataKeys(state: ImageEditorState): string[] {
+  const keys: string[] = [];
+  const allLayerIds = getLeafLayerIds(
+    state.layerOrder,
+    state.layers,
+    state.imageLayers,
+    state.layerGroups,
+    true,
+  );
+
+  for (const frame of state.frames) {
+    for (const layerId of allLayerIds) {
+      keys.push(layerDataKey(frame.id, layerId));
+    }
+  }
+
+  return keys;
+}
+
+function captureResizeSnapshot(state: ImageEditorState): ResizeSnapshot {
+  const layerData = new Map<string, ImageData>();
+
+  for (const key of getDocumentLayerDataKeys(state)) {
+    const current = moduleLayerFrameData.get(key);
+    layerData.set(
+      key,
+      current
+        ? cloneImageData(current)
+        : new ImageData(state.width, state.height),
+    );
+  }
+
+  return {
+    width: state.width,
+    height: state.height,
+    layerData,
+  };
+}
+
+function clearEditorSelectionState(): void {
+  resetSelectionState();
+  resetCropState();
+}
+
+function restoreResizeSnapshot(snapshot: ResizeSnapshot): void {
+  const store = getImageEditorStore();
+  const currentState = store.getState();
+
+  for (const key of getDocumentLayerDataKeys(currentState)) {
+    if (!snapshot.layerData.has(key)) {
+      moduleLayerFrameData.delete(key);
+    }
+  }
+
+  for (const [key, imageData] of snapshot.layerData) {
+    moduleLayerFrameData.set(key, cloneImageData(imageData));
+  }
+
+  clearEditorSelectionState();
+  store.setState((draft) => {
+    draft.width = snapshot.width;
+    draft.height = snapshot.height;
+    draft.selection = null;
+    draft.pixelDataVersion = (draft.pixelDataVersion ?? 0) + 1;
+  });
 }
 
 /**
@@ -312,6 +390,13 @@ const frameOpRedoStack: FrameOperation[] = [];
 
 const paletteUndoStack: PaletteLibrarySnapshot[] = [];
 const paletteRedoStack: PaletteLibrarySnapshot[] = [];
+
+// ---------------------------------------------------------------------------
+// Document resize undo/redo history
+// ---------------------------------------------------------------------------
+
+const resizeUndoStack: ResizeOperation[] = [];
+const resizeRedoStack: ResizeOperation[] = [];
 
 function snapshotPaletteLibrary(s: ImageEditorState): PaletteLibrarySnapshot {
   return {
@@ -468,6 +553,8 @@ export function useImageEditor() {
       paletteRedoStack.length = 0;
       frameOpUndoStack.length = 0;
       frameOpRedoStack.length = 0;
+      resizeUndoStack.length = 0;
+      resizeRedoStack.length = 0;
       actionLog.length = 0;
       redoLog.length = 0;
       savedDocumentFingerprint = null;
@@ -489,55 +576,80 @@ export function useImageEditor() {
   // Resize canvas (preserving existing pixel data, cropping or padding)
   // -----------------------------------------------------------------------
 
-  const resizeCanvas = useCallback((newWidth: number, newHeight: number) => {
-    if (!isImageEditorStoreReady()) return;
-    const store = getImageEditorStore();
-    const s = store.getState();
-    const oldW = s.width;
-    const oldH = s.height;
-    if (newWidth === oldW && newHeight === oldH) return;
+  const applyCanvasResize = useCallback(
+    (newWidth: number, newHeight: number) => {
+      const store = getImageEditorStore();
+      const s = store.getState();
+      const oldW = s.width;
+      const oldH = s.height;
 
-    // Resize each layer's pixel data for every frame (top-left aligned copy)
-    const allLayerIds = getLeafLayerIds(
-      s.layerOrder,
-      s.layers,
-      s.imageLayers,
-      s.layerGroups,
-      true, // include all layers regardless of visibility
-    );
+      if (newWidth === oldW && newHeight === oldH) {
+        return;
+      }
 
-    for (const frame of s.frames) {
-      for (const layerId of allLayerIds) {
-        const k = layerDataKey(frame.id, layerId);
-        const oldData = moduleLayerFrameData.get(k);
-        const newData = new ImageData(newWidth, newHeight);
-        if (oldData) {
-          const copyW = Math.min(oldW, newWidth);
-          const copyH = Math.min(oldH, newHeight);
-          for (let y = 0; y < copyH; y++) {
-            for (let x = 0; x < copyW; x++) {
-              const oldIdx = (y * oldW + x) * 4;
-              const newIdx = (y * newWidth + x) * 4;
-              newData.data[newIdx] = oldData.data[oldIdx];
-              newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
-              newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
-              newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
+      const allLayerIds = getLeafLayerIds(
+        s.layerOrder,
+        s.layers,
+        s.imageLayers,
+        s.layerGroups,
+        true,
+      );
+
+      for (const frame of s.frames) {
+        for (const layerId of allLayerIds) {
+          const k = layerDataKey(frame.id, layerId);
+          const oldData = moduleLayerFrameData.get(k);
+          const newData = new ImageData(newWidth, newHeight);
+          if (oldData) {
+            const copyW = Math.min(oldW, newWidth);
+            const copyH = Math.min(oldH, newHeight);
+            for (let y = 0; y < copyH; y++) {
+              for (let x = 0; x < copyW; x++) {
+                const oldIdx = (y * oldW + x) * 4;
+                const newIdx = (y * newWidth + x) * 4;
+                newData.data[newIdx] = oldData.data[oldIdx];
+                newData.data[newIdx + 1] = oldData.data[oldIdx + 1];
+                newData.data[newIdx + 2] = oldData.data[oldIdx + 2];
+                newData.data[newIdx + 3] = oldData.data[oldIdx + 3];
+              }
             }
           }
+          moduleLayerFrameData.set(k, newData);
         }
-        moduleLayerFrameData.set(k, newData);
       }
-    }
 
-    // Update store dimensions
-    store.setState((draft) => {
-      draft.width = newWidth;
-      draft.height = newHeight;
-    });
+      clearEditorSelectionState();
+      store.setState((draft) => {
+        draft.width = newWidth;
+        draft.height = newHeight;
+        draft.selection = null;
+        draft.pixelDataVersion = (draft.pixelDataVersion ?? 0) + 1;
+      });
+    },
+    [],
+  );
 
-    // Clear undo history since frame data shapes changed
-    pixelHistory.clearAllHistory();
-  }, []);
+  const resizeCanvas = useCallback(
+    (newWidth: number, newHeight: number) => {
+      if (!isImageEditorStoreReady()) return;
+      const store = getImageEditorStore();
+      const s = store.getState();
+      if (newWidth === s.width && newHeight === s.height) return;
+
+      const before = captureResizeSnapshot(s);
+      applyCanvasResize(newWidth, newHeight);
+      const after = captureResizeSnapshot(store.getState());
+
+      resizeUndoStack.push({ before, after });
+      resizeRedoStack.length = 0;
+      redoLog.length = 0;
+      paletteRedoStack.length = 0;
+      frameOpRedoStack.length = 0;
+      actionLog.push("resize");
+      forceHistoryUpdate();
+    },
+    [applyCanvasResize, forceHistoryUpdate],
+  );
 
   // Stop animation on unmount, but do NOT destroy the store
   // so the canvas persists when the drawer is closed and reopened.
@@ -1062,6 +1174,12 @@ export function useImageEditor() {
           d.activePaletteId = snap.activePaletteId;
         });
       }
+    } else if (type === "resize") {
+      const op = resizeUndoStack.pop();
+      if (op && isImageEditorStoreReady()) {
+        restoreResizeSnapshot(op.before);
+        resizeRedoStack.push(op);
+      }
     }
 
     forceHistoryUpdate();
@@ -1104,6 +1222,12 @@ export function useImageEditor() {
           }));
           d.activePaletteId = snap.activePaletteId;
         });
+      }
+    } else if (type === "resize") {
+      const op = resizeRedoStack.pop();
+      if (op && isImageEditorStoreReady()) {
+        restoreResizeSnapshot(op.after);
+        resizeUndoStack.push(op);
       }
     }
 

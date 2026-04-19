@@ -10,7 +10,18 @@
  */
 
 const MAX_SNAPSHOTS = 50;
-import type { FrameHistory } from "@/types/image-editor-internals";
+import type {
+  FrameHistory,
+  ImageEditorHistorySnapshot,
+} from "@/types/image-editor-internals";
+
+function createSnapshot(imageData: ImageData): ImageEditorHistorySnapshot {
+  return {
+    pixels: new Uint8ClampedArray(imageData.data),
+    width: imageData.width,
+    height: imageData.height,
+  };
+}
 
 /**
  * Key is either a bare FrameId (legacy single-layer) or
@@ -18,14 +29,13 @@ import type { FrameHistory } from "@/types/image-editor-internals";
  */
 const historyMap = new Map<string, FrameHistory>();
 
-function ensureHistory(
-  key: string,
-  width: number,
-  height: number,
-): FrameHistory {
+function ensureHistory(key: string): FrameHistory {
   let h = historyMap.get(key);
   if (!h) {
-    h = { undoStack: [], redoStack: [], width, height };
+    h = {
+      undoStack: [],
+      redoStack: [],
+    };
     historyMap.set(key, h);
   }
   return h;
@@ -36,11 +46,9 @@ function ensureHistory(
  * @param key  Either a bare FrameId or "${frameId}:${layerId}" for multi-layer.
  */
 export function pushSnapshot(key: string, imageData: ImageData): void {
-  const h = ensureHistory(key, imageData.width, imageData.height);
+  const h = ensureHistory(key);
 
-  // Deep-copy the pixel buffer
-  const copy = new Uint8ClampedArray(imageData.data);
-  h.undoStack.push(copy);
+  h.undoStack.push(createSnapshot(imageData));
 
   // Trim to max
   if (h.undoStack.length > MAX_SNAPSHOTS) {
@@ -65,10 +73,14 @@ export function undo(
   if (!h || h.undoStack.length === 0) return null;
 
   // Save current state to redo stack
-  h.redoStack.push(new Uint8ClampedArray(currentImageData.data));
+  h.redoStack.push(createSnapshot(currentImageData));
 
-  const pixels = h.undoStack.pop()!;
-  return new ImageData(new Uint8ClampedArray(pixels), h.width, h.height);
+  const snapshot = h.undoStack.pop()!;
+  return new ImageData(
+    new Uint8ClampedArray(snapshot.pixels),
+    snapshot.width,
+    snapshot.height,
+  );
 }
 
 /**
@@ -84,10 +96,14 @@ export function redo(
   if (!h || h.redoStack.length === 0) return null;
 
   // Save current state to undo stack
-  h.undoStack.push(new Uint8ClampedArray(currentImageData.data));
+  h.undoStack.push(createSnapshot(currentImageData));
 
-  const pixels = h.redoStack.pop()!;
-  return new ImageData(new Uint8ClampedArray(pixels), h.width, h.height);
+  const snapshot = h.redoStack.pop()!;
+  return new ImageData(
+    new Uint8ClampedArray(snapshot.pixels),
+    snapshot.width,
+    snapshot.height,
+  );
 }
 
 /**

@@ -1,7 +1,18 @@
-import { useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useState,
+} from "react";
 import type { ToolContext, StrokeState } from "@/types/image-editor-internals";
 import type { ImageEditorTool } from "@/types/image-editor";
 import type { ImageCanvasProps } from "@/types/image-editor-ui";
+import type {
+  ImageCanvasResizeAction,
+  ImageCanvasResizeHandle,
+  ImageCanvasResizePreview,
+} from "@/types/image-editor-ui";
 import {
   createStrokeState,
   dispatchDown,
@@ -19,6 +30,23 @@ import {
   getResizeHandleCursor,
   drawFloatingOnOverlay,
 } from "@/lib/image-editor-tools";
+
+const IMAGE_RESIZE_GUTTER = 14;
+const IMAGE_RESIZE_RAIL_SIZE = 10;
+const IMAGE_RESIZE_BADGE_OFFSET = 6;
+
+function clampCanvasDimension(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(1024, Math.max(1, Math.round(value)));
+}
+
+function getResizeDeltaInPixels(delta: number, zoom: number): number {
+  if (zoom <= 0) return 0;
+  if (delta >= 0) {
+    return Math.floor(delta / zoom);
+  }
+  return Math.ceil(delta / zoom);
+}
 
 export function ImageCanvas({
   width,
@@ -42,6 +70,7 @@ export function ImageCanvas({
   onPushUndo,
   onSelectionChange,
   onFrameDataChange,
+  onResizeCanvas,
 }: ImageCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,9 +84,120 @@ export function ImageCanvas({
   const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const clipboardRef = useRef<ImageData | null>(null);
   const prevToolRef = useRef<ImageEditorTool>(tool);
+  const resizeActionRef = useRef<ImageCanvasResizeAction | null>(null);
   // Tracks which "WxH" we've already auto-zoomed for, so we only fire once per
   // new image dimensions regardless of how many ResizeObserver callbacks arrive.
   const autoZoomedForRef = useRef<string>("");
+  const [activeResizeHandle, setActiveResizeHandle] =
+    useState<ImageCanvasResizeHandle>(null);
+  const [hoveredResizeHandle, setHoveredResizeHandle] =
+    useState<ImageCanvasResizeHandle>(null);
+  const [resizePreview, setResizePreview] =
+    useState<ImageCanvasResizePreview | null>(null);
+
+  const endCanvasResize = useCallback(
+    (commit: boolean) => {
+      const action = resizeActionRef.current;
+      if (!action) return;
+
+      resizeActionRef.current = null;
+      setActiveResizeHandle(null);
+      setHoveredResizeHandle(null);
+      setResizePreview(null);
+
+      if (
+        commit &&
+        (action.nextWidth !== action.origWidth ||
+          action.nextHeight !== action.origHeight)
+      ) {
+        onResizeCanvas(action.nextWidth, action.nextHeight);
+      }
+    },
+    [onResizeCanvas],
+  );
+
+  const updateCanvasResizePreview = useCallback(
+    (clientX: number, clientY: number) => {
+      const action = resizeActionRef.current;
+      if (!action) return;
+
+      const deltaX = getResizeDeltaInPixels(
+        clientX - action.startClientX,
+        zoom,
+      );
+      const deltaY = getResizeDeltaInPixels(
+        clientY - action.startClientY,
+        zoom,
+      );
+      const nextWidth = clampCanvasDimension(
+        action.origWidth +
+          (action.handle === "e" || action.handle === "se" ? deltaX : 0),
+        action.origWidth,
+      );
+      const nextHeight = clampCanvasDimension(
+        action.origHeight +
+          (action.handle === "s" || action.handle === "se" ? deltaY : 0),
+        action.origHeight,
+      );
+
+      action.nextWidth = nextWidth;
+      action.nextHeight = nextHeight;
+      setResizePreview({ width: nextWidth, height: nextHeight });
+    },
+    [zoom],
+  );
+
+  const beginCanvasResize = useCallback(
+    (
+      handle: Exclude<ImageCanvasResizeHandle, null>,
+      e: React.PointerEvent<HTMLDivElement>,
+    ) => {
+      if (e.button !== 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      resizeActionRef.current = {
+        handle,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        origWidth: width,
+        origHeight: height,
+        nextWidth: width,
+        nextHeight: height,
+      };
+      setActiveResizeHandle(handle);
+      setHoveredResizeHandle(handle);
+      setResizePreview({ width, height });
+    },
+    [width, height],
+  );
+
+  useEffect(() => {
+    if (!activeResizeHandle) return;
+
+    function handleWindowPointerMove(e: PointerEvent) {
+      e.preventDefault();
+      updateCanvasResizePreview(e.clientX, e.clientY);
+    }
+
+    function handleWindowPointerUp(e: PointerEvent) {
+      if (e.button !== 0) return;
+      endCanvasResize(true);
+    }
+
+    function handleWindowPointerCancel() {
+      endCanvasResize(false);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerCancel);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel);
+    };
+  }, [activeResizeHandle, endCanvasResize, updateCanvasResizePreview]);
 
   // When switching away from selection tool, commit any floating selection
   useEffect(() => {
@@ -732,8 +872,25 @@ export function ImageCanvas({
     ],
   );
 
-  const pixelW = width * zoom;
-  const pixelH = height * zoom;
+  const canvasPixelW = width * zoom;
+  const canvasPixelH = height * zoom;
+  const previewWidth = resizePreview?.width ?? width;
+  const previewHeight = resizePreview?.height ?? height;
+  const previewPixelW = previewWidth * zoom;
+  const previewPixelH = previewHeight * zoom;
+  const wrapperWidth = previewPixelW + IMAGE_RESIZE_GUTTER;
+  const wrapperHeight = previewPixelH + IMAGE_RESIZE_GUTTER;
+  const sizeLabel = `${previewWidth} × ${previewHeight}`;
+  const rightGripActive =
+    activeResizeHandle === "e" || activeResizeHandle === "se";
+  const bottomGripActive =
+    activeResizeHandle === "s" || activeResizeHandle === "se";
+  const rightGripHovered =
+    hoveredResizeHandle === "e" || hoveredResizeHandle === "se";
+  const bottomGripHovered =
+    hoveredResizeHandle === "s" || hoveredResizeHandle === "se";
+  const cornerGripActive = activeResizeHandle === "se";
+  const cornerGripHovered = hoveredResizeHandle === "se";
 
   return (
     <div
@@ -744,16 +901,17 @@ export function ImageCanvas({
       <div
         className="relative inline-block"
         style={{
-          width: pixelW,
-          height: pixelH,
-          minWidth: pixelW,
-          minHeight: pixelH,
+          width: wrapperWidth,
+          height: wrapperHeight,
+          minWidth: wrapperWidth,
+          minHeight: wrapperHeight,
         }}
       >
-        {/* Checkerboard background */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute top-0 left-0 overflow-hidden"
           style={{
+            width: previewPixelW,
+            height: previewPixelH,
             backgroundColor: "var(--checkerboard-base)",
             backgroundImage:
               "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
@@ -762,92 +920,246 @@ export function ImageCanvas({
               "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
             backgroundSize: `${zoom * 2}px ${zoom * 2}px`,
             backgroundPosition: `0 0, 0 ${zoom}px, ${zoom}px -${zoom}px, -${zoom}px 0`,
-            opacity: 0.5,
           }}
-        />
+        >
+          {/* Onion skin canvas */}
+          <canvas
+            ref={onionRef}
+            width={width}
+            height={height}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+              imageRendering: "pixelated",
+              opacity: 0.3,
+            }}
+          />
 
-        {/* Onion skin canvas */}
-        <canvas
-          ref={onionRef}
-          width={width}
-          height={height}
-          className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            width: pixelW,
-            height: pixelH,
-            imageRendering: "pixelated",
-            opacity: 0.3,
-          }}
-        />
+          {/* Layers below the active layer (background composite) */}
+          <canvas
+            ref={bgCompositeRef}
+            width={width}
+            height={height}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+              imageRendering: "pixelated",
+            }}
+          />
 
-        {/* Layers below the active layer (background composite) */}
-        <canvas
-          ref={bgCompositeRef}
-          width={width}
-          height={height}
-          className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            width: pixelW,
-            height: pixelH,
-            imageRendering: "pixelated",
-          }}
-        />
+          {/* Main drawing canvas — only holds active layer pixels */}
+          <canvas
+            ref={canvasRef}
+            width={width}
+            height={height}
+            className="absolute top-0 left-0"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+              imageRendering: "pixelated",
+              cursor: isLayerLocked ? "not-allowed" : undefined,
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          />
 
-        {/* Main drawing canvas — only holds active layer pixels */}
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
-          className="absolute top-0 left-0"
-          style={{
-            width: pixelW,
-            height: pixelH,
-            imageRendering: "pixelated",
-            cursor: isLayerLocked ? "not-allowed" : undefined,
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        />
+          {/* Layers above the active layer (foreground composite) */}
+          <canvas
+            ref={fgCompositeRef}
+            width={width}
+            height={height}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+              imageRendering: "pixelated",
+              opacity: 0.5,
+            }}
+          />
 
-        {/* Layers above the active layer (foreground composite) */}
-        <canvas
-          ref={fgCompositeRef}
-          width={width}
-          height={height}
-          className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            width: pixelW,
-            height: pixelH,
-            imageRendering: "pixelated",
-            opacity: 0.5,
-          }}
-        />
+          {/* Overlay canvas (tool previews) */}
+          <canvas
+            ref={overlayRef}
+            width={width}
+            height={height}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+              imageRendering: "pixelated",
+            }}
+          />
 
-        {/* Overlay canvas (tool previews) */}
-        <canvas
-          ref={overlayRef}
-          width={width}
-          height={height}
-          className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            width: pixelW,
-            height: pixelH,
-            imageRendering: "pixelated",
-          }}
-        />
+          {/* Screen-resolution selection border canvas (marching ants) */}
+          <canvas
+            ref={selBorderRef}
+            width={canvasPixelW}
+            height={canvasPixelH}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: canvasPixelW,
+              height: canvasPixelH,
+            }}
+          />
+        </div>
 
-        {/* Screen-resolution selection border canvas (marching ants) */}
-        <canvas
-          ref={selBorderRef}
-          width={pixelW}
-          height={pixelH}
-          className="absolute top-0 left-0 pointer-events-none"
+        <div
+          aria-hidden="true"
           style={{
-            width: pixelW,
-            height: pixelH,
+            position: "absolute",
+            top: 0,
+            left: previewPixelW,
+            width: IMAGE_RESIZE_GUTTER,
+            height: previewPixelH,
+            cursor: "ew-resize",
+            touchAction: "none",
           }}
-        />
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerEnter={() => setHoveredResizeHandle("e")}
+          onPointerLeave={() => {
+            if (!resizeActionRef.current) {
+              setHoveredResizeHandle(null);
+            }
+          }}
+          onPointerDown={(e) => beginCanvasResize("e", e)}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              bottom: 4,
+              left: (IMAGE_RESIZE_GUTTER - IMAGE_RESIZE_RAIL_SIZE) / 2,
+              width: IMAGE_RESIZE_RAIL_SIZE,
+              borderRadius: 999,
+              background: rightGripActive
+                ? "rgba(251, 146, 60, 0.45)"
+                : rightGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+              border: rightGripHovered
+                ? "1px solid rgba(251, 146, 60, 0.35)"
+                : "1px solid rgba(255, 255, 255, 0.18)",
+              boxShadow: rightGripHovered
+                ? "0 0 10px rgba(251, 146, 60, 0.18)"
+                : "none",
+              transition:
+                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+            }}
+          />
+        </div>
+
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: previewPixelH,
+            left: 0,
+            width: previewPixelW,
+            height: IMAGE_RESIZE_GUTTER,
+            cursor: "ns-resize",
+            touchAction: "none",
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerEnter={() => setHoveredResizeHandle("s")}
+          onPointerLeave={() => {
+            if (!resizeActionRef.current) {
+              setHoveredResizeHandle(null);
+            }
+          }}
+          onPointerDown={(e) => beginCanvasResize("s", e)}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 4,
+              right: 4,
+              top: (IMAGE_RESIZE_GUTTER - IMAGE_RESIZE_RAIL_SIZE) / 2,
+              height: IMAGE_RESIZE_RAIL_SIZE,
+              borderRadius: 999,
+              background: bottomGripActive
+                ? "rgba(251, 146, 60, 0.45)"
+                : bottomGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+              border: bottomGripHovered
+                ? "1px solid rgba(251, 146, 60, 0.35)"
+                : "1px solid rgba(255, 255, 255, 0.18)",
+              boxShadow: bottomGripHovered
+                ? "0 0 10px rgba(251, 146, 60, 0.18)"
+                : "none",
+              transition:
+                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+            }}
+          />
+        </div>
+
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: previewPixelH,
+            left: previewPixelW,
+            width: IMAGE_RESIZE_GUTTER,
+            height: IMAGE_RESIZE_GUTTER,
+            cursor: "nwse-resize",
+            touchAction: "none",
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerEnter={() => setHoveredResizeHandle("se")}
+          onPointerLeave={() => {
+            if (!resizeActionRef.current) {
+              setHoveredResizeHandle(null);
+            }
+          }}
+          onPointerDown={(e) => beginCanvasResize("se", e)}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 2,
+              borderRadius: 4,
+              background: cornerGripActive
+                ? "rgba(251, 146, 60, 0.45)"
+                : cornerGripHovered
+                  ? "rgba(251, 146, 60, 0.24)"
+                  : "rgba(148, 163, 184, 0.28)",
+              border: cornerGripHovered
+                ? "1px solid rgba(251, 146, 60, 0.35)"
+                : "1px solid rgba(255, 255, 255, 0.18)",
+              boxShadow: cornerGripHovered
+                ? "0 0 12px rgba(251, 146, 60, 0.2)"
+                : "none",
+              transition:
+                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+            }}
+          />
+        </div>
+
+        {resizePreview && (
+          <div
+            aria-live="polite"
+            style={{
+              position: "absolute",
+              top: Math.max(0, previewPixelH - IMAGE_RESIZE_GUTTER - 24),
+              left: Math.max(0, previewPixelW - 70 - IMAGE_RESIZE_BADGE_OFFSET),
+              minWidth: 70,
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: "rgba(15, 23, 42, 0.88)",
+              color: "rgba(248, 250, 252, 0.95)",
+              border: "1px solid rgba(251, 146, 60, 0.35)",
+              fontSize: 11,
+              lineHeight: 1.4,
+              textAlign: "center",
+              pointerEvents: "none",
+            }}
+          >
+            {sizeLabel}
+          </div>
+        )}
       </div>
     </div>
   );

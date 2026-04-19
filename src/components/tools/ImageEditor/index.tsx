@@ -784,6 +784,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
                     onPushUndo={editor.pushUndoSnapshot}
                     onSelectionChange={editor.setSelection}
                     onFrameDataChange={editor.setFrameData}
+                    onResizeCanvas={editor.resizeCanvas}
                   />
                 </div>
               </Panel>

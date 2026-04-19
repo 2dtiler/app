@@ -80,6 +80,23 @@ export interface NewImageDialogProps {
   initialHeight?: number;
 }
 
+export type ImageCanvasResizeHandle = "e" | "s" | "se" | null;
+
+export interface ImageCanvasResizeAction {
+  handle: Exclude<ImageCanvasResizeHandle, null>;
+  startClientX: number;
+  startClientY: number;
+  origWidth: number;
+  origHeight: number;
+  nextWidth: number;
+  nextHeight: number;
+}
+
+export interface ImageCanvasResizePreview {
+  width: number;
+  height: number;
+}
+
 export interface ImageCanvasProps {
   width: number;
   height: number;
@@ -102,6 +119,7 @@ export interface ImageCanvasProps {
   onPushUndo: () => void;
   onSelectionChange: (sel: PixelSelection | null) => void;
   onFrameDataChange: (frameId: FrameId, data: ImageData) => void;
+  onResizeCanvas: (width: number, height: number) => void;
 }
 
 export interface PalettePanelProps {
