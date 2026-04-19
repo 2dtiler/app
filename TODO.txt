@@ -1,6 +1,6 @@
-Image/sprite Editor: Opacity not real opacity (See prompt in sublime text)
+> Image/sprite Editor: Opacity not real opacity (See prompt in sublime text)
 
-Object properties are not saving
+>> Object properties are not saving
 
 Image/sprite Editor:
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes

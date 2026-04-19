@@ -52,7 +52,7 @@ export function bresenhamLine(
   return points;
 }
 
-/** Set a single pixel in an ImageData buffer. Bounds-checked. */
+/** Blend a single pixel into an ImageData buffer using source-over alpha. */
 export function setPixel(
   data: Uint8ClampedArray,
   width: number,
@@ -63,10 +63,59 @@ export function setPixel(
 ): void {
   if (x < 0 || y < 0 || x >= width || y >= height) return;
   const i = (y * width + x) * 4;
-  data[i] = color.r;
-  data[i + 1] = color.g;
-  data[i + 2] = color.b;
-  data[i + 3] = color.a;
+  if (color.a <= 0) return;
+
+  if (color.a >= 255) {
+    data[i] = color.r;
+    data[i + 1] = color.g;
+    data[i + 2] = color.b;
+    data[i + 3] = 255;
+    return;
+  }
+
+  const destinationRed = data[i]!;
+  const destinationGreen = data[i + 1]!;
+  const destinationBlue = data[i + 2]!;
+  const destinationAlpha = data[i + 3]! / 255;
+  const sourceAlpha = color.a / 255;
+  const outputAlpha = sourceAlpha + destinationAlpha * (1 - sourceAlpha);
+
+  if (outputAlpha <= 0) {
+    data[i] = 0;
+    data[i + 1] = 0;
+    data[i + 2] = 0;
+    data[i + 3] = 0;
+    return;
+  }
+
+  const sourceWeight = sourceAlpha / outputAlpha;
+  const destinationWeight =
+    (destinationAlpha * (1 - sourceAlpha)) / outputAlpha;
+
+  data[i] = Math.round(color.r * sourceWeight + destinationRed * destinationWeight);
+  data[i + 1] = Math.round(
+    color.g * sourceWeight + destinationGreen * destinationWeight,
+  );
+  data[i + 2] = Math.round(
+    color.b * sourceWeight + destinationBlue * destinationWeight,
+  );
+  data[i + 3] = Math.round(outputAlpha * 255);
+}
+
+/** Clear a single pixel to full transparency. Bounds-checked. */
+function clearPixel(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): void {
+  if (x < 0 || y < 0 || x >= width || y >= height) return;
+  const i = (y * width + x) * 4;
+  data[i] = 0;
+  data[i + 1] = 0;
+  data[i + 2] = 0;
+  data[i + 3] = 0;
 }
 
 /** Get pixel color from ImageData. Returns transparent black if out of bounds. */
@@ -133,6 +182,27 @@ export function drawSquareBrush(
   for (let py = cy - radius; py <= cy + radius; py++) {
     for (let px = cx - radius; px <= cx + radius; px++) {
       setPixel(data, width, height, px, py, color);
+    }
+  }
+}
+
+function clearSquareBrush(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  size: number,
+): void {
+  if (size <= 1) {
+    clearPixel(data, width, height, cx, cy);
+    return;
+  }
+
+  const radius = Math.floor(size / 2);
+  for (let py = cy - radius; py <= cy + radius; py++) {
+    for (let px = cx - radius; px <= cx + radius; px++) {
+      clearPixel(data, width, height, px, py);
     }
   }
 }
@@ -268,8 +338,6 @@ export function pencilUp(
 // Eraser tool
 // ---------------------------------------------------------------------------
 
-const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 };
-
 export function eraserDown(
   tc: ToolContext,
   x: number,
@@ -280,15 +348,7 @@ export function eraserDown(
   ss.lastX = x;
   ss.lastY = y;
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  drawSquareBrush(
-    imgData.data,
-    tc.width,
-    tc.height,
-    x,
-    y,
-    tc.brushSize,
-    TRANSPARENT,
-  );
+  clearSquareBrush(imgData.data, tc.width, tc.height, x, y, tc.brushSize);
   tc.ctx.putImageData(imgData, 0, 0);
 }
 
@@ -302,15 +362,7 @@ export function eraserMove(
   const imgData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
   const points = bresenhamLine(ss.lastX, ss.lastY, x, y);
   for (const [px, py] of points) {
-    drawSquareBrush(
-      imgData.data,
-      tc.width,
-      tc.height,
-      px,
-      py,
-      tc.brushSize,
-      TRANSPARENT,
-    );
+    clearSquareBrush(imgData.data, tc.width, tc.height, px, py, tc.brushSize);
   }
   tc.ctx.putImageData(imgData, 0, 0);
   ss.lastX = x;
@@ -1133,7 +1185,8 @@ export function paintBucketDown(tc: ToolContext, x: number, y: number): void {
   const targetColor = getPixel(data, w, h, x, y);
   const fillColor = tc.color;
 
-  if (colorsEqual(targetColor, fillColor)) return;
+  if (fillColor.a <= 0) return;
+  if (fillColor.a >= 255 && colorsEqual(targetColor, fillColor)) return;
 
   // Scanline flood fill
   const stack: [number, number][] = [[x, y]];
