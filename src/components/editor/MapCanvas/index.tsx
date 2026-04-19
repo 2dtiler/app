@@ -132,8 +132,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       const action = mapResizeActionRef.current;
       if (!action) return;
 
-      const deltaTilesX = Math.round((clientX - action.startClientX) / scaledTile);
-      const deltaTilesY = Math.round((clientY - action.startClientY) / scaledTile);
+      const deltaTilesX = Math.round(
+        (clientX - action.startClientX) / scaledTile,
+      );
+      const deltaTilesY = Math.round(
+        (clientY - action.startClientY) / scaledTile,
+      );
       const nextWidth = clampMapDimension(
         action.origWidth +
           (action.handle === "e" || action.handle === "se" ? deltaTilesX : 0),
