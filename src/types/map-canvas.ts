@@ -1,4 +1,10 @@
-import type { RefObject } from "react";
+import type {
+  Dispatch,
+  MutableRefObject,
+  PointerEvent as ReactPointerEvent,
+  RefObject,
+  SetStateAction,
+} from "react";
 import type {
   EditorState,
   ImageLayer,
@@ -38,6 +44,41 @@ export interface MapResizeAction {
   origHeight: number;
   nextWidth: number;
   nextHeight: number;
+}
+
+export interface UseMapResizeParams {
+  mapWidth: number;
+  mapHeight: number;
+  scaledTile: number;
+  onResizeMap: (width: number, height: number) => void;
+}
+
+export interface UseMapResizeReturn {
+  activeMapResizeHandle: MapResizeHandle | null;
+  hoveredMapResizeHandle: MapResizeHandle | null;
+  mapResizeActionRef: MutableRefObject<MapResizeAction | null>;
+  mapResizePreview: MapResizePreview | null;
+  previewWidth: number;
+  previewHeight: number;
+  beginMapResize: (
+    handle: MapResizeHandle,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => void;
+  isResizing: boolean;
+  setHoveredMapResizeHandle: Dispatch<SetStateAction<MapResizeHandle | null>>;
+}
+
+export interface MapResizeControlsProps {
+  canvasW: number;
+  canvasH: number;
+  previewWidth: number;
+  previewHeight: number;
+  activeHandle: MapResizeHandle | null;
+  hoveredHandle: MapResizeHandle | null;
+  mapResizePreview: MapResizePreview | null;
+  isResizing: boolean;
+  onHoverHandleChange: (handle: MapResizeHandle | null) => void;
+  onBeginMapResize: UseMapResizeReturn["beginMapResize"];
 }
 
 export interface MapCanvasProps {

@@ -20,12 +20,7 @@ import {
   isHexagonalMap,
 } from "@/lib/map-geometry";
 import { isTextObject } from "@/lib/text-objects";
-import type {
-  MapCanvasProps,
-  MapResizeAction,
-  MapResizeHandle,
-  MapResizePreview,
-} from "@/types/map-canvas";
+import type { MapCanvasProps } from "@/types/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,
@@ -46,25 +41,12 @@ import {
   drawLiveObjectPlacementPreview,
   drawMapObjects,
 } from "./draw-map-objects";
+import { MapResizeControls } from "./MapResizeControls";
 import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
+import { useMapResize } from "./use-map-resize";
 import { useSceneInteraction } from "./use-scene-interaction";
 
 const MAP_RESIZE_GUTTER = 14;
-const MAP_RESIZE_RAIL_SIZE = 10;
-const MAP_RESIZE_BADGE_OFFSET = 6;
-
-function clampMapDimension(value: number, fallback: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(256, Math.max(1, Math.round(value)));
-}
-
-function getResizeDeltaInTiles(delta: number, scaledTile: number): number {
-  if (scaledTile <= 0) return 0;
-  if (delta >= 0) {
-    return Math.floor(delta / scaledTile);
-  }
-  return Math.ceil(delta / scaledTile);
-}
 
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {
@@ -117,20 +99,26 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imagesReady, setImagesReady] = useState(0);
-  const mapResizeActionRef = useRef<MapResizeAction | null>(null);
-  const [activeMapResizeHandle, setActiveMapResizeHandle] =
-    useState<MapResizeHandle | null>(null);
-  const [hoveredMapResizeHandle, setHoveredMapResizeHandle] =
-    useState<MapResizeHandle | null>(null);
-  const [mapResizePreview, setMapResizePreview] =
-    useState<MapResizePreview | null>(null);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
   const mapH = map.heightInTiles;
-  const previewMapW = mapResizePreview?.width ?? mapW;
-  const previewMapH = mapResizePreview?.height ?? mapH;
   const scaledTile = tileSize * zoom;
+  const {
+    activeMapResizeHandle,
+    hoveredMapResizeHandle,
+    mapResizePreview,
+    previewWidth: previewMapW,
+    previewHeight: previewMapH,
+    beginMapResize,
+    isResizing,
+    setHoveredMapResizeHandle,
+  } = useMapResize({
+    mapWidth: mapW,
+    mapHeight: mapH,
+    scaledTile,
+    onResizeMap,
+  });
   const previewMap = {
     ...map,
     widthInTiles: previewMapW,
@@ -153,107 +141,6 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     },
     [map, zoom],
   );
-
-  const endMapResize = useCallback(
-    (commit: boolean) => {
-      const action = mapResizeActionRef.current;
-      if (!action) return;
-
-      mapResizeActionRef.current = null;
-      setActiveMapResizeHandle(null);
-      setHoveredMapResizeHandle(null);
-      setMapResizePreview(null);
-
-      if (
-        commit &&
-        (action.nextWidth !== action.origWidth ||
-          action.nextHeight !== action.origHeight)
-      ) {
-        onResizeMap(action.nextWidth, action.nextHeight);
-      }
-    },
-    [onResizeMap],
-  );
-
-  const updateMapResizePreview = useCallback(
-    (clientX: number, clientY: number) => {
-      const action = mapResizeActionRef.current;
-      if (!action) return;
-
-      const deltaTilesX = getResizeDeltaInTiles(
-        clientX - action.startClientX,
-        scaledTile,
-      );
-      const deltaTilesY = getResizeDeltaInTiles(
-        clientY - action.startClientY,
-        scaledTile,
-      );
-      const nextWidth = clampMapDimension(
-        action.origWidth +
-          (action.handle === "e" || action.handle === "se" ? deltaTilesX : 0),
-        action.origWidth,
-      );
-      const nextHeight = clampMapDimension(
-        action.origHeight +
-          (action.handle === "s" || action.handle === "se" ? deltaTilesY : 0),
-        action.origHeight,
-      );
-
-      action.nextWidth = nextWidth;
-      action.nextHeight = nextHeight;
-      setMapResizePreview({ width: nextWidth, height: nextHeight });
-    },
-    [scaledTile],
-  );
-
-  const beginMapResize = useCallback(
-    (handle: MapResizeHandle, e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.button !== 0) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      mapResizeActionRef.current = {
-        handle,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        origWidth: mapW,
-        origHeight: mapH,
-        nextWidth: mapW,
-        nextHeight: mapH,
-      };
-      setActiveMapResizeHandle(handle);
-      setHoveredMapResizeHandle(handle);
-      setMapResizePreview({ width: mapW, height: mapH });
-    },
-    [mapW, mapH],
-  );
-
-  useEffect(() => {
-    if (!activeMapResizeHandle) return;
-
-    function handleWindowPointerMove(e: PointerEvent) {
-      e.preventDefault();
-      updateMapResizePreview(e.clientX, e.clientY);
-    }
-
-    function handleWindowPointerUp(e: PointerEvent) {
-      if (e.button !== 0) return;
-      endMapResize(true);
-    }
-
-    function handleWindowPointerCancel() {
-      endMapResize(false);
-    }
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp);
-    window.addEventListener("pointercancel", handleWindowPointerCancel);
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-      window.removeEventListener("pointercancel", handleWindowPointerCancel);
-    };
-  }, [activeMapResizeHandle, endMapResize, updateMapResizePreview]);
 
   // ---------------------------------------------------------------------------
   // Image loading
@@ -997,17 +884,6 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const checkSize = 8 * zoom;
   const wrapperWidth = canvasW + MAP_RESIZE_GUTTER;
   const wrapperHeight = canvasH + MAP_RESIZE_GUTTER;
-  const sizeLabel = `${previewMapW} × ${previewMapH}`;
-  const rightGripActive =
-    activeMapResizeHandle === "e" || activeMapResizeHandle === "se";
-  const bottomGripActive =
-    activeMapResizeHandle === "s" || activeMapResizeHandle === "se";
-  const rightGripHovered =
-    hoveredMapResizeHandle === "e" || hoveredMapResizeHandle === "se";
-  const bottomGripHovered =
-    hoveredMapResizeHandle === "s" || hoveredMapResizeHandle === "se";
-  const cornerGripActive = activeMapResizeHandle === "se";
-  const cornerGripHovered = hoveredMapResizeHandle === "se";
 
   return (
     <div
@@ -1097,157 +973,18 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           />
         )}
       </div>
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: canvasW,
-          width: MAP_RESIZE_GUTTER,
-          height: canvasH,
-          cursor: RESIZE_CURSORS.e,
-          touchAction: "none",
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerEnter={() => setHoveredMapResizeHandle("e")}
-        onPointerLeave={() => {
-          if (!mapResizeActionRef.current) {
-            setHoveredMapResizeHandle(null);
-          }
-        }}
-        onPointerDown={(e) => beginMapResize("e", e)}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            bottom: 4,
-            left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
-            width: MAP_RESIZE_RAIL_SIZE,
-            borderRadius: 999,
-            background: rightGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : rightGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: rightGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: rightGripHovered
-              ? "0 0 10px rgba(251, 146, 60, 0.18)"
-              : "none",
-            transition:
-              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-          }}
-        />
-      </div>
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: canvasH,
-          left: 0,
-          width: canvasW,
-          height: MAP_RESIZE_GUTTER,
-          cursor: RESIZE_CURSORS.s,
-          touchAction: "none",
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerEnter={() => setHoveredMapResizeHandle("s")}
-        onPointerLeave={() => {
-          if (!mapResizeActionRef.current) {
-            setHoveredMapResizeHandle(null);
-          }
-        }}
-        onPointerDown={(e) => beginMapResize("s", e)}
-      >
-        <div
-          style={{
-            position: "absolute",
-            left: 4,
-            right: 4,
-            top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
-            height: MAP_RESIZE_RAIL_SIZE,
-            borderRadius: 999,
-            background: bottomGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : bottomGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: bottomGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: bottomGripHovered
-              ? "0 0 10px rgba(251, 146, 60, 0.18)"
-              : "none",
-            transition:
-              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-          }}
-        />
-      </div>
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: canvasH,
-          left: canvasW,
-          width: MAP_RESIZE_GUTTER,
-          height: MAP_RESIZE_GUTTER,
-          cursor: RESIZE_CURSORS.se,
-          touchAction: "none",
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerEnter={() => setHoveredMapResizeHandle("se")}
-        onPointerLeave={() => {
-          if (!mapResizeActionRef.current) {
-            setHoveredMapResizeHandle(null);
-          }
-        }}
-        onPointerDown={(e) => beginMapResize("se", e)}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 2,
-            borderRadius: 4,
-            background: cornerGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : cornerGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: cornerGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: cornerGripHovered
-              ? "0 0 12px rgba(251, 146, 60, 0.2)"
-              : "none",
-            transition:
-              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-          }}
-        />
-      </div>
-      {mapResizePreview && (
-        <div
-          aria-live="polite"
-          style={{
-            position: "absolute",
-            top: Math.max(0, canvasH - MAP_RESIZE_GUTTER - 24),
-            left: Math.max(0, canvasW - 70 - MAP_RESIZE_BADGE_OFFSET),
-            minWidth: 70,
-            padding: "2px 6px",
-            borderRadius: 999,
-            background: "rgba(15, 23, 42, 0.88)",
-            color: "rgba(248, 250, 252, 0.95)",
-            border: "1px solid rgba(251, 146, 60, 0.35)",
-            fontSize: 11,
-            lineHeight: 1.4,
-            textAlign: "center",
-            pointerEvents: "none",
-          }}
-        >
-          {sizeLabel}
-        </div>
-      )}
+      <MapResizeControls
+        canvasW={canvasW}
+        canvasH={canvasH}
+        previewWidth={previewMapW}
+        previewHeight={previewMapH}
+        activeHandle={activeMapResizeHandle}
+        hoveredHandle={hoveredMapResizeHandle}
+        mapResizePreview={mapResizePreview}
+        isResizing={isResizing}
+        onHoverHandleChange={setHoveredMapResizeHandle}
+        onBeginMapResize={beginMapResize}
+      />
     </div>
   );
 });
