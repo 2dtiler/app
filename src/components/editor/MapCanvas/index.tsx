@@ -12,7 +12,12 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
-import type { MapCanvasProps } from "@/types/map-canvas";
+import type {
+  MapCanvasProps,
+  MapResizeAction,
+  MapResizeHandle,
+  MapResizePreview,
+} from "@/types/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,
@@ -31,6 +36,15 @@ import {
 } from "./image-layer-transform";
 import { useSceneInteraction } from "./use-scene-interaction";
 
+const MAP_RESIZE_GUTTER = 14;
+const MAP_RESIZE_RAIL_SIZE = 10;
+const MAP_RESIZE_BADGE_OFFSET = 6;
+
+function clampMapDimension(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(256, Math.max(1, Math.round(value)));
+}
+
 export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const {
     map,
@@ -45,6 +59,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     brushSize,
     selectedTileSize,
     selectedTile,
+    onResizeMap,
     onPaintTile,
     onPaintEnd,
     paintBufferVersion,
@@ -77,13 +92,113 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imagesReady, setImagesReady] = useState(0);
+  const mapResizeActionRef = useRef<MapResizeAction | null>(null);
+  const [activeMapResizeHandle, setActiveMapResizeHandle] =
+    useState<MapResizeHandle | null>(null);
+  const [mapResizePreview, setMapResizePreview] =
+    useState<MapResizePreview | null>(null);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
   const mapH = map.heightInTiles;
+  const previewMapW = mapResizePreview?.width ?? mapW;
+  const previewMapH = mapResizePreview?.height ?? mapH;
   const scaledTile = tileSize * zoom;
-  const canvasW = mapW * scaledTile;
-  const canvasH = mapH * scaledTile;
+  const canvasW = previewMapW * scaledTile;
+  const canvasH = previewMapH * scaledTile;
+
+  const endMapResize = useCallback(
+    (commit: boolean) => {
+      const action = mapResizeActionRef.current;
+      if (!action) return;
+
+      mapResizeActionRef.current = null;
+      setActiveMapResizeHandle(null);
+      setMapResizePreview(null);
+
+      if (
+        commit &&
+        (action.nextWidth !== action.origWidth ||
+          action.nextHeight !== action.origHeight)
+      ) {
+        onResizeMap(action.nextWidth, action.nextHeight);
+      }
+    },
+    [onResizeMap],
+  );
+
+  const updateMapResizePreview = useCallback(
+    (clientX: number, clientY: number) => {
+      const action = mapResizeActionRef.current;
+      if (!action) return;
+
+      const deltaTilesX = Math.round((clientX - action.startClientX) / scaledTile);
+      const deltaTilesY = Math.round((clientY - action.startClientY) / scaledTile);
+      const nextWidth = clampMapDimension(
+        action.origWidth +
+          (action.handle === "e" || action.handle === "se" ? deltaTilesX : 0),
+        action.origWidth,
+      );
+      const nextHeight = clampMapDimension(
+        action.origHeight +
+          (action.handle === "s" || action.handle === "se" ? deltaTilesY : 0),
+        action.origHeight,
+      );
+
+      action.nextWidth = nextWidth;
+      action.nextHeight = nextHeight;
+      setMapResizePreview({ width: nextWidth, height: nextHeight });
+    },
+    [scaledTile],
+  );
+
+  const beginMapResize = useCallback(
+    (handle: MapResizeHandle, e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      mapResizeActionRef.current = {
+        handle,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        origWidth: mapW,
+        origHeight: mapH,
+        nextWidth: mapW,
+        nextHeight: mapH,
+      };
+      setActiveMapResizeHandle(handle);
+      setMapResizePreview({ width: mapW, height: mapH });
+    },
+    [mapW, mapH],
+  );
+
+  useEffect(() => {
+    if (!activeMapResizeHandle) return;
+
+    function handleWindowPointerMove(e: PointerEvent) {
+      e.preventDefault();
+      updateMapResizePreview(e.clientX, e.clientY);
+    }
+
+    function handleWindowPointerUp(e: PointerEvent) {
+      if (e.button !== 0) return;
+      endMapResize(true);
+    }
+
+    function handleWindowPointerCancel() {
+      endMapResize(false);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerCancel);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel);
+    };
+  }, [activeMapResizeHandle, endMapResize, updateMapResizePreview]);
 
   // ---------------------------------------------------------------------------
   // Image loading
@@ -932,80 +1047,197 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       : "crosshair";
 
   const checkSize = 8 * zoom;
+  const wrapperWidth = canvasW + MAP_RESIZE_GUTTER;
+  const wrapperHeight = canvasH + MAP_RESIZE_GUTTER;
+  const sizeLabel = `${previewMapW} × ${previewMapH}`;
 
   return (
     <div
       style={{
         position: "relative",
-        width: canvasW,
-        height: canvasH,
-        // CSS checkerboard — no canvas redraws needed for background
-        backgroundColor: "var(--checkerboard-base)",
-        backgroundImage:
-          "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
-          "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
-          "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
-          "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
-        backgroundSize: `${checkSize * 2}px ${checkSize * 2}px`,
-        backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
+        width: wrapperWidth,
+        height: wrapperHeight,
       }}
     >
-      {/* Base canvas: inactive layers below the active layer */}
-      <canvas
-        ref={mainCanvasRef}
-        width={canvasW}
-        height={canvasH}
+      <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          imageRendering: "pixelated",
-          cursor,
+          width: canvasW,
+          height: canvasH,
+          backgroundColor: "var(--checkerboard-base)",
+          backgroundImage:
+            "linear-gradient(45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+            "linear-gradient(-45deg, var(--checkerboard-accent) 25%, transparent 25%), " +
+            "linear-gradient(45deg, transparent 75%, var(--checkerboard-accent) 75%), " +
+            "linear-gradient(-45deg, transparent 75%, var(--checkerboard-accent) 75%)",
+          backgroundSize: `${checkSize * 2}px ${checkSize * 2}px`,
+          backgroundPosition: `0 0, 0 ${checkSize}px, ${checkSize}px -${checkSize}px, -${checkSize}px 0`,
         }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-      />
-      {/* Active-layer canvas: committed content plus live brush updates */}
-      <canvas
-        ref={paintCanvasRef}
-        width={canvasW}
-        height={canvasH}
+      >
+        <canvas
+          ref={mainCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            imageRendering: "pixelated",
+            cursor,
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerLeave}
+        />
+        <canvas
+          ref={paintCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+        <canvas
+          ref={topCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          width={canvasW}
+          height={canvasH}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            pointerEvents: "none",
+            imageRendering: "pixelated",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           top: 0,
-          left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          left: canvasW,
+          width: MAP_RESIZE_GUTTER,
+          height: canvasH,
+          cursor: RESIZE_CURSORS.e,
+          touchAction: "none",
         }}
-      />
-      {/* Top canvas: inactive layers above the active layer plus editor UI */}
-      <canvas
-        ref={topCanvasRef}
-        width={canvasW}
-        height={canvasH}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => beginMapResize("e", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            bottom: 4,
+            left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            width: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background:
+              activeMapResizeHandle === "e" || activeMapResizeHandle === "se"
+                ? "rgba(251, 146, 60, 0.45)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
-          top: 0,
+          top: canvasH,
           left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          width: canvasW,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.s,
+          touchAction: "none",
         }}
-      />
-      {/* Overlay canvas: imperative hover brush highlight */}
-      <canvas
-        ref={overlayCanvasRef}
-        width={canvasW}
-        height={canvasH}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => beginMapResize("s", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 4,
+            right: 4,
+            top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            height: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background:
+              activeMapResizeHandle === "s" || activeMapResizeHandle === "se"
+                ? "rgba(251, 146, 60, 0.45)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          pointerEvents: "none",
-          imageRendering: "pixelated",
+          top: canvasH,
+          left: canvasW,
+          width: MAP_RESIZE_GUTTER,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.se,
+          touchAction: "none",
         }}
-      />
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => beginMapResize("se", e)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 2,
+            borderRadius: 4,
+            background:
+              activeMapResizeHandle === "se"
+                ? "rgba(251, 146, 60, 0.45)"
+                : "rgba(148, 163, 184, 0.28)",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
+          }}
+        />
+      </div>
+      {mapResizePreview && (
+        <div
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            top: Math.max(0, canvasH - MAP_RESIZE_GUTTER - 24),
+            left: Math.max(0, canvasW - 70 - MAP_RESIZE_BADGE_OFFSET),
+            minWidth: 70,
+            padding: "2px 6px",
+            borderRadius: 999,
+            background: "rgba(15, 23, 42, 0.88)",
+            color: "rgba(248, 250, 252, 0.95)",
+            border: "1px solid rgba(251, 146, 60, 0.35)",
+            fontSize: 11,
+            lineHeight: 1.4,
+            textAlign: "center",
+            pointerEvents: "none",
+          }}
+        >
+          {sizeLabel}
+        </div>
+      )}
     </div>
   );
 });

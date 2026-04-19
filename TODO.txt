@@ -1,11 +1,11 @@
-Ability to make canvas size bigger by just dragging
+Just retry in vscode: Ability to make canvas size bigger by just dragging
+
+Image/sprite Editor: Opacity not real opacity (See prompt in sublime text)
+Object properties are not saving
 
 Image/sprite Editor:
-  Opacity not real opacity
   Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
     - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-
-- Object properties are not saving
 - Delete button should delete the selected thing
 - Enable map export to serialize image layers  
 - Add Text to Object Layer 
@@ -13,6 +13,7 @@ Image/sprite Editor:
 
 Import Options
 Export Options
+Bush size should never be a slider
 
 AI Asset Generation:
   AI Generation not working currently

@@ -1784,7 +1784,7 @@ export function MapPanel() {
   function handleSaveMapOptions(
     width: number,
     height: number,
-    properties: Record<string, PropertyValue>,
+    properties?: Record<string, PropertyValue>,
   ) {
     if (!activeMap) return;
 
@@ -1797,7 +1797,9 @@ export function MapPanel() {
       if (!map) return;
       map.widthInTiles = nextWidth;
       map.heightInTiles = nextHeight;
-      map.properties = properties;
+      if (properties) {
+        map.properties = properties;
+      }
       // Trim tiles outside bounds
       for (const layer of draft.project.layers) {
         if (layer.mapId !== map.id) continue;
@@ -1809,6 +1811,14 @@ export function MapPanel() {
         }
       }
     });
+  }
+
+  function handleUpdateMapOptions(
+    width: number,
+    height: number,
+    properties: Record<string, PropertyValue>,
+  ) {
+    handleSaveMapOptions(width, height, properties);
     setMapOptionsOpen(false);
   }
 
@@ -2343,6 +2353,7 @@ export function MapPanel() {
                 brushSize={state.brushSize}
                 selectedTileSize={state.tileSize}
                 selectedTile={state.selectedTile}
+                onResizeMap={handleSaveMapOptions}
                 onPaintTile={handlePaintTile}
                 onPaintEnd={handlePaintEnd}
                 paintBuffer={paintBuffer}
@@ -2476,7 +2487,7 @@ export function MapPanel() {
           open={mapOptionsOpen}
           onOpenChange={setMapOptionsOpen}
           map={activeMap}
-          onSave={handleSaveMapOptions}
+          onSave={handleUpdateMapOptions}
         />
       )}
 

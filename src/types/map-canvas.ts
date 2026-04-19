@@ -19,6 +19,23 @@ export interface MapCanvasImperativeHandle {
 
 export type ResizeHandle = "nw" | "n" | "ne" | "w" | "e" | "sw" | "s" | "se";
 
+export type MapResizeHandle = "e" | "s" | "se";
+
+export interface MapResizePreview {
+  width: number;
+  height: number;
+}
+
+export interface MapResizeAction {
+  handle: MapResizeHandle;
+  startClientX: number;
+  startClientY: number;
+  origWidth: number;
+  origHeight: number;
+  nextWidth: number;
+  nextHeight: number;
+}
+
 export interface MapCanvasProps {
   map: TileMapData;
   layers: TileLayer[];
@@ -32,6 +49,7 @@ export interface MapCanvasProps {
   brushSize: EditorState["brushSize"];
   selectedTileSize: EditorState["tileSize"];
   selectedTile: EditorState["selectedTile"];
+  onResizeMap: (width: number, height: number) => void;
   onPaintTile: (gx: number, gy: number) => void;
   onPaintEnd: () => void;
   paintBuffer: Map<string, TileRef | null>;
