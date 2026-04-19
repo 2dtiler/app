@@ -28,7 +28,11 @@ import type {
   LayerGroup,
 } from "@/types";
 import { getAsset, saveAsset } from "./db";
-import { normalizeProject, normalizeTileMap, normalizeTileset } from "./project";
+import {
+  normalizeProject,
+  normalizeTileMap,
+  normalizeTileset,
+} from "./project";
 import type {
   AssetManifestEntry,
   PackedMap,

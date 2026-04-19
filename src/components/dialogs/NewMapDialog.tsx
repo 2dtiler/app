@@ -119,7 +119,11 @@ export function NewMapDialog({
           </p>
         </div>
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={onCreate}>

@@ -240,9 +240,8 @@ export function MapPanel() {
   const [newMapName, setNewMapName] = useState("Untitled Map");
   const [newMapWidth, setNewMapWidth] = useState(20);
   const [newMapHeight, setNewMapHeight] = useState(15);
-  const [newMapType, setNewMapType] = useState<NewMapType>(
-    DEFAULT_NEW_MAP_TYPE,
-  );
+  const [newMapType, setNewMapType] =
+    useState<NewMapType>(DEFAULT_NEW_MAP_TYPE);
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);

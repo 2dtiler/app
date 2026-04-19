@@ -338,14 +338,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         if (!isHexMap) {
           ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
         }
-        drawTileWithOrientation(
-          ctx,
-          img,
-          ref,
-          bounds.x,
-          bounds.y,
-          scaledTile,
-        );
+        drawTileWithOrientation(ctx, img, ref, bounds.x, bounds.y, scaledTile);
       },
       eraseBufferTile(gx: number, gy: number) {
         const canvas = paintCanvasRef.current;
@@ -874,14 +867,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const ty = moveDestSel.y + tdy;
         if (tx >= mapW || ty >= mapH) continue;
         const origin = getMapCellOrigin(map, zoom, tx, ty);
-        drawTileWithOrientation(
-          ctx,
-          img,
-          ref,
-          origin.x,
-          origin.y,
-          scaledTile,
-        );
+        drawTileWithOrientation(ctx, img, ref, origin.x, origin.y, scaledTile);
       }
       ctx.globalAlpha = 1;
     }

@@ -5,10 +5,7 @@ import type {
   Tileset,
   TilesetId,
 } from "@/types";
-import {
-  DEFAULT_HEX_STAGGER_AXIS,
-  DEFAULT_HEX_STAGGER_INDEX,
-} from "@/types";
+import { DEFAULT_HEX_STAGGER_AXIS, DEFAULT_HEX_STAGGER_INDEX } from "@/types";
 import { normalizeTextObject } from "./text-objects";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
