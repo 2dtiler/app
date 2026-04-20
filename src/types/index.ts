@@ -3,6 +3,7 @@ export * from "./map-geometry";
 export * from "./image-editor";
 export * from "./components";
 export * from "./dialogs";
+export * from "./import-export";
 export * from "./editor-layout";
 export * from "./map-canvas";
 export * from "./image-editor-ui";

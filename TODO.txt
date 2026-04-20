@@ -1,6 +1,9 @@
 Import Options
-
 Export Options
+  - Show a map selection
+
+Allow quick export bottom right
+Dragging a supported tileset/map into the canvas should automatically load it.
 
 AI Asset Generation:
   AI Generation not working currently
@@ -15,8 +18,8 @@ Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Exploration:
-  Universal lpc spritesheet generator
   Ogmo Editor
+  Universal lpc spritesheet generator
   LDTK
   Pixelorama
   PixiEditor

@@ -22,6 +22,7 @@ import { useEditorStore } from "@/hooks/use-editor-store";
 import {
   exportProject,
   exportMap,
+  importProject,
   importMap,
   exportTileset,
   importTileset,
@@ -39,6 +40,7 @@ import {
 import { findLastLayerId, getAllGroupIds, getAllLayerIds } from "@/lib/layers";
 import { clearTileEditorContext } from "@/lib/tile-editor-context";
 import { getActiveTilesetTileSize } from "@/lib/project";
+import { openProjectInEditor } from "@/lib/project-session";
 import {
   cloneImportedTileset,
   clonePropertyValues,
@@ -60,6 +62,7 @@ import type {
 } from "@/types";
 import type { EditorWorkspaceTab } from "@/types/editor-layout";
 import type { AppShellProps } from "@/types/app";
+import type { ImportExportDialogMode } from "@/types/import-export";
 import { markEditorSaved } from "@/lib/store";
 
 const SettingsDialog = lazy(() =>
@@ -90,6 +93,11 @@ const FindReplaceDialog = lazy(() =>
 const BugReportDialog = lazy(() =>
   import("@/components/dialogs/BugReportDialog").then((module) => ({
     default: module.BugReportDialog,
+  })),
+);
+const ImportExportDialog = lazy(() =>
+  import("@/components/dialogs/ImportExportDialog").then((module) => ({
+    default: module.ImportExportDialog,
   })),
 );
 const ToolDrawer = lazy(() =>
@@ -129,6 +137,9 @@ export function AppShell({
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] =
     useState<EditorWorkspaceTab>("layers");
+  const [importExportDialogOpen, setImportExportDialogOpen] = useState(false);
+  const [importExportDialogMode, setImportExportDialogMode] =
+    useState<ImportExportDialogMode>("import");
 
   const activeLayerKind =
     state.project !== null &&
@@ -200,9 +211,39 @@ export function AppShell({
     downloadFile(data, `${state.project.name}.2dp`);
   }, [state.project]);
 
+  const handleImportProject = useCallback(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".2dp";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const raw = await readFileAsUint8Array(file);
+        const project = await importProject(raw);
+        await saveProject(project);
+        openProjectInEditor(project);
+      } catch (error) {
+        console.error("[Import Project] Failed:", error);
+        alert("Failed to import project. The file may be corrupted.");
+      }
+    };
+    input.click();
+  }, []);
+
   const handleNewProject = useCallback(() => {
     setProjectDialogOpen(true);
   }, [setProjectDialogOpen]);
+
+  const handleOpenImportDialog = useCallback(() => {
+    setImportExportDialogMode("import");
+    setImportExportDialogOpen(true);
+  }, []);
+
+  const handleOpenExportDialog = useCallback(() => {
+    setImportExportDialogMode("export");
+    setImportExportDialogOpen(true);
+  }, []);
 
   const handleExportMap = useCallback(async () => {
     if (!state.project || !state.activeMapId) return;
@@ -565,12 +606,8 @@ export function AppShell({
             void saveProject({ ...project, updatedAt: Date.now() });
           }
         }}
-        onImportProject={() => setProjectDialogOpen(true)}
-        onImportMap={handleImportMap}
-        onImportTileset={handleImportTileset}
-        onExportProject={handleExportProject}
-        onExportMap={handleExportMap}
-        onExportTileset={handleExportTileset}
+        onOpenImportDialog={handleOpenImportDialog}
+        onOpenExportDialog={handleOpenExportDialog}
         onOpenSettings={() => setSettingsOpen(true)}
         onAbout={() => setAboutOpen(true)}
         onKeyboardShortcuts={() => setShortcutsOpen(true)}
@@ -657,6 +694,75 @@ export function AppShell({
           <BugReportDialog
             open={bugReportOpen}
             onOpenChange={setBugReportOpen}
+          />
+        </Suspense>
+      )}
+      {importExportDialogOpen && (
+        <Suspense>
+          <ImportExportDialog
+            open={importExportDialogOpen}
+            onOpenChange={setImportExportDialogOpen}
+            mode={importExportDialogMode}
+            projectAction={{
+              enabled:
+                importExportDialogMode === "import"
+                  ? true
+                  : Boolean(state.project),
+              onSelect:
+                importExportDialogMode === "import"
+                  ? handleImportProject
+                  : () => {
+                      void handleExportProject();
+                    },
+              disabledReason:
+                importExportDialogMode === "export" && !state.project
+                  ? "Open a project first"
+                  : undefined,
+            }}
+            mapAction={{
+              enabled:
+                importExportDialogMode === "import"
+                  ? Boolean(state.project)
+                  : Boolean(state.project && state.activeMapId),
+              onSelect:
+                importExportDialogMode === "import"
+                  ? handleImportMap
+                  : () => {
+                      void handleExportMap();
+                    },
+              disabledReason:
+                importExportDialogMode === "import"
+                  ? state.project
+                    ? undefined
+                    : "Open a project first"
+                  : state.project
+                    ? state.activeMapId
+                      ? undefined
+                      : "Open a map first"
+                    : "Open a project first",
+            }}
+            tilesetAction={{
+              enabled:
+                importExportDialogMode === "import"
+                  ? Boolean(state.project)
+                  : Boolean(state.project && state.activeTilesetId),
+              onSelect:
+                importExportDialogMode === "import"
+                  ? handleImportTileset
+                  : () => {
+                      void handleExportTileset();
+                    },
+              disabledReason:
+                importExportDialogMode === "import"
+                  ? state.project
+                    ? undefined
+                    : "Open a project first"
+                  : state.project
+                    ? state.activeTilesetId
+                      ? undefined
+                      : "Open a tileset first"
+                    : "Open a project first",
+            }}
           />
         </Suspense>
       )}

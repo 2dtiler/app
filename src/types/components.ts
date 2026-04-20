@@ -131,12 +131,8 @@ export type ToolName = "image-editor" | "ai-assets";
 export interface ToolbarProps {
   onNewProject: () => void;
   onSaveProject: () => void;
-  onImportProject: () => void;
-  onImportMap: () => void;
-  onImportTileset: () => void;
-  onExportProject: () => void;
-  onExportMap: () => void;
-  onExportTileset: () => void;
+  onOpenImportDialog: () => void;
+  onOpenExportDialog: () => void;
   onOpenSettings: () => void;
   onAbout: () => void;
   onKeyboardShortcuts: () => void;
