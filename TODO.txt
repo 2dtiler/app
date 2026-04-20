@@ -1,8 +1,5 @@
-Enabled drag and drop from desktop to tile layer
-
-Add Isometric map type
-
 Import Options
+
 Export Options
 
 AI Asset Generation:

@@ -17,7 +17,7 @@ import {
   getMapCellOrigin,
   getMapCellPolygon,
   getMapPixelSize,
-  isHexagonalMap,
+  isOffsetMap,
 } from "@/lib/map-geometry";
 import { isTextObject } from "@/lib/text-objects";
 import type { MapCanvasProps } from "@/types/map-canvas";
@@ -127,7 +127,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const previewPixelSize = getMapPixelSize(previewMap, zoom);
   const canvasW = Math.ceil(previewPixelSize.width);
   const canvasH = Math.ceil(previewPixelSize.height);
-  const isHexMap = isHexagonalMap(map);
+  const usesPolygonCells = isOffsetMap(map);
 
   const traceCellPath = useCallback(
     (ctx: CanvasRenderingContext2D, x: number, y: number) => {
@@ -222,7 +222,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         if (!img) return;
         ctx.imageSmoothingEnabled = false;
         const bounds = getMapCellBounds(map, zoom, gx, gy);
-        if (!isHexMap) {
+        if (!usesPolygonCells) {
           ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
         }
         drawTileWithOrientation(ctx, img, ref, bounds.x, bounds.y, scaledTile);
@@ -233,7 +233,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.imageSmoothingEnabled = false;
-        if (isHexMap) return;
+        if (usesPolygonCells) return;
         const bounds = getMapCellBounds(map, zoom, gx, gy);
         ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
       },
@@ -550,7 +550,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     // ---- Grid ----
     ctx.strokeStyle = "rgba(255, 165, 0, 0.15)";
     ctx.lineWidth = 1;
-    if (isHexMap) {
+    if (usesPolygonCells) {
       for (let y = 0; y < mapH; y++) {
         for (let x = 0; x < mapW; x++) {
           traceCellPath(ctx, x, y);
@@ -575,7 +575,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
     // ---- Selection overlay ----
     if (currentTool === "select" && renderedSelection) {
-      if (isHexMap) {
+      if (usesPolygonCells) {
         for (let dy = 0; dy < renderedSelection.height; dy++) {
           for (let dx = 0; dx < renderedSelection.width; dx++) {
             const tx = renderedSelection.x + dx;
@@ -761,7 +761,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   }, [
     canvasW,
     canvasH,
-    isHexMap,
+    usesPolygonCells,
     map,
     scaledTile,
     mapW,

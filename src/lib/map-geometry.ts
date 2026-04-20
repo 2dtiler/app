@@ -26,6 +26,8 @@ export const NEW_MAP_TYPE_OPTIONS = [
   { value: "orthogonal", label: "Orthogonal" },
   { value: "hexagonal-row", label: "Hexagonal (Staggered Rows)" },
   { value: "hexagonal-column", label: "Hexagonal (Staggered Columns)" },
+  { value: "isometric-row", label: "Isometric (Staggered Rows)" },
+  { value: "isometric-column", label: "Isometric (Staggered Columns)" },
 ] as const satisfies readonly { value: NewMapType; label: string }[];
 
 export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
@@ -42,6 +44,18 @@ export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
         staggerAxis: "x",
         staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
       };
+    case "isometric-row":
+      return {
+        orientation: "staggered",
+        staggerAxis: "y",
+        staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
+      };
+    case "isometric-column":
+      return {
+        orientation: "staggered",
+        staggerAxis: "x",
+        staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
+      };
     default:
       return {
         orientation: "orthogonal",
@@ -51,6 +65,14 @@ export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
 
 export function isHexagonalMap(map: TileMapGeometryLike): boolean {
   return map.orientation === "hexagonal";
+}
+
+export function isStaggeredMap(map: TileMapGeometryLike): boolean {
+  return map.orientation === "staggered";
+}
+
+export function isOffsetMap(map: TileMapGeometryLike): boolean {
+  return isHexagonalMap(map) || isStaggeredMap(map);
 }
 
 export function isStaggeredIndex(
@@ -69,6 +91,18 @@ function hasShiftedIndex(
   return map.staggerIndex === "even" ? count >= 1 : count >= 2;
 }
 
+function getMapStepRatio(map: TileMapGeometryLike): number {
+  if (isHexagonalMap(map)) {
+    return HEX_STEP_RATIO;
+  }
+
+  if (isStaggeredMap(map)) {
+    return HALF_TILE_RATIO;
+  }
+
+  return 1;
+}
+
 export function getMapCellOrigin(
   map: TileMapGeometryLike,
   zoom: number,
@@ -77,22 +111,24 @@ export function getMapCellOrigin(
 ): MapPoint {
   const scaledTile = map.tileSize * zoom;
 
-  if (!isHexagonalMap(map)) {
+  if (!isOffsetMap(map)) {
     return {
       x: x * scaledTile,
       y: y * scaledTile,
     };
   }
 
+  const step = scaledTile * getMapStepRatio(map);
+
   if (map.staggerAxis === "y") {
     return {
       x: x * scaledTile + (isStaggeredIndex(y, map) ? scaledTile / 2 : 0),
-      y: y * scaledTile * HEX_STEP_RATIO,
+      y: y * step,
     };
   }
 
   return {
-    x: x * scaledTile * HEX_STEP_RATIO,
+    x: x * step,
     y: y * scaledTile + (isStaggeredIndex(x, map) ? scaledTile / 2 : 0),
   };
 }
@@ -123,12 +159,21 @@ export function getMapCellPolygon(
   const origin = getMapCellOrigin(map, zoom, x, y);
   const scaledTile = map.tileSize * zoom;
 
-  if (!isHexagonalMap(map)) {
+  if (!isOffsetMap(map)) {
     return [
       { x: origin.x, y: origin.y },
       { x: origin.x + scaledTile, y: origin.y },
       { x: origin.x + scaledTile, y: origin.y + scaledTile },
       { x: origin.x, y: origin.y + scaledTile },
+    ];
+  }
+
+  if (isStaggeredMap(map)) {
+    return [
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y },
+      { x: origin.x + scaledTile, y: origin.y + scaledTile * HALF_TILE_RATIO },
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y + scaledTile },
+      { x: origin.x, y: origin.y + scaledTile * HALF_TILE_RATIO },
     ];
   }
 
@@ -165,24 +210,26 @@ export function getMapPixelSize(
     return { width: 0, height: 0 };
   }
 
-  if (!isHexagonalMap(map)) {
+  if (!isOffsetMap(map)) {
     return {
       width: widthInTiles * scaledTile,
       height: heightInTiles * scaledTile,
     };
   }
 
+  const step = scaledTile * getMapStepRatio(map);
+
   if (map.staggerAxis === "y") {
     return {
       width:
         widthInTiles * scaledTile +
         (hasShiftedIndex(heightInTiles, map) ? scaledTile / 2 : 0),
-      height: scaledTile + (heightInTiles - 1) * scaledTile * HEX_STEP_RATIO,
+      height: scaledTile + (heightInTiles - 1) * step,
     };
   }
 
   return {
-    width: scaledTile + (widthInTiles - 1) * scaledTile * HEX_STEP_RATIO,
+    width: scaledTile + (widthInTiles - 1) * step,
     height:
       heightInTiles * scaledTile +
       (hasShiftedIndex(widthInTiles, map) ? scaledTile / 2 : 0),
@@ -214,7 +261,7 @@ export function getMapCellAtPoint(
 ): MapCell | null {
   const scaledTile = map.tileSize * zoom;
 
-  if (!isHexagonalMap(map)) {
+  if (!isOffsetMap(map)) {
     const x = Math.floor(point.x / scaledTile);
     const y = Math.floor(point.y / scaledTile);
 
@@ -227,9 +274,10 @@ export function getMapCellAtPoint(
 
   const xCandidates = new Set<number>();
   const yCandidates = new Set<number>();
+  const step = scaledTile * getMapStepRatio(map);
 
   if (map.staggerAxis === "y") {
-    const approxY = Math.floor(point.y / (scaledTile * HEX_STEP_RATIO));
+    const approxY = Math.floor(point.y / step);
 
     for (let y = approxY - 1; y <= approxY + 1; y++) {
       if (y < 0 || y >= map.heightInTiles) continue;
@@ -244,7 +292,7 @@ export function getMapCellAtPoint(
       }
     }
   } else {
-    const approxX = Math.floor(point.x / (scaledTile * HEX_STEP_RATIO));
+    const approxX = Math.floor(point.x / step);
 
     for (let x = approxX - 1; x <= approxX + 1; x++) {
       if (x < 0 || x >= map.widthInTiles) continue;
@@ -279,13 +327,43 @@ export function getAdjacentMapCells(
 ): MapCell[] {
   let candidates: MapCell[];
 
-  if (!isHexagonalMap(map)) {
+  if (!isOffsetMap(map)) {
     candidates = [
       { x: x + 1, y },
       { x: x - 1, y },
       { x, y: y + 1 },
       { x, y: y - 1 },
     ];
+  } else if (isStaggeredMap(map) && map.staggerAxis === "y") {
+    const shifted = isStaggeredIndex(y, map);
+    candidates = shifted
+      ? [
+          { x, y: y - 1 },
+          { x: x + 1, y: y - 1 },
+          { x, y: y + 1 },
+          { x: x + 1, y: y + 1 },
+        ]
+      : [
+          { x: x - 1, y: y - 1 },
+          { x, y: y - 1 },
+          { x: x - 1, y: y + 1 },
+          { x, y: y + 1 },
+        ];
+  } else if (isStaggeredMap(map)) {
+    const shifted = isStaggeredIndex(x, map);
+    candidates = shifted
+      ? [
+          { x: x - 1, y },
+          { x: x - 1, y: y + 1 },
+          { x: x + 1, y },
+          { x: x + 1, y: y + 1 },
+        ]
+      : [
+          { x: x - 1, y: y - 1 },
+          { x: x - 1, y },
+          { x: x + 1, y: y - 1 },
+          { x: x + 1, y },
+        ];
   } else if (map.staggerAxis === "y") {
     const shifted = isStaggeredIndex(y, map);
     candidates = shifted

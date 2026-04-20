@@ -31,7 +31,7 @@ export function normalizeTileset(
 export function normalizeTileMap(map: TileMapData): TileMapData {
   map.orientation = map.orientation ?? "orthogonal";
 
-  if (map.orientation === "hexagonal") {
+  if (map.orientation === "hexagonal" || map.orientation === "staggered") {
     map.staggerAxis = map.staggerAxis ?? DEFAULT_HEX_STAGGER_AXIS;
     map.staggerIndex = map.staggerIndex ?? DEFAULT_HEX_STAGGER_INDEX;
   } else {
