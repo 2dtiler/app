@@ -21,6 +21,10 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 
+if (import.meta.env.PROD) {
+  void import("./pwa");
+}
+
 // Load Sentry after render so it doesn't block the critical path
 if (isSentryEnabled) {
   requestIdleCallback(() => import("./instrument"), { timeout: 5000 });

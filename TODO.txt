@@ -1,4 +1,6 @@
-Tilesets and Map tabs should have an option to "Delete" when you open the right click context menu. It should do the same action as clicking the close button. 
+Sentry sometimes picks it up
+Add link to github top right
+Add Tags to github repo
 
 Export Options
   - Do the rest of the options
@@ -23,7 +25,6 @@ Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
-Add link to github top right
 
 Exploration:
   Ogmo Editor
