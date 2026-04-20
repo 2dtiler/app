@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { MoonStar, SunMedium } from "lucide-react";
+import { Github, MoonStar, SunMedium } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Menubar,
@@ -170,6 +170,18 @@ export const Toolbar = memo(function Toolbar({
 
       <div className="flex-1" />
       <div className="flex items-center gap-3">
+        <a
+          href="https://github.com/2dtiler/app"
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-visible bg-background text-text-secondary transition-colors hover:text-foreground",
+          )}
+          aria-label="Open the 2D Tiler GitHub repository"
+          title="Open the 2D Tiler GitHub repository"
+        >
+          <Github className="h-3.5 w-3.5" />
+        </a>
         <button
           type="button"
           className={cn(

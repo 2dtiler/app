@@ -1,73 +1,127 @@
-# React + TypeScript + Vite
+# 2dtiler
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+2dtiler is a free, open source 2D level, tileset, and pixel workflow editor built for game developers who are tired of jumping between a dozen separate tools.
 
-Currently, two official plugins are available:
+It is designed to replace large parts of the day-to-day workflow usually split across map editors, tileset tools, palette utilities, lightweight image editors, export helpers, and asset generation tools. Instead of stitching together 10+ apps for one project, you can keep the work in one place.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Why 2dtiler
 
-## React Compiler
+- Free to use
+- MIT licensed
+- Runs locally in the browser
+- Covers maps, tilesets, image editing, palettes, and export workflows in one app
+- Built for fast iteration with keyboard shortcuts, layered editing, and asset import/export
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2dtiler is a practical replacement for many common 2D production workflows people currently handle with tools like Tiled, Ogmo, Aseprite palette utilities, lightweight raster editors, standalone export tools, and other specialist pixel-art utilities.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Map and tileset workflow
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+- Create and edit tile maps with layered content
+- Work with tilesets and reusable tile assets
+- Paint, erase, fill, and terrain-fill maps
+- Use image layers and object rendering inside the editor
+- Resize maps and work with multiple asset types in one project
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Import and export
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+- Export full projects as `.2dp`
+- Export single maps as `.2dm`
+- Export single tilesets as `.2dt`
+- Import and export raster images including PNG, JPG, WEBP, BMP, and GIF
+- Export with format-specific options like transparency and quality where supported
+
+### Image and palette tools
+
+- Built-in image editor for tile and image asset workflows
+- Palette parsing and conversion utilities
+- Support for GIMP `.gpl` palettes
+- Support for ASE palette files used in Aseprite workflows
+
+### Editor experience
+
+- Keyboard shortcuts for tools, brush sizes, zoom, undo/redo, save, find/replace, and clipboard actions
+- Auto-save and manual save flows
+- Progressive web app setup with service worker updates
+- Runs as a local web app during development and can be deployed as a static frontend
+
+### AI-assisted asset generation
+
+- Built-in AI asset generation UI for tilesets, sprites, backgrounds, icons, UI assets, and VFX
+- Supports multiple generation providers and prompt-driven asset configuration
+
+## Free and Open Source
+
+2dtiler is completely free and released under the MIT License. You can use it, modify it, and contribute improvements without paying for the editor itself.
+
+See [LICENSE](./LICENSE) for the full license text.
+
+## Installation
+
+### Requirements
+
+- [Bun](https://bun.sh/)
+
+### Local development
+
+1. Clone the repository.
+2. Install dependencies:
+
+```bash
+bun install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+3. Start the development server:
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+bun run dev
 ```
+
+4. Open the local URL printed by Vite in your browser.
+
+### Production build
+
+```bash
+bun run build
+```
+
+### Lint the project
+
+```bash
+bun run lint
+```
+
+### Preview the production build
+
+```bash
+bun run preview
+```
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repository or create a feature branch.
+2. Make your changes.
+3. Run the checks locally:
+
+```bash
+bun run lint
+bun run build
+```
+
+4. Open a pull request with a clear summary of the change.
+
+If you are proposing a bigger feature, keep the pull request focused and explain the workflow problem it solves.
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- Bun for local workflow commands
+
+## Status
+
+2dtiler is actively evolving. The repository includes ongoing work around import/export, AI asset tooling, tileset management, map management, and broader editor workflows.

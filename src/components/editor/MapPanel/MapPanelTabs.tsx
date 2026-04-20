@@ -39,6 +39,14 @@ export function MapPanelTabs({
   setRenameValue,
   state,
 }: MapPanelTabsProps) {
+  function requestDeleteMap(mapId: string, mapName: string) {
+    onRequestDeleteTarget({
+      type: "map",
+      id: mapId,
+      name: mapName,
+    });
+  }
+
   return (
     <div className="flex shrink-0 items-center gap-1 border-b border-border bg-card px-1 py-0.5">
       <Select
@@ -149,6 +157,11 @@ export function MapPanelTabs({
                         >
                           Duplicate
                         </ContextMenuItem>
+                        <ContextMenuItem
+                          onMouseDown={() => requestDeleteMap(map.id, map.name)}
+                        >
+                          Delete
+                        </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
                   )}
@@ -161,11 +174,7 @@ export function MapPanelTabs({
                         onMouseDown={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          onRequestDeleteTarget({
-                            type: "map",
-                            id: map.id,
-                            name: map.name,
-                          });
+                          requestDeleteMap(map.id, map.name);
                         }}
                       >
                         <X className="h-3 w-3" />

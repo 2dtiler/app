@@ -1,4 +1,5 @@
-Tilesets and Map tabs should have an option to "Delete" when you open the right click context menu. It should do the same action as clicking the close button. 
+Upgrade to Vite8
+Add Tags to github repo
 
 Export Options
   - Do the rest of the options
@@ -7,8 +8,6 @@ Import Options
   - Do the rest of the options
 
 Allow quick export bottom right
-Upgrade to Vite8
-
 
 AI Asset Generation:
   AI Generation not working currently
@@ -19,11 +18,9 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
-Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
-Add link to github top right
 
 Exploration:
   Ogmo Editor

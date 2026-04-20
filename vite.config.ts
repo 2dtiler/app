@@ -4,6 +4,41 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const manualChunkPackages = [
+  ["react-vendor", ["react", "react-dom"]],
+  [
+    "radix-ui",
+    [
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-tooltip",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-slot",
+    ],
+  ],
+  ["sentry", ["@sentry/react"]],
+  ["db", ["dexie", "dexie-react-hooks"]],
+  ["gif", ["gifenc"]],
+  ["color", ["color"]],
+  ["panels", ["react-resizable-panels"]],
+] as const;
+
+function getManualChunk(id: string) {
+  for (const [chunkName, packages] of manualChunkPackages) {
+    for (const packageName of packages) {
+      if (
+        id.includes(`/node_modules/${packageName}/`) ||
+        id.endsWith(`/node_modules/${packageName}`)
+      ) {
+        return chunkName;
+      }
+    }
+  }
+
+  return null;
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -11,7 +46,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: "script-defer",
+      injectRegister: false,
       manifest: {
         name: "2D Tiler",
         short_name: "2D Tiler",
@@ -29,7 +64,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        skipWaiting: true,
       },
     }),
   ],
@@ -63,22 +101,7 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          "radix-ui": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-tooltip",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-slot",
-          ],
-          sentry: ["@sentry/react"],
-          db: ["dexie", "dexie-react-hooks"],
-          gif: ["gifenc"],
-          color: ["color"],
-          panels: ["react-resizable-panels"],
-        },
+        manualChunks: getManualChunk,
       },
     },
   },
