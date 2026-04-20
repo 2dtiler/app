@@ -219,6 +219,135 @@ export interface PolyVertexDragAction {
   origPoint: { x: number; y: number };
 }
 
+export interface FillPreviewCacheState {
+  tileKey: string | null;
+  layer: TileLayer | null;
+  fillMode: EditorState["fillMode"];
+  selectedTile: TileRef | null;
+  activeFillTerrain: EditorState["activeFillTerrain"];
+  region: [number, number][];
+}
+
+export interface ScenePointerPosition {
+  x: number;
+  y: number;
+}
+
+export interface ScenePointerDownEvent extends ScenePointerPosition {
+  button?: number;
+}
+
+export interface ScenePointerUpEvent {
+  button?: number;
+}
+
+export interface ObjectInteractionOverride {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+export interface SceneInteractionHandlerContext {
+  activeLayerId: UseSceneInteractionParams["activeLayerId"];
+  activeObjectId: UseSceneInteractionParams["activeObjectId"];
+  clearOverlay: () => void;
+  currentTool: UseSceneInteractionParams["currentTool"];
+  drawOverlayPreview: (
+    pointer: ScenePointerPosition | null,
+    pointerGridPos?: ScenePointerPosition | null,
+  ) => void;
+  fillPreviewCacheRef: MutableRefObject<FillPreviewCacheState>;
+  getClampedGridPos: (
+    globalX: number,
+    globalY: number,
+  ) => ScenePointerPosition | null;
+  getGridPos: (
+    globalX: number,
+    globalY: number,
+  ) => ScenePointerPosition | null;
+  getInteractiveImageLayer: (imgLayer: ImageLayer) => ImageLayer;
+  getObjectInteractionOverrides: (
+    object: MapObject,
+  ) => ObjectInteractionOverride;
+  hitTestResizeHandle: (
+    globalX: number,
+    globalY: number,
+  ) => ResizeHandle | null;
+  imageDragRef: MutableRefObject<ImageDragAction | null>;
+  imageLayers: UseSceneInteractionParams["imageLayers"];
+  imageResizeRef: MutableRefObject<ImageResizeAction | null>;
+  isDrawingPolygon: UseSceneInteractionReturn["isDrawingPolygon"];
+  isInsideSelection: (
+    globalX: number,
+    globalY: number,
+    selection: MapSelection,
+  ) => boolean;
+  isPaintingRef: MutableRefObject<boolean>;
+  lastClickRef: MutableRefObject<{
+    time: number;
+    x: number;
+    y: number;
+  } | null>;
+  lastObjectClickRef: MutableRefObject<{
+    time: number;
+    x: number;
+    y: number;
+    objectId: string;
+  } | null>;
+  lastPointerPosRef: MutableRefObject<ScenePointerPosition | null>;
+  layers: UseSceneInteractionParams["layers"];
+  liveImagePos: UseSceneInteractionReturn["liveImagePos"];
+  liveImageResize: UseSceneInteractionReturn["liveImageResize"];
+  liveObjectPlace: UseSceneInteractionReturn["liveObjectPlace"];
+  liveObjectPos: UseSceneInteractionReturn["liveObjectPos"];
+  liveObjectResize: UseSceneInteractionReturn["liveObjectResize"];
+  livePolyVertex: UseSceneInteractionReturn["livePolyVertex"];
+  liveSelection: UseSceneInteractionReturn["liveSelection"];
+  mapH: number;
+  mapW: number;
+  objectDragRef: MutableRefObject<ObjectDragAction | null>;
+  objectLayers: UseSceneInteractionParams["objectLayers"];
+  objectPlaceRef: MutableRefObject<ObjectPlaceAction | null>;
+  objects: UseSceneInteractionParams["objects"];
+  objectResizeRef: MutableRefObject<ObjectResizeAction | null>;
+  onCreateObject: UseSceneInteractionParams["onCreateObject"];
+  onDoubleClickObject?: UseSceneInteractionParams["onDoubleClickObject"];
+  onMoveImageLayer: UseSceneInteractionParams["onMoveImageLayer"];
+  onMoveObject: UseSceneInteractionParams["onMoveObject"];
+  onMoveTiles: UseSceneInteractionParams["onMoveTiles"];
+  onPaintEnd: UseSceneInteractionParams["onPaintEnd"];
+  onPaintTile: UseSceneInteractionParams["onPaintTile"];
+  onResizeImageLayer: UseSceneInteractionParams["onResizeImageLayer"];
+  onResizeObject: UseSceneInteractionParams["onResizeObject"];
+  onSelectionChange: UseSceneInteractionParams["onSelectionChange"];
+  onSelectObject: UseSceneInteractionParams["onSelectObject"];
+  onUpdatePolygonPoints: UseSceneInteractionParams["onUpdatePolygonPoints"];
+  pendingObjectType: UseSceneInteractionParams["pendingObjectType"];
+  polygonPoints: UseSceneInteractionReturn["polygonPoints"];
+  polygonCursorPos: UseSceneInteractionReturn["polygonCursorPos"];
+  polyVertexDragRef: MutableRefObject<PolyVertexDragAction | null>;
+  renderedSelection: MapSelection | null;
+  selActionRef: MutableRefObject<SelectionAction | null>;
+  setHoveredHandle: Dispatch<SetStateAction<ResizeHandle | null>>;
+  setHoveredObjectCursor: Dispatch<SetStateAction<string | null>>;
+  setIsDrawingPolygon: Dispatch<SetStateAction<boolean>>;
+  setIsMoving: Dispatch<SetStateAction<boolean>>;
+  setLiveImagePos: Dispatch<SetStateAction<UseSceneInteractionReturn["liveImagePos"]>>;
+  setLiveImageResize: Dispatch<SetStateAction<UseSceneInteractionReturn["liveImageResize"]>>;
+  setLiveObjectPlace: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectPlace"]>>;
+  setLiveObjectPos: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectPos"]>>;
+  setLiveObjectResize: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectResize"]>>;
+  setLivePolyVertex: Dispatch<SetStateAction<UseSceneInteractionReturn["livePolyVertex"]>>;
+  setLiveSelection: Dispatch<SetStateAction<MapSelection | null>>;
+  setMoveTilesSnapshot: Dispatch<SetStateAction<UseSceneInteractionReturn["moveTilesSnapshot"]>>;
+  setPolygonCursorPos: Dispatch<SetStateAction<UseSceneInteractionReturn["polygonCursorPos"]>>;
+  setPolygonPoints: Dispatch<SetStateAction<UseSceneInteractionReturn["polygonPoints"]>>;
+  setResizingHandle: Dispatch<SetStateAction<ResizeHandle | null>>;
+  shiftKeyRef: MutableRefObject<boolean>;
+  zoom: UseSceneInteractionParams["zoom"];
+}
+
 export interface UseSceneInteractionParams {
   map: TileMapData;
   layers: TileLayer[];
@@ -297,8 +426,8 @@ export interface UseSceneInteractionReturn {
   resizingHandle: ResizeHandle | null;
   hoveredHandle: ResizeHandle | null;
   hoveredObjectCursor: string | null;
-  handlePointerDown: (e: { x: number; y: number; button?: number }) => void;
-  handlePointerMove: (e: { x: number; y: number }) => void;
-  handlePointerUp: (e?: { button?: number }) => void;
+  handlePointerDown: (e: ScenePointerDownEvent) => void;
+  handlePointerMove: (e: ScenePointerPosition) => void;
+  handlePointerUp: (e?: ScenePointerUpEvent) => void;
   handlePointerLeave: () => void;
 }

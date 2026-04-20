@@ -1,5 +1,5 @@
 Refactor files longer than 1000 lines of code
-
+Enabled drag and drop from desktop to tile layer
 Add Isometric map type
 
 Import Options
