@@ -119,7 +119,10 @@ export function sanitizeDownloadSegment(
   return normalized.length > 0 ? normalized : fallback;
 }
 
-export function buildDownloadFilename(baseName: string, extension: string): string {
+export function buildDownloadFilename(
+  baseName: string,
+  extension: string,
+): string {
   return `${sanitizeDownloadSegment(baseName)}${extension}`;
 }
 

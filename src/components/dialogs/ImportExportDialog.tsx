@@ -413,7 +413,10 @@ function ExportAssetCard({
       )}
     >
       {asset.thumbnail.kind === "map" ? (
-        <MapThumbnail thumbnail={asset.thumbnail} alt={`${asset.name} preview`} />
+        <MapThumbnail
+          thumbnail={asset.thumbnail}
+          alt={`${asset.name} preview`}
+        />
       ) : (
         <TilesetThumbnail
           thumbnail={asset.thumbnail}
@@ -648,7 +651,9 @@ export function ImportExportDialog({
                         option.supportedNow &&
                         action.enabled &&
                         Boolean(
-                          exportSelection ? exportSelection.onSubmit : action.onSelect,
+                          exportSelection
+                            ? exportSelection.onSubmit
+                            : action.onSelect,
                         ) &&
                         hasSelection &&
                         !isSubmitting;

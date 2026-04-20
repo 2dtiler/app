@@ -131,7 +131,9 @@ function getMapExportData(project: Project, map: TileMapData) {
   const groupIdSet = new Set<string>(allGroupIds as string[]);
 
   return {
-    layers: project.layers.filter((layer) => layerIdSet.has(layer.id as string)),
+    layers: project.layers.filter((layer) =>
+      layerIdSet.has(layer.id as string),
+    ),
     imageLayers: (project.imageLayers ?? []).filter((layer) =>
       layerIdSet.has(layer.id as string),
     ),
@@ -1000,7 +1002,8 @@ export function AppShell({
                       helperText:
                         "Choose one or more tilesets. Multiple selections are exported as a zip grouped by tileset group.",
                       emptyLabel: "This project has no tilesets to export yet.",
-                      onSubmit: (selectedIds) => handleExportTilesets(selectedIds),
+                      onSubmit: (selectedIds) =>
+                        handleExportTilesets(selectedIds),
                     }
                   : undefined,
               disabledReason:

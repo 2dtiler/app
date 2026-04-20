@@ -1,9 +1,4 @@
-import type {
-  AssetId,
-  TileLayer,
-  TileSize,
-  TilesetId,
-} from "./schema";
+import type { AssetId, TileLayer, TileSize, TilesetId } from "./schema";
 import type {
   MapOrientation,
   MapStaggerAxis,
