@@ -1,7 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Download, Search, Upload, X } from "lucide-react";
 import { drawTileWithOrientation } from "@/components/editor/MapCanvas/texture-cache";
+import { Button } from "@/components/ui/Button";
 import { getAssetUrl } from "@/lib/db";
+import {
+  DEFAULT_RASTER_EXPORT_OPTIONS,
+  supportsRasterQuality,
+  supportsRasterTransparency,
+} from "@/lib/import-export-raster";
 import { getMapCellBounds, getMapPixelSize } from "@/lib/map-geometry";
 import {
   Dialog,
@@ -11,7 +17,17 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import { Slider } from "@/components/ui/Slider";
+import { Switch } from "@/components/ui/Switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/lib/utils";
 import type {
@@ -21,6 +37,9 @@ import type {
   ImportExportAssetType,
   ImportExportDialogMode,
   ImportExportMapThumbnailProps,
+  ImportExportRasterExportOptions,
+  ImportExportRasterFileType,
+  ImportExportOptionId,
   ImportExportOptionAction,
   ImportExportOptionDefinition,
   ImportExportSelectableAssetId,
@@ -30,156 +49,182 @@ import type { ImportExportDialogProps } from "@/types/dialogs";
 
 const optionDefinitions: ImportExportOptionDefinition[] = [
   {
+    id: "project-native",
     assetType: "project",
     label: "2D Tiler Project (.2dp)",
     description: "Import or export Native 2D Tiler project files.",
     supportedNow: true,
   },
   {
+    id: "project-tiled",
     assetType: "project",
     label: "Tiled Project (.tiled-project)",
     description: "Tiled multi-map project container.",
     supportedNow: false,
   },
   {
+    id: "map-native",
     assetType: "map",
     label: "2D Tiler Map (.2dm)",
     description: "Import or export Native 2D Tiler map files.",
     supportedNow: true,
   },
   {
+    id: "map-image",
     assetType: "map",
-    label: "Image: PNG/JPG/WebP",
+    label: "Image: PNG/JPG/WebP/BMP/GIF",
     description: "Raster image export and import targets.",
-    supportedNow: false,
+    supportedNow: true,
   },
   {
+    id: "map-tiled-xml",
     assetType: "map",
     label: "Tiled XML Map File (.tmx, .xml)",
     description: "Tiled XML tile map format.",
     supportedNow: false,
   },
   {
+    id: "map-tiled-json",
     assetType: "map",
     label: "Tiled JSON Map File (.tmj, .json)",
     description: "Tiled JSON tile map format.",
     supportedNow: false,
   },
   {
+    id: "map-tiled-js",
     assetType: "map",
     label: "Tiled JavaScript Map File (.js)",
     description: "Tiled JavaScript export format.",
     supportedNow: false,
   },
   {
+    id: "map-tiled-lua",
     assetType: "map",
     label: "Tiled Lua File (.lua)",
     description: "Tiled Lua export format.",
     supportedNow: false,
   },
   {
+    id: "map-tiled-csv",
     assetType: "map",
     label: "Tiled CSV File (.csv)",
     description: "Tiled CSV tile layer format.",
     supportedNow: false,
   },
   {
+    id: "map-godot",
     assetType: "map",
     label: "Godot 4 Scene File (.tscn)",
     description: "Godot 4 scene export target.",
     supportedNow: false,
   },
   {
+    id: "map-unity",
     assetType: "map",
     label: "Unity",
     description: "Unity map export target.",
     supportedNow: false,
   },
   {
+    id: "map-gamemaker-room",
     assetType: "map",
     label: "GameMaker room File (.room.gmx)",
     description: "GameMaker room file target.",
     supportedNow: false,
   },
   {
+    id: "map-gamemaker-studio-2",
     assetType: "map",
     label: "GameMaker Studio 2 file (.yy)",
     description: "GameMaker Studio 2 room data.",
     supportedNow: false,
   },
   {
+    id: "map-defold-tilemap",
     assetType: "map",
     label: "Defold Tile Map (.tilemap)",
     description: "Defold tile map resource.",
     supportedNow: false,
   },
   {
+    id: "map-defold-collection",
     assetType: "map",
     label: "Defold Collection (.collection)",
     description: "Defold collection scene target.",
     supportedNow: false,
   },
   {
+    id: "map-tide",
     assetType: "map",
     label: "tIDE Map Format (.tide)",
     description: "tIDE map export format.",
     supportedNow: false,
   },
   {
+    id: "map-tbin",
     assetType: "map",
     label: "tBIN Map Format (.tbin)",
     description: "tIDE binary map export format.",
     supportedNow: false,
   },
   {
+    id: "map-mappy-fmp",
     assetType: "map",
     label: "Mappy FMP (.fmp)",
     description: "Mappy FMP export format.",
     supportedNow: false,
   },
   {
+    id: "tileset-native",
     assetType: "tileset",
     label: "2D Tiler Tileset (.2dt)",
     description: "Import or export native 2D Tiler tileset files.",
     supportedNow: true,
   },
   {
+    id: "tileset-image",
     assetType: "tileset",
-    label: "Image: PNG/JPG/WebP",
+    label: "Image: PNG/JPG/WebP/BMP/GIF",
     description: "Raster image tileset target.",
-    supportedNow: false,
+    supportedNow: true,
   },
   {
+    id: "tileset-tiled-xml",
     assetType: "tileset",
     label: "Tiled XML Tileset File (.tsx, .xml)",
     description: "Tiled XML tileset format.",
     supportedNow: false,
   },
   {
+    id: "tileset-tiled-json",
     assetType: "tileset",
     label: "Tiled JSON Tileset File (.tsj, .json)",
     description: "Tiled JSON tileset format.",
     supportedNow: false,
   },
   {
+    id: "tileset-tiled-lua",
     assetType: "tileset",
     label: "Tiled Lua File (.lua)",
     description: "Tiled Lua tileset format.",
     supportedNow: false,
   },
   {
+    id: "tileset-unity",
     assetType: "tileset",
     label: "Unity (.asset)",
     description: "Unity tileset asset target.",
     supportedNow: false,
   },
   {
+    id: "tileset-godot",
     assetType: "tileset",
     label: "Godot (.tres)",
     description: "Godot tileset resource format.",
     supportedNow: false,
   },
   {
+    id: "tileset-rpg-maker",
     assetType: "tileset",
     label: "RPG Maker",
     description: "RPG Maker tileset target.",
@@ -189,6 +234,186 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
 
 const assetTabs: ImportExportAssetType[] = ["project", "map", "tileset"];
 const LARGE_SELECTOR_THRESHOLD = 10;
+const RASTER_EXPORT_FORMAT_OPTIONS: {
+  value: ImportExportRasterFileType;
+  label: string;
+}[] = [
+  { value: "png", label: "PNG" },
+  { value: "jpg", label: "JPG" },
+  { value: "webp", label: "WebP" },
+  { value: "bmp", label: "BMP" },
+  { value: "gif", label: "GIF" },
+];
+
+function isRasterImageOption(optionId: ImportExportOptionId) {
+  return optionId === "map-image" || optionId === "tileset-image";
+}
+
+function createInitialRasterExportOptionsState() {
+  return {
+    map: { ...DEFAULT_RASTER_EXPORT_OPTIONS },
+    tileset: { ...DEFAULT_RASTER_EXPORT_OPTIONS },
+  } satisfies Record<"map" | "tileset", ImportExportRasterExportOptions>;
+}
+
+function getRasterExportButtonLabel(format: ImportExportRasterFileType) {
+  if (format === "jpg") return "Export as JPG";
+  if (format === "webp") return "Export as WebP";
+  return `Export as ${format.toUpperCase()}`;
+}
+
+interface RasterExportOptionsPanelProps {
+  options: ImportExportRasterExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: ImportExportRasterExportOptions) => void;
+  onExport: (options: ImportExportRasterExportOptions) => void;
+}
+
+function RasterExportOptionsPanel({
+  options,
+  disabled,
+  onOptionsChange,
+  onExport,
+}: RasterExportOptionsPanelProps) {
+  const formatSelectId = useId();
+  const qualitySliderId = useId();
+  const transparencySwitchId = useId();
+  const qualitySupported = supportsRasterQuality(options.fileType);
+  const transparencySupported = supportsRasterTransparency(options.fileType);
+
+  return (
+    <section className="space-y-4 rounded-2xl border border-primary/30 bg-primary/6 px-4 py-4">
+      <div className="space-y-1">
+        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          Export settings
+        </div>
+        <p className="text-sm text-foreground">
+          Choose the raster file type and any format-specific options.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={formatSelectId} className="text-xs">
+            File type
+          </Label>
+          <Select
+            name={formatSelectId}
+            value={options.fileType}
+            onValueChange={(value) => {
+              const fileType = value as ImportExportRasterFileType;
+              onOptionsChange({
+                ...options,
+                fileType,
+                transparency: supportsRasterTransparency(fileType)
+                  ? options.transparency
+                  : false,
+              });
+            }}
+          >
+            <SelectTrigger
+              id={formatSelectId}
+              className="h-10 w-full rounded-xl px-3"
+            >
+              <SelectValue placeholder="Choose a file type" />
+            </SelectTrigger>
+            <SelectContent>
+              {RASTER_EXPORT_FORMAT_OPTIONS.map((formatOption) => (
+                <SelectItem key={formatOption.value} value={formatOption.value}>
+                  {formatOption.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {qualitySupported ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor={qualitySliderId} className="text-xs">
+                Compression quality
+              </Label>
+              <span className="text-[10px] font-mono uppercase tracking-[0.08em] text-muted-foreground">
+                {Math.round(options.quality)}%
+              </span>
+            </div>
+            <Slider
+              id={qualitySliderId}
+              name={qualitySliderId}
+              min={1}
+              max={100}
+              step={1}
+              value={[options.quality]}
+              onValueChange={(value) => {
+                const [quality = DEFAULT_RASTER_EXPORT_OPTIONS.quality] = value;
+                onOptionsChange({ ...options, quality });
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Lower quality creates smaller files. Higher quality preserves more
+              detail.
+            </p>
+          </div>
+        ) : transparencySupported ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor={transparencySwitchId} className="text-xs">
+                Enable Transparency
+              </Label>
+              <Switch
+                id={transparencySwitchId}
+                name={transparencySwitchId}
+                checked={options.transparency}
+                onCheckedChange={(checked) =>
+                  onOptionsChange({ ...options, transparency: checked })
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              If transparency is disabled, transparent areas will be filled with
+              white in the exported image.
+            </p>
+          </div>
+        ) : (
+          <div></div>
+        )}
+      </div>
+
+      {transparencySupported &&
+      !qualitySupported ? null : transparencySupported ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-visible bg-background/80 px-4 py-3">
+          <div className="space-y-1">
+            <Label htmlFor={transparencySwitchId} className="text-xs">
+              Enable transparency
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              If transparency is disabled, transparent areas will be filled with
+              white in the exported image.
+            </p>
+          </div>
+          <Switch
+            id={transparencySwitchId}
+            name={transparencySwitchId}
+            checked={options.transparency}
+            onCheckedChange={(checked) =>
+              onOptionsChange({ ...options, transparency: checked })
+            }
+          />
+        </div>
+      ) : null}
+
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          onClick={() => onExport(options)}
+          disabled={disabled}
+        >
+          {getRasterExportButtonLabel(options.fileType)}
+        </Button>
+      </div>
+    </section>
+  );
+}
 
 function getActionForAssetType(
   assetType: ImportExportAssetType,
@@ -645,7 +870,9 @@ function LargeExportAssetPicker({
         <div className="overflow-hidden rounded-2xl border border-border-visible bg-background shadow-sm">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-border-visible bg-secondary/40 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
             <span>{assetType === "map" ? "Map" : "Tileset"}</span>
-            <span className="hidden sm:block">Group</span>
+            <span className="hidden px-2 text-left sm:block sm:justify-self-start">
+              Group
+            </span>
             <span className="text-right">Status</span>
           </div>
           <ScrollArea className="h-50">
@@ -677,8 +904,8 @@ function LargeExportAssetPicker({
                         </span>
                       </div>
                     </div>
-                    <div className="hidden min-w-0 items-center sm:flex">
-                      <span className="truncate rounded-full border border-border-visible bg-secondary/50 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                    <div className="hidden min-w-0 sm:flex sm:justify-self-start sm:items-start sm:justify-start">
+                      <span className="truncate rounded-full border border-border-visible bg-secondary/50 px-2 py-1 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                         {asset.groupName}
                       </span>
                     </div>
@@ -717,6 +944,10 @@ export function ImportExportDialog({
   const [selectedIdsByAssetType, setSelectedIdsByAssetType] = useState(() =>
     createSelectedIdsState({ mapAction, tilesetAction }),
   );
+  const [expandedRasterOptionId, setExpandedRasterOptionId] =
+    useState<ImportExportOptionId | null>(null);
+  const [rasterExportOptionsByAssetType, setRasterExportOptionsByAssetType] =
+    useState(createInitialRasterExportOptionsState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modeCopy = getModeCopy(mode);
   const ModeIcon = modeCopy.icon;
@@ -734,17 +965,32 @@ export function ImportExportDialog({
     });
   }, [mode, open, mapAction, tilesetAction]);
 
+  useEffect(() => {
+    if (!open) {
+      setExpandedRasterOptionId(null);
+      setRasterExportOptionsByAssetType(
+        createInitialRasterExportOptionsState(),
+      );
+    }
+  }, [open]);
+
   async function handleActionSelect(
     action: ImportExportOptionAction,
     selectedIds: ImportExportSelectableAssetId[],
+    optionId: ImportExportOptionId,
+    rasterExportOptions?: ImportExportRasterExportOptions,
   ) {
     setIsSubmitting(true);
 
     try {
       if (mode === "export" && action.exportSelection) {
-        await action.exportSelection.onSubmit(selectedIds);
+        await action.exportSelection.onSubmit(
+          selectedIds,
+          optionId,
+          rasterExportOptions,
+        );
       } else {
-        await action.onSelect?.();
+        await action.onSelect?.(optionId, rasterExportOptions);
       }
 
       onOpenChange(false);
@@ -860,6 +1106,10 @@ export function ImportExportDialog({
             const exportSelection =
               mode === "export" ? action.exportSelection : undefined;
             const selectedIds = selectedIdsByAssetType[assetType] ?? [];
+            const rasterExportOptions =
+              assetType === "project"
+                ? null
+                : rasterExportOptionsByAssetType[assetType];
 
             return (
               <TabsContent
@@ -887,6 +1137,8 @@ export function ImportExportDialog({
                     ) : null}
 
                     {assetOptions.map((option) => {
+                      const isRasterOption =
+                        mode === "export" && isRasterImageOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
@@ -912,59 +1164,96 @@ export function ImportExportDialog({
                         : "Coming Soon";
 
                       return (
-                        <button
-                          key={option.label}
-                          type="button"
-                          disabled={!isEnabled}
-                          onClick={() => {
-                            if (!isEnabled) return;
-                            void handleActionSelect(action, selectedIds);
-                          }}
-                          aria-label={`${mode === "import" ? "Import" : "Export"} ${option.label}`}
-                          className={cn(
-                            "flex w-full items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-left transition-colors",
-                            isEnabled
-                              ? "border-border-visible bg-background shadow-sm hover:border-primary/50 hover:bg-secondary/60 focus-visible:border-primary focus-visible:outline-none"
-                              : option.supportedNow
-                                ? "cursor-not-allowed border-border/70 bg-muted/20 text-muted-foreground"
-                                : "cursor-not-allowed border-dashed border-border-visible bg-secondary/25 text-muted-foreground",
-                          )}
-                        >
-                          <div className="min-w-0 space-y-1">
-                            <div
-                              className={cn(
-                                "text-sm font-medium",
-                                isEnabled
-                                  ? "text-foreground"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {option.label}
-                            </div>
-                            <p
-                              className={cn(
-                                "text-xs leading-5",
-                                isEnabled
-                                  ? "text-muted-foreground"
-                                  : "text-muted-foreground/80",
-                              )}
-                            >
-                              {option.description}
-                            </p>
-                          </div>
-                          <span
+                        <div key={option.id} className="space-y-3">
+                          <button
+                            type="button"
+                            disabled={!isEnabled}
+                            onClick={() => {
+                              if (!isEnabled) return;
+                              if (isRasterOption) {
+                                setExpandedRasterOptionId((currentValue) =>
+                                  currentValue === option.id ? null : option.id,
+                                );
+                                return;
+                              }
+                              void handleActionSelect(
+                                action,
+                                selectedIds,
+                                option.id,
+                              );
+                            }}
+                            aria-label={`${mode === "import" ? "Import" : "Export"} ${option.label}`}
                             className={cn(
-                              "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.08em]",
+                              "flex w-full items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-left transition-colors",
                               isEnabled
-                                ? "border-primary/40 bg-primary/10 text-foreground"
+                                ? "border-border-visible bg-background shadow-sm hover:border-primary/50 hover:bg-secondary/60 focus-visible:border-primary focus-visible:outline-none"
                                 : option.supportedNow
-                                  ? "border-border-visible bg-background/80 text-muted-foreground"
-                                  : "border-border-visible bg-background/80 text-muted-foreground",
+                                  ? "cursor-not-allowed border-border/70 bg-muted/20 text-muted-foreground"
+                                  : "cursor-not-allowed border-dashed border-border-visible bg-secondary/25 text-muted-foreground",
                             )}
                           >
-                            {statusLabel}
-                          </span>
-                        </button>
+                            <div className="min-w-0 space-y-1">
+                              <div
+                                className={cn(
+                                  "text-sm font-medium",
+                                  isEnabled
+                                    ? "text-foreground"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {option.label}
+                              </div>
+                              <p
+                                className={cn(
+                                  "text-xs leading-5",
+                                  isEnabled
+                                    ? "text-muted-foreground"
+                                    : "text-muted-foreground/80",
+                                )}
+                              >
+                                {option.description}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.08em]",
+                                isEnabled
+                                  ? "border-primary/40 bg-primary/10 text-foreground"
+                                  : option.supportedNow
+                                    ? "border-border-visible bg-background/80 text-muted-foreground"
+                                    : "border-border-visible bg-background/80 text-muted-foreground",
+                              )}
+                            >
+                              {statusLabel}
+                            </span>
+                          </button>
+
+                          {isRasterOption &&
+                          expandedRasterOptionId === option.id &&
+                          rasterExportOptions ? (
+                            <RasterExportOptionsPanel
+                              options={rasterExportOptions}
+                              disabled={!isEnabled}
+                              onOptionsChange={(nextOptions) =>
+                                setRasterExportOptionsByAssetType(
+                                  (currentValue) => ({
+                                    ...currentValue,
+                                    [assetType]: nextOptions,
+                                  }),
+                                )
+                              }
+                              onExport={(nextOptions) => {
+                                if (!isEnabled) return;
+                                void handleActionSelect(
+                                  action,
+                                  selectedIds,
+                                  option.id,
+                                  nextOptions,
+                                );
+                              }}
+                            />
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>

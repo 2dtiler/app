@@ -1,3 +1,5 @@
+Tilesets and Map tabs should have an option to "Delete" when you open the right click context menu. It should do the same action as clicking the close button. 
+
 Export Options
   - Do the rest of the options
 Import Options
