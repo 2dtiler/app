@@ -7,6 +7,7 @@ import type {
   PaletteId,
   PixelSelection,
 } from "./image-editor";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { PaletteExportFormat, PngSwatchSize } from "./image-editor-hook";
 
 export interface ToolSidebarProps {
@@ -95,6 +96,23 @@ export interface ImageCanvasResizeAction {
 export interface ImageCanvasResizePreview {
   width: number;
   height: number;
+}
+
+export interface ImageCanvasResizeControlsProps {
+  previewPixelW: number;
+  previewPixelH: number;
+  activeResizeHandle: ImageCanvasResizeHandle;
+  hoveredResizeHandle: ImageCanvasResizeHandle;
+  resizePreview: ImageCanvasResizePreview | null;
+  hasActiveResizeAction: boolean;
+  onPointerEnterHandle: (
+    handle: Exclude<ImageCanvasResizeHandle, null>,
+  ) => void;
+  onPointerLeaveHandle: () => void;
+  onBeginResize: (
+    handle: Exclude<ImageCanvasResizeHandle, null>,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => void;
 }
 
 export interface ImageCanvasProps {

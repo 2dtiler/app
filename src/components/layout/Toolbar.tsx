@@ -8,9 +8,6 @@ import {
   MenubarMenu,
   MenubarSeparator,
   MenubarShortcut,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
   MenubarTrigger,
 } from "@/components/ui/Menubar";
 import { cn } from "@/lib/utils";
@@ -22,12 +19,8 @@ import type { ToolbarProps } from "@/types";
 export const Toolbar = memo(function Toolbar({
   onNewProject,
   onSaveProject,
-  onImportProject,
-  onImportMap,
-  onImportTileset,
-  onExportProject,
-  onExportMap,
-  onExportTileset,
+  onOpenImportDialog,
+  onOpenExportDialog,
   onOpenSettings,
   onAbout,
   onKeyboardShortcuts,
@@ -75,56 +68,18 @@ export const Toolbar = memo(function Toolbar({
               <MenubarShortcut>⌘S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarSub>
-              <MenubarSubTrigger className="cursor-pointer">
-                Import
-              </MenubarSubTrigger>
-              <MenubarSubContent>
-                <MenubarItem
-                  onMouseDown={onImportProject}
-                  className="cursor-pointer"
-                >
-                  2d Tiler Project (.2dp)
-                </MenubarItem>
-                <MenubarItem
-                  onMouseDown={onImportMap}
-                  className="cursor-pointer"
-                >
-                  Map
-                </MenubarItem>
-                <MenubarItem
-                  onMouseDown={onImportTileset}
-                  className="cursor-pointer"
-                >
-                  Tileset
-                </MenubarItem>
-              </MenubarSubContent>
-            </MenubarSub>
-            <MenubarSub>
-              <MenubarSubTrigger className="cursor-pointer">
-                Export
-              </MenubarSubTrigger>
-              <MenubarSubContent>
-                <MenubarItem
-                  onMouseDown={onExportProject}
-                  className="cursor-pointer"
-                >
-                  2d Tiler Project (.2dp)
-                </MenubarItem>
-                <MenubarItem
-                  onMouseDown={onExportMap}
-                  className="cursor-pointer"
-                >
-                  Map
-                </MenubarItem>
-                <MenubarItem
-                  onMouseDown={onExportTileset}
-                  className="cursor-pointer"
-                >
-                  Tileset
-                </MenubarItem>
-              </MenubarSubContent>
-            </MenubarSub>
+            <MenubarItem
+              onMouseDown={onOpenImportDialog}
+              className="cursor-pointer"
+            >
+              Import
+            </MenubarItem>
+            <MenubarItem
+              onMouseDown={onOpenExportDialog}
+              className="cursor-pointer"
+            >
+              Export
+            </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
               onMouseDown={onOpenSettings}
@@ -207,7 +162,7 @@ export const Toolbar = memo(function Toolbar({
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onMouseDown={onSubmitBug} className="cursor-pointer">
-              Submit Bug
+              Submit Bug/Feature
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

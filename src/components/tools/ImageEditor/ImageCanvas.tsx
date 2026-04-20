@@ -13,6 +13,7 @@ import type {
   ImageCanvasResizeHandle,
   ImageCanvasResizePreview,
 } from "@/types/image-editor-ui";
+import { ImageCanvasResizeControls } from "./ImageCanvasResizeControls";
 import {
   createStrokeState,
   dispatchDown,
@@ -30,10 +31,6 @@ import {
   getResizeHandleCursor,
   drawFloatingOnOverlay,
 } from "@/lib/image-editor-tools";
-
-const IMAGE_RESIZE_GUTTER = 14;
-const IMAGE_RESIZE_RAIL_SIZE = 10;
-const IMAGE_RESIZE_BADGE_OFFSET = 6;
 
 function clampCanvasDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
@@ -878,19 +875,8 @@ export function ImageCanvas({
   const previewHeight = resizePreview?.height ?? height;
   const previewPixelW = previewWidth * zoom;
   const previewPixelH = previewHeight * zoom;
-  const wrapperWidth = previewPixelW + IMAGE_RESIZE_GUTTER;
-  const wrapperHeight = previewPixelH + IMAGE_RESIZE_GUTTER;
-  const sizeLabel = `${previewWidth} × ${previewHeight}`;
-  const rightGripActive =
-    activeResizeHandle === "e" || activeResizeHandle === "se";
-  const bottomGripActive =
-    activeResizeHandle === "s" || activeResizeHandle === "se";
-  const rightGripHovered =
-    hoveredResizeHandle === "e" || hoveredResizeHandle === "se";
-  const bottomGripHovered =
-    hoveredResizeHandle === "s" || hoveredResizeHandle === "se";
-  const cornerGripActive = activeResizeHandle === "se";
-  const cornerGripHovered = hoveredResizeHandle === "se";
+  const wrapperWidth = previewPixelW + 14;
+  const wrapperHeight = previewPixelH + 14;
 
   return (
     <div
@@ -1006,160 +992,17 @@ export function ImageCanvas({
           />
         </div>
 
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: previewPixelW,
-            width: IMAGE_RESIZE_GUTTER,
-            height: previewPixelH,
-            cursor: "ew-resize",
-            touchAction: "none",
-          }}
-          onContextMenu={(e) => e.preventDefault()}
-          onPointerEnter={() => setHoveredResizeHandle("e")}
-          onPointerLeave={() => {
-            if (!resizeActionRef.current) {
-              setHoveredResizeHandle(null);
-            }
-          }}
-          onPointerDown={(e) => beginCanvasResize("e", e)}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 4,
-              bottom: 4,
-              left: (IMAGE_RESIZE_GUTTER - IMAGE_RESIZE_RAIL_SIZE) / 2,
-              width: IMAGE_RESIZE_RAIL_SIZE,
-              borderRadius: 999,
-              background: rightGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : rightGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
-              border: rightGripHovered
-                ? "1px solid rgba(251, 146, 60, 0.35)"
-                : "1px solid rgba(255, 255, 255, 0.18)",
-              boxShadow: rightGripHovered
-                ? "0 0 10px rgba(251, 146, 60, 0.18)"
-                : "none",
-              transition:
-                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-            }}
-          />
-        </div>
-
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: previewPixelH,
-            left: 0,
-            width: previewPixelW,
-            height: IMAGE_RESIZE_GUTTER,
-            cursor: "ns-resize",
-            touchAction: "none",
-          }}
-          onContextMenu={(e) => e.preventDefault()}
-          onPointerEnter={() => setHoveredResizeHandle("s")}
-          onPointerLeave={() => {
-            if (!resizeActionRef.current) {
-              setHoveredResizeHandle(null);
-            }
-          }}
-          onPointerDown={(e) => beginCanvasResize("s", e)}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: 4,
-              right: 4,
-              top: (IMAGE_RESIZE_GUTTER - IMAGE_RESIZE_RAIL_SIZE) / 2,
-              height: IMAGE_RESIZE_RAIL_SIZE,
-              borderRadius: 999,
-              background: bottomGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : bottomGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
-              border: bottomGripHovered
-                ? "1px solid rgba(251, 146, 60, 0.35)"
-                : "1px solid rgba(255, 255, 255, 0.18)",
-              boxShadow: bottomGripHovered
-                ? "0 0 10px rgba(251, 146, 60, 0.18)"
-                : "none",
-              transition:
-                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-            }}
-          />
-        </div>
-
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: previewPixelH,
-            left: previewPixelW,
-            width: IMAGE_RESIZE_GUTTER,
-            height: IMAGE_RESIZE_GUTTER,
-            cursor: "nwse-resize",
-            touchAction: "none",
-          }}
-          onContextMenu={(e) => e.preventDefault()}
-          onPointerEnter={() => setHoveredResizeHandle("se")}
-          onPointerLeave={() => {
-            if (!resizeActionRef.current) {
-              setHoveredResizeHandle(null);
-            }
-          }}
-          onPointerDown={(e) => beginCanvasResize("se", e)}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 2,
-              borderRadius: 4,
-              background: cornerGripActive
-                ? "rgba(251, 146, 60, 0.45)"
-                : cornerGripHovered
-                  ? "rgba(251, 146, 60, 0.24)"
-                  : "rgba(148, 163, 184, 0.28)",
-              border: cornerGripHovered
-                ? "1px solid rgba(251, 146, 60, 0.35)"
-                : "1px solid rgba(255, 255, 255, 0.18)",
-              boxShadow: cornerGripHovered
-                ? "0 0 12px rgba(251, 146, 60, 0.2)"
-                : "none",
-              transition:
-                "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
-            }}
-          />
-        </div>
-
-        {resizePreview && (
-          <div
-            aria-live="polite"
-            style={{
-              position: "absolute",
-              top: Math.max(0, previewPixelH - IMAGE_RESIZE_GUTTER - 24),
-              left: Math.max(0, previewPixelW - 70 - IMAGE_RESIZE_BADGE_OFFSET),
-              minWidth: 70,
-              padding: "2px 6px",
-              borderRadius: 999,
-              background: "rgba(15, 23, 42, 0.88)",
-              color: "rgba(248, 250, 252, 0.95)",
-              border: "1px solid rgba(251, 146, 60, 0.35)",
-              fontSize: 11,
-              lineHeight: 1.4,
-              textAlign: "center",
-              pointerEvents: "none",
-            }}
-          >
-            {sizeLabel}
-          </div>
-        )}
+        <ImageCanvasResizeControls
+          previewPixelW={previewPixelW}
+          previewPixelH={previewPixelH}
+          activeResizeHandle={activeResizeHandle}
+          hoveredResizeHandle={hoveredResizeHandle}
+          resizePreview={resizePreview}
+          hasActiveResizeAction={resizeActionRef.current !== null}
+          onPointerEnterHandle={setHoveredResizeHandle}
+          onPointerLeaveHandle={() => setHoveredResizeHandle(null)}
+          onBeginResize={beginCanvasResize}
+        />
       </div>
     </div>
   );

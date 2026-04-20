@@ -1,16 +1,6 @@
 import { useState, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/AlertDialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { AddLayerDialog } from "@/components/dialogs/AddLayerDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
@@ -38,19 +28,20 @@ import type {
   LayerType,
   MapObject,
 } from "@/types";
-import { GroupRow } from "./GroupRow";
-import { LayerRow } from "./LayerRow";
+import { LayersTree } from "./LayersTree";
+import { DeleteLayerDialog } from "./DeleteLayerDialog";
+import type {
+  LayerDropIndicator,
+  LayersPanelDeleteTarget,
+} from "@/types/layers-panel";
 
 export function LayersPanel() {
   const { state, setState } = useEditorStore();
   const project = state.project;
 
   const [addLayerOpen, setAddLayerOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-    isGroup: boolean;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    useState<LayersPanelDeleteTarget | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -60,10 +51,9 @@ export function LayersPanel() {
   // ---- Drag & Drop state ----
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragIsGroup, setDragIsGroup] = useState(false);
-  const [dropIndicator, setDropIndicator] = useState<{
-    targetId: string;
-    position: "above" | "below" | "inside";
-  } | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<LayerDropIndicator | null>(
+    null,
+  );
 
   if (!project) return null;
 
@@ -1008,115 +998,30 @@ export function LayersPanel() {
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="px-2 pb-4">
-          {treeNodes.map((node) => {
-            if (node.type === "group") {
-              return (
-                <GroupRow
-                  key={node.group.id}
-                  group={node.group}
-                  depth={node.depth}
-                  parentGroupId={node.parentGroupId}
-                  renamingId={renamingId}
-                  renameValue={renameValue}
-                  onRenameValueChange={setRenameValue}
-                  onDoubleClick={handleDoubleClick}
-                  onCommitRename={commitRename}
-                  onCancelRename={() => setRenamingId(null)}
-                  onToggleExpand={handleToggleExpand}
-                  onToggleVisibility={handleToggleVisibility}
-                  onToggleLock={handleToggleLock}
-                  onMove={handleMoveItem}
-                  onDelete={(id, name) =>
-                    setDeleteTarget({ id, name, isGroup: true })
-                  }
-                  onDuplicate={handleDuplicateGroup}
-                  isDragging={dragId === node.group.id}
-                  dropIndicator={
-                    dropIndicator?.targetId === node.group.id
-                      ? dropIndicator.position
-                      : null
-                  }
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOverRow}
-                  onDrop={handleDrop}
-                />
-              );
-            } else if (
-              node.type === "imageLayer" ||
-              node.type === "objectLayer"
-            ) {
-              return (
-                <LayerRow
-                  key={node.layer.id}
-                  layer={node.layer}
-                  depth={node.depth}
-                  parentGroupId={node.parentGroupId}
-                  isActive={node.layer.id === state.activeLayerId}
-                  renamingId={renamingId}
-                  renameValue={renameValue}
-                  onRenameValueChange={setRenameValue}
-                  onDoubleClick={handleDoubleClick}
-                  onCommitRename={commitRename}
-                  onCancelRename={() => setRenamingId(null)}
-                  onSelect={handleSelectLayer}
-                  onToggleVisibility={handleToggleVisibility}
-                  onToggleLock={handleToggleLock}
-                  onMove={handleMoveItem}
-                  onDelete={(id, name) =>
-                    setDeleteTarget({ id, name, isGroup: false })
-                  }
-                  onDuplicate={handleDuplicateLayer}
-                  isDragging={dragId === node.layer.id}
-                  dropIndicator={
-                    dropIndicator?.targetId === node.layer.id
-                      ? dropIndicator.position
-                      : null
-                  }
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOverRow}
-                  onDrop={handleDrop}
-                />
-              );
-            } else {
-              return (
-                <LayerRow
-                  key={node.layer.id}
-                  layer={node.layer}
-                  depth={node.depth}
-                  parentGroupId={node.parentGroupId}
-                  isActive={node.layer.id === state.activeLayerId}
-                  renamingId={renamingId}
-                  renameValue={renameValue}
-                  onRenameValueChange={setRenameValue}
-                  onDoubleClick={handleDoubleClick}
-                  onCommitRename={commitRename}
-                  onCancelRename={() => setRenamingId(null)}
-                  onSelect={handleSelectLayer}
-                  onToggleVisibility={handleToggleVisibility}
-                  onToggleLock={handleToggleLock}
-                  onMove={handleMoveItem}
-                  onDelete={(id, name) =>
-                    setDeleteTarget({ id, name, isGroup: false })
-                  }
-                  onDuplicate={handleDuplicateLayer}
-                  isDragging={dragId === node.layer.id}
-                  dropIndicator={
-                    dropIndicator?.targetId === node.layer.id
-                      ? dropIndicator.position
-                      : null
-                  }
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOverRow}
-                  onDrop={handleDrop}
-                />
-              );
-            }
-          })}
-        </div>
+        <LayersTree
+          treeNodes={treeNodes}
+          activeLayerId={state.activeLayerId}
+          renamingId={renamingId}
+          renameValue={renameValue}
+          dragId={dragId}
+          dropIndicator={dropIndicator}
+          onRenameValueChange={setRenameValue}
+          onDoubleClick={handleDoubleClick}
+          onCommitRename={commitRename}
+          onCancelRename={() => setRenamingId(null)}
+          onSelectLayer={handleSelectLayer}
+          onToggleExpand={handleToggleExpand}
+          onToggleVisibility={handleToggleVisibility}
+          onToggleLock={handleToggleLock}
+          onMoveItem={handleMoveItem}
+          onDeleteTarget={setDeleteTarget}
+          onDuplicateLayer={handleDuplicateLayer}
+          onDuplicateGroup={handleDuplicateGroup}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOverRow={handleDragOverRow}
+          onDrop={handleDrop}
+        />
       </ScrollArea>
 
       {/* Add layer dialog */}
@@ -1138,29 +1043,15 @@ export function LayersPanel() {
       />
 
       {/* Delete confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete {deleteTarget?.isGroup ? "layer group" : "layer"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &quot;{deleteTarget?.name}&quot;
-              {deleteTarget?.isGroup && " and all layers inside it"}. This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onMouseDown={handleDelete}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteLayerDialog
+        deleteTarget={deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  type DragEvent,
   useSyncExternalStore,
 } from "react";
 import { Plus, Save, ZoomIn, ZoomOut, Trash2, X } from "lucide-react";
@@ -100,6 +101,7 @@ export function TilesetPanel() {
   const [newGroupName, setNewGroupName] = useState("");
   const [renamingTabId, setRenamingTabId] = useState<TilesetId | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [isDropTargetActive, setIsDropTargetActive] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,9 +157,9 @@ export function TilesetPanel() {
     fileInputRef.current?.click();
   }
 
-  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function createTilesetFromFile(file: File | null | undefined) {
     if (!file || !activeGroup) return;
+    if (!file.type.startsWith("image/")) return;
 
     const buffer = await file.arrayBuffer();
     const assetId = generateAssetId();
@@ -190,8 +192,52 @@ export function TilesetPanel() {
       draft.project.tilesets.push(tileset);
       syncActiveTilesetState(draft, tilesetId);
     });
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    await createTilesetFromFile(file);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function hasImageData(dataTransfer: DataTransfer): boolean {
+    const itemList = Array.from(dataTransfer.items ?? []);
+    if (
+      itemList.some(
+        (item) => item.kind === "file" && item.type.startsWith("image/"),
+      )
+    ) {
+      return true;
+    }
+
+    return Array.from(dataTransfer.files ?? []).some((file) =>
+      file.type.startsWith("image/"),
+    );
+  }
+
+  function handleCanvasDragOver(e: DragEvent<HTMLDivElement>) {
+    if (!hasImageData(e.dataTransfer)) return;
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setIsDropTargetActive(true);
+  }
+
+  function handleCanvasDragLeave(e: DragEvent<HTMLDivElement>) {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDropTargetActive(false);
+  }
+
+  async function handleCanvasDrop(e: DragEvent<HTMLDivElement>) {
+    const file = Array.from(e.dataTransfer.files).find((candidate) =>
+      candidate.type.startsWith("image/"),
+    );
+    if (!file) return;
+
+    e.preventDefault();
+    setIsDropTargetActive(false);
+    await createTilesetFromFile(file);
   }
 
   function handleGroupChange(value: string) {
@@ -578,8 +624,11 @@ export function TilesetPanel() {
 
       {/* Tileset canvas area — uses the shared TilesetCanvas component */}
       <div
-        className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        className="relative flex-1 min-h-0 flex flex-col overflow-hidden"
         onContextMenu={(e) => e.preventDefault()}
+        onDragOver={handleCanvasDragOver}
+        onDragLeave={handleCanvasDragLeave}
+        onDrop={handleCanvasDrop}
       >
         <TilesetCanvas
           assetId={activeTileset?.assetId ?? null}
@@ -596,15 +645,26 @@ export function TilesetPanel() {
               : "Select a tileset tab"
           }
         />
+        {isDropTargetActive && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
+            <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
+              Drop an image to create a tileset
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
+        id="tileset-file-input"
+        name="tileset-file-input"
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={handleFileSelected}
+        onChange={(e) => {
+          void handleFileSelected(e);
+        }}
       />
 
       <NewTilesetGroupDialog

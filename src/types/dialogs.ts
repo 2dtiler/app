@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 import type { ToolName } from "./components";
+import type {
+  ImportExportDialogMode,
+  ImportExportOptionAction,
+} from "./import-export";
 import type { NewMapType } from "./map-geometry";
 import type {
   MapObject,
@@ -36,6 +40,15 @@ export interface FindReplaceDialogProps {
 export interface KeyboardShortcutsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+export interface ImportExportDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: ImportExportDialogMode;
+  projectAction: ImportExportOptionAction;
+  mapAction: ImportExportOptionAction;
+  tilesetAction: ImportExportOptionAction;
 }
 
 export type AddLayerDialogLayerType = "tile" | "group" | "image" | "object";
