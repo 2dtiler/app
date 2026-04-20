@@ -1,6 +1,5 @@
-Sentry sometimes picks it up
-Add link to github top right
 Add Tags to github repo
+Upgrade to Vite8
 
 Export Options
   - Do the rest of the options
@@ -9,8 +8,6 @@ Import Options
   - Do the rest of the options
 
 Allow quick export bottom right
-Upgrade to Vite8
-
 
 AI Asset Generation:
   AI Generation not working currently
@@ -21,7 +18,6 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
-Update README.md
 Ad Marketplace for selling/buying tilesets etc.
 
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
