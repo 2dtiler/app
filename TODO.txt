@@ -1,6 +1,4 @@
-Export should potentially handle thousands of maps
 Export Options
-  - Show a map selection
   - Do the rest of the options
 Import Options
   - Should show which group to import to (if more than one)
@@ -46,6 +44,7 @@ Exploration:
   Keep Notes
 
 Text Layer custom fonts not working
+Custom Animations i.e. water moving
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest

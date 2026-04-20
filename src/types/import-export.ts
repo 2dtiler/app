@@ -61,6 +61,10 @@ export interface ImportExportAssetGroup {
   assets: ImportExportSelectableAsset[];
 }
 
+export interface ImportExportFlatSelectableAsset extends ImportExportSelectableAsset {
+  searchText: string;
+}
+
 export interface ImportExportSelectionConfig {
   groups: ImportExportAssetGroup[];
   initialSelectedIds: ImportExportSelectableAssetId[];
@@ -81,6 +85,8 @@ export interface ImportExportAssetPickerProps {
   selection: ImportExportSelectionConfig;
   selectedIds: ImportExportSelectableAssetId[];
   onToggleAsset: (assetId: ImportExportSelectableAssetId) => void;
+  onSelectAssets: (assetIds: ImportExportSelectableAssetId[]) => void;
+  onDeselectAssets: (assetIds: ImportExportSelectableAssetId[]) => void;
 }
 
 export interface ImportExportAssetCardProps {
