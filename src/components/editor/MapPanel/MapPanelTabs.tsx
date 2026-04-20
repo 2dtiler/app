@@ -6,7 +6,13 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
   Tooltip,
@@ -88,7 +94,9 @@ export function MapPanelTabs({
               {groupMaps.map((map) => (
                 <div
                   key={map.id}
-                  data-state={state.activeMapId === map.id ? "active" : "inactive"}
+                  data-state={
+                    state.activeMapId === map.id ? "active" : "inactive"
+                  }
                   className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   {renamingTabId === map.id ? (
@@ -118,19 +126,27 @@ export function MapPanelTabs({
                                   className="h-7 min-w-0 rounded-none px-2 text-[11px]"
                                   onDoubleClick={() => onStartRenamingTab(map)}
                                 >
-                                  <span className="max-w-40 truncate">{map.name}</span>
+                                  <span className="max-w-40 truncate">
+                                    {map.name}
+                                  </span>
                                 </TabsTrigger>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>Double Click to Rename</TooltipContent>
+                            <TooltipContent>
+                              Double Click to Rename
+                            </TooltipContent>
                           </Tooltip>
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
-                        <ContextMenuItem onMouseDown={() => onStartRenamingTab(map)}>
+                        <ContextMenuItem
+                          onMouseDown={() => onStartRenamingTab(map)}
+                        >
                           Rename
                         </ContextMenuItem>
-                        <ContextMenuItem onMouseDown={() => onDuplicateMap(map)}>
+                        <ContextMenuItem
+                          onMouseDown={() => onDuplicateMap(map)}
+                        >
                           Duplicate
                         </ContextMenuItem>
                       </ContextMenuContent>

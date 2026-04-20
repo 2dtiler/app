@@ -7,21 +7,13 @@
 
 import type { Color, ImageEditorTool } from "@/types/image-editor";
 import type { StrokeState, ToolContext } from "@/types/image-editor-internals";
-import {
-  bresenhamLine,
-  getPixel,
-  setPixel,
-} from "./image-editor-tools-shared";
+import { bresenhamLine, getPixel, setPixel } from "./image-editor-tools-shared";
 import {
   selectionDown,
   selectionMove,
   selectionUp,
 } from "./image-editor-selection-tools";
-import {
-  cropDown,
-  cropMove,
-  cropUp,
-} from "./image-editor-crop-tools";
+import { cropDown, cropMove, cropUp } from "./image-editor-crop-tools";
 import {
   contourDown,
   contourMove,

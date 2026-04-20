@@ -100,7 +100,9 @@ export function MapPanelToolbar({
                   onMouseDown={() => onSelectBrushTool(tool, size)}
                 >
                   {size}
-                  {state.currentTool === tool && state.brushSize === size && " ✓"}
+                  {state.currentTool === tool &&
+                    state.brushSize === size &&
+                    " ✓"}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -128,9 +130,7 @@ export function MapPanelToolbar({
             Fill
             {state.currentTool === "fill" && state.fillMode === "fill" && " ✓"}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onMouseDown={() => onSelectFillMode("fillTerrain")}
-          >
+          <DropdownMenuItem onMouseDown={() => onSelectFillMode("fillTerrain")}>
             Fill Terrain
             {state.currentTool === "fill" &&
               state.fillMode === "fillTerrain" &&
@@ -168,7 +168,9 @@ export function MapPanelToolbar({
                   onMouseDown={() => onSelectBrushTool(tool, size)}
                 >
                   {size}
-                  {state.currentTool === tool && state.brushSize === size && " ✓"}
+                  {state.currentTool === tool &&
+                    state.brushSize === size &&
+                    " ✓"}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

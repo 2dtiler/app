@@ -16,10 +16,7 @@ export function DeleteLayerDialog({
   onDelete,
 }: DeleteLayerDialogProps) {
   return (
-    <AlertDialog
-      open={!!deleteTarget}
-      onOpenChange={onOpenChange}
-    >
+    <AlertDialog open={!!deleteTarget} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>

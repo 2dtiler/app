@@ -2,9 +2,7 @@ import type { ImageEditorState } from "./image-editor";
 
 export type ImageEditorStateUpdater = (draft: ImageEditorState) => void;
 
-export type ImageEditorSetState = (
-  updater: ImageEditorStateUpdater,
-) => void;
+export type ImageEditorSetState = (updater: ImageEditorStateUpdater) => void;
 
 export type FrameMoveDirection = "left" | "right";
 

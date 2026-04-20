@@ -147,7 +147,9 @@ export function useImageEditorFrameActions({
     );
     const savedLayerData = new Map<string, ImageData>();
     for (const layerId of allLayerIds) {
-      const data = moduleLayerFrameData.get(layerDataKey(frameToDelete.id, layerId));
+      const data = moduleLayerFrameData.get(
+        layerDataKey(frameToDelete.id, layerId),
+      );
       if (data) {
         savedLayerData.set(
           layerId,

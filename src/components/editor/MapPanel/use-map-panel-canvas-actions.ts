@@ -1,7 +1,5 @@
 import { useCallback } from "react";
-import {
-  generateObjectId,
-} from "@/lib/ids";
+import { generateObjectId } from "@/lib/ids";
 import {
   areTileRefsEqual,
   createTileStamp,
@@ -17,11 +15,7 @@ import { setImageLayerEditorContext } from "@/lib/image-layer-editor-context";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { isLayerEffectivelyLocked } from "@/lib/layers";
 import type { MapCanvasProps } from "@/types/map-canvas";
-import type {
-  MapObject,
-  ObjectType,
-  TileRef,
-} from "@/types";
+import type { MapObject, ObjectType, TileRef } from "@/types";
 import { TEXT_OBJECT_DEFAULTS as textObjectDefaults } from "@/types";
 import type {
   MapPanelCanvasActionParams,
@@ -82,7 +76,10 @@ export function useMapPanelCanvasActions({
             for (let dx = 0; dx < brushNum; dx++) {
               const tx = gx + dx;
               const ty = gy + dy;
-              if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles) {
+              if (
+                tx >= activeMap.widthInTiles ||
+                ty >= activeMap.heightInTiles
+              ) {
                 continue;
               }
 

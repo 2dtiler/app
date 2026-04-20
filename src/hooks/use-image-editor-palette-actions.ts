@@ -8,7 +8,10 @@ import {
   paletteUndoStack,
   snapshotPaletteLibrary,
 } from "@/lib/image-editor-document";
-import { getImageEditorStore, isImageEditorStoreReady } from "@/lib/image-editor-store";
+import {
+  getImageEditorStore,
+  isImageEditorStoreReady,
+} from "@/lib/image-editor-store";
 import {
   parseGpl,
   parseHex,
@@ -23,17 +26,17 @@ import {
 } from "@/lib/palette-formats";
 import { parsePhotoshopAse, writePhotoshopAse } from "@/lib/photoshop-ase";
 import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
-import type {
-  Color,
-  Palette,
-  PaletteId,
-} from "@/types/image-editor";
+import type { Color, Palette, PaletteId } from "@/types/image-editor";
 import type {
   PaletteExportFormat,
   PngSwatchSize,
 } from "@/types/image-editor-hook";
 import type { ImageEditorPaletteActionsParams } from "@/types/image-editor-hook-internals";
-import { actionLog, frameOpRedoStack, redoLog } from "@/lib/image-editor-document";
+import {
+  actionLog,
+  frameOpRedoStack,
+  redoLog,
+} from "@/lib/image-editor-document";
 
 export function useImageEditorPaletteActions({
   state,
@@ -107,9 +110,10 @@ export function useImageEditorPaletteActions({
       } else if (ext === "ase") {
         const buffer = await file.arrayBuffer();
         const signature = new DataView(buffer).getUint32(0, false);
-        colors = signature === 0x41534546
-          ? parsePhotoshopAse(buffer)
-          : parseAsePalette(buffer);
+        colors =
+          signature === 0x41534546
+            ? parsePhotoshopAse(buffer)
+            : parseAsePalette(buffer);
       } else if (ext === "gpl") {
         colors = parseGpl(await file.text());
       } else if (ext === "pal") {
@@ -262,7 +266,9 @@ export function useImageEditorPaletteActions({
       const newId = uuidv4() as PaletteId;
       const sourceColors = source.colors.map((color) => ({ ...color }));
       setState((draft) => {
-        const sourceIndex = draft.palettes.findIndex((palette) => palette.id === id);
+        const sourceIndex = draft.palettes.findIndex(
+          (palette) => palette.id === id,
+        );
         draft.palettes.splice(sourceIndex + 1, 0, {
           id: newId,
           name: `${source.name} (copy)`,

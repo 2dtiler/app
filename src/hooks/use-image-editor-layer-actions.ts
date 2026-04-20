@@ -6,7 +6,10 @@ import {
   layerDataKey,
   moduleLayerFrameData,
 } from "@/lib/image-editor-document";
-import { getImageEditorStore, isImageEditorStoreReady } from "@/lib/image-editor-store";
+import {
+  getImageEditorStore,
+  isImageEditorStoreReady,
+} from "@/lib/image-editor-store";
 import type {
   ImageEditorGroupId,
   ImageEditorImageLayer,
@@ -90,7 +93,13 @@ export function useImageEditorLayerActions({
           const context = canvas.getContext("2d");
           if (!context) return;
           context.imageSmoothingEnabled = false;
-          context.drawImage(image, 0, 0, currentState.width, currentState.height);
+          context.drawImage(
+            image,
+            0,
+            0,
+            currentState.width,
+            currentState.height,
+          );
           const imageData = context.getImageData(
             0,
             0,
@@ -99,7 +108,8 @@ export function useImageEditorLayerActions({
           );
 
           const newId = uuidv4() as ImageEditorLayerId;
-          const baseName = name ?? file.name.replace(/\.[^/.]+$/, "") ?? "Image";
+          const baseName =
+            name ?? file.name.replace(/\.[^/.]+$/, "") ?? "Image";
 
           for (const frame of currentState.frames) {
             moduleLayerFrameData.set(
@@ -186,7 +196,9 @@ export function useImageEditorLayerActions({
             (entry) => (entry as string) !== id,
           ) as typeof group.childOrder;
         }
-        draft.layers = draft.layers.filter((layer) => (layer.id as string) !== id);
+        draft.layers = draft.layers.filter(
+          (layer) => (layer.id as string) !== id,
+        );
         draft.imageLayers = draft.imageLayers.filter(
           (layer) => (layer.id as string) !== id,
         );
@@ -207,7 +219,9 @@ export function useImageEditorLayerActions({
       if (!state) return;
 
       setState((draft) => {
-        const group = draft.layerGroups.find((entry) => (entry.id as string) === groupId);
+        const group = draft.layerGroups.find(
+          (entry) => (entry.id as string) === groupId,
+        );
         if (!group) return;
 
         function collectDescendants(
@@ -286,7 +300,9 @@ export function useImageEditorLayerActions({
           return;
         }
 
-        const group = draft.layerGroups.find((entry) => (entry.id as string) === id);
+        const group = draft.layerGroups.find(
+          (entry) => (entry.id as string) === id,
+        );
         if (group) {
           group.name = name;
         }
@@ -301,7 +317,9 @@ export function useImageEditorLayerActions({
 
       setState((draft) => {
         if (isGroup) {
-          const group = draft.layerGroups.find((entry) => (entry.id as string) === id);
+          const group = draft.layerGroups.find(
+            (entry) => (entry.id as string) === id,
+          );
           if (group) {
             group.visible = !group.visible;
           }
@@ -331,7 +349,9 @@ export function useImageEditorLayerActions({
 
       setState((draft) => {
         if (isGroup) {
-          const group = draft.layerGroups.find((entry) => (entry.id as string) === id);
+          const group = draft.layerGroups.find(
+            (entry) => (entry.id as string) === id,
+          );
           if (group) {
             group.locked = !group.locked;
           }
@@ -369,7 +389,9 @@ export function useImageEditorLayerActions({
     (id: string) => {
       if (!state) return;
       setState((draft) => {
-        const group = draft.layerGroups.find((entry) => (entry.id as string) === id);
+        const group = draft.layerGroups.find(
+          (entry) => (entry.id as string) === id,
+        );
         if (group) {
           group.expanded = !group.expanded;
         }
@@ -379,7 +401,11 @@ export function useImageEditorLayerActions({
   );
 
   const moveImageEditorLayerItem = useCallback(
-    (id: string, direction: LayerMoveDirection, parentGroupId: string | null) => {
+    (
+      id: string,
+      direction: LayerMoveDirection,
+      parentGroupId: string | null,
+    ) => {
       if (!state) return;
 
       setState((draft) => {
@@ -464,7 +490,9 @@ export function useImageEditorLayerActions({
 
       const newGroupId = uuidv4() as ImageEditorGroupId;
       setState((draft) => {
-        const sourceGroup = draft.layerGroups.find((entry) => (entry.id as string) === id);
+        const sourceGroup = draft.layerGroups.find(
+          (entry) => (entry.id as string) === id,
+        );
         if (!sourceGroup) return;
 
         const copy: ImageEditorLayerGroup = {
@@ -481,11 +509,7 @@ export function useImageEditorLayerActions({
   );
 
   const moveImageEditorLayerIntoOrder = useCallback(
-    (
-      dragId: string,
-      targetId: string,
-      position: LayerDropPosition,
-    ) => {
+    (dragId: string, targetId: string, position: LayerDropPosition) => {
       if (!state) return;
 
       setState((draft) => {
@@ -516,7 +540,8 @@ export function useImageEditorLayerActions({
           return;
         }
 
-        let targetOrder: (ImageEditorLayerId | ImageEditorGroupId)[] | null = null;
+        let targetOrder: (ImageEditorLayerId | ImageEditorGroupId)[] | null =
+          null;
         if ((draft.layerOrder as string[]).includes(targetId)) {
           targetOrder = draft.layerOrder;
         } else {
@@ -531,7 +556,8 @@ export function useImageEditorLayerActions({
         if (targetOrder) {
           const targetIndex = (targetOrder as string[]).indexOf(targetId);
           if (targetIndex !== -1) {
-            const insertIndex = position === "above" ? targetIndex + 1 : targetIndex;
+            const insertIndex =
+              position === "above" ? targetIndex + 1 : targetIndex;
             targetOrder.splice(
               insertIndex,
               0,

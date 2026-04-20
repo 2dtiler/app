@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from "react";
 import { toast } from "sonner";
 import { Toolbar } from "@/components/layout/Toolbar";
 import { TilesetPanel } from "@/components/editor/TilesetPanel";
@@ -126,7 +133,9 @@ export function AppShell({
   const activeLayerKind =
     state.project !== null &&
     state.activeLayerId !== null &&
-    (state.project.objectLayers ?? []).some((layer) => layer.id === state.activeLayerId)
+    (state.project.objectLayers ?? []).some(
+      (layer) => layer.id === state.activeLayerId,
+    )
       ? "object"
       : state.project !== null &&
           state.activeLayerId !== null &&
@@ -136,7 +145,9 @@ export function AppShell({
         ? "image"
         : state.project !== null &&
             state.activeLayerId !== null &&
-            state.project.layers.some((layer) => layer.id === state.activeLayerId)
+            state.project.layers.some(
+              (layer) => layer.id === state.activeLayerId,
+            )
           ? "tile"
           : null;
   const showDetailsPanel =
@@ -195,7 +206,9 @@ export function AppShell({
 
   const handleExportMap = useCallback(async () => {
     if (!state.project || !state.activeMapId) return;
-    const map = state.project.maps.find((entry) => entry.id === state.activeMapId);
+    const map = state.project.maps.find(
+      (entry) => entry.id === state.activeMapId,
+    );
     if (!map) return;
     const projectLayerGroups = state.project.layerGroups ?? [];
     const allLayerIds = getAllLayerIds(map.layerOrder, projectLayerGroups);
@@ -457,7 +470,9 @@ export function AppShell({
           state.activeTilesetGroupId ?? project.tilesetGroups[0]?.id;
         if (!targetGroupId) return;
 
-        const exists = project.tilesets.some((entry) => entry.id === tileset.id);
+        const exists = project.tilesets.some(
+          (entry) => entry.id === tileset.id,
+        );
 
         setState((draft) => {
           if (!draft.project) return;
@@ -499,9 +514,11 @@ export function AppShell({
     ? (detailsTabLabel ?? "Details")
     : "Layers";
   const handleOpenTool = useCallback(
-    (tool: AppShellProps["activeTool"] extends infer ActiveTool
-      ? Exclude<ActiveTool, null>
-      : never) => {
+    (
+      tool: AppShellProps["activeTool"] extends infer ActiveTool
+        ? Exclude<ActiveTool, null>
+        : never,
+    ) => {
       if (tool === "image-editor") {
         clearTileEditorContext();
       }
@@ -644,7 +661,10 @@ export function AppShell({
         </Suspense>
       )}
       <Suspense>
-        <ToolDrawer activeTool={activeTool} onClose={() => setActiveTool(null)} />
+        <ToolDrawer
+          activeTool={activeTool}
+          onClose={() => setActiveTool(null)}
+        />
       </Suspense>
     </div>
   );

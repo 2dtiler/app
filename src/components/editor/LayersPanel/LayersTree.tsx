@@ -81,7 +81,9 @@ export function LayersTree({
             onToggleVisibility={onToggleVisibility}
             onToggleLock={onToggleLock}
             onMove={onMoveItem}
-            onDelete={(id, name) => onDeleteTarget({ id, name, isGroup: false })}
+            onDelete={(id, name) =>
+              onDeleteTarget({ id, name, isGroup: false })
+            }
             onDuplicate={onDuplicateLayer}
             isDragging={dragId === node.layer.id}
             dropIndicator={

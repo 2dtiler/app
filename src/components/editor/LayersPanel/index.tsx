@@ -51,8 +51,9 @@ export function LayersPanel() {
   // ---- Drag & Drop state ----
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragIsGroup, setDragIsGroup] = useState(false);
-  const [dropIndicator, setDropIndicator] =
-    useState<LayerDropIndicator | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<LayerDropIndicator | null>(
+    null,
+  );
 
   if (!project) return null;
 

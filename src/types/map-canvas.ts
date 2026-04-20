@@ -262,10 +262,7 @@ export interface SceneInteractionHandlerContext {
     globalX: number,
     globalY: number,
   ) => ScenePointerPosition | null;
-  getGridPos: (
-    globalX: number,
-    globalY: number,
-  ) => ScenePointerPosition | null;
+  getGridPos: (globalX: number, globalY: number) => ScenePointerPosition | null;
   getInteractiveImageLayer: (imgLayer: ImageLayer) => ImageLayer;
   getObjectInteractionOverrides: (
     object: MapObject,
@@ -333,16 +330,34 @@ export interface SceneInteractionHandlerContext {
   setHoveredObjectCursor: Dispatch<SetStateAction<string | null>>;
   setIsDrawingPolygon: Dispatch<SetStateAction<boolean>>;
   setIsMoving: Dispatch<SetStateAction<boolean>>;
-  setLiveImagePos: Dispatch<SetStateAction<UseSceneInteractionReturn["liveImagePos"]>>;
-  setLiveImageResize: Dispatch<SetStateAction<UseSceneInteractionReturn["liveImageResize"]>>;
-  setLiveObjectPlace: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectPlace"]>>;
-  setLiveObjectPos: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectPos"]>>;
-  setLiveObjectResize: Dispatch<SetStateAction<UseSceneInteractionReturn["liveObjectResize"]>>;
-  setLivePolyVertex: Dispatch<SetStateAction<UseSceneInteractionReturn["livePolyVertex"]>>;
+  setLiveImagePos: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["liveImagePos"]>
+  >;
+  setLiveImageResize: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["liveImageResize"]>
+  >;
+  setLiveObjectPlace: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["liveObjectPlace"]>
+  >;
+  setLiveObjectPos: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["liveObjectPos"]>
+  >;
+  setLiveObjectResize: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["liveObjectResize"]>
+  >;
+  setLivePolyVertex: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["livePolyVertex"]>
+  >;
   setLiveSelection: Dispatch<SetStateAction<MapSelection | null>>;
-  setMoveTilesSnapshot: Dispatch<SetStateAction<UseSceneInteractionReturn["moveTilesSnapshot"]>>;
-  setPolygonCursorPos: Dispatch<SetStateAction<UseSceneInteractionReturn["polygonCursorPos"]>>;
-  setPolygonPoints: Dispatch<SetStateAction<UseSceneInteractionReturn["polygonPoints"]>>;
+  setMoveTilesSnapshot: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["moveTilesSnapshot"]>
+  >;
+  setPolygonCursorPos: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["polygonCursorPos"]>
+  >;
+  setPolygonPoints: Dispatch<
+    SetStateAction<UseSceneInteractionReturn["polygonPoints"]>
+  >;
   setResizingHandle: Dispatch<SetStateAction<ResizeHandle | null>>;
   shiftKeyRef: MutableRefObject<boolean>;
   zoom: UseSceneInteractionParams["zoom"];

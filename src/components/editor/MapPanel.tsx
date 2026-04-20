@@ -94,9 +94,8 @@ export function MapPanel() {
   const [newMapName, setNewMapName] = useState("Untitled Map");
   const [newMapWidth, setNewMapWidth] = useState(20);
   const [newMapHeight, setNewMapHeight] = useState(15);
-  const [newMapType, setNewMapType] = useState<NewMapType>(
-    DEFAULT_NEW_MAP_TYPE,
-  );
+  const [newMapType, setNewMapType] =
+    useState<NewMapType>(DEFAULT_NEW_MAP_TYPE);
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
   const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
@@ -158,7 +157,8 @@ export function MapPanel() {
         object.layerId === state.activeLayerId,
     ) ?? null;
   const activeObjectLayer = activeObject
-    ? flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ?? null
+    ? (flatObjectLayers.find((layer) => layer.id === activeObject.layerId) ??
+      null)
     : null;
   const textObjectEditing = useTextObjectEditing(projectObjects, setState);
 
@@ -365,7 +365,9 @@ export function MapPanel() {
       setState((draft) => {
         if (!draft.project) return;
 
-        const map = draft.project.maps.find((entry) => entry.id === deleteTarget.id);
+        const map = draft.project.maps.find(
+          (entry) => entry.id === deleteTarget.id,
+        );
         const mapsInGroup = map
           ? draft.project.maps.filter((entry) => entry.groupId === map.groupId)
           : [];
@@ -443,7 +445,9 @@ export function MapPanel() {
     if (name) {
       setState((draft) => {
         if (!draft.project) return;
-        const map = draft.project.maps.find((entry) => entry.id === renamingTabId);
+        const map = draft.project.maps.find(
+          (entry) => entry.id === renamingTabId,
+        );
         if (map) {
           map.name = name;
         }
@@ -586,7 +590,9 @@ export function MapPanel() {
 
     setState((draft) => {
       if (!draft.project) return;
-      const map = draft.project.maps.find((entry) => entry.id === state.activeMapId);
+      const map = draft.project.maps.find(
+        (entry) => entry.id === state.activeMapId,
+      );
       if (!map) return;
 
       map.widthInTiles = nextWidth;

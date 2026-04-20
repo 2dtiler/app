@@ -131,7 +131,10 @@ export function hitTestResizeHandle(x: number, y: number): ResizeHandle {
   const displayHeight = state.displayHeight;
   const handleSize = HANDLE_SIZE;
 
-  if (Math.abs(x - floatingX) <= handleSize && Math.abs(y - floatingY) <= handleSize) {
+  if (
+    Math.abs(x - floatingX) <= handleSize &&
+    Math.abs(y - floatingY) <= handleSize
+  ) {
     return "nw";
   }
   if (
@@ -223,7 +226,13 @@ export function drawFloatingOnOverlay(tc: ToolContext): void {
   sourceContext.putImageData(state.floatingPixels, 0, 0);
 
   tc.overlayCtx.imageSmoothingEnabled = false;
-  tc.overlayCtx.drawImage(sourceCanvas, floatingX, floatingY, displayWidth, displayHeight);
+  tc.overlayCtx.drawImage(
+    sourceCanvas,
+    floatingX,
+    floatingY,
+    displayWidth,
+    displayHeight,
+  );
 }
 
 export function selectionDown(
@@ -246,7 +255,12 @@ export function selectionDown(
         w: selectionState.displayWidth,
         h: selectionState.displayHeight,
       };
-      selectionState.canvasSnapshot = tc.ctx.getImageData(0, 0, tc.width, tc.height);
+      selectionState.canvasSnapshot = tc.ctx.getImageData(
+        0,
+        0,
+        tc.width,
+        tc.height,
+      );
       return;
     }
 
@@ -254,7 +268,12 @@ export function selectionDown(
       selectionState.draggingFloating = true;
       selectionState.dragOffsetX = x - selectionState.floatingX;
       selectionState.dragOffsetY = y - selectionState.floatingY;
-      selectionState.canvasSnapshot = tc.ctx.getImageData(0, 0, tc.width, tc.height);
+      selectionState.canvasSnapshot = tc.ctx.getImageData(
+        0,
+        0,
+        tc.width,
+        tc.height,
+      );
       return;
     }
 
@@ -307,7 +326,8 @@ export function selectionMove(
       (handle === "nw" || handle === "ne" || handle === "sw" || handle === "se")
     ) {
       const aspectRatio =
-        selectionState.floatingPixels.width / selectionState.floatingPixels.height;
+        selectionState.floatingPixels.width /
+        selectionState.floatingPixels.height;
       if (nextWidth / aspectRatio > nextHeight) {
         nextHeight = Math.round(nextWidth / aspectRatio);
       } else {
@@ -451,9 +471,12 @@ export function selectionUp(
       const sourceIndex = (sourceY * tc.width + sourceX) * 4;
       const destinationIndex = (py * selectionWidth + px) * 4;
       floatingPixels.data[destinationIndex] = imageData.data[sourceIndex];
-      floatingPixels.data[destinationIndex + 1] = imageData.data[sourceIndex + 1];
-      floatingPixels.data[destinationIndex + 2] = imageData.data[sourceIndex + 2];
-      floatingPixels.data[destinationIndex + 3] = imageData.data[sourceIndex + 3];
+      floatingPixels.data[destinationIndex + 1] =
+        imageData.data[sourceIndex + 1];
+      floatingPixels.data[destinationIndex + 2] =
+        imageData.data[sourceIndex + 2];
+      floatingPixels.data[destinationIndex + 3] =
+        imageData.data[sourceIndex + 3];
 
       imageData.data[sourceIndex] = 0;
       imageData.data[sourceIndex + 1] = 0;

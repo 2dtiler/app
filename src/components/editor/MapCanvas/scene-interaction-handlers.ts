@@ -69,7 +69,9 @@ function commitPolygonVertexUpdate(
   context.setLivePolyVertex(null);
 }
 
-function finishObjectPlacement(context: SceneInteractionHandlerContext): boolean {
+function finishObjectPlacement(
+  context: SceneInteractionHandlerContext,
+): boolean {
   if (context.currentTool !== "select" || !context.objectPlaceRef.current) {
     return false;
   }
@@ -111,7 +113,9 @@ function finishObjectResize(context: SceneInteractionHandlerContext): boolean {
   return true;
 }
 
-function finishPolyVertexDrag(context: SceneInteractionHandlerContext): boolean {
+function finishPolyVertexDrag(
+  context: SceneInteractionHandlerContext,
+): boolean {
   if (context.currentTool !== "select" || !context.polyVertexDragRef.current) {
     return false;
   }
@@ -349,7 +353,8 @@ export function handleScenePointerDown(
     if (isObjectLayer) {
       const layerObjects = context.objects
         .filter(
-          (object) => object.layerId === context.activeLayerId && object.visible,
+          (object) =>
+            object.layerId === context.activeLayerId && object.visible,
         )
         .reverse();
       for (const object of layerObjects) {
@@ -360,7 +365,10 @@ export function handleScenePointerDown(
             lastObjectClick !== null &&
             lastObjectClick.objectId === object.id &&
             now - lastObjectClick.time < 400 &&
-            Math.hypot(event.x - lastObjectClick.x, event.y - lastObjectClick.y) < 12;
+            Math.hypot(
+              event.x - lastObjectClick.x,
+              event.y - lastObjectClick.y,
+            ) < 12;
           context.lastObjectClickRef.current = {
             time: now,
             x: event.x,
@@ -420,7 +428,8 @@ export function handleScenePointerDown(
       (layer) => layer.id === context.activeLayerId,
     );
     if (activeImageLayer) {
-      const interactiveLayer = context.getInteractiveImageLayer(activeImageLayer);
+      const interactiveLayer =
+        context.getInteractiveImageLayer(activeImageLayer);
       if (
         pointInImageLayer(interactiveLayer, {
           x: event.x / context.zoom,
@@ -540,7 +549,10 @@ export function handleScenePointerMove(
         rdy,
         context.shiftKeyRef.current,
       );
-      context.setLiveObjectResize({ objectId: objectResize.objectId, ...result });
+      context.setLiveObjectResize({
+        objectId: objectResize.objectId,
+        ...result,
+      });
       return;
     }
 
@@ -648,7 +660,8 @@ export function handleScenePointerMove(
         if (!objectCursor) {
           const layerObjects = context.objects
             .filter(
-              (object) => object.layerId === context.activeLayerId && object.visible,
+              (object) =>
+                object.layerId === context.activeLayerId && object.visible,
             )
             .reverse();
           for (const object of layerObjects) {
@@ -670,10 +683,22 @@ export function handleScenePointerMove(
     if (!selectionPos) return;
 
     if (action.type === "draw") {
-      const x1 = Math.min(action.startX, Math.max(0, Math.min(selectionPos.x, context.mapW - 1)));
-      const y1 = Math.min(action.startY, Math.max(0, Math.min(selectionPos.y, context.mapH - 1)));
-      const x2 = Math.max(action.startX, Math.max(0, Math.min(selectionPos.x, context.mapW - 1)));
-      const y2 = Math.max(action.startY, Math.max(0, Math.min(selectionPos.y, context.mapH - 1)));
+      const x1 = Math.min(
+        action.startX,
+        Math.max(0, Math.min(selectionPos.x, context.mapW - 1)),
+      );
+      const y1 = Math.min(
+        action.startY,
+        Math.max(0, Math.min(selectionPos.y, context.mapH - 1)),
+      );
+      const x2 = Math.max(
+        action.startX,
+        Math.max(0, Math.min(selectionPos.x, context.mapW - 1)),
+      );
+      const y2 = Math.max(
+        action.startY,
+        Math.max(0, Math.min(selectionPos.y, context.mapH - 1)),
+      );
       context.setLiveSelection({
         x: x1,
         y: y1,
@@ -681,8 +706,20 @@ export function handleScenePointerMove(
         height: y2 - y1 + 1,
       });
     } else {
-      const newX = Math.max(0, Math.min(selectionPos.x - action.offsetX, context.mapW - action.orig.width));
-      const newY = Math.max(0, Math.min(selectionPos.y - action.offsetY, context.mapH - action.orig.height));
+      const newX = Math.max(
+        0,
+        Math.min(
+          selectionPos.x - action.offsetX,
+          context.mapW - action.orig.width,
+        ),
+      );
+      const newY = Math.max(
+        0,
+        Math.min(
+          selectionPos.y - action.offsetY,
+          context.mapH - action.orig.height,
+        ),
+      );
       context.setLiveSelection({ ...action.orig, x: newX, y: newY });
     }
     return;

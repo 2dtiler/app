@@ -36,9 +36,7 @@ import {
   getMapCellPolygon,
   getMapPixelSize,
 } from "@/lib/map-geometry";
-import {
-  getImageLayerHandlePositions,
-} from "./image-layer-transform";
+import { getImageLayerHandlePositions } from "./image-layer-transform";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/lib/terrain";
 import { createTileStamp, isMultiTileStamp } from "@/lib/tile-stamp";

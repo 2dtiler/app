@@ -82,7 +82,9 @@ function buildSaveFingerprint(state: ImageEditorState | null): string | null {
 
   for (const frame of state.frames) {
     for (const layerId of allLayerIds) {
-      const imageData = moduleLayerFrameData.get(layerDataKey(frame.id, layerId));
+      const imageData = moduleLayerFrameData.get(
+        layerDataKey(frame.id, layerId),
+      );
       parts.push(
         `${frame.id}:${layerId}:${imageData ? hashPixelBuffer(imageData.data) : "empty"}`,
       );
@@ -132,7 +134,9 @@ export function getLeafLayerIds(
   const result: string[] = [];
 
   for (const id of order) {
-    const group = groups.find((entry) => (entry.id as string) === (id as string));
+    const group = groups.find(
+      (entry) => (entry.id as string) === (id as string),
+    );
     if (group) {
       const childVisible = ignoreVisibility || (parentVisible && group.visible);
       result.push(
@@ -185,7 +189,9 @@ export function captureResizeSnapshot(state: ImageEditorState): ResizeSnapshot {
     const current = moduleLayerFrameData.get(key);
     layerData.set(
       key,
-      current ? cloneImageData(current) : new ImageData(state.width, state.height),
+      current
+        ? cloneImageData(current)
+        : new ImageData(state.width, state.height),
     );
   }
 
@@ -444,4 +450,8 @@ export function resetImageEditorDocumentState(): void {
   savedDocumentFingerprint = null;
 }
 
-export { getImageEditorStore, isImageEditorStoreReady, subscribeToImageEditorStoreInstance };
+export {
+  getImageEditorStore,
+  isImageEditorStoreReady,
+  subscribeToImageEditorStoreInstance,
+};

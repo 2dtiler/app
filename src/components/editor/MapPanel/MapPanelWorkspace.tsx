@@ -1,7 +1,4 @@
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-} from "@/components/ui/ContextMenu";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/ContextMenu";
 import { MapCanvas } from "@/components/editor/MapCanvas";
 import { MapCanvasContextMenuContent } from "./MapCanvasContextMenuContent";
 import type { MapPanelWorkspaceProps } from "@/types/map-panel";
@@ -109,7 +106,9 @@ export function MapPanelWorkspace({
               onEditingTextChange={textObjectEditing.updateText}
               onCommitTextEditing={textObjectEditing.commitEditing}
               onCancelTextEditing={textObjectEditing.cancelEditing}
-              onDoubleClickObject={(id) => onOpenObjectProperties(id as ObjectId)}
+              onDoubleClickObject={(id) =>
+                onOpenObjectProperties(id as ObjectId)
+              }
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">

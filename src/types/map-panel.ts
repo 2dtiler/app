@@ -1,8 +1,4 @@
-import type {
-  Dispatch,
-  RefObject,
-  SetStateAction,
-} from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import type {
   EditorState,
   EditorTool,
@@ -19,10 +15,7 @@ import type {
   TileMapData,
 } from "./schema";
 import type { NewMapType } from "./map-geometry";
-import type {
-  MapCanvasImperativeHandle,
-  MapCanvasProps,
-} from "./map-canvas";
+import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
 import type {
   MapCanvasContextMenuTile,
   OrientAction,
@@ -182,7 +175,12 @@ export interface MapPanelCanvasActionParams {
   hasContextMenuImageLayer: boolean;
   layerGroups: NonNullable<EditorState["project"]>["layerGroups"];
   mapCanvasRef: RefObject<MapCanvasImperativeHandle | null>;
-  paintBuffer: Map<string, MapCanvasProps["paintBuffer"] extends Map<string, infer TValue> ? TValue : never>;
+  paintBuffer: Map<
+    string,
+    MapCanvasProps["paintBuffer"] extends Map<string, infer TValue>
+      ? TValue
+      : never
+  >;
   project: EditorState["project"];
   setPaintBufferVersion: Dispatch<SetStateAction<number>>;
   setState: ReturnType<typeof import("@/lib/store").getEditorStore>["setState"];
@@ -191,7 +189,9 @@ export interface MapPanelCanvasActionParams {
 }
 
 export interface MapPanelCanvasActionResult {
-  handleCancelPendingObject: NonNullable<MapCanvasProps["onCancelPendingObject"]>;
+  handleCancelPendingObject: NonNullable<
+    MapCanvasProps["onCancelPendingObject"]
+  >;
   handleCreateObject: MapCanvasProps["onCreateObject"];
   handleEditInImageEditor: () => void;
   handleMoveImageLayer: MapCanvasProps["onMoveImageLayer"];
@@ -233,6 +233,9 @@ export interface MapPanelClipboardActionResult {
   handleCopySelection: (fromContextMenu?: boolean) => Promise<void>;
   handleCutSelection: (fromContextMenu?: boolean) => Promise<void>;
   handleDeleteSelection: (fromContextMenu?: boolean) => void;
-  handleOrientSelection: (action: OrientAction, fromContextMenu?: boolean) => void;
+  handleOrientSelection: (
+    action: OrientAction,
+    fromContextMenu?: boolean,
+  ) => void;
   handlePasteSelection: (fromContextMenu?: boolean) => Promise<void>;
 }

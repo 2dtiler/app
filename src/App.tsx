@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import {
   initEditorStore,
@@ -17,8 +14,7 @@ import {
   loadProjectPrefs,
   loadLastProjectId,
 } from "@/lib/db";
-import {
-} from "@/lib/db";
+import {} from "@/lib/db";
 import {
   hydrateZoomStoreForProject,
   saveCurrentProjectPrefs,
@@ -28,7 +24,6 @@ import { zoomStore } from "@/lib/zoom-store";
 import type { ToolName } from "@/types";
 import { Toaster } from "@/components/ui/Sonner";
 import { AppShell } from "@/components/app/AppShell";
-
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (

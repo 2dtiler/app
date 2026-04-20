@@ -105,7 +105,9 @@ export interface ImageCanvasResizeControlsProps {
   hoveredResizeHandle: ImageCanvasResizeHandle;
   resizePreview: ImageCanvasResizePreview | null;
   hasActiveResizeAction: boolean;
-  onPointerEnterHandle: (handle: Exclude<ImageCanvasResizeHandle, null>) => void;
+  onPointerEnterHandle: (
+    handle: Exclude<ImageCanvasResizeHandle, null>,
+  ) => void;
   onPointerLeaveHandle: () => void;
   onBeginResize: (
     handle: Exclude<ImageCanvasResizeHandle, null>,

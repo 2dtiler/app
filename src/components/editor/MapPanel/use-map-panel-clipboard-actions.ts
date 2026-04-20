@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAsset, saveAsset } from "@/lib/db";
+import { generateAssetId, generateLayerId } from "@/lib/ids";
+import { findLastLayerId, isLayerEffectivelyLocked } from "@/lib/layers";
 import {
-  generateAssetId,
-  generateLayerId,
-} from "@/lib/ids";
-import {
-  findLastLayerId,
-  isLayerEffectivelyLocked,
-} from "@/lib/layers";
-import { getImageLayerClipboard, setImageLayerClipboard } from "@/lib/image-layer-clipboard";
+  getImageLayerClipboard,
+  setImageLayerClipboard,
+} from "@/lib/image-layer-clipboard";
 import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
-import {
-  createTileStamp,
-} from "@/lib/tile-stamp";
+import { createTileStamp } from "@/lib/tile-stamp";
 import type { OrientAction } from "@/types/map-panel-context-menu";
 import type {
   ImageLayer,
@@ -99,10 +94,13 @@ export function useMapPanelClipboardActions({
     () => getImageLayerClipboard() !== null,
   );
 
-  const setExclusiveTileClipboard = useCallback((data: TileClipboard | null) => {
-    setClipboard(data);
-    setImageLayerClipboard(null);
-  }, []);
+  const setExclusiveTileClipboard = useCallback(
+    (data: TileClipboard | null) => {
+      setClipboard(data);
+      setImageLayerClipboard(null);
+    },
+    [],
+  );
 
   const setExclusiveImageLayerClipboard = useCallback(
     (data: ImageLayerClipboard | null) => {
@@ -119,7 +117,8 @@ export function useMapPanelClipboardActions({
         const tiles: TileClipboard["tiles"] = [];
         for (let dy = 0; dy < selection.height; dy++) {
           for (let dx = 0; dx < selection.width; dx++) {
-            const ref = activeLayer.tiles[`${selection.x + dx},${selection.y + dy}`];
+            const ref =
+              activeLayer.tiles[`${selection.x + dx},${selection.y + dy}`];
             if (ref) {
               tiles.push({ dx, dy, ref: { ...ref } });
             }
@@ -432,7 +431,12 @@ export function useMapPanelClipboardActions({
       imageLayers.push(nextLayer);
 
       const inserted = draft.activeLayerId
-        ? insertLayerAfter(draft.activeLayerId, newLayerId, map.layerOrder, groups)
+        ? insertLayerAfter(
+            draft.activeLayerId,
+            newLayerId,
+            map.layerOrder,
+            groups,
+          )
         : false;
       if (!inserted) {
         map.layerOrder.push(newLayerId);
@@ -717,7 +721,11 @@ export function useMapPanelClipboardActions({
           const flipX = nextRef.flipX ?? false;
           const flipY = nextRef.flipY ?? false;
           if (action === "rotateLeft") {
-            nextRef.rotation = ((rotation - 90 + 360) % 360) as 0 | 90 | 180 | 270;
+            nextRef.rotation = ((rotation - 90 + 360) % 360) as
+              | 0
+              | 90
+              | 180
+              | 270;
           } else if (action === "rotateRight") {
             nextRef.rotation = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
           } else if (action === "flipH") {
@@ -815,7 +823,10 @@ export function useMapPanelClipboardActions({
     );
 
     return () => {
-      window.removeEventListener("tile-clipboard-change", onTileClipboardChange);
+      window.removeEventListener(
+        "tile-clipboard-change",
+        onTileClipboardChange,
+      );
       window.removeEventListener(
         "image-layer-clipboard-change",
         onImageClipboardChange,

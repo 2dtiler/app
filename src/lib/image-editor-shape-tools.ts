@@ -37,7 +37,12 @@ export function lineMove(
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
   const overlayImageData = tc.overlayCtx.createImageData(tc.width, tc.height);
 
-  const points = bresenhamLine(strokeState.startX, strokeState.startY, endX, endY);
+  const points = bresenhamLine(
+    strokeState.startX,
+    strokeState.startY,
+    endX,
+    endY,
+  );
   for (const [px, py] of points) {
     drawBrush(
       overlayImageData.data,
@@ -70,7 +75,12 @@ export function lineUp(
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
 
   const imageData = tc.ctx.getImageData(0, 0, tc.width, tc.height);
-  const points = bresenhamLine(strokeState.startX, strokeState.startY, endX, endY);
+  const points = bresenhamLine(
+    strokeState.startX,
+    strokeState.startY,
+    endX,
+    endY,
+  );
   for (const [px, py] of points) {
     drawBrush(
       imageData.data,
@@ -133,7 +143,12 @@ export function rectangleMove(
   let endX = x;
   let endY = y;
   if (tc.shiftKey) {
-    [endX, endY] = constrainSquare(strokeState.startX, strokeState.startY, x, y);
+    [endX, endY] = constrainSquare(
+      strokeState.startX,
+      strokeState.startY,
+      x,
+      y,
+    );
   }
 
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
@@ -162,7 +177,12 @@ export function rectangleUp(
   let endX = x;
   let endY = y;
   if (tc.shiftKey) {
-    [endX, endY] = constrainSquare(strokeState.startX, strokeState.startY, x, y);
+    [endX, endY] = constrainSquare(
+      strokeState.startX,
+      strokeState.startY,
+      x,
+      y,
+    );
   }
 
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
@@ -232,7 +252,12 @@ export function contourMove(
   let endX = x;
   let endY = y;
   if (tc.shiftKey) {
-    [endX, endY] = constrainSquare(strokeState.startX, strokeState.startY, x, y);
+    [endX, endY] = constrainSquare(
+      strokeState.startX,
+      strokeState.startY,
+      x,
+      y,
+    );
   }
 
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
@@ -261,7 +286,12 @@ export function contourUp(
   let endX = x;
   let endY = y;
   if (tc.shiftKey) {
-    [endX, endY] = constrainSquare(strokeState.startX, strokeState.startY, x, y);
+    [endX, endY] = constrainSquare(
+      strokeState.startX,
+      strokeState.startY,
+      x,
+      y,
+    );
   }
 
   tc.overlayCtx.clearRect(0, 0, tc.width, tc.height);
