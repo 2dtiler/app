@@ -331,6 +331,14 @@ export function TilesetPanel() {
     setTimeout(() => renameInputRef.current?.select(), 0);
   }
 
+  function requestDeleteTileset(tileset: Tileset) {
+    setDeleteTarget({
+      type: "tileset",
+      id: tileset.id,
+      name: tileset.name,
+    });
+  }
+
   function commitRename() {
     if (!renamingTabId) return;
     const name = renameValue.trim();
@@ -578,6 +586,11 @@ export function TilesetPanel() {
                           >
                             Duplicate
                           </ContextMenuItem>
+                          <ContextMenuItem
+                            onMouseDown={() => requestDeleteTileset(t)}
+                          >
+                            Delete
+                          </ContextMenuItem>
                         </ContextMenuContent>
                       </ContextMenu>
                     )}
@@ -590,11 +603,7 @@ export function TilesetPanel() {
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setDeleteTarget({
-                              type: "tileset",
-                              id: t.id,
-                              name: t.name,
-                            });
+                            requestDeleteTileset(t);
                           }}
                         >
                           <X className="h-3 w-3" />
