@@ -1,9 +1,14 @@
-Import Options
+Export should potentially handle thousands of maps
 Export Options
   - Show a map selection
+  - Do the rest of the options
+Import Options
+  - Should show which group to import to (if more than one)
+  - Do the rest of the options
 
 Allow quick export bottom right
-Dragging a supported tileset/map into the canvas should automatically load it.
+Upgrade to Vite8
+
 
 AI Asset Generation:
   AI Generation not working currently
@@ -16,6 +21,9 @@ AI Asset Generation:
 
 Update README.md
 Ad Marketplace for selling/buying tilesets etc.
+
+Add Tileset/Add Map buttons or dragging and dropping should support all formats
+Add link to github top right
 
 Exploration:
   Ogmo Editor

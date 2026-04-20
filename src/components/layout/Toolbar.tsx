@@ -162,7 +162,7 @@ export const Toolbar = memo(function Toolbar({
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onMouseDown={onSubmitBug} className="cursor-pointer">
-              Submit Bug
+              Submit Bug/Feature
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

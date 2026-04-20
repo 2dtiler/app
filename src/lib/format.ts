@@ -13,10 +13,11 @@
  */
 
 import { encode, decode } from "@msgpack/msgpack";
-import { zlibSync, unzlibSync } from "fflate";
+import { zlibSync, unzlibSync, zipSync } from "fflate";
 import type {
   Project,
   AssetId,
+  ImportExportArchiveEntry,
   TileMapData,
   TileLayer,
   Tileset,
@@ -97,6 +98,41 @@ function compressPack(obj: unknown): Uint8Array {
 function decompressPack<T>(data: Uint8Array): T {
   const decompressed = unzlibSync(data);
   return decode(decompressed) as unknown as T;
+}
+
+export function sanitizeDownloadSegment(
+  value: string,
+  fallback = "untitled",
+): string {
+  const normalized = value
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, "-")
+    .split("")
+    .filter((character) => {
+      const charCode = character.charCodeAt(0);
+      return charCode >= 32;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .replace(/^[. ]+|[. ]+$/g, "");
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+export function buildDownloadFilename(baseName: string, extension: string): string {
+  return `${sanitizeDownloadSegment(baseName)}${extension}`;
+}
+
+export function createZipArchive(
+  entries: ImportExportArchiveEntry[],
+): Uint8Array {
+  const archiveEntries: Record<string, Uint8Array> = {};
+
+  for (const entry of entries) {
+    archiveEntries[entry.path.replace(/\\/g, "/")] = entry.data;
+  }
+
+  return zipSync(archiveEntries, { level: 6 });
 }
 
 // ---------------------------------------------------------------------------

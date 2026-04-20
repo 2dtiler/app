@@ -20,6 +20,9 @@ import {
 } from "@/components/editor/Layout/EditorLayouts";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import {
+  buildDownloadFilename,
+  createZipArchive,
+  sanitizeDownloadSegment,
   exportProject,
   exportMap,
   importProject,
@@ -49,14 +52,20 @@ import {
 } from "@/lib/project-import";
 import type {
   ImageLayer,
+  ImportExportArchiveEntry,
+  ImportExportAssetGroup,
   LayerGroup,
   LayerGroupId,
   LayerId,
+  MapId,
   MapGroupId,
   MapObject,
   ObjectId,
   ObjectLayer,
+  Project,
   TileLayer,
+  TileMapData,
+  Tileset,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
@@ -113,6 +122,139 @@ const emptyProjectMessage = (
 );
 
 const NARROW_LAYOUT_BREAKPOINT = 768;
+
+function getMapExportData(project: Project, map: TileMapData) {
+  const projectLayerGroups = project.layerGroups ?? [];
+  const allLayerIds = getAllLayerIds(map.layerOrder, projectLayerGroups);
+  const allGroupIds = getAllGroupIds(map.layerOrder, projectLayerGroups);
+  const layerIdSet = new Set<string>(allLayerIds as string[]);
+  const groupIdSet = new Set<string>(allGroupIds as string[]);
+
+  return {
+    layers: project.layers.filter((layer) => layerIdSet.has(layer.id as string)),
+    imageLayers: (project.imageLayers ?? []).filter((layer) =>
+      layerIdSet.has(layer.id as string),
+    ),
+    layerGroups: projectLayerGroups.filter((group) =>
+      groupIdSet.has(group.id as string),
+    ),
+    objectLayers: (project.objectLayers ?? []).filter((layer) =>
+      layerIdSet.has(layer.id as string),
+    ),
+  };
+}
+
+function getReferencedThumbnailTilesets(
+  projectTilesets: Tileset[],
+  layers: TileLayer[],
+) {
+  const referencedTilesetIds = new Set<TilesetId>();
+
+  for (const layer of layers) {
+    for (const ref of Object.values(layer.tiles)) {
+      referencedTilesetIds.add(ref.tilesetId);
+    }
+  }
+
+  return projectTilesets
+    .filter((tileset) => referencedTilesetIds.has(tileset.id))
+    .map((tileset) => ({
+      id: tileset.id,
+      assetId: tileset.assetId,
+    }));
+}
+
+function buildMapExportGroups(project: Project): ImportExportAssetGroup[] {
+  const projectTilesets = [
+    ...project.tilesets,
+    ...(project.overrideTilesets ?? []),
+  ];
+
+  return [...project.mapGroups]
+    .sort((left, right) => left.order - right.order)
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      assets: project.maps
+        .filter((map) => map.groupId === group.id)
+        .map((map) => {
+          const mapExportData = getMapExportData(project, map);
+
+          return {
+            id: map.id,
+            name: map.name,
+            groupId: group.id,
+            groupName: group.name,
+            subtitle: `${map.widthInTiles} × ${map.heightInTiles} tiles`,
+            thumbnail: {
+              kind: "map" as const,
+              orientation: map.orientation,
+              staggerAxis: map.staggerAxis,
+              staggerIndex: map.staggerIndex,
+              tileSize: map.tileSize,
+              widthInTiles: map.widthInTiles,
+              heightInTiles: map.heightInTiles,
+              layers: mapExportData.layers.map((layer) => ({
+                id: layer.id,
+                visible: layer.visible,
+                tiles: layer.tiles,
+              })),
+              tilesets: getReferencedThumbnailTilesets(
+                projectTilesets,
+                mapExportData.layers,
+              ),
+            },
+          };
+        }),
+    }))
+    .filter((group) => group.assets.length > 0);
+}
+
+function buildTilesetExportGroups(project: Project): ImportExportAssetGroup[] {
+  return [...project.tilesetGroups]
+    .sort((left, right) => left.order - right.order)
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      assets: project.tilesets
+        .filter((tileset) => tileset.groupId === group.id)
+        .map((tileset) => ({
+          id: tileset.id,
+          name: tileset.name,
+          groupId: group.id,
+          groupName: group.name,
+          subtitle: `${tileset.imageWidth} × ${tileset.imageHeight} px`,
+          thumbnail: {
+            kind: "tileset" as const,
+            assetId: tileset.assetId,
+            tileSize: tileset.tileSize,
+            imageWidth: tileset.imageWidth,
+            imageHeight: tileset.imageHeight,
+          },
+        })),
+    }))
+    .filter((group) => group.assets.length > 0);
+}
+
+function getUniqueArchivePath(path: string, usedPaths: Set<string>): string {
+  if (!usedPaths.has(path)) {
+    usedPaths.add(path);
+    return path;
+  }
+
+  const extensionIndex = path.lastIndexOf(".");
+  const baseName = extensionIndex >= 0 ? path.slice(0, extensionIndex) : path;
+  const extension = extensionIndex >= 0 ? path.slice(extensionIndex) : "";
+  let suffix = 2;
+
+  while (usedPaths.has(`${baseName} (${suffix})${extension}`)) {
+    suffix += 1;
+  }
+
+  const nextPath = `${baseName} (${suffix})${extension}`;
+  usedPaths.add(nextPath);
+  return nextPath;
+}
 
 export function AppShell({
   settingsOpen,
@@ -245,41 +387,75 @@ export function AppShell({
     setImportExportDialogOpen(true);
   }, []);
 
+  const handleExportMaps = useCallback(
+    async (selectedMapIds: string[]) => {
+      if (!state.project || selectedMapIds.length === 0) return;
+
+      const selectedIdSet = new Set(selectedMapIds as MapId[]);
+      const selectedMaps = state.project.maps.filter((map) =>
+        selectedIdSet.has(map.id),
+      );
+      if (selectedMaps.length === 0) return;
+
+      if (selectedMaps.length === 1) {
+        const map = selectedMaps[0];
+        const mapExportData = getMapExportData(state.project, map);
+        const data = await exportMap(
+          map,
+          mapExportData.layers,
+          state.project.tilesets,
+          state.project.overrideTilesets ?? [],
+          mapExportData.imageLayers,
+          mapExportData.layerGroups,
+          mapExportData.objectLayers,
+          state.project.objects ?? [],
+        );
+        downloadFile(data, buildDownloadFilename(map.name, ".2dm"));
+        return;
+      }
+
+      const groupNames = new Map(
+        state.project.mapGroups.map((group) => [group.id, group.name]),
+      );
+      const usedPaths = new Set<string>();
+      const entries: ImportExportArchiveEntry[] = [];
+
+      for (const map of selectedMaps) {
+        const mapExportData = getMapExportData(state.project, map);
+        const data = await exportMap(
+          map,
+          mapExportData.layers,
+          state.project.tilesets,
+          state.project.overrideTilesets ?? [],
+          mapExportData.imageLayers,
+          mapExportData.layerGroups,
+          mapExportData.objectLayers,
+          state.project.objects ?? [],
+        );
+        const folderName = sanitizeDownloadSegment(
+          groupNames.get(map.groupId) ?? "Ungrouped",
+          "Ungrouped",
+        );
+        const fileName = buildDownloadFilename(map.name, ".2dm");
+        entries.push({
+          path: getUniqueArchivePath(`${folderName}/${fileName}`, usedPaths),
+          data,
+        });
+      }
+
+      const archive = createZipArchive(entries);
+      downloadFile(
+        archive,
+        buildDownloadFilename(`${state.project.name} maps`, ".zip"),
+      );
+    },
+    [state.project],
+  );
+
   const handleExportMap = useCallback(async () => {
-    if (!state.project || !state.activeMapId) return;
-    const map = state.project.maps.find(
-      (entry) => entry.id === state.activeMapId,
-    );
-    if (!map) return;
-    const projectLayerGroups = state.project.layerGroups ?? [];
-    const allLayerIds = getAllLayerIds(map.layerOrder, projectLayerGroups);
-    const allGroupIds = getAllGroupIds(map.layerOrder, projectLayerGroups);
-    const layerIdSet = new Set<string>(allLayerIds as string[]);
-    const groupIdSet = new Set<string>(allGroupIds as string[]);
-    const layers = state.project.layers.filter((layer) =>
-      layerIdSet.has(layer.id as string),
-    );
-    const imageLayers = (state.project.imageLayers ?? []).filter((layer) =>
-      layerIdSet.has(layer.id as string),
-    );
-    const layerGroups = projectLayerGroups.filter((group) =>
-      groupIdSet.has(group.id as string),
-    );
-    const objectLayers = (state.project.objectLayers ?? []).filter((layer) =>
-      layerIdSet.has(layer.id as string),
-    );
-    const data = await exportMap(
-      map,
-      layers,
-      state.project.tilesets,
-      state.project.overrideTilesets ?? [],
-      imageLayers,
-      layerGroups,
-      objectLayers,
-      state.project.objects ?? [],
-    );
-    downloadFile(data, `${map.name}.2dm`);
-  }, [state.project, state.activeMapId]);
+    if (!state.activeMapId) return;
+    await handleExportMaps([state.activeMapId]);
+  }, [handleExportMaps, state.activeMapId]);
 
   const handleImportMap = useCallback(() => {
     if (!state.project) return;
@@ -483,15 +659,64 @@ export function AppShell({
     setState,
   ]);
 
+  const handleExportTilesets = useCallback(
+    async (selectedTilesetIds: string[]) => {
+      if (!state.project || selectedTilesetIds.length === 0) return;
+
+      const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
+      const selectedTilesets = state.project.tilesets.filter((tileset) =>
+        selectedIdSet.has(tileset.id),
+      );
+      if (selectedTilesets.length === 0) return;
+
+      if (selectedTilesets.length === 1) {
+        const tileset = selectedTilesets[0];
+        const data = await exportTileset(tileset);
+        downloadFile(data, buildDownloadFilename(tileset.name, ".2dt"));
+        return;
+      }
+
+      const groupNames = new Map(
+        state.project.tilesetGroups.map((group) => [group.id, group.name]),
+      );
+      const usedPaths = new Set<string>();
+      const entries: ImportExportArchiveEntry[] = [];
+
+      for (const tileset of selectedTilesets) {
+        const data = await exportTileset(tileset);
+        const folderName = sanitizeDownloadSegment(
+          groupNames.get(tileset.groupId) ?? "Ungrouped",
+          "Ungrouped",
+        );
+        const fileName = buildDownloadFilename(tileset.name, ".2dt");
+        entries.push({
+          path: getUniqueArchivePath(`${folderName}/${fileName}`, usedPaths),
+          data,
+        });
+      }
+
+      const archive = createZipArchive(entries);
+      downloadFile(
+        archive,
+        buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
+      );
+    },
+    [state.project],
+  );
+
   const handleExportTileset = useCallback(async () => {
-    if (!state.project || !state.activeTilesetId) return;
-    const tileset = state.project.tilesets.find(
-      (entry) => entry.id === state.activeTilesetId,
-    );
-    if (!tileset) return;
-    const data = await exportTileset(tileset);
-    downloadFile(data, `${tileset.name}.2dt`);
-  }, [state.project, state.activeTilesetId]);
+    if (!state.activeTilesetId) return;
+    await handleExportTilesets([state.activeTilesetId]);
+  }, [handleExportTilesets, state.activeTilesetId]);
+
+  const mapExportGroups =
+    importExportDialogOpen && state.project
+      ? buildMapExportGroups(state.project)
+      : [];
+  const tilesetExportGroups =
+    importExportDialogOpen && state.project
+      ? buildTilesetExportGroups(state.project)
+      : [];
 
   const handleImportTileset = useCallback(() => {
     if (!state.project) return;
@@ -730,6 +955,19 @@ export function AppShell({
                   : () => {
                       void handleExportMap();
                     },
+              exportSelection:
+                importExportDialogMode === "export" && state.project
+                  ? {
+                      groups: mapExportGroups,
+                      initialSelectedIds: state.activeMapId
+                        ? [state.activeMapId]
+                        : [],
+                      helperText:
+                        "Choose one or more maps. Multiple selections are exported as a zip grouped by map group.",
+                      emptyLabel: "This project has no maps to export yet.",
+                      onSubmit: (selectedIds) => handleExportMaps(selectedIds),
+                    }
+                  : undefined,
               disabledReason:
                 importExportDialogMode === "import"
                   ? state.project
@@ -752,6 +990,19 @@ export function AppShell({
                   : () => {
                       void handleExportTileset();
                     },
+              exportSelection:
+                importExportDialogMode === "export" && state.project
+                  ? {
+                      groups: tilesetExportGroups,
+                      initialSelectedIds: state.activeTilesetId
+                        ? [state.activeTilesetId]
+                        : [],
+                      helperText:
+                        "Choose one or more tilesets. Multiple selections are exported as a zip grouped by tileset group.",
+                      emptyLabel: "This project has no tilesets to export yet.",
+                      onSubmit: (selectedIds) => handleExportTilesets(selectedIds),
+                    }
+                  : undefined,
               disabledReason:
                 importExportDialogMode === "import"
                   ? state.project

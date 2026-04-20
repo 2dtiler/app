@@ -52,18 +52,19 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-primary">
-            Submit a Bug Report
+            Submit a Bug or Feature Request
           </DialogTitle>
           <DialogDescription>
-            Describe the issue you encountered and we'll look into it.
+            Describe the issue you encountered or the feature you would like to
+            see, and we'll look into it.
           </DialogDescription>
         </DialogHeader>
 
         {submitted ? (
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Thank you! Your bug report has been submitted. We'll investigate
-              the issue.
+              Thank you! Your bug or feature request has been submitted. We'll
+              investigate the issue.
             </p>
             <Button
               variant="outline"
@@ -95,7 +96,6 @@ export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
               <textarea
                 id="bug-description"
                 className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="What happened? What did you expect to happen?"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
