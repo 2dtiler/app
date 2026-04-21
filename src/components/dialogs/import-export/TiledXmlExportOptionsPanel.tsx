@@ -38,7 +38,7 @@ const TILED_TILESET_MODE_OPTIONS: {
   value: TiledTilesetMode;
   label: string;
 }[] = [
-  { value: "external-tsx", label: "External TSX files" },
+  { value: "external", label: "External tileset files" },
   { value: "inline", label: "Inline tilesets" },
 ];
 
@@ -75,7 +75,7 @@ export function TiledXmlExportOptionsPanel({
         </div>
         <p className="text-sm text-foreground">
           Configure layer encoding, compression, tileset layout, and render
-          order for the generated TMX bundle.
+          order for the generated Tiled bundle.
         </p>
       </div>
 
@@ -173,7 +173,7 @@ export function TiledXmlExportOptionsPanel({
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Lower values write faster. Higher values create smaller bundled TMX
+            Lower values write faster. Higher values create smaller bundled
             payloads.
           </p>
         </div>
@@ -245,7 +245,7 @@ export function TiledXmlExportOptionsPanel({
           </Select>
           <p className="text-xs text-muted-foreground">
             {supportsRenderOrder
-              ? "Only orthogonal TMX maps use this field in Tiled."
+              ? "Only orthogonal Tiled maps use this field."
               : "Render order is only written for orthogonal maps in Tiled."}
           </p>
         </div>
@@ -257,7 +257,7 @@ export function TiledXmlExportOptionsPanel({
           onClick={() => onExport(options)}
           disabled={disabled}
         >
-          Export TMX bundle
+          Export Tiled bundle
         </Button>
       </div>
     </section>

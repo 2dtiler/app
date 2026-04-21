@@ -62,15 +62,16 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     assetType: "map",
     label: "Tiled XML Map File (.tmx, .xml)",
     description:
-      "Imports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
+      "Imports or exports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
     supportedNow: true,
   },
   {
     id: "map-tiled-json",
     assetType: "map",
     label: "Tiled JSON Map File (.tmj, .json)",
-    description: "Tiled JSON tile map format.",
-    supportedNow: false,
+    description:
+      "Imports or exports Tiled JSON maps directly and prompts for linked TSJ or image files when needed.",
+    supportedNow: true,
   },
   {
     id: "map-tiled-js",
@@ -220,7 +221,7 @@ function isRasterImageOption(optionId: ImportExportOptionId) {
 }
 
 function isTiledXmlOption(optionId: ImportExportOptionId) {
-  return optionId === "map-tiled-xml";
+  return optionId === "map-tiled-xml" || optionId === "map-tiled-json";
 }
 
 function isExpandableExportOption(optionId: ImportExportOptionId) {
@@ -240,7 +241,7 @@ function createInitialTiledXmlExportOptionsState() {
       encoding: "base64",
       compression: "zlib",
       compressionLevel: 6,
-      tilesetMode: "external-tsx",
+      tilesetMode: "external",
       renderOrder: "right-down",
     },
   } as Record<"map", TiledXmlExportOptions>;

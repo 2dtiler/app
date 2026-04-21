@@ -14,6 +14,7 @@ import type { TiledMissingResourcesDialogProps } from "@/types/dialogs";
 export function TiledMissingResourcesDialog({
   open,
   onOpenChange,
+  format,
   resources,
   selectedFileNames,
   isSubmitting,
@@ -23,16 +24,19 @@ export function TiledMissingResourcesDialog({
   const hasAllSelections =
     resources.length > 0 &&
     resources.every((resource) => Boolean(selectedFileNames[resource.path]));
+  const rootFormatLabel = format === "json" ? "Tiled JSON" : "TMX";
+  const externalTilesetLabel = format === "json" ? "TSJ" : "TSX";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" showCloseButton={!isSubmitting}>
         <DialogHeader>
-          <DialogTitle>Resolve linked TMX resources</DialogTitle>
+          <DialogTitle>Resolve linked Tiled resources</DialogTitle>
           <DialogDescription>
-            Select the missing TSX and image files referenced by this TMX map.
-            If a chosen TSX references more files, this list will update after
-            you continue.
+            Select the missing {externalTilesetLabel} and image files referenced
+            by this {rootFormatLabel} map. If a chosen
+            {externalTilesetLabel} file references more files, this list will
+            update after you continue.
           </DialogDescription>
         </DialogHeader>
 

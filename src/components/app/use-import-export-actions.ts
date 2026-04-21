@@ -21,7 +21,10 @@ import {
   renderMapToCanvas,
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
-import { exportTiledMapBundle } from "@/lib/import-export-tiled";
+import {
+  exportTiledMapBundle,
+  exportTiledMapJsonBundle,
+} from "@/lib/import-export-tiled";
 import {
   buildMapExportGroups,
   buildTilesetExportGroups,
@@ -752,7 +755,12 @@ export function useImportExportActions({
       }
 
       if (optionId === "map-tiled-xml") {
-        await handleImportTiledMap();
+        await handleImportTiledMap("xml");
+        return;
+      }
+
+      if (optionId === "map-tiled-json") {
+        await handleImportTiledMap("json");
         return;
       }
 
@@ -789,10 +797,21 @@ export function useImportExportActions({
         return;
       }
 
-      if (optionId === "map-tiled-xml") {
+      if (optionId === "map-tiled-xml" || optionId === "map-tiled-json") {
         if (!state.project || !isTiledXmlExportOptions(formatExportOptions)) {
           return;
         }
+
+        const exportTiledBundle =
+          optionId === "map-tiled-json"
+            ? exportTiledMapJsonBundle
+            : exportTiledMapBundle;
+        const archiveExtension =
+          optionId === "map-tiled-json" ? ".tmj.zip" : ".tmx.zip";
+        const archiveBaseName =
+          optionId === "map-tiled-json"
+            ? `${state.project.name} tiled json maps`
+            : `${state.project.name} tiled maps`;
 
         const selectedIdSet = new Set(selectedIds as MapId[]);
         const selectedMaps = state.project.maps.filter((map) =>
@@ -808,7 +827,7 @@ export function useImportExportActions({
         if (selectedMaps.length === 1) {
           const map = selectedMaps[0];
           const mapExportData = getMapExportData(state.project, map);
-          const entries = await exportTiledMapBundle(
+          const entries = await exportTiledBundle(
             map,
             mapExportData.layers,
             allTilesets,
@@ -820,7 +839,7 @@ export function useImportExportActions({
           );
           downloadFile(
             createZipArchive(entries),
-            buildDownloadFilename(map.name, ".tmx.zip"),
+            buildDownloadFilename(map.name, archiveExtension),
           );
           return;
         }
@@ -833,7 +852,7 @@ export function useImportExportActions({
 
         for (const map of selectedMaps) {
           const mapExportData = getMapExportData(state.project, map);
-          const entries = await exportTiledMapBundle(
+          const entries = await exportTiledBundle(
             map,
             mapExportData.layers,
             allTilesets,
@@ -862,7 +881,7 @@ export function useImportExportActions({
 
         downloadFile(
           createZipArchive(archiveEntries),
-          buildDownloadFilename(`${state.project.name} tiled maps`, ".zip"),
+          buildDownloadFilename(archiveBaseName, ".zip"),
         );
         return;
       }

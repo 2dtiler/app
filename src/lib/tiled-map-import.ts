@@ -1,7 +1,4 @@
-import { gunzipSync, unzlibSync } from "fflate";
-import { saveAsset } from "@/lib/db";
 import {
-  generateAssetId,
   generateLayerGroupId,
   generateLayerId,
   generateMapId,
@@ -13,15 +10,41 @@ import {
   normalizeTextObject,
 } from "@/lib/text-objects";
 import {
-  base64ToBytes,
   decodeText,
-  getMimeTypeFromPath,
-  getTileColumns,
   normalizeBundlePath,
   parseXmlDocument,
   resolveBundlePath,
   stripExtension,
 } from "@/lib/tiled-xml-utils";
+import {
+  addMissingResource,
+  awaitImportImage,
+  buildEntryMap,
+  buildTilesFromGids,
+  createSyntheticObjectIdMap,
+  decodeXmlLayerData,
+  EXPANDED_PROPERTY_KEY,
+  getProvidedEntry,
+  IMAGE_FLIP_X_PROPERTY_KEY,
+  IMAGE_FLIP_Y_PROPERTY_KEY,
+  IMAGE_HEIGHT_PROPERTY_KEY,
+  IMAGE_ROTATION_PROPERTY_KEY,
+  IMAGE_WIDTH_PROPERTY_KEY,
+  importImageAsset,
+  LOCKED_PROPERTY_KEY,
+  MAP_NAME_PROPERTY_KEY,
+  parsePropertiesWithObjectRefs,
+  parseXmlProperties as parseProperties,
+  pullProperty,
+  readBooleanProperty,
+  readNumberProperty,
+  requireProvidedEntry,
+  validateTiledOrientation,
+} from "@/lib/tiled-map-import-shared";
+import {
+  collectMissingTiledJsonMapResources,
+  importTiledJsonMapEntries,
+} from "@/lib/tiled-map-import-json";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,
@@ -30,274 +53,15 @@ import type {
   LayerId,
   MapObject,
   ObjectLayer,
-  PropertyValue,
   TileLayer,
+  TiledMapFormat,
   TileMapData,
-  TileRef,
   TileSize,
   Tileset,
   TiledImportMissingResource,
   TiledMapImportPreparationResult,
   TiledMapImportResult,
 } from "@/types";
-
-const FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-const FLIPPED_VERTICALLY_FLAG = 0x40000000;
-const FLIPPED_DIAGONALLY_FLAG = 0x20000000;
-const ROTATED_HEXAGONAL_120_FLAG = 0x10000000;
-
-const MAP_NAME_PROPERTY_KEY = "2dtiler:map-name";
-const LOCKED_PROPERTY_KEY = "2dtiler:locked";
-const EXPANDED_PROPERTY_KEY = "2dtiler:expanded";
-const IMAGE_WIDTH_PROPERTY_KEY = "2dtiler:image-width";
-const IMAGE_HEIGHT_PROPERTY_KEY = "2dtiler:image-height";
-const IMAGE_ROTATION_PROPERTY_KEY = "2dtiler:image-rotation";
-const IMAGE_FLIP_X_PROPERTY_KEY = "2dtiler:image-flip-x";
-const IMAGE_FLIP_Y_PROPERTY_KEY = "2dtiler:image-flip-y";
-
-function parseProperties(
-  parent: Element,
-  objectIdMap?: ReadonlyMap<string, string>,
-) {
-  const propertiesElement = Array.from(parent.children).find(
-    (child) => child.tagName === "properties",
-  );
-  const properties: Record<string, PropertyValue> = {};
-
-  if (!propertiesElement) {
-    return properties;
-  }
-
-  for (const propertyElement of Array.from(propertiesElement.children)) {
-    if (propertyElement.tagName !== "property") continue;
-
-    const key = propertyElement.getAttribute("name");
-    if (!key) continue;
-
-    const typeAttr = propertyElement.getAttribute("type");
-    const type =
-      typeAttr === "bool" ||
-      typeAttr === "color" ||
-      typeAttr === "float" ||
-      typeAttr === "file" ||
-      typeAttr === "int" ||
-      typeAttr === "object"
-        ? typeAttr
-        : "string";
-    const rawValue =
-      propertyElement.getAttribute("value") ??
-      propertyElement.textContent ??
-      "";
-    const value =
-      type === "object" && objectIdMap
-        ? (objectIdMap.get(rawValue) ?? rawValue)
-        : rawValue;
-
-    properties[key] = {
-      value,
-      type,
-    };
-  }
-
-  return properties;
-}
-
-function pullProperty(properties: Record<string, PropertyValue>, key: string) {
-  const value = properties[key];
-  delete properties[key];
-  return value;
-}
-
-function readBooleanProperty(
-  properties: Record<string, PropertyValue>,
-  key: string,
-  fallback: boolean,
-) {
-  const property = pullProperty(properties, key);
-  if (!property) return fallback;
-
-  const normalized = property.value.trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  return fallback;
-}
-
-function readNumberProperty(
-  properties: Record<string, PropertyValue>,
-  key: string,
-  fallback: number,
-) {
-  const property = pullProperty(properties, key);
-  if (!property) return fallback;
-  const parsed = Number(property.value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function decodeTransform(gid: number, map: Pick<TileMapData, "orientation">) {
-  const flipX = Boolean(gid & FLIPPED_HORIZONTALLY_FLAG);
-  const flipY = Boolean(gid & FLIPPED_VERTICALLY_FLAG);
-  const diagonal = Boolean(gid & FLIPPED_DIAGONALLY_FLAG);
-  const rotatedHex120 = Boolean(gid & ROTATED_HEXAGONAL_120_FLAG);
-
-  if (map.orientation === "hexagonal") {
-    if (diagonal || rotatedHex120) {
-      throw new Error(
-        "Hexagonal TMX import does not support 60-degree or 120-degree rotations.",
-      );
-    }
-
-    if (flipX && flipY) {
-      return { rotation: 180, flipX: false, flipY: false };
-    }
-
-    return {
-      rotation: 0,
-      flipX,
-      flipY,
-    };
-  }
-
-  const transformKey = `${flipX ? 1 : 0},${flipY ? 1 : 0},${diagonal ? 1 : 0}`;
-
-  switch (transformKey) {
-    case "0,0,0":
-      return { rotation: 0, flipX: false, flipY: false };
-    case "1,0,0":
-      return { rotation: 0, flipX: true, flipY: false };
-    case "0,1,0":
-      return { rotation: 0, flipX: false, flipY: true };
-    case "1,1,0":
-      return { rotation: 180, flipX: false, flipY: false };
-    case "0,0,1":
-      return { rotation: 90, flipX: false, flipY: true };
-    case "1,0,1":
-      return { rotation: 90, flipX: false, flipY: false };
-    case "0,1,1":
-      return { rotation: 270, flipX: false, flipY: false };
-    case "1,1,1":
-      return { rotation: 90, flipX: true, flipY: false };
-    default:
-      return { rotation: 0, flipX: false, flipY: false };
-  }
-}
-
-function decodeLayerData(
-  dataElement: Element,
-  map: Pick<TileMapData, "widthInTiles" | "heightInTiles">,
-) {
-  const encoding = dataElement.getAttribute("encoding");
-  const compression = dataElement.getAttribute("compression") ?? "none";
-  const expectedLength = map.widthInTiles * map.heightInTiles;
-
-  if (!encoding) {
-    const gids = Array.from(dataElement.children)
-      .filter((child) => child.tagName === "tile")
-      .map((tileElement) => Number(tileElement.getAttribute("gid") ?? "0"));
-    return Uint32Array.from(gids);
-  }
-
-  if (encoding === "csv") {
-    const gids = dataElement.textContent
-      ?.split(/[\s,]+/)
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((value) => Number(value)) ?? [0];
-    return Uint32Array.from(gids);
-  }
-
-  if (encoding !== "base64") {
-    throw new Error(`Unsupported TMX layer encoding: ${encoding}.`);
-  }
-
-  const encoded = dataElement.textContent?.trim() ?? "";
-  const decoded = base64ToBytes(encoded);
-  const raw =
-    compression === "gzip"
-      ? gunzipSync(decoded)
-      : compression === "zlib"
-        ? unzlibSync(decoded)
-        : compression === "none"
-          ? decoded
-          : (() => {
-              throw new Error(`Unsupported TMX compression: ${compression}.`);
-            })();
-
-  if (raw.byteLength !== expectedLength * 4) {
-    throw new Error("TMX layer payload length does not match map dimensions.");
-  }
-
-  const gids = new Uint32Array(expectedLength);
-  const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
-
-  for (let index = 0; index < expectedLength; index += 1) {
-    gids[index] = view.getUint32(index * 4, true);
-  }
-
-  return gids;
-}
-
-async function loadImageDimensions(data: Uint8Array, mimeType: string) {
-  const blob = new Blob([data.slice().buffer as ArrayBuffer], {
-    type: mimeType,
-  });
-  const url = URL.createObjectURL(blob);
-
-  try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    return {
-      width: image.naturalWidth,
-      height: image.naturalHeight,
-    };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function buildEntryMap(entries: readonly ImportExportArchiveEntry[]) {
-  return new Map(
-    entries.map((entry) => [normalizeBundlePath(entry.path), entry.data]),
-  );
-}
-
-function getProvidedEntry(
-  providedEntries: ReadonlyMap<string, Uint8Array>,
-  path: string,
-) {
-  return providedEntries.get(normalizeBundlePath(path));
-}
-
-function requireProvidedEntry(
-  providedEntries: ReadonlyMap<string, Uint8Array>,
-  path: string,
-) {
-  const entry = getProvidedEntry(providedEntries, path);
-  if (!entry) {
-    throw new Error(`Missing linked resource: ${path}.`);
-  }
-  return entry;
-}
-
-function addMissingResource(
-  missingResources: Map<string, TiledImportMissingResource>,
-  path: string,
-  kind: TiledImportMissingResource["kind"],
-  referringPath: string,
-) {
-  const normalizedPath = normalizeBundlePath(path);
-  if (missingResources.has(normalizedPath)) {
-    return;
-  }
-
-  missingResources.set(normalizedPath, {
-    path: normalizedPath,
-    kind,
-    referringPath: normalizeBundlePath(referringPath),
-    label: kind === "tsx" ? "External tileset" : "Image asset",
-  });
-}
-
 function collectTilesetImageDependency(
   tilesetElement: Element,
   entryPath: string,
@@ -457,34 +221,6 @@ function collectMissingTiledMapResources(
   );
 }
 
-async function importImageAsset(path: string, data: Uint8Array) {
-  const mimeType = getMimeTypeFromPath(path);
-  const assetId = generateAssetId();
-  await saveAsset(assetId, data.slice().buffer as ArrayBuffer, mimeType);
-  const dimensions = await loadImageDimensions(data, mimeType);
-  return {
-    assetId,
-    mimeType,
-    width: dimensions.width,
-    height: dimensions.height,
-  };
-}
-
-function findTilesetByGid(
-  gid: number,
-  tilesets: readonly {
-    firstGid: number;
-    tileset: Tileset;
-  }[],
-) {
-  for (let index = tilesets.length - 1; index >= 0; index -= 1) {
-    if (tilesets[index].firstGid <= gid) {
-      return tilesets[index];
-    }
-  }
-  return null;
-}
-
 async function parseTilesetElement(
   element: Element,
   entryPath: string,
@@ -553,50 +289,6 @@ async function parseTilesetElement(
   };
 }
 
-function createSyntheticObjectIdMap(objects: MapObject[]) {
-  return new Map(
-    objects.map((object) => [object.id as string, object.id as string]),
-  );
-}
-
-async function awaitImportImage(
-  resolvedImagePath: string,
-  providedEntries: ReadonlyMap<string, Uint8Array>,
-) {
-  return importImageAsset(
-    resolvedImagePath,
-    requireProvidedEntry(providedEntries, resolvedImagePath),
-  );
-}
-
-function parsePropertiesWithObjectRefs(
-  properties: Record<string, PropertyValue>,
-  objectIdByTmxId: ReadonlyMap<string, string>,
-  resolvedObjectIdMap: ReadonlyMap<string, string>,
-) {
-  return Object.fromEntries(
-    Object.entries(properties).map(([key, value]) => {
-      if (value.type !== "object") {
-        return [key, value];
-      }
-
-      const referencedObjectId =
-        resolvedObjectIdMap.get(
-          objectIdByTmxId.get(value.value) ?? value.value,
-        ) ??
-        objectIdByTmxId.get(value.value) ??
-        value.value;
-      return [
-        key,
-        {
-          ...value,
-          value: referencedObjectId,
-        },
-      ];
-    }),
-  );
-}
-
 async function importTiledMapEntries(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
@@ -620,16 +312,10 @@ async function importTiledMapEntries(
     throw new Error("Only square TMX maps are supported.");
   }
 
-  const orientationAttr =
-    mapElement.getAttribute("orientation") ?? "orthogonal";
-  if (
-    orientationAttr !== "orthogonal" &&
-    orientationAttr !== "hexagonal" &&
-    orientationAttr !== "isometric" &&
-    orientationAttr !== "staggered"
-  ) {
-    throw new Error(`Unsupported TMX orientation: ${orientationAttr}.`);
-  }
+  const orientationAttr = validateTiledOrientation(
+    mapElement.getAttribute("orientation") ?? "orthogonal",
+    "TMX",
+  );
 
   const rawMapProperties = parseProperties(mapElement);
   const mapName =
@@ -694,47 +380,16 @@ async function importTiledMapEntries(
         if (!dataElement) {
           throw new Error("TMX tile layer is missing data.");
         }
-        const gids = decodeLayerData(dataElement, {
+        const gids = decodeXmlLayerData(dataElement, {
           widthInTiles: Number(mapElement.getAttribute("width") ?? "0"),
           heightInTiles: Number(mapElement.getAttribute("height") ?? "0"),
         });
-        const tiles: TileLayer["tiles"] = {};
-
-        gids.forEach((rawGid, index) => {
-          if (!rawGid) return;
-
-          const gid =
-            rawGid &
-            ~(
-              FLIPPED_HORIZONTALLY_FLAG |
-              FLIPPED_VERTICALLY_FLAG |
-              FLIPPED_DIAGONALLY_FLAG |
-              ROTATED_HEXAGONAL_120_FLAG
-            );
-          const tilesetEntry = findTilesetByGid(gid, orderedTilesets);
-          if (!tilesetEntry) return;
-
-          const localId = gid - tilesetEntry.firstGid;
-          const columns = getTileColumns(tilesetEntry.tileset);
-          const cellX = index % Number(mapElement.getAttribute("width") ?? "0");
-          const cellY = Math.floor(
-            index / Number(mapElement.getAttribute("width") ?? "0"),
-          );
-          const transforms = decodeTransform(rawGid, {
-            orientation: orientationAttr,
-          } as TileMapData);
-
-          tiles[`${cellX},${cellY}`] = {
-            tilesetId: tilesetEntry.tileset.id,
-            sx: (localId % columns) * tilesetEntry.tileset.tileSize,
-            sy: Math.floor(localId / columns) * tilesetEntry.tileset.tileSize,
-            sw: tilesetEntry.tileset.tileSize,
-            sh: tilesetEntry.tileset.tileSize,
-            rotation: transforms.rotation as TileRef["rotation"],
-            flipX: transforms.flipX,
-            flipY: transforms.flipY,
-          };
-        });
+        const tiles = buildTilesFromGids(
+          gids,
+          Number(mapElement.getAttribute("width") ?? "0"),
+          orderedTilesets,
+          orientationAttr,
+        );
 
         tileLayers.push({
           id: layerId,
@@ -969,13 +624,14 @@ async function importTiledMapEntries(
 export async function prepareTiledMapImport(
   rootPath: string,
   entries: readonly ImportExportArchiveEntry[],
+  format: TiledMapFormat,
 ): Promise<TiledMapImportPreparationResult> {
   const normalizedRootPath = normalizeBundlePath(rootPath);
   const providedEntries = buildEntryMap(entries);
-  const missingResources = collectMissingTiledMapResources(
-    normalizedRootPath,
-    providedEntries,
-  );
+  const missingResources =
+    format === "json"
+      ? collectMissingTiledJsonMapResources(normalizedRootPath, providedEntries)
+      : collectMissingTiledMapResources(normalizedRootPath, providedEntries);
 
   if (missingResources.length > 0) {
     return {
@@ -987,6 +643,9 @@ export async function prepareTiledMapImport(
 
   return {
     status: "ready",
-    result: await importTiledMapEntries(normalizedRootPath, providedEntries),
+    result:
+      format === "json"
+        ? await importTiledJsonMapEntries(normalizedRootPath, providedEntries)
+        : await importTiledMapEntries(normalizedRootPath, providedEntries),
   };
 }

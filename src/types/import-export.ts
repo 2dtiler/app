@@ -54,7 +54,7 @@ export type TiledLayerEncoding = "csv" | "base64";
 
 export type TiledLayerCompression = "none" | "gzip" | "zlib";
 
-export type TiledTilesetMode = "inline" | "external-tsx";
+export type TiledTilesetMode = "inline" | "external";
 
 export type TiledRenderOrder =
   | "right-down"
@@ -62,13 +62,15 @@ export type TiledRenderOrder =
   | "left-down"
   | "left-up";
 
+export type TiledMapFormat = "xml" | "json";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
   transparency: boolean;
 }
 
-export interface TiledXmlExportOptions {
+export interface TiledMapExportOptions {
   encoding: TiledLayerEncoding;
   compression: TiledLayerCompression;
   compressionLevel: number;
@@ -76,9 +78,11 @@ export interface TiledXmlExportOptions {
   renderOrder: TiledRenderOrder;
 }
 
+export type TiledXmlExportOptions = TiledMapExportOptions;
+
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
-  | TiledXmlExportOptions;
+  | TiledMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
   options: ImportExportRasterExportOptions;
@@ -87,13 +91,15 @@ export interface RasterExportOptionsPanelProps {
   onExport: (options: ImportExportRasterExportOptions) => void;
 }
 
-export interface TiledXmlExportOptionsPanelProps {
-  options: TiledXmlExportOptions;
+export interface TiledMapExportOptionsPanelProps {
+  options: TiledMapExportOptions;
   disabled: boolean;
   supportsRenderOrder: boolean;
-  onOptionsChange: (options: TiledXmlExportOptions) => void;
-  onExport: (options: TiledXmlExportOptions) => void;
+  onOptionsChange: (options: TiledMapExportOptions) => void;
+  onExport: (options: TiledMapExportOptions) => void;
 }
+
+export type TiledXmlExportOptionsPanelProps = TiledMapExportOptionsPanelProps;
 
 export interface TiledMapImportResult {
   map: TileMapData;
@@ -106,7 +112,7 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
-export type TiledImportMissingResourceKind = "tsx" | "image";
+export type TiledImportMissingResourceKind = "tsx" | "tsj" | "image";
 
 export interface TiledImportMissingResource {
   path: string;
@@ -122,6 +128,7 @@ export interface TiledMapImportPendingResult {
 }
 
 export interface PendingTiledMapImportState {
+  format: TiledMapFormat;
   rootPath: string;
   rootData: Uint8Array;
   missingResources: TiledImportMissingResource[];

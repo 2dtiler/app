@@ -365,6 +365,7 @@ export function AppShell({
           <TiledMissingResourcesDialog
             open={tiledMissingResourcesDialogProps.open}
             onOpenChange={tiledMissingResourcesDialogProps.onOpenChange}
+            format={tiledMissingResourcesDialogProps.format}
             resources={tiledMissingResourcesDialogProps.resources}
             selectedFileNames={
               tiledMissingResourcesDialogProps.selectedFileNames

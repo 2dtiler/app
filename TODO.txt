@@ -1,5 +1,3 @@
-Unsupported TMX orientation: isometric.
-
 Export Options
   - Do the rest of the options
   - Should ask for target location
@@ -7,8 +5,8 @@ Import Options
   - Should show which group to import to (if more than one)
   - Do the rest of the options
 
-Sanity Test all of the imports/exports
 Allow quick export bottom right
+Check why website is not populating release notes
 
 AI Asset Generation:
   AI Generation not working currently
@@ -19,6 +17,7 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
+Map type: infinite
 Ad Marketplace for selling/buying tilesets etc.
 
 Add Tileset/Add Map buttons or dragging and dropping should support all formats

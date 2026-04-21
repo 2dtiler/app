@@ -80,6 +80,33 @@ function appendProperties(
   parent.append(propertiesElement);
 }
 
+function encodeJsonDocument(value: unknown) {
+  return new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function buildJsonProperties(
+  properties: Record<string, PropertyValue> | undefined,
+  objectIdMap?: ReadonlyMap<string, number>,
+) {
+  const propertyEntries = Object.entries(properties ?? {});
+  if (propertyEntries.length === 0) {
+    return undefined;
+  }
+
+  return propertyEntries.map(([name, property]) => ({
+    name,
+    ...(property.type !== "string" ? { type: property.type } : {}),
+    value:
+      property.type === "object" && objectIdMap
+        ? Number(objectIdMap.get(property.value) ?? 0)
+        : property.type === "bool"
+          ? property.value === "true"
+          : property.type === "int" || property.type === "float"
+            ? Number(property.value)
+            : property.value,
+  }));
+}
+
 function createRelativeAssetPath(
   folder: string,
   baseName: string,
@@ -272,6 +299,118 @@ function buildObjectNumericIdMap(
 
   visitEntries(layerOrder);
   return objectIds;
+}
+
+async function prepareTiledMapBundleData(
+  map: TileMapData,
+  layers: TileLayer[],
+  tilesets: Tileset[],
+  imageLayers: ImageLayer[] = [],
+  layerGroups: LayerGroup[] = [],
+  objectLayers: ObjectLayer[] = [],
+  objects: MapObject[] = [],
+) {
+  const referencedTilesetIds = new Set<string>();
+  for (const layer of layers) {
+    for (const ref of Object.values(layer.tiles)) {
+      referencedTilesetIds.add(ref.tilesetId as string);
+    }
+  }
+
+  const exportedTilesets = tilesets.filter((tileset) =>
+    referencedTilesetIds.has(tileset.id as string),
+  );
+  const layerMap = new Map(layers.map((layer) => [layer.id as string, layer]));
+  const imageLayerMap = new Map(
+    imageLayers.map((layer) => [layer.id as string, layer]),
+  );
+  const objectLayerMap = new Map(
+    objectLayers.map((layer) => [layer.id as string, layer]),
+  );
+  const groupMap = new Map(
+    layerGroups.map((group) => [group.id as string, group]),
+  );
+  const objectMap = new Map(
+    objects.map((object) => [object.id as string, object]),
+  );
+  const objectIdMap = buildObjectNumericIdMap(
+    map.layerOrder,
+    groupMap,
+    objectLayerMap,
+  );
+
+  const entries: ImportExportArchiveEntry[] = [];
+  const usedPaths = new Set<string>();
+  const imagePathsByAssetId = new Map<string, string>();
+  const imageSourcesByLayerId = new Map<string, string>();
+
+  for (const tileset of exportedTilesets) {
+    const assetRecord = await getAsset(tileset.assetId);
+    if (!assetRecord) {
+      throw new Error(`Missing tileset asset for ${tileset.name}.`);
+    }
+
+    const extension = getFileExtensionFromMimeType(assetRecord.mimeType);
+    const imagePath = createRelativeAssetPath(
+      "images",
+      tileset.name,
+      extension,
+      usedPaths,
+    );
+    imagePathsByAssetId.set(tileset.assetId as string, imagePath);
+    entries.push({
+      path: imagePath,
+      data: new Uint8Array(assetRecord.data),
+    });
+  }
+
+  for (const imageLayer of imageLayers) {
+    const assetRecord = await getAsset(imageLayer.assetId);
+    if (!assetRecord) {
+      throw new Error(`Missing image layer asset for ${imageLayer.name}.`);
+    }
+
+    const extension = getFileExtensionFromMimeType(assetRecord.mimeType);
+    const imagePath =
+      imagePathsByAssetId.get(imageLayer.assetId as string) ??
+      createRelativeAssetPath("images", imageLayer.name, extension, usedPaths);
+    imagePathsByAssetId.set(imageLayer.assetId as string, imagePath);
+    imageSourcesByLayerId.set(imageLayer.id as string, imagePath);
+
+    if (!entries.some((entry) => entry.path === imagePath)) {
+      entries.push({
+        path: imagePath,
+        data: new Uint8Array(assetRecord.data),
+      });
+    }
+  }
+
+  const tilesetFirstGids = new Map<string, number>();
+  let nextFirstGid = 1;
+  for (const tileset of exportedTilesets) {
+    tilesetFirstGids.set(tileset.id as string, nextFirstGid);
+    nextFirstGid += getTileCount(tileset);
+  }
+
+  const tilesetMap = new Map(
+    exportedTilesets.map((tileset) => [tileset.id as string, tileset]),
+  );
+
+  return {
+    entries,
+    exportedTilesets,
+    groupMap,
+    imageLayerMap,
+    imagePathsByAssetId,
+    imageSourcesByLayerId,
+    layerMap,
+    objectIdMap,
+    objectLayerMap,
+    objectMap,
+    tilesetFirstGids,
+    tilesetMap,
+    usedPaths,
+  };
 }
 
 function appendTileLayer(
@@ -554,87 +693,29 @@ export async function exportTiledMapBundle(
   objects: MapObject[] = [],
   options: TiledXmlExportOptions,
 ): Promise<ImportExportArchiveEntry[]> {
-  const referencedTilesetIds = new Set<string>();
-  for (const layer of layers) {
-    for (const ref of Object.values(layer.tiles)) {
-      referencedTilesetIds.add(ref.tilesetId as string);
-    }
-  }
-
-  const exportedTilesets = tilesets.filter((tileset) =>
-    referencedTilesetIds.has(tileset.id as string),
-  );
-  const layerMap = new Map(layers.map((layer) => [layer.id as string, layer]));
-  const imageLayerMap = new Map(
-    imageLayers.map((layer) => [layer.id as string, layer]),
-  );
-  const objectLayerMap = new Map(
-    objectLayers.map((layer) => [layer.id as string, layer]),
-  );
-  const groupMap = new Map(
-    layerGroups.map((group) => [group.id as string, group]),
-  );
-  const objectMap = new Map(
-    objects.map((object) => [object.id as string, object]),
-  );
-  const objectIdMap = buildObjectNumericIdMap(
-    map.layerOrder,
+  const {
+    entries,
+    exportedTilesets,
     groupMap,
+    imageLayerMap,
+    imagePathsByAssetId,
+    imageSourcesByLayerId,
+    layerMap,
+    objectIdMap,
     objectLayerMap,
+    objectMap,
+    tilesetFirstGids,
+    tilesetMap,
+    usedPaths,
+  } = await prepareTiledMapBundleData(
+    map,
+    layers,
+    tilesets,
+    imageLayers,
+    layerGroups,
+    objectLayers,
+    objects,
   );
-
-  const entries: ImportExportArchiveEntry[] = [];
-  const usedPaths = new Set<string>();
-  const imagePathsByAssetId = new Map<string, string>();
-  const imageSourcesByLayerId = new Map<string, string>();
-
-  for (const tileset of exportedTilesets) {
-    const assetRecord = await getAsset(tileset.assetId);
-    if (!assetRecord) {
-      throw new Error(`Missing tileset asset for ${tileset.name}.`);
-    }
-
-    const extension = getFileExtensionFromMimeType(assetRecord.mimeType);
-    const imagePath = createRelativeAssetPath(
-      "images",
-      tileset.name,
-      extension,
-      usedPaths,
-    );
-    imagePathsByAssetId.set(tileset.assetId as string, imagePath);
-    entries.push({
-      path: imagePath,
-      data: new Uint8Array(assetRecord.data),
-    });
-  }
-
-  for (const imageLayer of imageLayers) {
-    const assetRecord = await getAsset(imageLayer.assetId);
-    if (!assetRecord) {
-      throw new Error(`Missing image layer asset for ${imageLayer.name}.`);
-    }
-
-    const extension = getFileExtensionFromMimeType(assetRecord.mimeType);
-    const imagePath =
-      imagePathsByAssetId.get(imageLayer.assetId as string) ??
-      createRelativeAssetPath("images", imageLayer.name, extension, usedPaths);
-    imagePathsByAssetId.set(imageLayer.assetId as string, imagePath);
-    imageSourcesByLayerId.set(imageLayer.id as string, imagePath);
-
-    if (!entries.some((entry) => entry.path === imagePath)) {
-      entries.push({
-        path: imagePath,
-        data: new Uint8Array(assetRecord.data),
-      });
-    }
-  }
-
-  const tilesetFirstGids = new Map<string, number>();
-  let nextFirstGid = 1;
-  for (const tileset of exportedTilesets) {
-    tilesetFirstGids.set(tileset.id as string, nextFirstGid);
-    nextFirstGid += getTileCount(tileset);
-  }
 
   const document = createXmlDocument("map");
   const mapElement = document.documentElement;
@@ -678,7 +759,7 @@ export async function exportTiledMapBundle(
     const imagePath = imagePathsByAssetId.get(tileset.assetId as string);
     if (!firstGid || !imagePath) continue;
 
-    if (options.tilesetMode === "external-tsx") {
+    if (options.tilesetMode === "external") {
       const tsxPath = createRelativeAssetPath(
         "tilesets",
         tileset.name,
@@ -743,10 +824,6 @@ export async function exportTiledMapBundle(
         objectLayers.length +
         layerGroups.length,
     ),
-  );
-
-  const tilesetMap = new Map(
-    exportedTilesets.map((tileset) => [tileset.id as string, tileset]),
   );
 
   for (const entryId of map.layerOrder) {
@@ -818,6 +895,368 @@ export async function exportTiledMapBundle(
   entries.push({
     path: buildDownloadFilename(map.name, ".tmx"),
     data: encodeXmlDocument(document),
+  });
+
+  return entries;
+}
+
+export async function exportTiledMapJsonBundle(
+  map: TileMapData,
+  layers: TileLayer[],
+  tilesets: Tileset[],
+  imageLayers: ImageLayer[] = [],
+  layerGroups: LayerGroup[] = [],
+  objectLayers: ObjectLayer[] = [],
+  objects: MapObject[] = [],
+  options: TiledXmlExportOptions,
+): Promise<ImportExportArchiveEntry[]> {
+  const {
+    entries,
+    exportedTilesets,
+    groupMap,
+    imageLayerMap,
+    imagePathsByAssetId,
+    imageSourcesByLayerId,
+    layerMap,
+    objectIdMap,
+    objectLayerMap,
+    objectMap,
+    tilesetFirstGids,
+    tilesetMap,
+    usedPaths,
+  } = await prepareTiledMapBundleData(
+    map,
+    layers,
+    tilesets,
+    imageLayers,
+    layerGroups,
+    objectLayers,
+    objects,
+  );
+
+  const mapProperties = {
+    ...(map.properties ?? {}),
+    [MAP_NAME_PROPERTY_KEY]: { value: map.name, type: "string" as const },
+  };
+
+  function buildJsonLayerData(layer: TileLayer) {
+    const gids = getLayerDenseGids(map, layer, tilesetFirstGids, tilesetMap);
+    return options.encoding === "base64"
+      ? {
+          data: encodeLayerData(gids, options),
+          encoding: "base64" as const,
+          ...(options.compression !== "none"
+            ? { compression: options.compression }
+            : {}),
+        }
+      : {
+          data: Array.from(gids),
+          encoding: "csv" as const,
+        };
+  }
+
+  function buildJsonObjectEntry(object: MapObject) {
+    const tiledObjectId = objectIdMap.get(object.id as string);
+    if (!tiledObjectId) {
+      return null;
+    }
+
+    const objectProperties = { ...(object.properties ?? {}) };
+    if (object.locked) {
+      objectProperties[LOCKED_PROPERTY_KEY] = {
+        value: "true",
+        type: "bool",
+      };
+    }
+
+    const jsonObject: Record<string, unknown> = {
+      id: tiledObjectId,
+      name: object.name,
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation,
+      visible: object.visible,
+    };
+
+    if (object.type === "ellipse") {
+      jsonObject.ellipse = true;
+    } else if (object.type === "point") {
+      jsonObject.point = true;
+    } else if (object.type === "polygon") {
+      jsonObject.polygon = object.points.map((point) => ({
+        x: point.x,
+        y: point.y,
+      }));
+    } else if (object.type === "text") {
+      const textSettings = getTextObjectSettings(object);
+      jsonObject.text = {
+        fontfamily: textSettings.font,
+        pixelsize: textSettings.size,
+        wrap: textSettings.wordWrap,
+        color: textSettings.color,
+        text: textSettings.text,
+      };
+
+      for (const key of Object.keys(objectProperties)) {
+        if (isReservedTextObjectPropertyKey(key)) {
+          delete objectProperties[key];
+        }
+      }
+    }
+
+    const properties = buildJsonProperties(objectProperties, objectIdMap);
+    if (properties) {
+      jsonObject.properties = properties;
+    }
+
+    return jsonObject;
+  }
+
+  function buildJsonLayerTree(
+    entriesToRender: readonly (LayerId | LayerGroupId)[],
+  ) {
+    return entriesToRender.flatMap((entryId) => {
+      const group = groupMap.get(entryId as string);
+      if (group) {
+        const groupProperties: Record<string, PropertyValue> = {};
+        if (group.locked) {
+          groupProperties[LOCKED_PROPERTY_KEY] = {
+            value: "true",
+            type: "bool",
+          };
+        }
+        groupProperties[EXPANDED_PROPERTY_KEY] = {
+          value: group.expanded ? "true" : "false",
+          type: "bool",
+        };
+
+        const groupLayer: Record<string, unknown> = {
+          id: nextLayerId(),
+          name: group.name,
+          type: "group",
+          visible: group.visible,
+          opacity: 1,
+          layers: buildJsonLayerTree(group.childOrder),
+        };
+        const properties = buildJsonProperties(groupProperties, objectIdMap);
+        if (properties) {
+          groupLayer.properties = properties;
+        }
+        return [groupLayer];
+      }
+
+      const tileLayer = layerMap.get(entryId as string);
+      if (tileLayer) {
+        const layerProperties: Record<string, PropertyValue> = {};
+        if (tileLayer.locked) {
+          layerProperties[LOCKED_PROPERTY_KEY] = {
+            value: "true",
+            type: "bool",
+          };
+        }
+
+        const jsonLayer: Record<string, unknown> = {
+          id: nextLayerId(),
+          name: tileLayer.name,
+          type: "tilelayer",
+          width: map.widthInTiles,
+          height: map.heightInTiles,
+          x: 0,
+          y: 0,
+          visible: tileLayer.visible,
+          opacity: 1,
+          ...buildJsonLayerData(tileLayer),
+        };
+        const properties = buildJsonProperties(layerProperties, objectIdMap);
+        if (properties) {
+          jsonLayer.properties = properties;
+        }
+        return [jsonLayer];
+      }
+
+      const imageLayer = imageLayerMap.get(entryId as string);
+      if (imageLayer) {
+        const imageSource = imageSourcesByLayerId.get(imageLayer.id as string);
+        if (!imageSource) {
+          return [];
+        }
+
+        const layerProperties: Record<string, PropertyValue> = {};
+        if (imageLayer.locked) {
+          layerProperties[LOCKED_PROPERTY_KEY] = {
+            value: "true",
+            type: "bool",
+          };
+        }
+        layerProperties[IMAGE_WIDTH_PROPERTY_KEY] = {
+          value: String(imageLayer.width),
+          type: "int",
+        };
+        layerProperties[IMAGE_HEIGHT_PROPERTY_KEY] = {
+          value: String(imageLayer.height),
+          type: "int",
+        };
+        layerProperties[IMAGE_ROTATION_PROPERTY_KEY] = {
+          value: String(imageLayer.rotation ?? 0),
+          type: "float",
+        };
+        layerProperties[IMAGE_FLIP_X_PROPERTY_KEY] = {
+          value: imageLayer.flipX ? "true" : "false",
+          type: "bool",
+        };
+        layerProperties[IMAGE_FLIP_Y_PROPERTY_KEY] = {
+          value: imageLayer.flipY ? "true" : "false",
+          type: "bool",
+        };
+
+        const jsonLayer: Record<string, unknown> = {
+          id: nextLayerId(),
+          name: imageLayer.name,
+          type: "imagelayer",
+          image: imageSource,
+          offsetx: imageLayer.x,
+          offsety: imageLayer.y,
+          opacity: (imageLayer.opacity ?? 100) / 100,
+          visible: imageLayer.visible,
+        };
+        const properties = buildJsonProperties(layerProperties, objectIdMap);
+        if (properties) {
+          jsonLayer.properties = properties;
+        }
+        return [jsonLayer];
+      }
+
+      const objectLayer = objectLayerMap.get(entryId as string);
+      if (!objectLayer) {
+        return [];
+      }
+
+      const layerProperties: Record<string, PropertyValue> = {};
+      if (objectLayer.locked) {
+        layerProperties[LOCKED_PROPERTY_KEY] = {
+          value: "true",
+          type: "bool",
+        };
+      }
+
+      const jsonLayer: Record<string, unknown> = {
+        id: nextLayerId(),
+        name: objectLayer.name,
+        type: "objectgroup",
+        draworder: "index",
+        visible: objectLayer.visible,
+        opacity: 1,
+        objects: objectLayer.objectOrder.flatMap((objectId) => {
+          const object = objectMap.get(objectId as string);
+          return object ? [buildJsonObjectEntry(object)].filter(Boolean) : [];
+        }),
+      };
+      const properties = buildJsonProperties(layerProperties, objectIdMap);
+      if (properties) {
+        jsonLayer.properties = properties;
+      }
+      return [jsonLayer];
+    });
+  }
+
+  let nextLayerIdValue = 1;
+  const nextLayerId = () => {
+    const currentValue = nextLayerIdValue;
+    nextLayerIdValue += 1;
+    return currentValue;
+  };
+
+  const tilesetsJson: Record<string, unknown>[] = [];
+
+  for (const tileset of exportedTilesets) {
+    const firstGid = tilesetFirstGids.get(tileset.id as string);
+    const imagePath = imagePathsByAssetId.get(tileset.assetId as string);
+    if (!firstGid || !imagePath) {
+      continue;
+    }
+
+    if (options.tilesetMode === "external") {
+      const tsjPath = createRelativeAssetPath(
+        "tilesets",
+        tileset.name,
+        ".tsj",
+        usedPaths,
+      );
+      entries.push({
+        path: tsjPath,
+        data: encodeJsonDocument({
+          type: "tileset",
+          version: TILED_FORMAT_VERSION,
+          tiledversion: TILED_FORMAT_VERSION,
+          name: tileset.name,
+          tilewidth: tileset.tileSize,
+          tileheight: tileset.tileSize,
+          tilecount: getTileCount(tileset),
+          columns: getTileColumns(tileset),
+          image: `../${imagePath}`,
+          imagewidth: tileset.imageWidth,
+          imageheight: tileset.imageHeight,
+        }),
+      });
+      tilesetsJson.push({ firstgid: firstGid, source: tsjPath });
+      continue;
+    }
+
+    tilesetsJson.push({
+      firstgid: firstGid,
+      name: tileset.name,
+      tilewidth: tileset.tileSize,
+      tileheight: tileset.tileSize,
+      tilecount: getTileCount(tileset),
+      columns: getTileColumns(tileset),
+      image: imagePath,
+      imagewidth: tileset.imageWidth,
+      imageheight: tileset.imageHeight,
+    });
+  }
+
+  entries.push({
+    path: buildDownloadFilename(map.name, ".tmj"),
+    data: encodeJsonDocument({
+      type: "map",
+      version: TILED_FORMAT_VERSION,
+      tiledversion: TILED_FORMAT_VERSION,
+      orientation: map.orientation,
+      width: map.widthInTiles,
+      height: map.heightInTiles,
+      tilewidth: map.tileSize,
+      tileheight: map.tileSize,
+      infinite: false,
+      nextlayerid:
+        nextLayerIdValue +
+        layers.length +
+        imageLayers.length +
+        objectLayers.length +
+        layerGroups.length,
+      nextobjectid: objectIdMap.size + 1,
+      ...(options.encoding === "base64" && options.compression !== "none"
+        ? { compressionlevel: options.compressionLevel }
+        : {}),
+      ...(map.orientation === "orthogonal"
+        ? { renderorder: options.renderOrder }
+        : {}),
+      ...(map.orientation === "hexagonal"
+        ? { hexsidelength: Math.round(map.tileSize / 2) }
+        : {}),
+      ...(map.orientation === "hexagonal" || map.orientation === "staggered"
+        ? {
+            staggeraxis: map.staggerAxis ?? "x",
+            staggerindex: map.staggerIndex ?? "odd",
+          }
+        : {}),
+      ...(buildJsonProperties(mapProperties, objectIdMap)
+        ? { properties: buildJsonProperties(mapProperties, objectIdMap) }
+        : {}),
+      layers: buildJsonLayerTree(map.layerOrder),
+      tilesets: tilesetsJson,
+    }),
   });
 
   return entries;

@@ -6,18 +6,28 @@ import type {
   ImportExportArchiveEntry,
   PendingTiledMapImportState,
   TiledImportMissingResource,
+  TiledMapFormat,
   TiledMapImportResult,
   TiledMissingResourcesDialogProps,
 } from "@/types";
 
-const TMX_IMPORT_ACCEPT = ".tmx,.xml,text/xml,application/xml";
-const TMX_RESOURCE_ACCEPT_BY_KIND: Record<
+const TILED_IMPORT_ACCEPT_BY_FORMAT: Record<TiledMapFormat, string> = {
+  xml: ".tmx,.xml,text/xml,application/xml",
+  json: ".tmj,.json,application/json,text/json",
+};
+
+const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
   TiledImportMissingResource["kind"],
   string
 > = {
   tsx: ".tsx,.xml,text/xml,application/xml",
+  tsj: ".tsj,.json,application/json,text/json",
   image: ".png,.jpg,.jpeg,.gif,.bmp,.webp,image/*",
 };
+
+function getTiledImportLabel(format: TiledMapFormat) {
+  return format === "json" ? "Tiled JSON" : "TMX";
+}
 
 async function createImportEntry(
   path: string,
@@ -46,45 +56,58 @@ export function useTiledMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportTiledMap = useCallback(async () => {
-    if (!enabled) return;
+  const handleImportTiledMap = useCallback(
+    async (format: TiledMapFormat) => {
+      if (!enabled) return;
 
-    const file = await pickSingleFile(TMX_IMPORT_ACCEPT, "tmx-map-file");
-    if (!file) return;
-
-    try {
-      const rootData = await readFileAsUint8Array(file);
-      const attempt = await prepareTiledMapImport(file.name, [
-        {
-          path: file.name,
-          data: rootData,
-        },
-      ]);
-
-      if (attempt.status === "ready") {
-        onImportResolved(attempt.result);
-        return;
-      }
-
-      setPendingImport({
-        rootPath: attempt.rootPath,
-        rootData,
-        missingResources: attempt.missingResources,
-        resourceFilesByPath: {},
-      });
-    } catch (error) {
-      console.error("[Import TMX] Failed:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to import TMX map.",
+      const file = await pickSingleFile(
+        TILED_IMPORT_ACCEPT_BY_FORMAT[format],
+        `${format}-tiled-map-file`,
       );
-    }
-  }, [enabled, onImportResolved]);
+      if (!file) return;
+
+      try {
+        const rootData = await readFileAsUint8Array(file);
+        const attempt = await prepareTiledMapImport(
+          file.name,
+          [
+            {
+              path: file.name,
+              data: rootData,
+            },
+          ],
+          format,
+        );
+
+        if (attempt.status === "ready") {
+          onImportResolved(attempt.result);
+          return;
+        }
+
+        setPendingImport({
+          format,
+          rootPath: attempt.rootPath,
+          rootData,
+          missingResources: attempt.missingResources,
+          resourceFilesByPath: {},
+        });
+      } catch (error) {
+        console.error(`[Import ${getTiledImportLabel(format)}] Failed:`, error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : `Failed to import ${getTiledImportLabel(format)} map.`,
+        );
+      }
+    },
+    [enabled, onImportResolved],
+  );
 
   const handleSelectResourceFile = useCallback(
     async (resource: TiledImportMissingResource) => {
       const file = await pickSingleFile(
-        TMX_RESOURCE_ACCEPT_BY_KIND[resource.kind],
-        `tmx-resource-${resource.kind}`,
+        TILED_RESOURCE_ACCEPT_BY_KIND[resource.kind],
+        `tiled-resource-${resource.kind}`,
       );
       if (!file) return;
 
@@ -123,13 +146,17 @@ export function useTiledMapImport(
           createImportEntry(path, file),
         ),
       );
-      const attempt = await prepareTiledMapImport(pendingImport.rootPath, [
-        {
-          path: pendingImport.rootPath,
-          data: pendingImport.rootData,
-        },
-        ...supplementalEntries,
-      ]);
+      const attempt = await prepareTiledMapImport(
+        pendingImport.rootPath,
+        [
+          {
+            path: pendingImport.rootPath,
+            data: pendingImport.rootData,
+          },
+          ...supplementalEntries,
+        ],
+        pendingImport.format,
+      );
 
       if (attempt.status === "missing-resources") {
         setPendingImport((current) => {
@@ -148,9 +175,14 @@ export function useTiledMapImport(
       setPendingImport(null);
       onImportResolved(attempt.result);
     } catch (error) {
-      console.error("[Import TMX] Failed:", error);
+      console.error(
+        `[Import ${getTiledImportLabel(pendingImport.format)}] Failed:`,
+        error,
+      );
       alert(
-        error instanceof Error ? error.message : "Failed to import TMX map.",
+        error instanceof Error
+          ? error.message
+          : `Failed to import ${getTiledImportLabel(pendingImport.format)} map.`,
       );
     } finally {
       setIsSubmitting(false);
@@ -160,6 +192,7 @@ export function useTiledMapImport(
   const tiledMissingResourcesDialogProps: TiledMissingResourcesDialogProps = {
     open: pendingImport !== null,
     onOpenChange: handleDialogOpenChange,
+    format: pendingImport?.format ?? "xml",
     resources: pendingImport?.missingResources ?? [],
     selectedFileNames: Object.fromEntries(
       Object.entries(pendingImport?.resourceFilesByPath ?? {}).map(

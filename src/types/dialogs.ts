@@ -3,6 +3,7 @@ import type { ToolName } from "./components";
 import type {
   ImportExportDialogMode,
   ImportExportOptionAction,
+  TiledMapFormat,
   TiledImportMissingResource,
 } from "./import-export";
 import type { NewMapType } from "./map-geometry";
@@ -55,6 +56,7 @@ export interface ImportExportDialogProps {
 export interface TiledMissingResourcesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  format: TiledMapFormat;
   resources: TiledImportMissingResource[];
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
