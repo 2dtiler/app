@@ -59,7 +59,9 @@ function parseProperties(
   parent: Element,
   objectIdMap?: ReadonlyMap<string, string>,
 ) {
-  const propertiesElement = parent.querySelector(":scope > properties");
+  const propertiesElement = Array.from(parent.children).find(
+    (child) => child.tagName === "properties",
+  );
   const properties: Record<string, PropertyValue> = {};
 
   if (!propertiesElement) {

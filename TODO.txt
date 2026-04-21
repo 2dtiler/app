@@ -1,3 +1,6 @@
+Check that map properties are working
+Unsupported TMX orientation: isometric.
+
 Export Options
   - Do the rest of the options
   - Should ask for target location
@@ -22,6 +25,7 @@ Ad Marketplace for selling/buying tilesets etc.
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 
 Exploration:
+  SpriteFusion
   Ogmo Editor
   Universal lpc spritesheet generator
   LDTK
@@ -31,7 +35,6 @@ Exploration:
   Aseprite
   Libresprite
   Autotile
-  SpriteFusion
   Tilekit
   Tilesetter
   Tileforge
