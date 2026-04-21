@@ -47,6 +47,7 @@ import type {
   LayerId,
   MapObject,
   ObjectLayer,
+  TileLayer,
   TileMapData,
   TileSize,
   Tileset,
@@ -459,7 +460,7 @@ export async function importTiledJsonMapEntries(
   );
 
   const layerGroups: LayerGroup[] = [];
-  const tileLayers: import("@/types").TileLayer[] = [];
+  const tileLayers: TileLayer[] = [];
   const imageLayers: ImageLayer[] = [];
   const objectLayers: ObjectLayer[] = [];
   const objects: MapObject[] = [];

@@ -23,7 +23,7 @@ import type {
   ImportExportOptionAction,
   ImportExportOptionDefinition,
   ImportExportSelectableAssetId,
-  TiledXmlExportOptions,
+  TiledMapExportOptions,
 } from "@/types";
 import type { ImportExportDialogProps } from "@/types/dialogs";
 import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/lib/import-export-raster";
@@ -220,12 +220,12 @@ function isRasterImageOption(optionId: ImportExportOptionId) {
   return optionId === "map-image" || optionId === "tileset-image";
 }
 
-function isTiledXmlOption(optionId: ImportExportOptionId) {
+function isTiledMapOption(optionId: ImportExportOptionId) {
   return optionId === "map-tiled-xml" || optionId === "map-tiled-json";
 }
 
 function isExpandableExportOption(optionId: ImportExportOptionId) {
-  return isRasterImageOption(optionId) || isTiledXmlOption(optionId);
+  return isRasterImageOption(optionId) || isTiledMapOption(optionId);
 }
 
 function createInitialRasterExportOptionsState() {
@@ -235,7 +235,7 @@ function createInitialRasterExportOptionsState() {
   } satisfies Record<"map" | "tileset", ImportExportRasterExportOptions>;
 }
 
-function createInitialTiledXmlExportOptionsState() {
+function createInitialTiledMapExportOptionsState() {
   return {
     map: {
       encoding: "base64",
@@ -244,7 +244,7 @@ function createInitialTiledXmlExportOptionsState() {
       tilesetMode: "external",
       renderOrder: "right-down",
     },
-  } as Record<"map", TiledXmlExportOptions>;
+  } as Record<"map", TiledMapExportOptions>;
 }
 
 function getActionForAssetType(
@@ -320,9 +320,9 @@ export function ImportExportDialog({
   const [rasterExportOptionsByAssetType, setRasterExportOptionsByAssetType] =
     useState(createInitialRasterExportOptionsState);
   const [
-    tiledXmlExportOptionsByAssetType,
-    setTiledXmlExportOptionsByAssetType,
-  ] = useState(createInitialTiledXmlExportOptionsState);
+    tiledMapExportOptionsByAssetType,
+    setTiledMapExportOptionsByAssetType,
+  ] = useState(createInitialTiledMapExportOptionsState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modeCopy = getModeCopy(mode);
   const ModeIcon = modeCopy.icon;
@@ -346,8 +346,8 @@ export function ImportExportDialog({
       setRasterExportOptionsByAssetType(
         createInitialRasterExportOptionsState(),
       );
-      setTiledXmlExportOptionsByAssetType(
-        createInitialTiledXmlExportOptionsState(),
+      setTiledMapExportOptionsByAssetType(
+        createInitialTiledMapExportOptionsState(),
       );
     }
   }, [open]);
@@ -493,8 +493,8 @@ export function ImportExportDialog({
               assetType === "project"
                 ? null
                 : rasterExportOptionsByAssetType[assetType];
-            const tiledXmlExportOptions =
-              assetType === "map" ? tiledXmlExportOptionsByAssetType.map : null;
+            const tiledMapExportOptions =
+              assetType === "map" ? tiledMapExportOptionsByAssetType.map : null;
             const supportsRenderOrder =
               assetType === "map" && exportSelection
                 ? exportSelection.groups
@@ -535,8 +535,8 @@ export function ImportExportDialog({
                     {assetOptions.map((option) => {
                       const isRasterOption =
                         mode === "export" && isRasterImageOption(option.id);
-                      const isTiledXmlExportOption =
-                        mode === "export" && isTiledXmlOption(option.id);
+                      const isTiledMapExportOption =
+                        mode === "export" && isTiledMapOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
@@ -655,15 +655,15 @@ export function ImportExportDialog({
                             />
                           ) : null}
 
-                          {isTiledXmlExportOption &&
+                          {isTiledMapExportOption &&
                           expandedExportOptionId === option.id &&
-                          tiledXmlExportOptions ? (
+                          tiledMapExportOptions ? (
                             <TiledXmlExportOptionsPanel
-                              options={tiledXmlExportOptions}
+                              options={tiledMapExportOptions}
                               disabled={!isEnabled}
                               supportsRenderOrder={supportsRenderOrder}
                               onOptionsChange={(nextOptions) =>
-                                setTiledXmlExportOptionsByAssetType(
+                                setTiledMapExportOptionsByAssetType(
                                   (currentValue) => ({
                                     ...currentValue,
                                     map: nextOptions,

@@ -951,7 +951,6 @@ export async function exportTiledMapJsonBundle(
         }
       : {
           data: Array.from(gids),
-          encoding: "csv" as const,
         };
   }
 

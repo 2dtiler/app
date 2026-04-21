@@ -231,14 +231,28 @@ function decodeLayerDataPayload(
   formatLabel: string,
 ) {
   const expectedLength = map.widthInTiles * map.heightInTiles;
+  const ensureLengthMatches = (gids: Uint32Array, encodingLabel: string) => {
+    if (gids.length !== expectedLength) {
+      throw new Error(
+        `${formatLabel} ${encodingLabel} layer payload length does not match map dimensions.`,
+      );
+    }
+    return gids;
+  };
 
   if (!encoding) {
-    return Uint32Array.from((gidsData ?? [0]).map((gid) => Number(gid) || 0));
+    return ensureLengthMatches(
+      Uint32Array.from((gidsData ?? [0]).map((gid) => Number(gid) || 0)),
+      "unencoded",
+    );
   }
 
   if (encoding === "csv") {
     if (gidsData) {
-      return Uint32Array.from(gidsData.map((gid) => Number(gid) || 0));
+      return ensureLengthMatches(
+        Uint32Array.from(gidsData.map((gid) => Number(gid) || 0)),
+        "csv",
+      );
     }
 
     const gids = textContent
@@ -246,7 +260,7 @@ function decodeLayerDataPayload(
       .map((value) => value.trim())
       .filter(Boolean)
       .map((value) => Number(value)) ?? [0];
-    return Uint32Array.from(gids);
+    return ensureLengthMatches(Uint32Array.from(gids), "csv");
   }
 
   if (encoding !== "base64") {
