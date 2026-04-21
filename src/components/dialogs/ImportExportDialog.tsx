@@ -61,7 +61,7 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     assetType: "map",
     label: "Tiled XML Map File (.tmx, .xml)",
     description:
-      "Exports a TMX bundle with optional external TSX files and map assets.",
+      "Imports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
     supportedNow: true,
   },
   {

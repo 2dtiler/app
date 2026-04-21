@@ -62,6 +62,11 @@ const ImportExportDialog = lazy(() =>
     default: module.ImportExportDialog,
   })),
 );
+const TiledMissingResourcesDialog = lazy(() =>
+  import("@/components/dialogs/TiledMissingResourcesDialog").then((module) => ({
+    default: module.TiledMissingResourcesDialog,
+  })),
+);
 const ToolDrawer = lazy(() =>
   import("@/components/tools/ToolDrawer").then((module) => ({
     default: module.ToolDrawer,
@@ -175,6 +180,7 @@ export function AppShell({
     projectAction,
     mapAction,
     tilesetAction,
+    tiledMissingResourcesDialogProps,
   } = useImportExportActions({
     state,
     setState,
@@ -351,6 +357,21 @@ export function AppShell({
             projectAction={projectAction}
             mapAction={mapAction}
             tilesetAction={tilesetAction}
+          />
+        </Suspense>
+      )}
+      {tiledMissingResourcesDialogProps.open && (
+        <Suspense>
+          <TiledMissingResourcesDialog
+            open={tiledMissingResourcesDialogProps.open}
+            onOpenChange={tiledMissingResourcesDialogProps.onOpenChange}
+            resources={tiledMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              tiledMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={tiledMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
+            onImport={tiledMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

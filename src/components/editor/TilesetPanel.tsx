@@ -650,7 +650,7 @@ export function TilesetPanel() {
           className="flex-1 min-h-0"
           placeholder={
             groupTilesets.length === 0
-              ? "Click 'Add Tileset' to add a tileset"
+              ? "Click '+ Add Tileset' to add a tileset"
               : "Select a tileset tab"
           }
         />

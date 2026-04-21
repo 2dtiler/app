@@ -148,10 +148,6 @@ export function TiledXmlExportOptionsPanel({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            CSV disables compression because Tiled only compresses base64 layer
-            payloads.
-          </p>
         </div>
 
         <div className="space-y-2 sm:col-span-2">

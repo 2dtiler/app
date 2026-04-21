@@ -113,7 +113,7 @@ export function MapPanelWorkspace({
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
               {groupMaps.length === 0
-                ? "Click + to create a map"
+                ? "Click '+ Add Map' to create a map"
                 : "Select a map tab"}
             </div>
           )}

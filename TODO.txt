@@ -1,9 +1,11 @@
 Export Options
   - Do the rest of the options
+  - Should ask for target location
 Import Options
   - Should show which group to import to (if more than one)
   - Do the rest of the options
 
+Sanity Test all of the imports/exports
 Allow quick export bottom right
 
 AI Asset Generation:
@@ -38,7 +40,8 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
-
+  https://itch.io/games-like/28768/tiled
+  
 Text Layer custom fonts not working
 Custom Animations i.e. water moving
 
@@ -47,7 +50,10 @@ Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
 
 Manage Tilesets
 Manage Maps
+World View
+Animations
 Royalty free packs
+Terrain Brush
 Add unit tests and add to CI/CD
 Add tutorial video
 Add roadmap voting on home page

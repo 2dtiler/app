@@ -21,10 +21,17 @@ import {
   renderMapToCanvas,
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
+import { exportTiledMapBundle } from "@/lib/import-export-tiled";
 import {
-  exportTiledMapBundle,
-  importTiledMapBundle,
-} from "@/lib/import-export-tiled";
+  buildMapExportGroups,
+  buildTilesetExportGroups,
+  getMapExportData,
+  getUniqueArchivePath,
+  isRasterExportOptions,
+  isTiledXmlExportOptions,
+  pickSingleFile,
+} from "@/components/app/import-export-action-utils";
+import { useTiledMapImport } from "@/components/app/use-tiled-map-import";
 import {
   generateLayerGroupId,
   generateLayerId,
@@ -32,7 +39,7 @@ import {
   generateObjectId,
   generateTilesetId,
 } from "@/lib/ids";
-import { findLastLayerId, getAllGroupIds, getAllLayerIds } from "@/lib/layers";
+import { findLastLayerId } from "@/lib/layers";
 import { getActiveTilesetTileSize } from "@/lib/project";
 import { openProjectInEditor } from "@/lib/project-session";
 import {
@@ -47,7 +54,6 @@ import type {
   EditorState,
   ImageLayer,
   ImportExportArchiveEntry,
-  ImportExportAssetGroup,
   ImportExportDialogMode,
   ImportExportFormatExportOptions,
   ImportExportOptionAction,
@@ -61,12 +67,9 @@ import type {
   MapObject,
   ObjectId,
   ObjectLayer,
-  Project,
   TileLayer,
   TileMapData,
-  Tileset,
   TiledMapImportResult,
-  TiledXmlExportOptions,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
@@ -78,18 +81,6 @@ interface UseImportExportActionsParams {
   importExportDialogOpen: boolean;
   setImportExportDialogMode: (mode: ImportExportDialogMode) => void;
   setImportExportDialogOpen: (open: boolean) => void;
-}
-
-function isRasterExportOptions(
-  options?: ImportExportFormatExportOptions,
-): options is ImportExportRasterExportOptions {
-  return Boolean(options && "fileType" in options);
-}
-
-function isTiledXmlExportOptions(
-  options?: ImportExportFormatExportOptions,
-): options is TiledXmlExportOptions {
-  return Boolean(options && "tilesetMode" in options);
 }
 
 export function useImportExportActions({
@@ -108,7 +99,7 @@ export function useImportExportActions({
   }, [state.project]);
 
   const handleImportProject = useCallback(async () => {
-    const file = await pickFile(".2dp");
+    const file = await pickSingleFile(".2dp", "project-file");
     if (!file) return;
 
     try {
@@ -126,7 +117,6 @@ export function useImportExportActions({
     setImportExportDialogMode("import");
     setImportExportDialogOpen(true);
   }, [setImportExportDialogMode, setImportExportDialogOpen]);
-
   const handleOpenExportDialog = useCallback(() => {
     setImportExportDialogMode("export");
     setImportExportDialogOpen(true);
@@ -478,10 +468,12 @@ export function useImportExportActions({
     ],
   );
 
+  const { handleImportTiledMap, tiledMissingResourcesDialogProps } =
+    useTiledMapImport(Boolean(state.project), mergeImportedMapData);
   const handleImportNativeMap = useCallback(async () => {
     if (!state.project) return;
 
-    const file = await pickFile(".2dm");
+    const file = await pickSingleFile(".2dm", "native-map-file");
     if (!file) return;
 
     try {
@@ -490,23 +482,6 @@ export function useImportExportActions({
     } catch (error) {
       console.error("[Import Map] Failed:", error);
       alert("Failed to import map. The file may be corrupted.");
-    }
-  }, [mergeImportedMapData, state.project]);
-
-  const handleImportTiledMap = useCallback(async () => {
-    if (!state.project) return;
-
-    const file = await pickFile(".zip,application/zip");
-    if (!file) return;
-
-    try {
-      const raw = await readFileAsUint8Array(file);
-      mergeImportedMapData(await importTiledMapBundle(raw));
-    } catch (error) {
-      console.error("[Import TMX] Failed:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to import TMX bundle.",
-      );
     }
   }, [mergeImportedMapData, state.project]);
 
@@ -695,7 +670,7 @@ export function useImportExportActions({
   const handleImportNativeTileset = useCallback(async () => {
     if (!state.project) return;
 
-    const file = await pickFile(".2dt");
+    const file = await pickSingleFile(".2dt", "native-tileset-file");
     if (!file) return;
 
     try {
@@ -1045,158 +1020,6 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
+    tiledMissingResourcesDialogProps,
   };
-}
-
-async function pickFile(accept: string): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = accept;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.click();
-  });
-}
-
-function getMapExportData(project: Project, map: TileMapData) {
-  const projectLayerGroups = project.layerGroups ?? [];
-  const allLayerIds = getAllLayerIds(map.layerOrder, projectLayerGroups);
-  const allGroupIds = getAllGroupIds(map.layerOrder, projectLayerGroups);
-  const layerIdSet = new Set<string>(allLayerIds as string[]);
-  const groupIdSet = new Set<string>(allGroupIds as string[]);
-
-  const objectLayers = (project.objectLayers ?? []).filter((layer) =>
-    layerIdSet.has(layer.id as string),
-  );
-  const objectLayerIdSet = new Set(
-    objectLayers.map((layer) => layer.id as string),
-  );
-
-  return {
-    layers: project.layers.filter((layer) =>
-      layerIdSet.has(layer.id as string),
-    ),
-    imageLayers: (project.imageLayers ?? []).filter((layer) =>
-      layerIdSet.has(layer.id as string),
-    ),
-    layerGroups: projectLayerGroups.filter((group) =>
-      groupIdSet.has(group.id as string),
-    ),
-    objectLayers,
-    objects: (project.objects ?? []).filter((object) =>
-      objectLayerIdSet.has(object.layerId as string),
-    ),
-  };
-}
-
-function getReferencedThumbnailTilesets(
-  projectTilesets: Tileset[],
-  layers: TileLayer[],
-) {
-  const referencedTilesetIds = new Set<TilesetId>();
-
-  for (const layer of layers) {
-    for (const ref of Object.values(layer.tiles)) {
-      referencedTilesetIds.add(ref.tilesetId);
-    }
-  }
-
-  return projectTilesets
-    .filter((tileset) => referencedTilesetIds.has(tileset.id))
-    .map((tileset) => ({
-      id: tileset.id,
-      assetId: tileset.assetId,
-    }));
-}
-
-function buildMapExportGroups(project: Project): ImportExportAssetGroup[] {
-  const projectTilesets = [
-    ...project.tilesets,
-    ...(project.overrideTilesets ?? []),
-  ];
-
-  return [...project.mapGroups]
-    .sort((left, right) => left.order - right.order)
-    .map((group) => ({
-      id: group.id,
-      name: group.name,
-      assets: project.maps
-        .filter((map) => map.groupId === group.id)
-        .map((map) => {
-          const mapExportData = getMapExportData(project, map);
-
-          return {
-            id: map.id,
-            name: map.name,
-            groupId: group.id,
-            groupName: group.name,
-            subtitle: `${map.widthInTiles} × ${map.heightInTiles} tiles`,
-            thumbnail: {
-              kind: "map" as const,
-              orientation: map.orientation,
-              staggerAxis: map.staggerAxis,
-              staggerIndex: map.staggerIndex,
-              tileSize: map.tileSize,
-              widthInTiles: map.widthInTiles,
-              heightInTiles: map.heightInTiles,
-              layers: mapExportData.layers.map((layer) => ({
-                id: layer.id,
-                visible: layer.visible,
-                tiles: layer.tiles,
-              })),
-              tilesets: getReferencedThumbnailTilesets(
-                projectTilesets,
-                mapExportData.layers,
-              ),
-            },
-          };
-        }),
-    }))
-    .filter((group) => group.assets.length > 0);
-}
-
-function buildTilesetExportGroups(project: Project): ImportExportAssetGroup[] {
-  return [...project.tilesetGroups]
-    .sort((left, right) => left.order - right.order)
-    .map((group) => ({
-      id: group.id,
-      name: group.name,
-      assets: project.tilesets
-        .filter((tileset) => tileset.groupId === group.id)
-        .map((tileset) => ({
-          id: tileset.id,
-          name: tileset.name,
-          groupId: group.id,
-          groupName: group.name,
-          subtitle: `${tileset.imageWidth} × ${tileset.imageHeight} px`,
-          thumbnail: {
-            kind: "tileset" as const,
-            assetId: tileset.assetId,
-            tileSize: tileset.tileSize,
-            imageWidth: tileset.imageWidth,
-            imageHeight: tileset.imageHeight,
-          },
-        })),
-    }))
-    .filter((group) => group.assets.length > 0);
-}
-
-function getUniqueArchivePath(path: string, usedPaths: Set<string>): string {
-  if (!usedPaths.has(path)) {
-    usedPaths.add(path);
-    return path;
-  }
-
-  const extensionIndex = path.lastIndexOf(".");
-  const baseName = extensionIndex >= 0 ? path.slice(0, extensionIndex) : path;
-  const extension = extensionIndex >= 0 ? path.slice(extensionIndex) : "";
-  let suffix = 2;
-
-  while (usedPaths.has(`${baseName} (${suffix})${extension}`)) {
-    suffix += 1;
-  }
-
-  const nextPath = `${baseName} (${suffix})${extension}`;
-  usedPaths.add(nextPath);
-  return nextPath;
 }

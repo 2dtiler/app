@@ -106,6 +106,37 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
+export type TiledImportMissingResourceKind = "tsx" | "image";
+
+export interface TiledImportMissingResource {
+  path: string;
+  kind: TiledImportMissingResourceKind;
+  referringPath: string;
+  label: string;
+}
+
+export interface TiledMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface PendingTiledMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface TiledMapImportReadyResult {
+  status: "ready";
+  result: TiledMapImportResult;
+}
+
+export type TiledMapImportPreparationResult =
+  | TiledMapImportPendingResult
+  | TiledMapImportReadyResult;
+
 export interface ImportExportRasterAsset {
   assetId: AssetId;
   fileName: string;
