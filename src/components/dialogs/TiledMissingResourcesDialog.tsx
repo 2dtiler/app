@@ -24,8 +24,13 @@ export function TiledMissingResourcesDialog({
   const hasAllSelections =
     resources.length > 0 &&
     resources.every((resource) => Boolean(selectedFileNames[resource.path]));
-  const rootFormatLabel = format === "json" ? "Tiled JSON" : "TMX";
-  const externalTilesetLabel = format === "json" ? "TSJ" : "TSX";
+  const rootFormatLabel =
+    format === "xml"
+      ? "TMX"
+      : format === "js"
+        ? "Tiled JavaScript"
+        : "Tiled JSON";
+  const externalTilesetLabel = format === "xml" ? "TSX" : "TSJ/TSX";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

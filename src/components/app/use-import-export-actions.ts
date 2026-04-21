@@ -22,6 +22,7 @@ import {
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
 import {
+  exportTiledMapJsBundle,
   exportTiledMapBundle,
   exportTiledMapJsonBundle,
 } from "@/lib/import-export-tiled";
@@ -764,6 +765,11 @@ export function useImportExportActions({
         return;
       }
 
+      if (optionId === "map-tiled-js") {
+        await handleImportTiledMap("js");
+        return;
+      }
+
       await handleImportNativeMap();
     },
     [handleImportNativeMap, handleImportRasterMap, handleImportTiledMap],
@@ -797,7 +803,11 @@ export function useImportExportActions({
         return;
       }
 
-      if (optionId === "map-tiled-xml" || optionId === "map-tiled-json") {
+      if (
+        optionId === "map-tiled-xml" ||
+        optionId === "map-tiled-json" ||
+        optionId === "map-tiled-js"
+      ) {
         if (!state.project || !isTiledXmlExportOptions(formatExportOptions)) {
           return;
         }
@@ -805,13 +815,21 @@ export function useImportExportActions({
         const exportTiledBundle =
           optionId === "map-tiled-json"
             ? exportTiledMapJsonBundle
-            : exportTiledMapBundle;
+            : optionId === "map-tiled-js"
+              ? exportTiledMapJsBundle
+              : exportTiledMapBundle;
         const archiveExtension =
-          optionId === "map-tiled-json" ? ".tmj.zip" : ".tmx.zip";
+          optionId === "map-tiled-json"
+            ? ".tmj.zip"
+            : optionId === "map-tiled-js"
+              ? ".js.zip"
+              : ".tmx.zip";
         const archiveBaseName =
           optionId === "map-tiled-json"
             ? `${state.project.name} tiled json maps`
-            : `${state.project.name} tiled maps`;
+            : optionId === "map-tiled-js"
+              ? `${state.project.name} tiled javascript maps`
+              : `${state.project.name} tiled maps`;
 
         const selectedIdSet = new Set(selectedIds as MapId[]);
         const selectedMaps = state.project.maps.filter((map) =>

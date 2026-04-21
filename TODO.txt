@@ -6,6 +6,7 @@ Import Options
   - Do the rest of the options
 
 Allow quick export bottom right
+Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Check why website is not populating release notes
 
 AI Asset Generation:
@@ -18,9 +19,8 @@ AI Asset Generation:
   Ability to download/add to tileset/open in image Editor
 
 Map type: infinite
+Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
-
-Add Tileset/Add Map buttons or dragging and dropping should support all formats
 
 Exploration:
   SpriteFusion
@@ -44,7 +44,7 @@ Exploration:
   https://itch.io/games-like/28768/tiled
   
 Text Layer custom fonts not working
-Custom Animations i.e. water moving
+Image Editor Crop should change the dimensions of the image
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest

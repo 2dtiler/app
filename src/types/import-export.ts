@@ -62,7 +62,7 @@ export type TiledRenderOrder =
   | "left-down"
   | "left-up";
 
-export type TiledMapFormat = "xml" | "json";
+export type TiledMapFormat = "xml" | "json" | "js";
 
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
@@ -238,6 +238,22 @@ export interface ImportExportSelectionConfig {
 export interface ImportExportArchiveEntry {
   path: string;
   data: Uint8Array;
+}
+
+export interface TiledMapBundlePreparationResult {
+  entries: ImportExportArchiveEntry[];
+  exportedTilesets: Tileset[];
+  groupMap: ReadonlyMap<string, LayerGroup>;
+  imageLayerMap: ReadonlyMap<string, ImageLayer>;
+  imagePathsByAssetId: ReadonlyMap<string, string>;
+  imageSourcesByLayerId: ReadonlyMap<string, string>;
+  layerMap: ReadonlyMap<string, TileLayer>;
+  objectIdMap: ReadonlyMap<string, number>;
+  objectLayerMap: ReadonlyMap<string, ObjectLayer>;
+  objectMap: ReadonlyMap<string, MapObject>;
+  tilesetFirstGids: ReadonlyMap<string, number>;
+  tilesetMap: ReadonlyMap<string, Tileset>;
+  usedPaths: Set<string>;
 }
 
 export interface ImportExportAssetPickerProps {

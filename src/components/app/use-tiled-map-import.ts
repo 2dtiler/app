@@ -14,6 +14,7 @@ import type {
 const TILED_IMPORT_ACCEPT_BY_FORMAT: Record<TiledMapFormat, string> = {
   xml: ".tmx,.xml,text/xml,application/xml",
   json: ".tmj,.json,application/json,text/json",
+  js: ".js,application/javascript,text/javascript,application/ecmascript,text/ecmascript",
 };
 
 const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
@@ -26,7 +27,13 @@ const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
 };
 
 function getTiledImportLabel(format: TiledMapFormat) {
-  return format === "json" ? "Tiled JSON" : "TMX";
+  if (format === "json") {
+    return "Tiled JSON";
+  }
+  if (format === "js") {
+    return "Tiled JavaScript";
+  }
+  return "TMX";
 }
 
 async function createImportEntry(

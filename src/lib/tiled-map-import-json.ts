@@ -60,12 +60,45 @@ import type {
   TiledJsonObjectLayer,
   TiledJsonTileLayer,
   TiledJsonTileset,
+  TiledMapFormat,
   TiledMapImportResult,
 } from "@/types";
 
-function parseTiledJsonFile<T>(data: Uint8Array, label: string) {
+function unwrapTiledJavaScriptMap(data: Uint8Array, label: string) {
+  const contents = decodeText(data);
+  const trimmedContents = contents.trimStart();
+
+  if (trimmedContents.startsWith("{")) {
+    return trimmedContents;
+  }
+
+  const objectStartIndex = contents.indexOf("\n{");
+  if (objectStartIndex <= 0) {
+    throw new Error(`Invalid ${label} JavaScript wrapper.`);
+  }
+
+  let jsonPayload = contents.slice(objectStartIndex + 1).trim();
+  if (jsonPayload.endsWith(";")) {
+    jsonPayload = jsonPayload.slice(0, -1).trimEnd();
+  }
+  if (jsonPayload.endsWith(")")) {
+    jsonPayload = jsonPayload.slice(0, -1).trimEnd();
+  }
+
+  return jsonPayload;
+}
+
+function parseTiledJsonFile<T>(
+  data: Uint8Array,
+  label: string,
+  format: Extract<TiledMapFormat, "json" | "js"> = "json",
+) {
   try {
-    const parsed = JSON.parse(decodeText(data)) as unknown;
+    const parsed = JSON.parse(
+      format === "js"
+        ? unwrapTiledJavaScriptMap(data, label)
+        : decodeText(data),
+    ) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error("Invalid JSON document.");
     }
@@ -204,11 +237,13 @@ function collectJsonLayerDependencies(
 export function collectMissingTiledJsonMapResources(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
+  format: Extract<TiledMapFormat, "json" | "js"> = "json",
 ) {
   const tmjPath = normalizeBundlePath(rootPath);
   const mapDocument = parseTiledJsonFile<TiledJsonMap>(
     requireProvidedEntry(providedEntries, tmjPath),
-    "Tiled JSON map",
+    format === "js" ? "Tiled JavaScript map" : "Tiled JSON map",
+    format,
   );
 
   const missingResources = new Map<string, TiledImportMissingResource>();
@@ -418,31 +453,39 @@ function isJsonObjectLayer(
 export async function importTiledJsonMapEntries(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
+  format: Extract<TiledMapFormat, "json" | "js"> = "json",
 ): Promise<TiledMapImportResult> {
   const tmjPath = normalizeBundlePath(rootPath);
   const mapDocument = parseTiledJsonFile<TiledJsonMap>(
     requireProvidedEntry(providedEntries, tmjPath),
-    "Tiled JSON map",
+    format === "js" ? "Tiled JavaScript map" : "Tiled JSON map",
+    format,
   );
 
   if (mapDocument.type && mapDocument.type !== "map") {
-    throw new Error("Tiled JSON file does not contain a valid map object.");
+    throw new Error(
+      `${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} file does not contain a valid map object.`,
+    );
   }
   if (mapDocument.infinite) {
-    throw new Error("Infinite Tiled JSON maps are not supported.");
+    throw new Error(
+      `Infinite ${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} maps are not supported.`,
+    );
   }
 
   const tileWidth = Number(mapDocument.tilewidth ?? 0);
   const tileHeight = Number(mapDocument.tileheight ?? 0);
   if (tileWidth <= 0 || tileWidth !== tileHeight) {
-    throw new Error("Only square Tiled JSON maps are supported.");
+    throw new Error(
+      `Only square ${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} maps are supported.`,
+    );
   }
 
   const mapWidth = Number(mapDocument.width ?? 0);
   const mapHeight = Number(mapDocument.height ?? 0);
   const orientation = validateTiledOrientation(
     mapDocument.orientation ?? "orthogonal",
-    "Tiled JSON",
+    format === "js" ? "Tiled JavaScript" : "Tiled JSON",
   );
 
   const rawMapProperties = parseJsonProperties(mapDocument.properties);

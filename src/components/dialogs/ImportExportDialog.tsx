@@ -77,8 +77,9 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "map-tiled-js",
     assetType: "map",
     label: "Tiled JavaScript Map File (.js)",
-    description: "Tiled JavaScript export format.",
-    supportedNow: false,
+    description:
+      "Imports or exports Tiled JavaScript maps directly and prompts for linked TSJ/TSX or image files when needed.",
+    supportedNow: true,
   },
   {
     id: "map-tiled-lua",
@@ -221,7 +222,11 @@ function isRasterImageOption(optionId: ImportExportOptionId) {
 }
 
 function isTiledMapOption(optionId: ImportExportOptionId) {
-  return optionId === "map-tiled-xml" || optionId === "map-tiled-json";
+  return (
+    optionId === "map-tiled-xml" ||
+    optionId === "map-tiled-json" ||
+    optionId === "map-tiled-js"
+  );
 }
 
 function isExpandableExportOption(optionId: ImportExportOptionId) {
