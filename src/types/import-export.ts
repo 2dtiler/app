@@ -1,8 +1,13 @@
 import type {
   AssetId,
   ImageLayer,
+  LayerGroup,
+  MapObject,
+  ObjectLayer,
   TileLayer,
+  TileMapData,
   TileSize,
+  Tileset,
   TilesetId,
 } from "./schema";
 import type {
@@ -45,11 +50,99 @@ export type ImportExportOptionId =
 
 export type ImportExportRasterFileType = "png" | "jpg" | "webp" | "bmp" | "gif";
 
+export type TiledLayerEncoding = "csv" | "base64";
+
+export type TiledLayerCompression = "none" | "gzip" | "zlib";
+
+export type TiledTilesetMode = "inline" | "external";
+
+export type TiledRenderOrder =
+  | "right-down"
+  | "right-up"
+  | "left-down"
+  | "left-up";
+
+export type TiledMapFormat = "xml" | "json";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
   transparency: boolean;
 }
+
+export interface TiledMapExportOptions {
+  encoding: TiledLayerEncoding;
+  compression: TiledLayerCompression;
+  compressionLevel: number;
+  tilesetMode: TiledTilesetMode;
+  renderOrder: TiledRenderOrder;
+}
+
+export type TiledXmlExportOptions = TiledMapExportOptions;
+
+export type ImportExportFormatExportOptions =
+  | ImportExportRasterExportOptions
+  | TiledMapExportOptions;
+
+export interface RasterExportOptionsPanelProps {
+  options: ImportExportRasterExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: ImportExportRasterExportOptions) => void;
+  onExport: (options: ImportExportRasterExportOptions) => void;
+}
+
+export interface TiledMapExportOptionsPanelProps {
+  options: TiledMapExportOptions;
+  disabled: boolean;
+  supportsRenderOrder: boolean;
+  onOptionsChange: (options: TiledMapExportOptions) => void;
+  onExport: (options: TiledMapExportOptions) => void;
+}
+
+export type TiledXmlExportOptionsPanelProps = TiledMapExportOptionsPanelProps;
+
+export interface TiledMapImportResult {
+  map: TileMapData;
+  layers: TileLayer[];
+  tilesets: Tileset[];
+  overrideTilesets?: Tileset[];
+  imageLayers: ImageLayer[];
+  layerGroups: LayerGroup[];
+  objectLayers: ObjectLayer[];
+  objects: MapObject[];
+}
+
+export type TiledImportMissingResourceKind = "tsx" | "tsj" | "image";
+
+export interface TiledImportMissingResource {
+  path: string;
+  kind: TiledImportMissingResourceKind;
+  referringPath: string;
+  label: string;
+}
+
+export interface TiledMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface PendingTiledMapImportState {
+  format: TiledMapFormat;
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface TiledMapImportReadyResult {
+  status: "ready";
+  result: TiledMapImportResult;
+}
+
+export type TiledMapImportPreparationResult =
+  | TiledMapImportPendingResult
+  | TiledMapImportReadyResult;
 
 export interface ImportExportRasterAsset {
   assetId: AssetId;
@@ -138,7 +231,7 @@ export interface ImportExportSelectionConfig {
   onSubmit: (
     selectedIds: ImportExportSelectableAssetId[],
     optionId: ImportExportOptionId,
-    rasterExportOptions?: ImportExportRasterExportOptions,
+    formatExportOptions?: ImportExportFormatExportOptions,
   ) => void | Promise<void>;
 }
 
@@ -176,7 +269,7 @@ export interface ImportExportOptionAction {
   enabled: boolean;
   onSelect?: (
     optionId: ImportExportOptionId,
-    rasterExportOptions?: ImportExportRasterExportOptions,
+    formatExportOptions?: ImportExportFormatExportOptions,
   ) => void | Promise<void>;
   disabledReason?: string;
   exportSelection?: ImportExportSelectionConfig;

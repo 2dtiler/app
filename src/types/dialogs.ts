@@ -3,6 +3,8 @@ import type { ToolName } from "./components";
 import type {
   ImportExportDialogMode,
   ImportExportOptionAction,
+  TiledMapFormat,
+  TiledImportMissingResource,
 } from "./import-export";
 import type { NewMapType } from "./map-geometry";
 import type {
@@ -49,6 +51,17 @@ export interface ImportExportDialogProps {
   projectAction: ImportExportOptionAction;
   mapAction: ImportExportOptionAction;
   tilesetAction: ImportExportOptionAction;
+}
+
+export interface TiledMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  format: TiledMapFormat;
+  resources: TiledImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: TiledImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
 }
 
 export type AddLayerDialogLayerType = "tile" | "group" | "image" | "object";

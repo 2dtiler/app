@@ -1,6 +1,7 @@
 export const MAP_ORIENTATIONS = [
   "orthogonal",
   "hexagonal",
+  "isometric",
   "staggered",
 ] as const;
 export type MapOrientation = (typeof MAP_ORIENTATIONS)[number];
@@ -9,8 +10,8 @@ export const NEW_MAP_TYPES = [
   "orthogonal",
   "hexagonal-row",
   "hexagonal-column",
-  "isometric-row",
-  "isometric-column",
+  "isometric",
+  "isometric-staggered",
 ] as const;
 export type NewMapType = (typeof NEW_MAP_TYPES)[number];
 

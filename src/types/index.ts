@@ -14,5 +14,6 @@ export * from "./editor-helpers";
 export * from "./image-editor-internals";
 export * from "./api-keys";
 export * from "./ai-assets";
+export * from "./tiled-json";
 export * from "./text-object";
 export * from "./map-panel";

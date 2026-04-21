@@ -1,4 +1,5 @@
 import {
+  DEFAULT_HEX_STAGGER_AXIS,
   DEFAULT_HEX_STAGGER_INDEX,
   type MapCell,
   type MapPixelSize,
@@ -26,8 +27,8 @@ export const NEW_MAP_TYPE_OPTIONS = [
   { value: "orthogonal", label: "Orthogonal" },
   { value: "hexagonal-row", label: "Hexagonal (Staggered Rows)" },
   { value: "hexagonal-column", label: "Hexagonal (Staggered Columns)" },
-  { value: "isometric-row", label: "Isometric (Staggered Rows)" },
-  { value: "isometric-column", label: "Isometric (Staggered Columns)" },
+  { value: "isometric", label: "Isometric" },
+  { value: "isometric-staggered", label: "Isometric (Staggered)" },
 ] as const satisfies readonly { value: NewMapType; label: string }[];
 
 export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
@@ -44,16 +45,14 @@ export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
         staggerAxis: "x",
         staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
       };
-    case "isometric-row":
+    case "isometric":
       return {
-        orientation: "staggered",
-        staggerAxis: "y",
-        staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
+        orientation: "isometric",
       };
-    case "isometric-column":
+    case "isometric-staggered":
       return {
         orientation: "staggered",
-        staggerAxis: "x",
+        staggerAxis: DEFAULT_HEX_STAGGER_AXIS,
         staggerIndex: DEFAULT_HEX_STAGGER_INDEX,
       };
     default:
@@ -61,6 +60,10 @@ export function getGeometryForNewMapType(mapType: NewMapType): TileMapGeometry {
         orientation: "orthogonal",
       };
   }
+}
+
+export function isIsometricMap(map: TileMapGeometryLike): boolean {
+  return map.orientation === "isometric";
 }
 
 export function isHexagonalMap(map: TileMapGeometryLike): boolean {
@@ -72,7 +75,14 @@ export function isStaggeredMap(map: TileMapGeometryLike): boolean {
 }
 
 export function isOffsetMap(map: TileMapGeometryLike): boolean {
-  return isHexagonalMap(map) || isStaggeredMap(map);
+  return isHexagonalMap(map) || isStaggeredMap(map) || isIsometricMap(map);
+}
+
+function getIsometricLeftInset(
+  tileSize: number,
+  heightInTiles: number,
+): number {
+  return Math.max(0, (heightInTiles - 1) * tileSize * HALF_TILE_RATIO);
 }
 
 export function isStaggeredIndex(
@@ -110,6 +120,15 @@ export function getMapCellOrigin(
   y: number,
 ): MapPoint {
   const scaledTile = map.tileSize * zoom;
+
+  if (isIsometricMap(map)) {
+    return {
+      x:
+        getIsometricLeftInset(scaledTile, map.heightInTiles) +
+        (x - y) * scaledTile * HALF_TILE_RATIO,
+      y: (x + y) * scaledTile * HALF_TILE_RATIO,
+    };
+  }
 
   if (!isOffsetMap(map)) {
     return {
@@ -159,21 +178,21 @@ export function getMapCellPolygon(
   const origin = getMapCellOrigin(map, zoom, x, y);
   const scaledTile = map.tileSize * zoom;
 
+  if (isIsometricMap(map) || isStaggeredMap(map)) {
+    return [
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y },
+      { x: origin.x + scaledTile, y: origin.y + scaledTile * HALF_TILE_RATIO },
+      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y + scaledTile },
+      { x: origin.x, y: origin.y + scaledTile * HALF_TILE_RATIO },
+    ];
+  }
+
   if (!isOffsetMap(map)) {
     return [
       { x: origin.x, y: origin.y },
       { x: origin.x + scaledTile, y: origin.y },
       { x: origin.x + scaledTile, y: origin.y + scaledTile },
       { x: origin.x, y: origin.y + scaledTile },
-    ];
-  }
-
-  if (isStaggeredMap(map)) {
-    return [
-      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y },
-      { x: origin.x + scaledTile, y: origin.y + scaledTile * HALF_TILE_RATIO },
-      { x: origin.x + scaledTile * HALF_TILE_RATIO, y: origin.y + scaledTile },
-      { x: origin.x, y: origin.y + scaledTile * HALF_TILE_RATIO },
     ];
   }
 
@@ -208,6 +227,15 @@ export function getMapPixelSize(
 
   if (widthInTiles <= 0 || heightInTiles <= 0) {
     return { width: 0, height: 0 };
+  }
+
+  if (isIsometricMap(map)) {
+    const projectedSpan =
+      (widthInTiles + heightInTiles) * scaledTile * HALF_TILE_RATIO;
+    return {
+      width: projectedSpan,
+      height: projectedSpan,
+    };
   }
 
   if (!isOffsetMap(map)) {
@@ -260,6 +288,41 @@ export function getMapCellAtPoint(
   point: MapPoint,
 ): MapCell | null {
   const scaledTile = map.tileSize * zoom;
+
+  if (isIsometricMap(map)) {
+    const halfTile = scaledTile * HALF_TILE_RATIO;
+    const localX =
+      point.x - getIsometricLeftInset(scaledTile, map.heightInTiles);
+    const approxSum = point.y / halfTile;
+    const approxDiff = localX / halfTile;
+    const approxX = Math.floor((approxSum + approxDiff) / 2);
+    const approxY = Math.floor((approxSum - approxDiff) / 2);
+    const xCandidates = new Set<number>();
+    const yCandidates = new Set<number>();
+
+    for (let x = approxX - 1; x <= approxX + 1; x += 1) {
+      if (x >= 0 && x < map.widthInTiles) {
+        xCandidates.add(x);
+      }
+    }
+
+    for (let y = approxY - 1; y <= approxY + 1; y += 1) {
+      if (y >= 0 && y < map.heightInTiles) {
+        yCandidates.add(y);
+      }
+    }
+
+    for (const y of yCandidates) {
+      for (const x of xCandidates) {
+        const polygon = getMapCellPolygon(map, zoom, x, y);
+        if (pointInPolygon(point, polygon)) {
+          return { x, y };
+        }
+      }
+    }
+
+    return null;
+  }
 
   if (!isOffsetMap(map)) {
     const x = Math.floor(point.x / scaledTile);
@@ -327,7 +390,7 @@ export function getAdjacentMapCells(
 ): MapCell[] {
   let candidates: MapCell[];
 
-  if (!isOffsetMap(map)) {
+  if (isIsometricMap(map) || !isOffsetMap(map)) {
     candidates = [
       { x: x + 1, y },
       { x: x - 1, y },

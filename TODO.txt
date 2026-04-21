@@ -1,13 +1,12 @@
-Upgrade to Vite8
-Add Tags to github repo
-
 Export Options
   - Do the rest of the options
+  - Should ask for target location
 Import Options
   - Should show which group to import to (if more than one)
   - Do the rest of the options
 
 Allow quick export bottom right
+Check why website is not populating release notes
 
 AI Asset Generation:
   AI Generation not working currently
@@ -18,11 +17,13 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
+Map type: infinite
 Ad Marketplace for selling/buying tilesets etc.
 
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 
 Exploration:
+  SpriteFusion
   Ogmo Editor
   Universal lpc spritesheet generator
   LDTK
@@ -32,7 +33,6 @@ Exploration:
   Aseprite
   Libresprite
   Autotile
-  SpriteFusion
   Tilekit
   Tilesetter
   Tileforge
@@ -41,7 +41,8 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
-
+  https://itch.io/games-like/28768/tiled
+  
 Text Layer custom fonts not working
 Custom Animations i.e. water moving
 
@@ -50,7 +51,10 @@ Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
 
 Manage Tilesets
 Manage Maps
+World View
+Animations
 Royalty free packs
+Terrain Brush
 Add unit tests and add to CI/CD
 Add tutorial video
 Add roadmap voting on home page
