@@ -625,6 +625,7 @@ async function importTiledMapEntries(
   if (
     orientationAttr !== "orthogonal" &&
     orientationAttr !== "hexagonal" &&
+    orientationAttr !== "isometric" &&
     orientationAttr !== "staggered"
   ) {
     throw new Error(`Unsupported TMX orientation: ${orientationAttr}.`);

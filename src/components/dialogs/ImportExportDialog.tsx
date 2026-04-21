@@ -3,6 +3,7 @@ import { Download, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -445,6 +446,11 @@ export function ImportExportDialog({
                 {mode === "import" ? "File intake" : "File delivery"}
               </div>
               <DialogTitle>{modeCopy.title}</DialogTitle>
+              <DialogDescription className="max-w-2xl text-left">
+                {mode === "import"
+                  ? "Choose a supported file format to bring project, map, or tileset data into the current workspace."
+                  : "Choose a supported file format to export selected project, map, or tileset data from the current workspace."}
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>

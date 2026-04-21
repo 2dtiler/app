@@ -1,4 +1,3 @@
-Check that map properties are working
 Unsupported TMX orientation: isometric.
 
 Export Options
