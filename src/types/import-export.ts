@@ -1,8 +1,13 @@
 import type {
   AssetId,
   ImageLayer,
+  LayerGroup,
+  MapObject,
+  ObjectLayer,
   TileLayer,
+  TileMapData,
   TileSize,
+  Tileset,
   TilesetId,
 } from "./schema";
 import type {
@@ -45,10 +50,60 @@ export type ImportExportOptionId =
 
 export type ImportExportRasterFileType = "png" | "jpg" | "webp" | "bmp" | "gif";
 
+export type TiledLayerEncoding = "csv" | "base64";
+
+export type TiledLayerCompression = "none" | "gzip" | "zlib";
+
+export type TiledTilesetMode = "inline" | "external-tsx";
+
+export type TiledRenderOrder =
+  | "right-down"
+  | "right-up"
+  | "left-down"
+  | "left-up";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
   transparency: boolean;
+}
+
+export interface TiledXmlExportOptions {
+  encoding: TiledLayerEncoding;
+  compression: TiledLayerCompression;
+  compressionLevel: number;
+  tilesetMode: TiledTilesetMode;
+  renderOrder: TiledRenderOrder;
+}
+
+export type ImportExportFormatExportOptions =
+  | ImportExportRasterExportOptions
+  | TiledXmlExportOptions;
+
+export interface RasterExportOptionsPanelProps {
+  options: ImportExportRasterExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: ImportExportRasterExportOptions) => void;
+  onExport: (options: ImportExportRasterExportOptions) => void;
+}
+
+export interface TiledXmlExportOptionsPanelProps {
+  options: TiledXmlExportOptions;
+  disabled: boolean;
+  supportsRenderOrder: boolean;
+  onOptionsChange: (options: TiledXmlExportOptions) => void;
+  onExport: (options: TiledXmlExportOptions) => void;
+}
+
+export interface TiledMapImportResult {
+  map: TileMapData;
+  layers: TileLayer[];
+  tilesets: Tileset[];
+  overrideTilesets?: Tileset[];
+  imageLayers: ImageLayer[];
+  layerGroups: LayerGroup[];
+  objectLayers: ObjectLayer[];
+  objects: MapObject[];
 }
 
 export interface ImportExportRasterAsset {
@@ -138,7 +193,7 @@ export interface ImportExportSelectionConfig {
   onSubmit: (
     selectedIds: ImportExportSelectableAssetId[],
     optionId: ImportExportOptionId,
-    rasterExportOptions?: ImportExportRasterExportOptions,
+    formatExportOptions?: ImportExportFormatExportOptions,
   ) => void | Promise<void>;
 }
 
@@ -176,7 +231,7 @@ export interface ImportExportOptionAction {
   enabled: boolean;
   onSelect?: (
     optionId: ImportExportOptionId,
-    rasterExportOptions?: ImportExportRasterExportOptions,
+    formatExportOptions?: ImportExportFormatExportOptions,
   ) => void | Promise<void>;
   disabledReason?: string;
   exportSelection?: ImportExportSelectionConfig;

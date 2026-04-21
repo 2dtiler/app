@@ -22,6 +22,10 @@ import {
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
 import {
+  exportTiledMapBundle,
+  importTiledMapBundle,
+} from "@/lib/import-export-tiled";
+import {
   generateLayerGroupId,
   generateLayerId,
   generateMapId,
@@ -33,7 +37,7 @@ import { getActiveTilesetTileSize } from "@/lib/project";
 import { openProjectInEditor } from "@/lib/project-session";
 import {
   cloneImportedTileset,
-  clonePropertyValues,
+  remapObjectPropertyValues,
   remapLayerTreeId,
   remapTileEntries,
 } from "@/lib/project-import";
@@ -45,6 +49,7 @@ import type {
   ImportExportArchiveEntry,
   ImportExportAssetGroup,
   ImportExportDialogMode,
+  ImportExportFormatExportOptions,
   ImportExportOptionAction,
   ImportExportOptionId,
   ImportExportRasterExportOptions,
@@ -60,6 +65,8 @@ import type {
   TileLayer,
   TileMapData,
   Tileset,
+  TiledMapImportResult,
+  TiledXmlExportOptions,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
@@ -71,6 +78,18 @@ interface UseImportExportActionsParams {
   importExportDialogOpen: boolean;
   setImportExportDialogMode: (mode: ImportExportDialogMode) => void;
   setImportExportDialogOpen: (open: boolean) => void;
+}
+
+function isRasterExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is ImportExportRasterExportOptions {
+  return Boolean(options && "fileType" in options);
+}
+
+function isTiledXmlExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is TiledXmlExportOptions {
+  return Boolean(options && "tilesetMode" in options);
 }
 
 export function useImportExportActions({
@@ -266,25 +285,21 @@ export function useImportExportActions({
     [state.project],
   );
 
-  const handleImportNativeMap = useCallback(async () => {
-    if (!state.project) return;
+  const mergeImportedMapData = useCallback(
+    (imported: TiledMapImportResult) => {
+      if (!state.project) return;
 
-    const file = await pickFile(".2dm");
-    if (!file) return;
-
-    try {
       const currentProject = state.project;
-      const raw = await readFileAsUint8Array(file);
       const {
         map,
         layers,
         tilesets,
-        overrideTilesets,
+        overrideTilesets = [],
         imageLayers: importedImageLayers,
         layerGroups: importedLayerGroups,
         objectLayers: importedObjectLayers,
         objects: importedObjects,
-      } = await importMap(raw);
+      } = imported;
 
       const targetMapGroupId =
         state.activeMapGroupId ?? currentProject.mapGroups[0]?.id;
@@ -392,7 +407,7 @@ export function useImportExportActions({
         layerId: (layerIdMap.get(object.layerId as string) ??
           object.layerId) as LayerId,
         points: object.points.map((point) => ({ ...point })),
-        properties: clonePropertyValues(object.properties),
+        properties: remapObjectPropertyValues(object.properties, objectIdMap),
       }));
       const remappedMap = {
         ...map,
@@ -401,7 +416,10 @@ export function useImportExportActions({
         layerOrder: map.layerOrder.map((id) =>
           remapLayerTreeId(id, layerIdMap, groupIdMap),
         ),
-        properties: clonePropertyValues(map.properties),
+        properties: remapObjectPropertyValues(
+          map.properties ?? {},
+          objectIdMap,
+        ),
         createdAt: Date.now(),
       };
 
@@ -451,16 +469,46 @@ export function useImportExportActions({
           ) ?? null;
         draft.activeMapGroupId = targetMapGroupId as MapGroupId;
       });
+    },
+    [
+      setState,
+      state.activeMapGroupId,
+      state.activeTilesetGroupId,
+      state.project,
+    ],
+  );
+
+  const handleImportNativeMap = useCallback(async () => {
+    if (!state.project) return;
+
+    const file = await pickFile(".2dm");
+    if (!file) return;
+
+    try {
+      const raw = await readFileAsUint8Array(file);
+      mergeImportedMapData(await importMap(raw));
     } catch (error) {
       console.error("[Import Map] Failed:", error);
       alert("Failed to import map. The file may be corrupted.");
     }
-  }, [
-    setState,
-    state.activeMapGroupId,
-    state.activeTilesetGroupId,
-    state.project,
-  ]);
+  }, [mergeImportedMapData, state.project]);
+
+  const handleImportTiledMap = useCallback(async () => {
+    if (!state.project) return;
+
+    const file = await pickFile(".zip,application/zip");
+    if (!file) return;
+
+    try {
+      const raw = await readFileAsUint8Array(file);
+      mergeImportedMapData(await importTiledMapBundle(raw));
+    } catch (error) {
+      console.error("[Import TMX] Failed:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to import TMX bundle.",
+      );
+    }
+  }, [mergeImportedMapData, state.project]);
 
   const handleImportRasterMap = useCallback(async () => {
     if (!state.project) return;
@@ -728,9 +776,14 @@ export function useImportExportActions({
         return;
       }
 
+      if (optionId === "map-tiled-xml") {
+        await handleImportTiledMap();
+        return;
+      }
+
       await handleImportNativeMap();
     },
-    [handleImportNativeMap, handleImportRasterMap],
+    [handleImportNativeMap, handleImportRasterMap, handleImportTiledMap],
   );
 
   const handleTilesetActionSelect = useCallback(
@@ -749,26 +802,114 @@ export function useImportExportActions({
     async (
       selectedIds: string[],
       optionId: ImportExportOptionId,
-      rasterExportOptions?: ImportExportRasterExportOptions,
+      formatExportOptions?: ImportExportFormatExportOptions,
     ) => {
       if (optionId === "map-image") {
-        await handleExportRasterMaps(selectedIds, rasterExportOptions);
+        await handleExportRasterMaps(
+          selectedIds,
+          isRasterExportOptions(formatExportOptions)
+            ? formatExportOptions
+            : undefined,
+        );
+        return;
+      }
+
+      if (optionId === "map-tiled-xml") {
+        if (!state.project || !isTiledXmlExportOptions(formatExportOptions)) {
+          return;
+        }
+
+        const selectedIdSet = new Set(selectedIds as MapId[]);
+        const selectedMaps = state.project.maps.filter((map) =>
+          selectedIdSet.has(map.id),
+        );
+        if (selectedMaps.length === 0) return;
+
+        const allTilesets = [
+          ...state.project.tilesets,
+          ...(state.project.overrideTilesets ?? []),
+        ];
+
+        if (selectedMaps.length === 1) {
+          const map = selectedMaps[0];
+          const mapExportData = getMapExportData(state.project, map);
+          const entries = await exportTiledMapBundle(
+            map,
+            mapExportData.layers,
+            allTilesets,
+            mapExportData.imageLayers,
+            mapExportData.layerGroups,
+            mapExportData.objectLayers,
+            mapExportData.objects,
+            formatExportOptions,
+          );
+          downloadFile(
+            createZipArchive(entries),
+            buildDownloadFilename(map.name, ".tmx.zip"),
+          );
+          return;
+        }
+
+        const groupNames = new Map(
+          state.project.mapGroups.map((group) => [group.id, group.name]),
+        );
+        const usedPaths = new Set<string>();
+        const archiveEntries: ImportExportArchiveEntry[] = [];
+
+        for (const map of selectedMaps) {
+          const mapExportData = getMapExportData(state.project, map);
+          const entries = await exportTiledMapBundle(
+            map,
+            mapExportData.layers,
+            allTilesets,
+            mapExportData.imageLayers,
+            mapExportData.layerGroups,
+            mapExportData.objectLayers,
+            mapExportData.objects,
+            formatExportOptions,
+          );
+          const folderName = sanitizeDownloadSegment(
+            groupNames.get(map.groupId) ?? "Ungrouped",
+            "Ungrouped",
+          );
+          const mapFolder = sanitizeDownloadSegment(map.name, "Map");
+
+          for (const entry of entries) {
+            archiveEntries.push({
+              path: getUniqueArchivePath(
+                `${folderName}/${mapFolder}/${entry.path}`,
+                usedPaths,
+              ),
+              data: entry.data,
+            });
+          }
+        }
+
+        downloadFile(
+          createZipArchive(archiveEntries),
+          buildDownloadFilename(`${state.project.name} tiled maps`, ".zip"),
+        );
         return;
       }
 
       await handleExportNativeMaps(selectedIds);
     },
-    [handleExportNativeMaps, handleExportRasterMaps],
+    [handleExportNativeMaps, handleExportRasterMaps, state.project],
   );
 
   const handleTilesetExportSubmit = useCallback(
     async (
       selectedIds: string[],
       optionId: ImportExportOptionId,
-      rasterExportOptions?: ImportExportRasterExportOptions,
+      formatExportOptions?: ImportExportFormatExportOptions,
     ) => {
       if (optionId === "tileset-image") {
-        await handleExportRasterTilesets(selectedIds, rasterExportOptions);
+        await handleExportRasterTilesets(
+          selectedIds,
+          isRasterExportOptions(formatExportOptions)
+            ? formatExportOptions
+            : undefined,
+        );
         return;
       }
 

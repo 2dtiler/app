@@ -1,6 +1,7 @@
 import type {
   LayerGroupId,
   LayerId,
+  ObjectId,
   PropertyValue,
   TileLayer,
   TileRef,
@@ -14,6 +15,23 @@ export function clonePropertyValues(
 ): Record<string, PropertyValue> {
   return Object.fromEntries(
     Object.entries(values).map(([key, value]) => [key, { ...value }]),
+  );
+}
+
+export function remapObjectPropertyValues(
+  values: Record<string, PropertyValue> = {},
+  objectIdMap: ReadonlyMap<string, ObjectId>,
+): Record<string, PropertyValue> {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      value.type === "object"
+        ? {
+            ...value,
+            value: objectIdMap.get(value.value) ?? value.value,
+          }
+        : { ...value },
+    ]),
   );
 }
 
