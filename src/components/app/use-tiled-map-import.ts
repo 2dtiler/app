@@ -119,12 +119,8 @@ export function useTiledMapImport(
 
     try {
       const supplementalEntries = await Promise.all(
-        Object.entries(pendingImport.resourceFilesByPath).map(
-          ([path, file]) =>
-            createImportEntry(
-              path,
-              file,
-            ),
+        Object.entries(pendingImport.resourceFilesByPath).map(([path, file]) =>
+          createImportEntry(path, file),
         ),
       );
       const attempt = await prepareTiledMapImport(pendingImport.rootPath, [
