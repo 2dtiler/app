@@ -52,11 +52,7 @@ function encodeTiledCsvLayer(
 ) {
   const rows: string[] = [];
 
-  for (
-    let rowIndex = 0;
-    rowIndex < tileIds.length;
-    rowIndex += widthInTiles
-  ) {
+  for (let rowIndex = 0; rowIndex < tileIds.length; rowIndex += widthInTiles) {
     const row = tileIds
       .slice(rowIndex, rowIndex + widthInTiles)
       .map((tileId) => (tileId === null ? "-1" : String(tileId)));

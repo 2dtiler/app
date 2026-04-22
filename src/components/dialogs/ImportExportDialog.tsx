@@ -499,7 +499,8 @@ export function ImportExportDialog({
             const assetOptions = optionDefinitions.filter(
               (option) =>
                 option.assetType === assetType &&
-                (!option.supportedModes || option.supportedModes.includes(mode)),
+                (!option.supportedModes ||
+                  option.supportedModes.includes(mode)),
             );
             const action = getActionForAssetType(assetType, {
               projectAction,
