@@ -4,7 +4,6 @@ Export Options
   - All tiled map exports should be an accordion
   
 Import Options
-  - Should show which group to import to (if more than one)
   - Do the rest of the options
   - All tiled map imports should just be one button
 
@@ -48,7 +47,9 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
+  tilengine.org
   https://itch.io/games-like/28768/tiled
+  
   
 Text Layer custom fonts not working
 Image Editor Crop should change the dimensions of the image

@@ -32,6 +32,7 @@ import {
 import {
   exportSelectedTiledMaps,
   getTiledMapImportFormat,
+  isTiledMapExportOption,
 } from "@/components/app/tiled-map-action-utils";
 import { useTiledMapImport } from "@/components/app/use-tiled-map-import";
 import {
@@ -792,7 +793,7 @@ export function useImportExportActions({
         return;
       }
 
-      if (getTiledMapImportFormat(optionId)) {
+      if (isTiledMapExportOption(optionId)) {
         await exportSelectedTiledMaps(
           state.project,
           selectedIds,

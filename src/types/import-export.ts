@@ -297,4 +297,5 @@ export interface ImportExportOptionDefinition {
   label: string;
   description: string;
   supportedNow: boolean;
+  supportedModes?: readonly ImportExportDialogMode[];
 }

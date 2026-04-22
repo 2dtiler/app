@@ -204,6 +204,77 @@ export function getLayerDenseGids(
   return gids;
 }
 
+export function getLayerDenseCsvIds(
+  map: TileMapData,
+  layer: TileLayer,
+  tilesetMap: ReadonlyMap<string, Tileset>,
+) {
+  const tileIds = Array<number | null>(
+    map.widthInTiles * map.heightInTiles,
+  ).fill(null);
+
+  for (const [coordinate, ref] of Object.entries(layer.tiles)) {
+    const [x, y] = coordinate.split(",").map((value) => Number(value));
+    if (
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < 0 ||
+      y < 0 ||
+      x >= map.widthInTiles ||
+      y >= map.heightInTiles
+    ) {
+      continue;
+    }
+
+    const tileset = tilesetMap.get(ref.tilesetId as string);
+    if (!tileset) {
+      continue;
+    }
+
+    const columns = getTileColumns(tileset);
+    const tileX = Math.floor(ref.sx / tileset.tileSize);
+    const tileY = Math.floor(ref.sy / tileset.tileSize);
+    const localId = tileY * columns + tileX;
+    const flags = encodeTransformFlags(ref, map);
+    tileIds[y * map.widthInTiles + x] = (localId + flags) >>> 0;
+  }
+
+  return tileIds;
+}
+
+export function buildTiledTilesetLookups(
+  layers: readonly TileLayer[],
+  tilesets: readonly Tileset[],
+) {
+  const referencedTilesetIds = new Set<string>();
+  for (const layer of layers) {
+    for (const ref of Object.values(layer.tiles)) {
+      referencedTilesetIds.add(ref.tilesetId as string);
+    }
+  }
+
+  const exportedTilesets = tilesets.filter((tileset) =>
+    referencedTilesetIds.has(tileset.id as string),
+  );
+  const tilesetFirstGids = new Map<string, number>();
+  let nextFirstGid = 1;
+
+  for (const tileset of exportedTilesets) {
+    tilesetFirstGids.set(tileset.id as string, nextFirstGid);
+    nextFirstGid += getTileCount(tileset);
+  }
+
+  const tilesetMap = new Map(
+    exportedTilesets.map((tileset) => [tileset.id as string, tileset]),
+  );
+
+  return {
+    exportedTilesets,
+    tilesetFirstGids,
+    tilesetMap,
+  };
+}
+
 export function encodeLayerData(
   gids: Uint32Array,
   options: TiledMapExportOptions,
@@ -277,16 +348,8 @@ export async function prepareTiledMapBundleData(
   objectLayers: ObjectLayer[] = [],
   objects: MapObject[] = [],
 ): Promise<TiledMapBundlePreparationResult> {
-  const referencedTilesetIds = new Set<string>();
-  for (const layer of layers) {
-    for (const ref of Object.values(layer.tiles)) {
-      referencedTilesetIds.add(ref.tilesetId as string);
-    }
-  }
-
-  const exportedTilesets = tilesets.filter((tileset) =>
-    referencedTilesetIds.has(tileset.id as string),
-  );
+  const { exportedTilesets, tilesetFirstGids, tilesetMap } =
+    buildTiledTilesetLookups(layers, tilesets);
   const layerMap = new Map(layers.map((layer) => [layer.id as string, layer]));
   const imageLayerMap = new Map(
     imageLayers.map((layer) => [layer.id as string, layer]),
@@ -351,17 +414,6 @@ export async function prepareTiledMapBundleData(
       });
     }
   }
-
-  const tilesetFirstGids = new Map<string, number>();
-  let nextFirstGid = 1;
-  for (const tileset of exportedTilesets) {
-    tilesetFirstGids.set(tileset.id as string, nextFirstGid);
-    nextFirstGid += getTileCount(tileset);
-  }
-
-  const tilesetMap = new Map(
-    exportedTilesets.map((tileset) => [tileset.id as string, tileset]),
-  );
 
   return {
     entries,

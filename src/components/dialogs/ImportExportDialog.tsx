@@ -93,8 +93,10 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "map-tiled-csv",
     assetType: "map",
     label: "Tiled CSV File (.csv)",
-    description: "Tiled CSV tile layer format.",
-    supportedNow: false,
+    description:
+      "Exports tile layers as Tiled CSV files. Multi-layer maps generate one CSV per tile layer.",
+    supportedNow: true,
+    supportedModes: ["export"],
   },
   {
     id: "map-godot",
@@ -278,6 +280,15 @@ function getModeCopy(mode: ImportExportDialogMode) {
     title: "Export assets",
     icon: Download,
   };
+}
+
+function isOptionSupportedInMode(
+  option: ImportExportOptionDefinition,
+  mode: ImportExportDialogMode,
+) {
+  return option.supportedModes
+    ? option.supportedModes.includes(mode)
+    : option.supportedNow;
 }
 
 function getInitialSelectedIds(action: ImportExportOptionAction) {
@@ -486,7 +497,9 @@ export function ImportExportDialog({
 
           {assetTabs.map((assetType) => {
             const assetOptions = optionDefinitions.filter(
-              (option) => option.assetType === assetType,
+              (option) =>
+                option.assetType === assetType &&
+                (!option.supportedModes || option.supportedModes.includes(mode)),
             );
             const action = getActionForAssetType(assetType, {
               projectAction,
@@ -540,6 +553,7 @@ export function ImportExportDialog({
                     ) : null}
 
                     {assetOptions.map((option) => {
+                      const isSupported = isOptionSupportedInMode(option, mode);
                       const isRasterOption =
                         mode === "export" && isRasterImageOption(option.id);
                       const isTiledMapExportOption =
@@ -547,7 +561,7 @@ export function ImportExportDialog({
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
-                        option.supportedNow &&
+                        isSupported &&
                         action.enabled &&
                         Boolean(
                           exportSelection
@@ -556,7 +570,7 @@ export function ImportExportDialog({
                         ) &&
                         hasSelection &&
                         !isSubmitting;
-                      const statusLabel = option.supportedNow
+                      const statusLabel = isSupported
                         ? isEnabled
                           ? mode === "import"
                             ? "Import now"
@@ -566,7 +580,11 @@ export function ImportExportDialog({
                           : exportSelection && !hasSelection
                             ? "Select at least one"
                             : (action.disabledReason ?? "Unavailable")
-                        : "Coming Soon";
+                        : option.supportedModes
+                          ? mode === "import"
+                            ? "Export only"
+                            : "Import only"
+                          : "Coming Soon";
 
                       return (
                         <div key={option.id} className="space-y-3">
@@ -595,7 +613,7 @@ export function ImportExportDialog({
                               "flex w-full items-start justify-between gap-4 rounded-2xl border px-4 py-4 text-left transition-colors",
                               isEnabled
                                 ? "border-border-visible bg-background shadow-sm hover:border-primary/50 hover:bg-secondary/60 focus-visible:border-primary focus-visible:outline-none"
-                                : option.supportedNow
+                                : isSupported
                                   ? "cursor-not-allowed border-border/70 bg-muted/20 text-muted-foreground"
                                   : "cursor-not-allowed border-dashed border-border-visible bg-secondary/25 text-muted-foreground",
                             )}
@@ -627,7 +645,7 @@ export function ImportExportDialog({
                                 "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.08em]",
                                 isEnabled
                                   ? "border-primary/40 bg-primary/10 text-foreground"
-                                  : option.supportedNow
+                                  : isSupported
                                     ? "border-border-visible bg-background/80 text-muted-foreground"
                                     : "border-border-visible bg-background/80 text-muted-foreground",
                               )}

@@ -10,9 +10,11 @@ import {
   getTileCount,
 } from "@/lib/tiled-xml-utils";
 import {
+  buildTiledTilesetLookups,
   createRelativeAssetPath,
   encodeLayerData,
   EXPANDED_PROPERTY_KEY,
+  getLayerDenseCsvIds,
   getLayerDenseGids,
   IMAGE_FLIP_X_PROPERTY_KEY,
   IMAGE_FLIP_Y_PROPERTY_KEY,
@@ -43,6 +45,54 @@ export {
 } from "@/lib/import-export-tiled-json";
 
 export { exportTiledMapLuaBundle } from "@/lib/import-export-tiled-lua";
+
+function encodeTiledCsvLayer(
+  tileIds: readonly (number | null)[],
+  widthInTiles: number,
+) {
+  const rows: string[] = [];
+
+  for (
+    let rowIndex = 0;
+    rowIndex < tileIds.length;
+    rowIndex += widthInTiles
+  ) {
+    const row = tileIds
+      .slice(rowIndex, rowIndex + widthInTiles)
+      .map((tileId) => (tileId === null ? "-1" : String(tileId)));
+    rows.push(row.join(","));
+  }
+
+  return new TextEncoder().encode(`${rows.join("\n")}\n`);
+}
+
+export async function exportTiledMapCsvBundle(
+  map: TileMapData,
+  layers: TileLayer[],
+  tilesets: Tileset[],
+): Promise<ImportExportArchiveEntry[]> {
+  if (layers.length === 0) {
+    throw new Error("Tiled CSV export requires at least one tile layer.");
+  }
+
+  const { tilesetMap } = buildTiledTilesetLookups(layers, tilesets);
+
+  return layers.map((layer, index) => {
+    const tileIds = getLayerDenseCsvIds(map, layer, tilesetMap);
+    const path =
+      layers.length === 1
+        ? buildDownloadFilename(map.name, ".csv")
+        : buildDownloadFilename(
+            `${map.name}_${layer.name || index + 1}`,
+            ".csv",
+          );
+
+    return {
+      path,
+      data: encodeTiledCsvLayer(tileIds, map.widthInTiles),
+    };
+  });
+}
 
 function appendProperties(
   document: XMLDocument,
