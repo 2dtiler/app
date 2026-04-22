@@ -1,9 +1,9 @@
 import {
   buildDownloadFilename,
   createZipArchive,
-  downloadFile,
   sanitizeDownloadSegment,
 } from "@/lib/format";
+import { saveByteArrayFile } from "@/lib/save-file";
 import {
   exportTiledMapCsvBundle,
   exportTiledMapJsBundle,
@@ -184,7 +184,7 @@ export async function exportSelectedTiledMaps(
       mapExportData.objects,
       formatExportOptions,
     );
-    downloadFile(
+    await saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(map.name, archiveExtension),
     );
@@ -226,7 +226,7 @@ export async function exportSelectedTiledMaps(
     }
   }
 
-  downloadFile(
+  await saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} ${archiveBaseName}`, ".zip"),
   );

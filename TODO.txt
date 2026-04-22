@@ -1,6 +1,7 @@
+Export - Should ask for target location on filesystem
+
 Export Options
   - Do the rest of the options
-  - Should ask for target location on filesystem
   - All tiled map exports should be an accordion
   
 Import Options

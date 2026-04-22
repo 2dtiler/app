@@ -1,9 +1,7 @@
 import { useCallback, useMemo } from "react";
-import { downloadBlob } from "@/lib/image-editor-document";
 import {
   buildDownloadFilename,
   createZipArchive,
-  downloadFile,
   exportMap,
   exportProject,
   exportTileset,
@@ -21,6 +19,7 @@ import {
   renderMapToCanvas,
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
+import { saveBlobFile, saveByteArrayFile } from "@/lib/save-file";
 import {
   buildMapExportGroups,
   buildTilesetExportGroups,
@@ -98,7 +97,7 @@ export function useImportExportActions({
     if (!state.project) return;
     await saveProject(state.project);
     const data = await exportProject(state.project);
-    downloadFile(data, `${state.project.name}.2dp`);
+    await saveByteArrayFile(data, `${state.project.name}.2dp`);
   }, [state.project]);
 
   const handleImportProject = useCallback(async () => {
@@ -148,7 +147,7 @@ export function useImportExportActions({
           mapExportData.objectLayers,
           state.project.objects ?? [],
         );
-        downloadFile(data, buildDownloadFilename(map.name, ".2dm"));
+        await saveByteArrayFile(data, buildDownloadFilename(map.name, ".2dm"));
         return;
       }
 
@@ -182,7 +181,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      downloadFile(
+      await saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -227,7 +226,7 @@ export function useImportExportActions({
           mapExportData.objects,
         );
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        downloadBlob(
+        await saveBlobFile(
           blob,
           buildDownloadFilename(
             map.name,
@@ -270,7 +269,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      downloadFile(
+      await saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -573,7 +572,10 @@ export function useImportExportActions({
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];
         const data = await exportTileset(tileset);
-        downloadFile(data, buildDownloadFilename(tileset.name, ".2dt"));
+        await saveByteArrayFile(
+          data,
+          buildDownloadFilename(tileset.name, ".2dt"),
+        );
         return;
       }
 
@@ -597,7 +599,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      downloadFile(
+      await saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -628,7 +630,7 @@ export function useImportExportActions({
         const tileset = selectedTilesets[0];
         const canvas = await renderTilesetToCanvas(tileset);
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        downloadBlob(
+        await saveBlobFile(
           blob,
           buildDownloadFilename(
             tileset.name,
@@ -662,7 +664,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      downloadFile(
+      await saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
