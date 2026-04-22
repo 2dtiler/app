@@ -85,6 +85,7 @@ export type TiledJsonLayer =
 
 export interface TiledJsonTileset {
   type?: string;
+  version?: string | number;
   tiledversion?: string | number;
   firstgid?: number;
   source?: string;

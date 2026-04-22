@@ -1,6 +1,6 @@
 import { registerSW } from "virtual:pwa-register";
 
-const SW_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+const SW_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 let isReloading = false;
 

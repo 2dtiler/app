@@ -15,6 +15,7 @@ const TILED_IMPORT_ACCEPT_BY_FORMAT: Record<TiledMapFormat, string> = {
   xml: ".tmx,.xml,text/xml,application/xml",
   json: ".tmj,.json,application/json,text/json",
   js: ".js,application/javascript,text/javascript,application/ecmascript,text/ecmascript",
+  lua: ".lua,text/plain,application/octet-stream",
 };
 
 const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
@@ -23,6 +24,7 @@ const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
 > = {
   tsx: ".tsx,.xml,text/xml,application/xml",
   tsj: ".tsj,.json,application/json,text/json",
+  lua: ".lua,text/plain,application/octet-stream",
   image: ".png,.jpg,.jpeg,.gif,.bmp,.webp,image/*",
 };
 
@@ -32,6 +34,9 @@ function getTiledImportLabel(format: TiledMapFormat) {
   }
   if (format === "js") {
     return "Tiled JavaScript";
+  }
+  if (format === "lua") {
+    return "Tiled Lua";
   }
   return "TMX";
 }

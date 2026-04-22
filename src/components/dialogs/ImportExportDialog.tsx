@@ -85,8 +85,9 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "map-tiled-lua",
     assetType: "map",
     label: "Tiled Lua File (.lua)",
-    description: "Tiled Lua export format.",
-    supportedNow: false,
+    description:
+      "Imports or exports Tiled Lua maps directly and prompts for linked Lua tileset or image files when needed.",
+    supportedNow: true,
   },
   {
     id: "map-tiled-csv",
@@ -225,7 +226,8 @@ function isTiledMapOption(optionId: ImportExportOptionId) {
   return (
     optionId === "map-tiled-xml" ||
     optionId === "map-tiled-json" ||
-    optionId === "map-tiled-js"
+    optionId === "map-tiled-js" ||
+    optionId === "map-tiled-lua"
   );
 }
 

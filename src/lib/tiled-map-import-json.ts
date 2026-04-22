@@ -91,7 +91,7 @@ function unwrapTiledJavaScriptMap(data: Uint8Array, label: string) {
 function parseTiledJsonFile<T>(
   data: Uint8Array,
   label: string,
-  format: Extract<TiledMapFormat, "json" | "js"> = "json",
+  format: Extract<TiledMapFormat, "json" | "js" | "lua"> = "json",
 ) {
   try {
     const parsed = JSON.parse(
@@ -115,7 +115,22 @@ function getExternalTilesetKind(
   if (normalizedPath.endsWith(".tsx") || normalizedPath.endsWith(".xml")) {
     return "tsx";
   }
+  if (normalizedPath.endsWith(".lua")) {
+    return "lua";
+  }
   return "tsj";
+}
+
+function getJsonLikeFormatLabel(
+  format: Extract<TiledMapFormat, "json" | "js" | "lua">,
+) {
+  if (format === "js") {
+    return "Tiled JavaScript";
+  }
+  if (format === "lua") {
+    return "Tiled Lua";
+  }
+  return "Tiled JSON";
 }
 
 function parseExternalXmlTilesetFile(data: Uint8Array, path: string) {
@@ -237,12 +252,12 @@ function collectJsonLayerDependencies(
 export function collectMissingTiledJsonMapResources(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
-  format: Extract<TiledMapFormat, "json" | "js"> = "json",
+  format: Extract<TiledMapFormat, "json" | "js" | "lua"> = "json",
 ) {
   const tmjPath = normalizeBundlePath(rootPath);
   const mapDocument = parseTiledJsonFile<TiledJsonMap>(
     requireProvidedEntry(providedEntries, tmjPath),
-    format === "js" ? "Tiled JavaScript map" : "Tiled JSON map",
+    `${getJsonLikeFormatLabel(format)} map`,
     format,
   );
 
@@ -453,23 +468,23 @@ function isJsonObjectLayer(
 export async function importTiledJsonMapEntries(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
-  format: Extract<TiledMapFormat, "json" | "js"> = "json",
+  format: Extract<TiledMapFormat, "json" | "js" | "lua"> = "json",
 ): Promise<TiledMapImportResult> {
   const tmjPath = normalizeBundlePath(rootPath);
   const mapDocument = parseTiledJsonFile<TiledJsonMap>(
     requireProvidedEntry(providedEntries, tmjPath),
-    format === "js" ? "Tiled JavaScript map" : "Tiled JSON map",
+    `${getJsonLikeFormatLabel(format)} map`,
     format,
   );
 
   if (mapDocument.type && mapDocument.type !== "map") {
     throw new Error(
-      `${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} file does not contain a valid map object.`,
+      `${getJsonLikeFormatLabel(format)} file does not contain a valid map object.`,
     );
   }
   if (mapDocument.infinite) {
     throw new Error(
-      `Infinite ${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} maps are not supported.`,
+      `Infinite ${getJsonLikeFormatLabel(format)} maps are not supported.`,
     );
   }
 
@@ -477,7 +492,7 @@ export async function importTiledJsonMapEntries(
   const tileHeight = Number(mapDocument.tileheight ?? 0);
   if (tileWidth <= 0 || tileWidth !== tileHeight) {
     throw new Error(
-      `Only square ${format === "js" ? "Tiled JavaScript" : "Tiled JSON"} maps are supported.`,
+      `Only square ${getJsonLikeFormatLabel(format)} maps are supported.`,
     );
   }
 
@@ -485,7 +500,7 @@ export async function importTiledJsonMapEntries(
   const mapHeight = Number(mapDocument.height ?? 0);
   const orientation = validateTiledOrientation(
     mapDocument.orientation ?? "orthogonal",
-    format === "js" ? "Tiled JavaScript" : "Tiled JSON",
+    getJsonLikeFormatLabel(format),
   );
 
   const rawMapProperties = parseJsonProperties(mapDocument.properties);

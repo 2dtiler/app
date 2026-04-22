@@ -29,8 +29,11 @@ export function TiledMissingResourcesDialog({
       ? "TMX"
       : format === "js"
         ? "Tiled JavaScript"
-        : "Tiled JSON";
-  const externalTilesetLabel = format === "xml" ? "TSX" : "TSJ/TSX";
+        : format === "lua"
+          ? "Tiled Lua"
+          : "Tiled JSON";
+  const externalTilesetLabel =
+    format === "xml" ? "TSX" : format === "lua" ? "Lua tileset" : "TSJ/TSX";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

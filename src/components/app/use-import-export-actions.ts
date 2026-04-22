@@ -22,19 +22,17 @@ import {
   renderTilesetToCanvas,
 } from "@/lib/import-export-raster";
 import {
-  exportTiledMapJsBundle,
-  exportTiledMapBundle,
-  exportTiledMapJsonBundle,
-} from "@/lib/import-export-tiled";
-import {
   buildMapExportGroups,
   buildTilesetExportGroups,
   getMapExportData,
   getUniqueArchivePath,
   isRasterExportOptions,
-  isTiledXmlExportOptions,
   pickSingleFile,
 } from "@/components/app/import-export-action-utils";
+import {
+  exportSelectedTiledMaps,
+  getTiledMapImportFormat,
+} from "@/components/app/tiled-map-action-utils";
 import { useTiledMapImport } from "@/components/app/use-tiled-map-import";
 import {
   generateLayerGroupId,
@@ -755,18 +753,9 @@ export function useImportExportActions({
         return;
       }
 
-      if (optionId === "map-tiled-xml") {
-        await handleImportTiledMap("xml");
-        return;
-      }
-
-      if (optionId === "map-tiled-json") {
-        await handleImportTiledMap("json");
-        return;
-      }
-
-      if (optionId === "map-tiled-js") {
-        await handleImportTiledMap("js");
+      const tiledFormat = getTiledMapImportFormat(optionId);
+      if (tiledFormat) {
+        await handleImportTiledMap(tiledFormat);
         return;
       }
 
@@ -803,103 +792,12 @@ export function useImportExportActions({
         return;
       }
 
-      if (
-        optionId === "map-tiled-xml" ||
-        optionId === "map-tiled-json" ||
-        optionId === "map-tiled-js"
-      ) {
-        if (!state.project || !isTiledXmlExportOptions(formatExportOptions)) {
-          return;
-        }
-
-        const exportTiledBundle =
-          optionId === "map-tiled-json"
-            ? exportTiledMapJsonBundle
-            : optionId === "map-tiled-js"
-              ? exportTiledMapJsBundle
-              : exportTiledMapBundle;
-        const archiveExtension =
-          optionId === "map-tiled-json"
-            ? ".tmj.zip"
-            : optionId === "map-tiled-js"
-              ? ".js.zip"
-              : ".tmx.zip";
-        const archiveBaseName =
-          optionId === "map-tiled-json"
-            ? `${state.project.name} tiled json maps`
-            : optionId === "map-tiled-js"
-              ? `${state.project.name} tiled javascript maps`
-              : `${state.project.name} tiled maps`;
-
-        const selectedIdSet = new Set(selectedIds as MapId[]);
-        const selectedMaps = state.project.maps.filter((map) =>
-          selectedIdSet.has(map.id),
-        );
-        if (selectedMaps.length === 0) return;
-
-        const allTilesets = [
-          ...state.project.tilesets,
-          ...(state.project.overrideTilesets ?? []),
-        ];
-
-        if (selectedMaps.length === 1) {
-          const map = selectedMaps[0];
-          const mapExportData = getMapExportData(state.project, map);
-          const entries = await exportTiledBundle(
-            map,
-            mapExportData.layers,
-            allTilesets,
-            mapExportData.imageLayers,
-            mapExportData.layerGroups,
-            mapExportData.objectLayers,
-            mapExportData.objects,
-            formatExportOptions,
-          );
-          downloadFile(
-            createZipArchive(entries),
-            buildDownloadFilename(map.name, archiveExtension),
-          );
-          return;
-        }
-
-        const groupNames = new Map(
-          state.project.mapGroups.map((group) => [group.id, group.name]),
-        );
-        const usedPaths = new Set<string>();
-        const archiveEntries: ImportExportArchiveEntry[] = [];
-
-        for (const map of selectedMaps) {
-          const mapExportData = getMapExportData(state.project, map);
-          const entries = await exportTiledBundle(
-            map,
-            mapExportData.layers,
-            allTilesets,
-            mapExportData.imageLayers,
-            mapExportData.layerGroups,
-            mapExportData.objectLayers,
-            mapExportData.objects,
-            formatExportOptions,
-          );
-          const folderName = sanitizeDownloadSegment(
-            groupNames.get(map.groupId) ?? "Ungrouped",
-            "Ungrouped",
-          );
-          const mapFolder = sanitizeDownloadSegment(map.name, "Map");
-
-          for (const entry of entries) {
-            archiveEntries.push({
-              path: getUniqueArchivePath(
-                `${folderName}/${mapFolder}/${entry.path}`,
-                usedPaths,
-              ),
-              data: entry.data,
-            });
-          }
-        }
-
-        downloadFile(
-          createZipArchive(archiveEntries),
-          buildDownloadFilename(archiveBaseName, ".zip"),
+      if (getTiledMapImportFormat(optionId)) {
+        await exportSelectedTiledMaps(
+          state.project,
+          selectedIds,
+          optionId,
+          formatExportOptions,
         );
         return;
       }

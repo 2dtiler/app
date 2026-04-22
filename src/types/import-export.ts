@@ -62,7 +62,7 @@ export type TiledRenderOrder =
   | "left-down"
   | "left-up";
 
-export type TiledMapFormat = "xml" | "json" | "js";
+export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
@@ -112,7 +112,7 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
-export type TiledImportMissingResourceKind = "tsx" | "tsj" | "image";
+export type TiledImportMissingResourceKind = "tsx" | "tsj" | "lua" | "image";
 
 export interface TiledImportMissingResource {
   path: string;

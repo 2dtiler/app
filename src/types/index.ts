@@ -15,5 +15,6 @@ export * from "./image-editor-internals";
 export * from "./api-keys";
 export * from "./ai-assets";
 export * from "./tiled-json";
+export * from "./tiled-lua";
 export * from "./text-object";
 export * from "./map-panel";

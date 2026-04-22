@@ -42,6 +42,8 @@ export {
   exportTiledMapJsonBundle,
 } from "@/lib/import-export-tiled-json";
 
+export { exportTiledMapLuaBundle } from "@/lib/import-export-tiled-lua";
+
 function appendProperties(
   document: XMLDocument,
   parent: Element,
