@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import type { ImageEditorTool } from "@/types/image-editor";
-import type { ToolSidebarProps } from "@/types/image-editor-ui";
+import type { ToolSidebarProps } from "@/types/image-editor/image-editor-ui";
 
 const TOOLS: {
   id: ImageEditorTool;

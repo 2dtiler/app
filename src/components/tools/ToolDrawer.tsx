@@ -10,7 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { ToolName } from "@/types";
-import type { ToolDrawerProps } from "@/types/dialogs";
+import type { ToolDrawerProps } from "@/types/app/dialogs";
 
 const ImageEditor = lazy(() =>
   import("@/components/tools/ImageEditor").then((m) => ({

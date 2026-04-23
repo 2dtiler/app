@@ -1,5 +1,5 @@
 import type { DragEvent } from "react";
-import type { LayerTreeNode } from "@/types/editor-helpers";
+import type { LayerTreeNode } from "./editor-helpers";
 
 export type LayerDropPosition = "above" | "below" | "inside";
 

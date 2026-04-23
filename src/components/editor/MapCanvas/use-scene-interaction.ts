@@ -29,7 +29,7 @@ import type {
   SelectionAction,
   UseSceneInteractionParams,
   UseSceneInteractionReturn,
-} from "@/types/map-canvas";
+} from "@/types/map/map-canvas";
 import {
   getMapCellAtPoint,
   getMapCellOrigin,
@@ -48,7 +48,7 @@ import {
   handleScenePointerUp,
 } from "./scene-interaction-handlers";
 
-export type { UseSceneInteractionReturn } from "@/types/map-canvas";
+export type { UseSceneInteractionReturn } from "@/types/map/map-canvas";
 
 // ---------------------------------------------------------------------------
 // Hook

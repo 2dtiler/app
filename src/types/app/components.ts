@@ -4,7 +4,7 @@
  */
 
 import type { CSSProperties, ComponentProps, HTMLAttributes } from "react";
-import type { TilesetId, TileSize, AssetId } from "./schema";
+import type { TilesetId, TileSize, AssetId } from "../map/schema";
 
 // ---------------------------------------------------------------------------
 // Tileset Canvas
@@ -218,9 +218,9 @@ export interface LayerRowProps {
   onDoubleClick: (id: string, name: string) => void;
   onCommitRename: () => void;
   onCancelRename: () => void;
-  onSelect: (id: string) => void;
   onToggleVisibility: (id: string, isGroup: boolean) => void;
   onToggleLock: (id: string, isGroup: boolean) => void;
+  onSelect: (id: string) => void;
   onMove: (
     id: string,
     dir: "up" | "down",

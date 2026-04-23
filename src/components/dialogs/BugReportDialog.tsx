@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { submitBugReportToSentry } from "@/lib/sentry";
-import type { BugReportDialogProps } from "@/types/dialogs";
+import type { BugReportDialogProps } from "@/types/app/dialogs";
 
 export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {
   const [email, setEmail] = useState("");

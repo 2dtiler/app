@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   UseMapResizeParams,
   UseMapResizeReturn,
-} from "@/types/map-canvas";
+} from "@/types/map/map-canvas";
 
 function clampMapDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;

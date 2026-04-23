@@ -46,8 +46,8 @@ import {
 import { openProjectInEditor } from "@/lib/project-session";
 import { saveByteArrayFile } from "@/lib/save-file";
 import type { Project } from "@/types";
-import type { ProjectDialogProps } from "@/types/dialogs";
-import type { ProjectRecord } from "@/types/persistence";
+import type { ProjectDialogProps } from "@/types/app/dialogs";
+import type { ProjectRecord } from "@/types/import-export/persistence";
 
 function createNewProject(name: string): Project {
   const now = Date.now();

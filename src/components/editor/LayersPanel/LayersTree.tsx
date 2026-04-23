@@ -1,6 +1,6 @@
 import { GroupRow } from "./GroupRow";
 import { LayerRow } from "./LayerRow";
-import type { LayersTreeProps } from "@/types/layers-panel";
+import type { LayersTreeProps } from "@/types/editor/layers-panel";
 
 export function LayersTree({
   treeNodes,

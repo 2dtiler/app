@@ -1,4 +1,8 @@
-import type { AssetType, ModelDef, RatioDef } from "@/types/ai-assets";
+import type {
+  AssetType,
+  ModelDef,
+  RatioDef,
+} from "@/types/integrations/ai-assets";
 
 export const MODELS: ModelDef[] = [
   // ── OpenAI ──────────────────────────────────────────────────────────────

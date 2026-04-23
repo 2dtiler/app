@@ -13,7 +13,7 @@ import type {
   DesktopEditorLayoutProps,
   EditorWorkspaceDrawerProps,
   EditorWorkspaceTab,
-} from "@/types/editor-layout";
+} from "@/types/editor/editor-layout";
 
 export function CompactEditorShell({
   tilesetPanel,

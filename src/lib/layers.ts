@@ -23,7 +23,7 @@ import type {
 import type {
   ImageEditorLayerTreeNode,
   LayerTreeNode,
-} from "@/types/editor-helpers";
+} from "@/types/editor/editor-helpers";
 
 // ---------------------------------------------------------------------------
 // Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())

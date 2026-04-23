@@ -1,7 +1,7 @@
 import type {
   TiledLayerCompression,
   TiledLayerEncoding,
-} from "./import-export";
+} from "./index";
 
 export interface TiledJsonProperty {
   name?: string;

@@ -42,7 +42,7 @@ import type { TileRef, TilesetId, LayerId, AssetId } from "@/types";
 import type {
   FindReplaceDialogProps,
   FindReplaceGridSize as GridSize,
-} from "@/types/dialogs";
+} from "@/types/app/dialogs";
 
 // ---------------------------------------------------------------------------
 // Grid sizes

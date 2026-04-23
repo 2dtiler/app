@@ -1,6 +1,9 @@
 import type { EditorState, Project } from "@/types";
-import type { ZoomState } from "@/types/editor-store";
-import type { PersistedZoomMap, ProjectPrefs } from "@/types/persistence";
+import type { ZoomState } from "@/types/editor/editor-store";
+import type {
+  PersistedZoomMap,
+  ProjectPrefs,
+} from "@/types/import-export/persistence";
 import { getEditorStore } from "./store";
 import { saveProjectPrefs } from "./db";
 import { DEFAULT_ZOOM, zoomStore } from "./zoom-store";

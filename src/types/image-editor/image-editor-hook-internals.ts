@@ -1,4 +1,4 @@
-import type { ImageEditorState } from "./image-editor";
+import type { ImageEditorState } from "./index";
 
 export type ImageEditorStateUpdater = (draft: ImageEditorState) => void;
 

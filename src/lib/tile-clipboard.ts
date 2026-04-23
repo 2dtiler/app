@@ -6,7 +6,7 @@
  * panel components without requiring a React context.
  */
 
-import type { TileClipboard } from "@/types/editor-helpers";
+import type { TileClipboard } from "@/types/editor/editor-helpers";
 
 let _clipboard: TileClipboard | null = null;
 

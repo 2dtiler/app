@@ -1,4 +1,4 @@
-import type { Frame, FrameId, Palette, PaletteId } from "./image-editor";
+import type { Frame, FrameId, Palette, PaletteId } from "./index";
 
 export type PaletteExportFormat =
   | "ase"

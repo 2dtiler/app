@@ -13,7 +13,7 @@ const MAX_SNAPSHOTS = 50;
 import type {
   FrameHistory,
   ImageEditorHistorySnapshot,
-} from "@/types/image-editor-internals";
+} from "@/types/image-editor/image-editor-internals";
 
 function createSnapshot(imageData: ImageData): ImageEditorHistorySnapshot {
   return {

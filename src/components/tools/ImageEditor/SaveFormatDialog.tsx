@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import type {
   SaveFormat,
   SaveFormatDialogProps,
-} from "@/types/image-editor-ui";
+} from "@/types/image-editor/image-editor-ui";
 
 const FORMAT_OPTIONS: { id: SaveFormat; label: string; description: string }[] =
   [

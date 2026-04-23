@@ -11,7 +11,7 @@
 // Provider config
 // ---------------------------------------------------------------------------
 
-import type { ApiKeyProvider } from "@/types/api-keys";
+import type { ApiKeyProvider } from "@/types/integrations/api-keys";
 
 export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {

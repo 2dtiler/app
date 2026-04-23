@@ -23,7 +23,7 @@ import type {
   ResizeOperation,
   ResizeSnapshot,
   UndoableActionType,
-} from "@/types/image-editor-hook";
+} from "@/types/image-editor/image-editor-hook";
 
 export const moduleLayerFrameData: Map<string, ImageData> = new Map();
 

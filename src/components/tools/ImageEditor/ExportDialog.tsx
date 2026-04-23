@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import type { ExportDialogProps } from "@/types/image-editor-ui";
+import type { ExportDialogProps } from "@/types/image-editor/image-editor-ui";
 
 export function ExportDialog({
   open,

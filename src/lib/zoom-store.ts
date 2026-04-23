@@ -4,8 +4,11 @@
  * preferences so map and tileset views restore cleanly after reload.
  */
 
-import type { ZoomState, ZoomStoreHydration } from "@/types/editor-store";
-import type { PersistedZoomMap } from "@/types/persistence";
+import type {
+  ZoomState,
+  ZoomStoreHydration,
+} from "@/types/editor/editor-store";
+import type { PersistedZoomMap } from "@/types/import-export/persistence";
 
 export const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.5;

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
-import type { NewTilesetGroupDialogProps } from "@/types/dialogs";
+import type { NewTilesetGroupDialogProps } from "@/types/app/dialogs";
 
 export function NewTilesetGroupDialog({
   open,

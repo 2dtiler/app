@@ -1,4 +1,4 @@
-import type { MapResizeControlsProps } from "@/types/map-canvas";
+import type { MapResizeControlsProps } from "@/types/map/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 
 const MAP_RESIZE_GUTTER = 14;

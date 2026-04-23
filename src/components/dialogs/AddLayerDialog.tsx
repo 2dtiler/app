@@ -16,7 +16,7 @@ import type {
   AddLayerDialogLayerType as LayerType,
   AddLayerDialogLayerTypeOption as LayerTypeOption,
   AddLayerDialogProps,
-} from "@/types/dialogs";
+} from "@/types/app/dialogs";
 
 const LAYER_TYPES: LayerTypeOption[] = [
   {

@@ -1,6 +1,6 @@
 import type { Travels } from "travels";
-import type { EditorState } from "./schema";
-import type { PersistedZoomMap } from "./persistence";
+import type { EditorState } from "../map/schema";
+import type { PersistedZoomMap } from "../import-export/persistence";
 
 export interface PersistedHistory {
   id: string;

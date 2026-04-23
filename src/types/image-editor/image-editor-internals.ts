@@ -1,5 +1,5 @@
 import type { Travels } from "travels";
-import type { Color, ImageEditorState, ImageEditorTool } from "./image-editor";
+import type { Color, ImageEditorState, ImageEditorTool } from "./index";
 
 export interface FrameHistory {
   undoStack: ImageEditorHistorySnapshot[];

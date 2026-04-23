@@ -8,7 +8,7 @@ import {
 } from "@/lib/image-layer-clipboard";
 import { getClipboard, setClipboard } from "@/lib/tile-clipboard";
 import { createTileStamp } from "@/lib/tile-stamp";
-import type { OrientAction } from "@/types/map-panel-context-menu";
+import type { OrientAction } from "@/types/map/map-panel-context-menu";
 import type {
   ImageLayer,
   LayerGroup,
@@ -19,11 +19,11 @@ import type {
 import type {
   ImageLayerClipboard,
   TileClipboard,
-} from "@/types/editor-helpers";
+} from "@/types/editor/editor-helpers";
 import type {
   MapPanelClipboardActionParams,
   MapPanelClipboardActionResult,
-} from "@/types/map-panel";
+} from "@/types/map/map-panel";
 
 const IMAGE_LAYER_PASTE_OFFSET = 16;
 

@@ -21,7 +21,7 @@ import type {
   ImageEditorLayerActionsParams,
   LayerDropPosition,
   LayerMoveDirection,
-} from "@/types/image-editor-hook-internals";
+} from "@/types/image-editor/image-editor-hook-internals";
 
 export function useImageEditorLayerActions({
   state,

@@ -11,7 +11,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/Tooltip";
 import type { Frame, FrameId } from "@/types/image-editor";
-import type { FramesPanelProps } from "@/types/image-editor-ui";
+import type { FramesPanelProps } from "@/types/image-editor/image-editor-ui";
 
 function FrameThumbnail({
   frame,

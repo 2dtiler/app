@@ -42,7 +42,7 @@ import { TerrainTileSelector } from "@/components/editor/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateTerrainId } from "@/lib/ids";
 import type { TerrainTile, TerrainId, TilesetId, Terrain } from "@/types";
-import type { FillTerrainDialogProps } from "@/types/dialogs";
+import type { FillTerrainDialogProps } from "@/types/app/dialogs";
 
 // ---------------------------------------------------------------------------
 // Component

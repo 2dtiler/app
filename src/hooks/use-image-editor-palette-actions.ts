@@ -30,8 +30,8 @@ import type { Color, Palette, PaletteId } from "@/types/image-editor";
 import type {
   PaletteExportFormat,
   PngSwatchSize,
-} from "@/types/image-editor-hook";
-import type { ImageEditorPaletteActionsParams } from "@/types/image-editor-hook-internals";
+} from "@/types/image-editor/image-editor-hook";
+import type { ImageEditorPaletteActionsParams } from "@/types/image-editor/image-editor-hook-internals";
 import {
   actionLog,
   frameOpRedoStack,

@@ -18,7 +18,7 @@ import {
   type ImageEditorLayerId,
   type ImageEditorRasterLayer,
 } from "@/types/image-editor";
-import type { ImageEditorTravels } from "@/types/image-editor-internals";
+import type { ImageEditorTravels } from "@/types/image-editor/image-editor-internals";
 import { v4 as uuidv4 } from "uuid";
 
 let instance: ImageEditorTravels | null = null;

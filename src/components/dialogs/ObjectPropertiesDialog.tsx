@@ -42,7 +42,7 @@ import {
 import type {
   EditablePropertyEntry,
   ObjectPropertiesDialogProps,
-} from "@/types/dialogs";
+} from "@/types/app/dialogs";
 
 function objectPropertiesToEntries(
   properties: Record<string, PropertyValue>,

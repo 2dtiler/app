@@ -12,8 +12,8 @@ import {
   redoLog,
 } from "@/lib/image-editor-document";
 import type { Frame, FrameId } from "@/types/image-editor";
-import type { ImageEditorFrameActionsParams } from "@/types/image-editor-hook-internals";
-import type { FrameMoveDirection } from "@/types/image-editor-hook-internals";
+import type { ImageEditorFrameActionsParams } from "@/types/image-editor/image-editor-hook-internals";
+import type { FrameMoveDirection } from "@/types/image-editor/image-editor-hook-internals";
 
 export function useImageEditorFrameActions({
   state,

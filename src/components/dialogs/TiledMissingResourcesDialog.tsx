@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import type { TiledMissingResourcesDialogProps } from "@/types/dialogs";
+import type { TiledMissingResourcesDialogProps } from "@/types/app/dialogs";
 
 export function TiledMissingResourcesDialog({
   open,

@@ -6,7 +6,10 @@
  */
 
 import type { Color, ImageEditorTool } from "@/types/image-editor";
-import type { StrokeState, ToolContext } from "@/types/image-editor-internals";
+import type {
+  StrokeState,
+  ToolContext,
+} from "@/types/image-editor/image-editor-internals";
 import { bresenhamLine, getPixel, setPixel } from "./image-editor-tools-shared";
 import {
   selectionDown,

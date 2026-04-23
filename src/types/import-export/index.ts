@@ -9,12 +9,12 @@ import type {
   TileSize,
   Tileset,
   TilesetId,
-} from "./schema";
+} from "../map/schema";
 import type {
   MapOrientation,
   MapStaggerAxis,
   MapStaggerIndex,
-} from "./map-geometry";
+} from "../map/map-geometry";
 
 export type ImportExportDialogMode = "import" | "export";
 

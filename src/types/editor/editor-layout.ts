@@ -5,7 +5,7 @@ import type {
   TerrainTile,
   TileSize,
   Tileset,
-} from "./schema";
+} from "../map/schema";
 
 export type EditorWorkspaceTab = "layers" | "details";
 

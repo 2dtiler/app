@@ -14,7 +14,7 @@ import type {
   IconConfig,
   UIConfig,
   VFXConfig,
-} from "@/types/ai-assets";
+} from "@/types/integrations/ai-assets";
 import {
   TILESET_TILE_TYPES,
   TILESET_TERRAINS,

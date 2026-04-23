@@ -20,7 +20,7 @@ import {
   isOffsetMap,
 } from "@/lib/map-geometry";
 import { isTextObject } from "@/lib/text-objects";
-import type { MapCanvasProps } from "@/types/map-canvas";
+import type { MapCanvasProps } from "@/types/map/map-canvas";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,

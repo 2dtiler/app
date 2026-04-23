@@ -39,7 +39,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
-import type { TimelinePanelProps } from "@/types/image-editor-ui";
+import type { TimelinePanelProps } from "@/types/image-editor/image-editor-ui";
 import {
   AlertDialog,
   AlertDialogAction,

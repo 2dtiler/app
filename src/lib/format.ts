@@ -39,7 +39,7 @@ import type {
   PackedMap,
   PackedProject,
   PackedTileset,
-} from "@/types/persistence";
+} from "@/types/import-export/persistence";
 
 // ---------------------------------------------------------------------------
 // Shared helpers

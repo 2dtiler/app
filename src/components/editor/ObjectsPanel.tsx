@@ -44,7 +44,7 @@ import { ObjectPropertiesDialogManager } from "@/components/editor/ObjectPropert
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateObjectId } from "@/lib/ids";
 import type { ObjectId, ObjectType, MapObject } from "@/types";
-import type { ObjectRowProps } from "@/types/editor-layout";
+import type { ObjectRowProps } from "@/types/editor/editor-layout";
 import { cn } from "@/lib/utils";
 
 const OBJECT_TYPE_ICONS: Record<ObjectType, typeof Square> = {

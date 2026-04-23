@@ -27,7 +27,7 @@ import type { AppSettings } from "@/types";
 import type {
   SettingsDialogProps,
   SettingsKeyRowProps as KeyRowProps,
-} from "@/types/dialogs";
+} from "@/types/app/dialogs";
 
 function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [value, setValue] = useState("");

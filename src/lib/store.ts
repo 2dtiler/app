@@ -13,7 +13,10 @@
 import { createTravels, type TravelPatches } from "travels";
 import { DEFAULT_EDITOR_STATE, type EditorState } from "@/types";
 import type { MapObject } from "@/types";
-import type { EditorTravels, PersistedHistory } from "@/types/editor-store";
+import type {
+  EditorTravels,
+  PersistedHistory,
+} from "@/types/editor/editor-store";
 import { db } from "./db";
 import { getActiveTilesetTileSize, normalizeProject } from "./project";
 

@@ -1,4 +1,4 @@
-import type { ToolName } from "@/types";
+import type { ToolName } from "./components";
 
 export interface AppShellProps {
   settingsOpen: boolean;

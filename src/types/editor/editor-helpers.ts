@@ -12,13 +12,13 @@ import type {
   TileMapData,
   TileRef,
   TilesetId,
-} from "./schema";
+} from "../map/schema";
 import type {
   ImageEditorGroupId,
   ImageEditorImageLayer,
   ImageEditorLayerGroup,
   ImageEditorRasterLayer,
-} from "./image-editor";
+} from "../image-editor";
 
 export interface FillRegionOptions {
   map: TileMapData;

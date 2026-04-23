@@ -14,13 +14,13 @@ import {
 import { setImageLayerEditorContext } from "@/lib/image-layer-editor-context";
 import { setTileEditorContext } from "@/lib/tile-editor-context";
 import { isLayerEffectivelyLocked } from "@/lib/layers";
-import type { MapCanvasProps } from "@/types/map-canvas";
+import type { MapCanvasProps } from "@/types/map/map-canvas";
 import type { MapObject, ObjectType, TileRef } from "@/types";
 import { TEXT_OBJECT_DEFAULTS as textObjectDefaults } from "@/types";
 import type {
   MapPanelCanvasActionParams,
   MapPanelCanvasActionResult,
-} from "@/types/map-panel";
+} from "@/types/map/map-panel";
 
 export function useMapPanelCanvasActions({
   activeImageLayer,

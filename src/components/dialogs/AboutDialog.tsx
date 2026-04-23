@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import type { AboutDialogProps } from "@/types/dialogs";
+import type { AboutDialogProps } from "@/types/app/dialogs";
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   return (

@@ -1,5 +1,5 @@
 import type { MapObject, ObjectLayer } from "@/types";
-import type { UseSceneInteractionReturn } from "@/types/map-canvas";
+import type { UseSceneInteractionReturn } from "@/types/map/map-canvas";
 import {
   getBoxObjectHandlePositions,
   getObjectDisplayBounds,

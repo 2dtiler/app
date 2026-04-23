@@ -22,8 +22,8 @@ import {
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { saveProject } from "@/lib/db";
 import { clearTileEditorContext } from "@/lib/tile-editor-context";
-import type { EditorWorkspaceTab } from "@/types/editor-layout";
-import type { AppShellProps } from "@/types/app";
+import type { EditorWorkspaceTab } from "@/types/editor/editor-layout";
+import type { AppShellProps } from "@/types/app/app";
 import type { ImportExportDialogMode } from "@/types/import-export";
 import { markEditorSaved } from "@/lib/store";
 

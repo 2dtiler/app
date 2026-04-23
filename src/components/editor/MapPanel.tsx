@@ -31,7 +31,7 @@ import {
 } from "@/lib/layers";
 import { getGeometryForNewMapType } from "@/lib/map-geometry";
 import { zoomStore } from "@/lib/zoom-store";
-import type { MapCanvasImperativeHandle } from "@/types/map-canvas";
+import type { MapCanvasImperativeHandle } from "@/types/map/map-canvas";
 import {
   DEFAULT_NEW_MAP_TYPE,
   type EditorState,

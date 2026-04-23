@@ -25,7 +25,7 @@ import type {
   VFXConfig,
   ImageState,
   Ratio,
-} from "@/types/ai-assets";
+} from "@/types/integrations/ai-assets";
 import {
   MODELS,
   PROVIDER_LABELS,

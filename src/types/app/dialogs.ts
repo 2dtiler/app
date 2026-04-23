@@ -5,8 +5,8 @@ import type {
   ImportExportOptionAction,
   TiledMapFormat,
   TiledImportMissingResource,
-} from "./import-export";
-import type { NewMapType } from "./map-geometry";
+} from "../import-export";
+import type { NewMapType } from "../map/map-geometry";
 import type {
   MapObject,
   ObjectId,
@@ -14,7 +14,7 @@ import type {
   PropertyValue,
   TerrainTile,
   TileMapData,
-} from "./schema";
+} from "../map/schema";
 
 export interface AboutDialogProps {
   open: boolean;

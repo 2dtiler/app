@@ -4,7 +4,7 @@
 
 import { getAdjacentMapCells } from "./map-geometry";
 import type { TerrainTile, TileRef } from "@/types";
-import type { FillRegionOptions } from "@/types/editor-helpers";
+import type { FillRegionOptions } from "@/types/editor/editor-helpers";
 
 function sameTileSource(a: TileRef | null, b: TileRef | null) {
   return (

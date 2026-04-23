@@ -1,5 +1,5 @@
 import type { MapObject } from "@/types";
-import type { ResizeHandle } from "@/types/map-canvas";
+import type { ResizeHandle } from "@/types/map/map-canvas";
 
 const BOX_OBJECT_TYPES = new Set(["rectangle", "ellipse", "text"]);
 
