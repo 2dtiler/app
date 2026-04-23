@@ -8,14 +8,14 @@ import {
 import type {
   ToolContext,
   StrokeState,
-} from "@/types/image-editor/image-editor-internals";
-import type { ImageEditorTool } from "@/types/image-editor";
-import type { ImageCanvasProps } from "@/types/image-editor/image-editor-ui";
+} from "@/features/image-editor/types/image-editor-internals";
+import type { ImageEditorTool } from "@/features/image-editor/types";
+import type { ImageCanvasProps } from "@/features/image-editor/types/image-editor-ui";
 import type {
   ImageCanvasResizeAction,
   ImageCanvasResizeHandle,
   ImageCanvasResizePreview,
-} from "@/types/image-editor/image-editor-ui";
+} from "@/features/image-editor/types/image-editor-ui";
 import { ImageCanvasResizeControls } from "./ImageCanvasResizeControls";
 import {
   createStrokeState,

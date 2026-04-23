@@ -17,7 +17,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/Tooltip";
 
-import type { EditorToolbarProps } from "@/types/image-editor/image-editor-ui";
+import type { EditorToolbarProps } from "@/features/image-editor/types/image-editor-ui";
 
 export function EditorToolbar({
   zoom,

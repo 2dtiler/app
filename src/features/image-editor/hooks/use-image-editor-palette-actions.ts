@@ -31,13 +31,16 @@ import {
   parsePhotoshopAse,
   writePhotoshopAse,
 } from "@/features/image-editor/lib/photoshop-ase";
-import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
-import type { Color, Palette, PaletteId } from "@/types/image-editor";
+import {
+  DEFAULT_PALETTE_COLORS,
+  getActivePalette,
+} from "@/features/image-editor/types";
+import type { Color, Palette, PaletteId } from "@/features/image-editor/types";
 import type {
   PaletteExportFormat,
   PngSwatchSize,
-} from "@/types/image-editor/image-editor-hook";
-import type { ImageEditorPaletteActionsParams } from "@/types/image-editor/image-editor-hook-internals";
+} from "@/features/image-editor/types/image-editor-hook";
+import type { ImageEditorPaletteActionsParams } from "@/features/image-editor/types/image-editor-hook-internals";
 import {
   actionLog,
   frameOpRedoStack,

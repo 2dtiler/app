@@ -16,12 +16,12 @@ import type {
   ImageEditorLayerGroup,
   ImageEditorLayerId,
   ImageEditorRasterLayer,
-} from "@/types/image-editor";
+} from "@/features/image-editor/types";
 import type {
   ImageEditorLayerActionsParams,
   LayerDropPosition,
   LayerMoveDirection,
-} from "@/types/image-editor/image-editor-hook-internals";
+} from "@/features/image-editor/types/image-editor-hook-internals";
 
 export function useImageEditorLayerActions({
   state,

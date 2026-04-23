@@ -6,7 +6,10 @@ import {
   subscribeToImageEditorStoreInstance,
 } from "@/store/image-editor-store";
 import * as pixelHistory from "@/features/image-editor/lib/image-editor-history";
-import { resetCropState, resetSelectionState } from "@/features/image-editor/lib/image-editor-tools";
+import {
+  resetCropState,
+  resetSelectionState,
+} from "@/features/image-editor/lib/image-editor-tools";
 import { getPendingImageLayerEditorRequest } from "@/features/image-editor/lib/image-layer-editor-context";
 import { getPendingTileEditorRequest } from "@/features/map-editor/lib/tile-editor-context";
 import type {
@@ -16,14 +19,14 @@ import type {
   ImageEditorLayerId,
   ImageEditorRasterLayer,
   ImageEditorState,
-} from "@/types/image-editor";
+} from "@/features/image-editor/types";
 import type {
   FrameOperation,
   PaletteLibrarySnapshot,
   ResizeOperation,
   ResizeSnapshot,
   UndoableActionType,
-} from "@/types/image-editor/image-editor-hook";
+} from "@/features/image-editor/types/image-editor-hook";
 
 export const moduleLayerFrameData: Map<string, ImageData> = new Map();
 

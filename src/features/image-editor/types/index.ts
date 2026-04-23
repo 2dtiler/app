@@ -6,6 +6,13 @@
  * and is managed by the pixel history system.
  */
 
+export * from "./image-editor-controller";
+export * from "./image-editor-hook";
+export * from "./image-editor-hook-internals";
+export * from "./image-editor-internals";
+export * from "./image-editor-tools";
+export * from "./image-editor-ui";
+
 // ---------------------------------------------------------------------------
 // Identifiers
 // ---------------------------------------------------------------------------
@@ -202,22 +209,22 @@ export interface ImageEditorState {
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_PALETTE_COLORS: Color[] = [
-  { r: 0, g: 0, b: 0, a: 255 }, // black
-  { r: 255, g: 255, b: 255, a: 255 }, // white
-  { r: 255, g: 0, b: 0, a: 255 }, // red
-  { r: 0, g: 255, b: 0, a: 255 }, // green
-  { r: 0, g: 0, b: 255, a: 255 }, // blue
-  { r: 255, g: 255, b: 0, a: 255 }, // yellow
-  { r: 255, g: 0, b: 255, a: 255 }, // magenta
-  { r: 0, g: 255, b: 255, a: 255 }, // cyan
-  { r: 128, g: 128, b: 128, a: 255 }, // gray
-  { r: 192, g: 192, b: 192, a: 255 }, // light gray
-  { r: 128, g: 0, b: 0, a: 255 }, // dark red
-  { r: 0, g: 128, b: 0, a: 255 }, // dark green
-  { r: 0, g: 0, b: 128, a: 255 }, // dark blue
-  { r: 128, g: 128, b: 0, a: 255 }, // olive
-  { r: 128, g: 0, b: 128, a: 255 }, // purple
-  { r: 0, g: 128, b: 128, a: 255 }, // teal
+  { r: 0, g: 0, b: 0, a: 255 },
+  { r: 255, g: 255, b: 255, a: 255 },
+  { r: 255, g: 0, b: 0, a: 255 },
+  { r: 0, g: 255, b: 0, a: 255 },
+  { r: 0, g: 0, b: 255, a: 255 },
+  { r: 255, g: 255, b: 0, a: 255 },
+  { r: 255, g: 0, b: 255, a: 255 },
+  { r: 0, g: 255, b: 255, a: 255 },
+  { r: 128, g: 128, b: 128, a: 255 },
+  { r: 192, g: 192, b: 192, a: 255 },
+  { r: 128, g: 0, b: 0, a: 255 },
+  { r: 0, g: 128, b: 0, a: 255 },
+  { r: 0, g: 0, b: 128, a: 255 },
+  { r: 128, g: 128, b: 0, a: 255 },
+  { r: 128, g: 0, b: 128, a: 255 },
+  { r: 0, g: 128, b: 128, a: 255 },
 ];
 
 export const DEFAULT_PALETTE: Palette = {
@@ -228,7 +235,7 @@ export const DEFAULT_PALETTE: Palette = {
 
 export function getActivePalette(state: ImageEditorState): Palette {
   return (
-    state.palettes.find((p) => p.id === state.activePaletteId) ??
+    state.palettes.find((palette) => palette.id === state.activePaletteId) ??
     state.palettes[0]
   );
 }

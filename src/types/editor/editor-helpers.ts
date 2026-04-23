@@ -18,7 +18,7 @@ import type {
   ImageEditorImageLayer,
   ImageEditorLayerGroup,
   ImageEditorRasterLayer,
-} from "../image-editor";
+} from "@/features/image-editor/types";
 
 export interface FillRegionOptions {
   map: TileMapData;

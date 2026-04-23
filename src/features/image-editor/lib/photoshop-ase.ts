@@ -8,7 +8,7 @@
  * Community docs: http://www.selapa.net/swatches/colors/fileformats.php#adobe_ase
  */
 
-import type { Color } from "@/types/image-editor";
+import type { Color } from "@/features/image-editor/types";
 
 // File signature: "ASEF"
 const ASE_SIGNATURE = 0x41534546;

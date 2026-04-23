@@ -14,7 +14,7 @@ import {
   setClipboard,
 } from "@/features/map-editor/lib/tile-clipboard";
 import { createTileStamp } from "@/features/map-editor/lib/tile-stamp";
-import type { OrientAction } from "@/types/map/map-panel-context-menu";
+import type { OrientAction } from "@/features/map-editor/types/map-panel-context-menu";
 import type {
   ImageLayer,
   LayerGroup,
@@ -29,7 +29,7 @@ import type {
 import type {
   MapPanelClipboardActionParams,
   MapPanelClipboardActionResult,
-} from "@/types/map/map-panel";
+} from "@/features/map-editor/types/map-panel";
 
 const IMAGE_LAYER_PASTE_OFFSET = 16;
 

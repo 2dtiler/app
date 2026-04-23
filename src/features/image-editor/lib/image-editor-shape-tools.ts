@@ -1,8 +1,8 @@
-import type { Color } from "@/types/image-editor";
+import type { Color } from "@/features/image-editor/types";
 import type {
   StrokeState,
   ToolContext,
-} from "@/types/image-editor/image-editor-internals";
+} from "@/features/image-editor/types/image-editor-internals";
 import {
   bresenhamLine,
   constrainAngle,

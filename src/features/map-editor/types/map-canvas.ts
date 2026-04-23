@@ -15,11 +15,11 @@ import type {
   TileLayer,
   TileMapData,
   TileRef,
-} from "./schema";
+} from "@/types/map/schema";
 import type {
   TextObjectEditingState,
   TextObjectMapObject,
-} from "./text-object";
+} from "@/types/map/text-object";
 
 export interface MapCanvasImperativeHandle {
   drawBufferTile: (gx: number, gy: number, ref: TileRef) => void;

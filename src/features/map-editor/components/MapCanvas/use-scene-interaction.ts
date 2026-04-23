@@ -29,7 +29,7 @@ import type {
   SelectionAction,
   UseSceneInteractionParams,
   UseSceneInteractionReturn,
-} from "@/types/map/map-canvas";
+} from "@/features/map-editor/types/map-canvas";
 import {
   getMapCellAtPoint,
   getMapCellOrigin,
@@ -39,7 +39,10 @@ import {
 import { getImageLayerHandlePositions } from "./image-layer-transform";
 import { getTileImage } from "./texture-cache";
 import { getFillRegion } from "@/features/map-editor/lib/terrain";
-import { createTileStamp, isMultiTileStamp } from "@/features/map-editor/lib/tile-stamp";
+import {
+  createTileStamp,
+  isMultiTileStamp,
+} from "@/features/map-editor/lib/tile-stamp";
 import {
   commitPolygonObject,
   handleScenePointerDown,
@@ -48,7 +51,7 @@ import {
   handleScenePointerUp,
 } from "./scene-interaction-handlers";
 
-export type { UseSceneInteractionReturn } from "@/types/map/map-canvas";
+export type { UseSceneInteractionReturn } from "@/features/map-editor/types/map-canvas";
 
 // ---------------------------------------------------------------------------
 // Hook

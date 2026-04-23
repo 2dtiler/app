@@ -8,3 +8,4 @@ export {
   DesktopEditorLayout,
   EditorWorkspaceDrawer,
 } from "./components/Layout/EditorLayouts";
+export * from "./types";

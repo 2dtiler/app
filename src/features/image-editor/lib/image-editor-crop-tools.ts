@@ -2,11 +2,11 @@ import type {
   ImageEditorResizeHandle as ResizeHandle,
   StrokeState,
   ToolContext,
-} from "@/types/image-editor/image-editor-internals";
+} from "@/features/image-editor/types/image-editor-internals";
 import type {
   CropRect,
   CropState,
-} from "@/types/image-editor/image-editor-tools";
+} from "@/features/image-editor/types/image-editor-tools";
 
 function createCropState(): CropState {
   return {

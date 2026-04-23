@@ -1,5 +1,5 @@
 import type { ImageLayer } from "@/types";
-import type { ResizeHandle } from "@/types/map/map-canvas";
+import type { ResizeHandle } from "@/features/map-editor/types/map-canvas";
 
 const MIN_IMAGE_LAYER_SIZE = 4;
 const HANDLE_ORDER: ResizeHandle[] = [

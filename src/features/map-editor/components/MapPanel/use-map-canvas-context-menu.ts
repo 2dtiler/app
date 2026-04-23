@@ -6,7 +6,7 @@ import type {
   MapCanvasContextMenuTile,
   UseMapCanvasContextMenuParams,
   UseMapCanvasContextMenuResult,
-} from "@/types/map/map-panel-context-menu";
+} from "@/features/map-editor/types/map-panel-context-menu";
 
 export function useMapCanvasContextMenu({
   containerRef,

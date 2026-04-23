@@ -54,7 +54,7 @@ import type {
   ImageEditorTool,
   ImageEditorState,
   PixelSelection,
-} from "@/types/image-editor";
+} from "@/features/image-editor/types";
 
 // ---------------------------------------------------------------------------
 // Hook

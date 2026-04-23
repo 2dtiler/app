@@ -19,7 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
-import type { MapPanelTabsProps } from "@/types/map/map-panel";
+import type { MapPanelTabsProps } from "@/features/map-editor/types/map-panel";
 
 export function MapPanelTabs({
   activeGroup,

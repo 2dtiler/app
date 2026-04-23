@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Project, AppSettings, AssetId } from "@/types";
-import type { Palette } from "@/types/image-editor";
+import type { Palette } from "@/features/image-editor/types";
 import { normalizeProject } from "@/features/project-management/lib/project";
 import type {
   AssetRecord,

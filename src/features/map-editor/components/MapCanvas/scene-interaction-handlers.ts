@@ -4,7 +4,7 @@ import type {
   ScenePointerDownEvent,
   ScenePointerPosition,
   ScenePointerUpEvent,
-} from "@/types/map/map-canvas";
+} from "@/features/map-editor/types/map-canvas";
 import { computeResize, RESIZE_CURSORS } from "./resize-utils";
 import {
   getBoxObjectHandlePositions,

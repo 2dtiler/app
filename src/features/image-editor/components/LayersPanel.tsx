@@ -230,7 +230,7 @@ export function ImageEditorLayersPanel() {
                   onDuplicate={editor.duplicateImageEditorGroup}
                   isDragging={dragId === node.group.id}
                   dropIndicator={
-                    dropIndicator?.targetId === node.group.id
+                    dropIndicator && dropIndicator.targetId === node.group.id
                       ? dropIndicator.position
                       : null
                   }
@@ -266,7 +266,7 @@ export function ImageEditorLayersPanel() {
                 onDuplicate={editor.duplicateImageEditorLayer}
                 isDragging={dragId === layer.id}
                 dropIndicator={
-                  dropIndicator?.targetId === layer.id
+                  dropIndicator && dropIndicator.targetId === layer.id
                     ? dropIndicator.position
                     : null
                 }

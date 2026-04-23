@@ -1,15 +1,15 @@
 import type {
-  MouseEvent as ReactMouseEvent,
-  MutableRefObject,
-  RefObject,
-} from "react";
-import type {
   ImageLayer,
   MapObject,
   ObjectId,
   TileLayer,
   TileMapData,
-} from "./map/schema";
+} from "@/types/map/schema";
+import type {
+  MouseEvent as ReactMouseEvent,
+  MutableRefObject,
+  RefObject,
+} from "react";
 
 export type OrientAction = "rotateLeft" | "rotateRight" | "flipH" | "flipV";
 

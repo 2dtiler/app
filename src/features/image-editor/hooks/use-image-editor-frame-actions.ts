@@ -11,9 +11,9 @@ import {
   paletteRedoStack,
   redoLog,
 } from "@/features/image-editor/lib/image-editor-document";
-import type { Frame, FrameId } from "@/types/image-editor";
-import type { ImageEditorFrameActionsParams } from "@/types/image-editor/image-editor-hook-internals";
-import type { FrameMoveDirection } from "@/types/image-editor/image-editor-hook-internals";
+import type { Frame, FrameId } from "@/features/image-editor/types";
+import type { ImageEditorFrameActionsParams } from "@/features/image-editor/types/image-editor-hook-internals";
+import type { FrameMoveDirection } from "@/features/image-editor/types/image-editor-hook-internals";
 
 export function useImageEditorFrameActions({
   state,

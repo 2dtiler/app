@@ -1,5 +1,5 @@
-import type { Color } from "@/types/image-editor";
-import type { StrokeState } from "@/types/image-editor/image-editor-internals";
+import type { Color } from "@/features/image-editor/types";
+import type { StrokeState } from "@/features/image-editor/types/image-editor-internals";
 
 /** Bresenham line: returns every pixel along (x0,y0)->(x1,y1). */
 export function bresenhamLine(

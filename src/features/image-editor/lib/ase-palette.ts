@@ -7,7 +7,7 @@
  * Reference: https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md
  */
 
-import type { Color } from "@/types/image-editor";
+import type { Color } from "@/features/image-editor/types";
 
 // ---------------------------------------------------------------------------
 // Constants

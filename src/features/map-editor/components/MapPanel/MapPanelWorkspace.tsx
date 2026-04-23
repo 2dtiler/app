@@ -1,7 +1,7 @@
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/ContextMenu";
 import { MapCanvas } from "@/features/map-editor/components/MapCanvas";
 import { MapCanvasContextMenuContent } from "./MapCanvasContextMenuContent";
-import type { MapPanelWorkspaceProps } from "@/types/map/map-panel";
+import type { MapPanelWorkspaceProps } from "@/features/map-editor/types/map-panel";
 import type { ObjectId, TileMapData } from "@/types";
 
 export function MapPanelWorkspace({

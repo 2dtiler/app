@@ -5,11 +5,11 @@
  * focused peer modules and are re-exported here.
  */
 
-import type { Color, ImageEditorTool } from "@/types/image-editor";
+import type { Color, ImageEditorTool } from "@/features/image-editor/types";
 import type {
   StrokeState,
   ToolContext,
-} from "@/types/image-editor/image-editor-internals";
+} from "@/features/image-editor/types/image-editor-internals";
 import { bresenhamLine, getPixel, setPixel } from "./image-editor-tools-shared";
 import {
   selectionDown,

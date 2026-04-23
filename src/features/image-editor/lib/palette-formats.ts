@@ -1,4 +1,4 @@
-import type { Color } from "@/types/image-editor";
+import type { Color } from "@/features/image-editor/types";
 
 // ---------------------------------------------------------------------------
 // Helpers

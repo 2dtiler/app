@@ -20,7 +20,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/components/ui/ContextMenu";
-import type { MapCanvasContextMenuContentProps } from "@/types/map/map-panel-context-menu";
+import type { MapCanvasContextMenuContentProps } from "@/features/map-editor/types/map-panel-context-menu";
 
 export function MapCanvasContextMenuContent({
   canCopy,

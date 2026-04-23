@@ -22,7 +22,7 @@ import type {
   ImageLayerEditorContext,
   TileEditorContext,
 } from "@/types/editor/editor-helpers";
-import type { ImageEditorController } from "@/types/image-editor/image-editor-controller";
+import type { ImageEditorController } from "@/features/image-editor/types/image-editor-controller";
 
 export function useImageEditorRequestLoader(
   editor: ImageEditorController,

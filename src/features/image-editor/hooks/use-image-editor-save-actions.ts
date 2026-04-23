@@ -11,8 +11,8 @@ import type {
   ImageLayerEditorContext,
   TileEditorContext,
 } from "@/types/editor/editor-helpers";
-import type { ImageEditorProps } from "@/types/image-editor/image-editor-ui";
-import type { ImageEditorController } from "@/types/image-editor/image-editor-controller";
+import type { ImageEditorProps } from "@/features/image-editor/types/image-editor-ui";
+import type { ImageEditorController } from "@/features/image-editor/types/image-editor-controller";
 import type { Dispatch, SetStateAction } from "react";
 
 export function useImageEditorSaveActions(

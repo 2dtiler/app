@@ -5,8 +5,8 @@ import { useImageEditorRequestLoader } from "@/features/image-editor/hooks/use-i
 import { useImageEditorSaveActions } from "@/features/image-editor/hooks/use-image-editor-save-actions";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { loadPaletteLibrary, savePaletteLibrary } from "@/services/db";
-import { getActivePalette } from "@/types/image-editor";
-import type { ImageEditorProps } from "@/types/image-editor/image-editor-ui";
+import { getActivePalette } from "@/features/image-editor/types";
+import type { ImageEditorProps } from "@/features/image-editor/types/image-editor-ui";
 import { NewImageDialog } from "./NewImageDialog";
 import { ImageCanvas } from "./ImageCanvas";
 import { ToolSidebar } from "./ToolSidebar";
@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
-import type { ImageEditorTool } from "@/types/image-editor";
+import type { ImageEditorTool } from "@/features/image-editor/types";
 import { resetCropState } from "@/features/image-editor/lib/image-editor-tools";
 
 export function ImageEditor({ onRequestClose }: ImageEditorProps) {
@@ -173,13 +173,13 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
 
     setShowUnsavedDialog(false);
     setShowSaveDialog(true);
-  }, [activeImageLayerCtx, activeTileCtx, handleSave]);
+  }, [activeImageLayerCtx, activeTileCtx, closeAfterSaveRef, handleSave]);
 
   const handleDiscardAndClose = useCallback(() => {
     closeAfterSaveRef.current = false;
     setShowUnsavedDialog(false);
     onRequestClose?.();
-  }, [onRequestClose]);
+  }, [closeAfterSaveRef, onRequestClose]);
 
   // Restore palette library when the active project changes
   useEffect(() => {

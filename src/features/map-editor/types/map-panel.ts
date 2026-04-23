@@ -13,14 +13,14 @@ import type {
   TerrainTile,
   TileLayer,
   TileMapData,
-} from "./map/schema";
-import type { NewMapType } from "./map/map-geometry";
+} from "@/types/map/schema";
+import type { NewMapType } from "@/types/map/map-geometry";
+import type { TextObjectEditingState } from "@/types/map/text-object";
 import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
 import type {
   MapCanvasContextMenuTile,
   OrientAction,
 } from "./map-panel-context-menu";
-import type { TextObjectEditingState } from "./map/text-object";
 
 export interface MapPanelDeleteTarget {
   type: "map" | "group";
@@ -183,7 +183,9 @@ export interface MapPanelCanvasActionParams {
   >;
   project: EditorState["project"];
   setPaintBufferVersion: Dispatch<SetStateAction<number>>;
-  setState: ReturnType<typeof import("@/store/editor-store").getEditorStore>["setState"];
+  setState: ReturnType<
+    typeof import("@/store/editor-store").getEditorStore
+  >["setState"];
   state: EditorState;
   textObjectEditing: MapPanelTextObjectEditingController;
 }
@@ -217,7 +219,9 @@ export interface MapPanelClipboardActionParams {
   hasContextMenuTile: boolean;
   hoverTileRef: React.MutableRefObject<MapCanvasContextMenuTile | null>;
   project: EditorState["project"];
-  setState: ReturnType<typeof import("@/store/editor-store").getEditorStore>["setState"];
+  setState: ReturnType<
+    typeof import("@/store/editor-store").getEditorStore
+  >["setState"];
   state: EditorState;
 }
 

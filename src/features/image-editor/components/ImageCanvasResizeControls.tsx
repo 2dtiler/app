@@ -1,4 +1,4 @@
-import type { ImageCanvasResizeControlsProps } from "@/types/image-editor/image-editor-ui";
+import type { ImageCanvasResizeControlsProps } from "@/features/image-editor/types/image-editor-ui";
 
 const IMAGE_RESIZE_GUTTER = 14;
 const IMAGE_RESIZE_RAIL_SIZE = 10;

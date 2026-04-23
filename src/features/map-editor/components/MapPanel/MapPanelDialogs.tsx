@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
-import type { MapPanelDialogsProps } from "@/types/map/map-panel";
+import type { MapPanelDialogsProps } from "@/features/map-editor/types/map-panel";
 
 export function MapPanelDialogs({
   activeMap,

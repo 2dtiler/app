@@ -45,8 +45,8 @@ import {
   ColorPickerOutput,
   ColorPickerFormat,
 } from "@/components/ui/ColorPicker";
-import type { Color } from "@/types/image-editor";
-import type { PalettePanelProps } from "@/types/image-editor/image-editor-ui";
+import type { Color } from "@/features/image-editor/types";
+import type { PalettePanelProps } from "@/features/image-editor/types/image-editor-ui";
 
 function colorToHex(color: Color): string {
   const r = color.r.toString(16).padStart(2, "0");

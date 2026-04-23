@@ -19,7 +19,7 @@ import type {
   ImageEditorRasterLayer,
   ImageEditorImageLayer,
   ImageEditorLayerGroup,
-} from "@/types/image-editor";
+} from "@/features/image-editor/types";
 import type {
   ImageEditorLayerTreeNode,
   LayerTreeNode,

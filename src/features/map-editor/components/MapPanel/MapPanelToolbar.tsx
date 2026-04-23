@@ -29,7 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
 import { BRUSH_SIZES } from "@/types";
-import type { MapPanelToolbarProps } from "@/types/map/map-panel";
+import type { MapPanelToolbarProps } from "@/features/map-editor/types/map-panel";
 
 const brushTools = ["paint"] as const;
 const eraseTools = ["erase"] as const;

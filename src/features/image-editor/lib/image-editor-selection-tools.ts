@@ -3,7 +3,7 @@ import type {
   SelectionState,
   StrokeState,
   ToolContext,
-} from "@/types/image-editor/image-editor-internals";
+} from "@/features/image-editor/types/image-editor-internals";
 
 function createSelectionState(): SelectionState {
   return {

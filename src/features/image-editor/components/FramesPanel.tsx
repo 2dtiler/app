@@ -10,8 +10,8 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/Tooltip";
-import type { Frame, FrameId } from "@/types/image-editor";
-import type { FramesPanelProps } from "@/types/image-editor/image-editor-ui";
+import type { Frame, FrameId } from "@/features/image-editor/types";
+import type { FramesPanelProps } from "@/features/image-editor/types/image-editor-ui";
 
 function FrameThumbnail({
   frame,
