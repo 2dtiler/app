@@ -48,7 +48,7 @@ import {
   generateTilesetId,
   generateTilesetGroupId,
   generateAssetId,
-} from "@/lib/ids";
+} from "@/utils/ids";
 import {
   TILE_SIZES,
   type TileSize,

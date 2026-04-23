@@ -1,15 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
 import type {
-  ProjectId,
-  TilesetId,
-  TilesetGroupId,
-  MapId,
-  MapGroupId,
-  LayerId,
-  LayerGroupId,
   AssetId,
-  TerrainId,
+  LayerGroupId,
+  LayerId,
+  MapGroupId,
+  MapId,
   ObjectId,
+  ProjectId,
+  TerrainId,
+  TilesetGroupId,
+  TilesetId,
 } from "@/types";
 
 export const generateProjectId = () => uuidv4() as ProjectId;

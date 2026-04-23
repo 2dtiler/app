@@ -8,7 +8,7 @@ import {
   encodeXmlDocument,
   getTileColumns,
   getTileCount,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import {
   buildTiledTilesetLookups,
   createRelativeAssetPath,
@@ -25,7 +25,7 @@ import {
   MAP_NAME_PROPERTY_KEY,
   prepareTiledMapBundleData,
   TILED_FORMAT_VERSION,
-} from "@/lib/import-export-tiled-shared";
+} from "@/features/import-export/lib/import-export-tiled-shared";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,
@@ -42,9 +42,9 @@ import type {
 export {
   exportTiledMapJsBundle,
   exportTiledMapJsonBundle,
-} from "@/lib/import-export-tiled-json";
+} from "@/features/import-export/lib/import-export-tiled-json";
 
-export { exportTiledMapLuaBundle } from "@/lib/import-export-tiled-lua";
+export { exportTiledMapLuaBundle } from "@/features/import-export/lib/import-export-tiled-lua";
 
 function encodeTiledCsvLayer(
   tileIds: readonly (number | null)[],

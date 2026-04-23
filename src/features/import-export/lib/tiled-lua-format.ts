@@ -1,9 +1,9 @@
 import {
   encodeJsonDocument,
   TILED_FORMAT_VERSION,
-} from "@/lib/import-export-tiled-shared";
-import { parseTiledLuaDocument } from "@/lib/tiled-lua";
-import { normalizeBundlePath } from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/import-export-tiled-shared";
+import { parseTiledLuaDocument } from "@/features/import-export/lib/tiled-lua";
+import { normalizeBundlePath } from "@/features/import-export/lib/tiled-xml-utils";
 import type {
   ImportExportArchiveEntry,
   TiledLayerCompression,

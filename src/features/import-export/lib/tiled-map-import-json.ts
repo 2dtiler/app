@@ -8,7 +8,7 @@ import {
   parseXmlDocument,
   resolveBundlePath,
   stripExtension,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import {
   generateLayerGroupId,
   generateLayerId,
@@ -39,7 +39,7 @@ import {
   requireProvidedEntry,
   validateTiledOrientation,
   EXPANDED_PROPERTY_KEY,
-} from "@/lib/tiled-map-import-shared";
+} from "@/features/import-export/lib/tiled-map-import-shared";
 import type {
   ImageLayer,
   LayerGroup,

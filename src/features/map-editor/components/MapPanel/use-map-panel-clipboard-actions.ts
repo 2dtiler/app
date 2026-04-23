@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAsset, saveAsset } from "@/services/db";
-import { generateAssetId, generateLayerId } from "@/lib/ids";
-import { findLastLayerId, isLayerEffectivelyLocked } from "@/features/map-editor/lib/layers";
+import { generateAssetId, generateLayerId } from "@/utils/ids";
+import {
+  findLastLayerId,
+  isLayerEffectivelyLocked,
+} from "@/features/map-editor/lib/layers";
 import {
   getImageLayerClipboard,
   setImageLayerClipboard,
-} from "@/lib/image-layer-clipboard";
-import { getClipboard, setClipboard } from "@/features/map-editor/lib/tile-clipboard";
+} from "@/features/map-editor/lib/image-layer-clipboard";
+import {
+  getClipboard,
+  setClipboard,
+} from "@/features/map-editor/lib/tile-clipboard";
 import { createTileStamp } from "@/features/map-editor/lib/tile-stamp";
 import type { OrientAction } from "@/types/map/map-panel-context-menu";
 import type {

@@ -1,12 +1,15 @@
 import { useCallback } from "react";
-import { generateObjectId } from "@/lib/ids";
+import { generateObjectId } from "@/utils/ids";
 import {
   areTileRefsEqual,
   createTileStamp,
   getTileStampRef,
   isMultiTileStamp,
 } from "@/features/map-editor/lib/tile-stamp";
-import { getFillRegion, pickWeightedTile } from "@/features/map-editor/lib/terrain";
+import {
+  getFillRegion,
+  pickWeightedTile,
+} from "@/features/map-editor/lib/terrain";
 import {
   clampTextObjectBounds,
   getDefaultTextObjectProperties,

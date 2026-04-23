@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/Input";
 import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { TerrainTileSelector } from "@/features/map-editor/components/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { generateTerrainId } from "@/lib/ids";
+import { generateTerrainId } from "@/utils/ids";
 import type { TerrainTile, TerrainId, TilesetId, Terrain } from "@/types";
 import type { FillTerrainDialogProps } from "@/types/app/dialogs";
 

@@ -7,7 +7,7 @@ import {
   getTileColumns,
   getTileCount,
   joinBundlePath,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,

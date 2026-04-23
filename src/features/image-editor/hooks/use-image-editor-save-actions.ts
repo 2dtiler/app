@@ -6,7 +6,7 @@ import {
   evictImageLayer,
   evictTileset,
 } from "@/features/map-editor/components/MapCanvas/texture-cache";
-import { generateAssetId, generateTilesetId } from "@/lib/ids";
+import { generateAssetId, generateTilesetId } from "@/utils/ids";
 import type {
   ImageLayerEditorContext,
   TileEditorContext,

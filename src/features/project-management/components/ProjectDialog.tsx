@@ -39,7 +39,7 @@ import {
   generateMapGroupId,
   generateProjectId,
   generateTilesetGroupId,
-} from "@/lib/ids";
+} from "@/utils/ids";
 import type { Project } from "@/types";
 import type { ProjectDialogProps } from "@/types/app/dialogs";
 import type { ProjectRecord } from "@/types/import-export/persistence";

@@ -6,7 +6,7 @@ import {
   getMimeTypeFromPath,
   getTileColumns,
   normalizeBundlePath,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import type {
   ImportExportArchiveEntry,
   PropertyValue,

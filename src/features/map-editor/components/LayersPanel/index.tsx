@@ -9,7 +9,7 @@ import {
   generateLayerGroupId,
   generateAssetId,
   generateObjectId,
-} from "@/lib/ids";
+} from "@/utils/ids";
 import { saveAsset } from "@/services/db";
 import {
   buildDisplayTree,

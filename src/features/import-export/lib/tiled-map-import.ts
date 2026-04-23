@@ -15,7 +15,7 @@ import {
   parseXmlDocument,
   resolveBundlePath,
   stripExtension,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import {
   addMissingResource,
   awaitImportImage,
@@ -40,12 +40,12 @@ import {
   readNumberProperty,
   requireProvidedEntry,
   validateTiledOrientation,
-} from "@/lib/tiled-map-import-shared";
+} from "@/features/import-export/lib/tiled-map-import-shared";
 import {
   collectMissingTiledJsonMapResources,
   importTiledJsonMapEntries,
-} from "@/lib/tiled-map-import-json";
-import { prepareTiledLuaMapImport } from "@/lib/tiled-map-import-lua";
+} from "@/features/import-export/lib/tiled-map-import-json";
+import { prepareTiledLuaMapImport } from "@/features/import-export/lib/tiled-map-import-lua";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,

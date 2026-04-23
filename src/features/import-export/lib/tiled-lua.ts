@@ -1,4 +1,4 @@
-import { decodeText } from "@/lib/tiled-xml-utils";
+import { decodeText } from "@/features/import-export/lib/tiled-xml-utils";
 import type { TiledLuaTable, TiledLuaValue } from "@/types";
 
 const LUA_KEYWORDS = new Set([

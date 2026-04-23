@@ -10,7 +10,7 @@ import {
   exportTiledMapBundle,
   exportTiledMapJsonBundle,
   exportTiledMapLuaBundle,
-} from "@/lib/import-export-tiled";
+} from "@/features/import-export/lib/import-export-tiled";
 import {
   getMapExportData,
   getUniqueArchivePath,

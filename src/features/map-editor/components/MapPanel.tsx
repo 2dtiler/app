@@ -20,7 +20,7 @@ import {
   generateMapGroupId,
   generateLayerId,
   generateLayerGroupId,
-} from "@/lib/ids";
+} from "@/utils/ids";
 import {
   flattenLayerTree,
   flattenImageLayers,

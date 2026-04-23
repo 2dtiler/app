@@ -1,6 +1,9 @@
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { parseAsePalette, writeAsePalette } from "@/lib/ase-palette";
+import {
+  parseAsePalette,
+  writeAsePalette,
+} from "@/features/image-editor/lib/ase-palette";
 import {
   downloadBlob,
   getActivePaletteIndex,
@@ -23,8 +26,11 @@ import {
   writeJascPal,
   writePaintNetTxt,
   writePng,
-} from "@/lib/palette-formats";
-import { parsePhotoshopAse, writePhotoshopAse } from "@/lib/photoshop-ase";
+} from "@/features/image-editor/lib/palette-formats";
+import {
+  parsePhotoshopAse,
+  writePhotoshopAse,
+} from "@/features/image-editor/lib/photoshop-ase";
 import { DEFAULT_PALETTE_COLORS, getActivePalette } from "@/types/image-editor";
 import type { Color, Palette, PaletteId } from "@/types/image-editor";
 import type {

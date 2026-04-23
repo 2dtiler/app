@@ -1,18 +1,18 @@
 import { gunzipSync, unzlibSync } from "fflate";
 import { buildDownloadFilename } from "@/utils/format";
-import { buildTiledMapJsonBundleData } from "@/lib/import-export-tiled-json";
+import { buildTiledMapJsonBundleData } from "@/features/import-export/lib/import-export-tiled-json";
 import {
   MAP_NAME_PROPERTY_KEY,
   TILED_FORMAT_VERSION,
-} from "@/lib/import-export-tiled-shared";
-import { buildTiledLuaMapDocument } from "@/lib/tiled-lua-format";
-import { encodeTiledLuaDocument } from "@/lib/tiled-lua";
+} from "@/features/import-export/lib/import-export-tiled-shared";
+import { buildTiledLuaMapDocument } from "@/features/import-export/lib/tiled-lua-format";
+import { encodeTiledLuaDocument } from "@/features/import-export/lib/tiled-lua";
 import {
   base64ToBytes,
   createXmlDocument,
   decodeText,
   encodeXmlDocument,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,

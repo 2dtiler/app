@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { readFileAsUint8Array } from "@/utils/format";
-import { prepareTiledMapImport } from "@/lib/tiled-map-import";
+import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-import";
 import { pickSingleFile } from "@/features/import-export/lib/import-export-action-utils";
 import type {
   ImportExportArchiveEntry,

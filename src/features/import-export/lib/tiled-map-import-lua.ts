@@ -1,10 +1,10 @@
 import {
   collectMissingTiledJsonMapResources,
   importTiledJsonMapEntries,
-} from "@/lib/tiled-map-import-json";
-import { buildEntryMap } from "@/lib/tiled-map-import-shared";
-import { createSyntheticTiledLuaJsonEntries } from "@/lib/tiled-lua-format";
-import { normalizeBundlePath } from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-map-import-json";
+import { buildEntryMap } from "@/features/import-export/lib/tiled-map-import-shared";
+import { createSyntheticTiledLuaJsonEntries } from "@/features/import-export/lib/tiled-lua-format";
+import { normalizeBundlePath } from "@/features/import-export/lib/tiled-xml-utils";
 import type {
   ImportExportArchiveEntry,
   TiledMapImportPreparationResult,

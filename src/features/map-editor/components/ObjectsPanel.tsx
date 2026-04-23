@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/ContextMenu";
 import { ObjectPropertiesDialogManager } from "@/features/map-editor/components/ObjectPropertiesDialogManager";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { generateObjectId } from "@/lib/ids";
+import { generateObjectId } from "@/utils/ids";
 import type { ObjectId, ObjectType, MapObject } from "@/types";
 import type { ObjectRowProps } from "@/types/editor/editor-layout";
 import { cn } from "@/utils/cn";

@@ -26,7 +26,7 @@ import type {
   TiledMapExportOptions,
 } from "@/types";
 import type { ImportExportDialogProps } from "@/types/app/dialogs";
-import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/lib/import-export-raster";
+import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/features/import-export/lib/import-export-raster";
 
 const optionDefinitions: ImportExportOptionDefinition[] = [
   {

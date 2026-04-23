@@ -18,7 +18,7 @@ import {
   pickRasterImageFile,
   renderMapToCanvas,
   renderTilesetToCanvas,
-} from "@/lib/import-export-raster";
+} from "@/features/import-export/lib/import-export-raster";
 import { saveBlobFile, saveByteArrayFile } from "@/services/file-system";
 import {
   buildMapExportGroups,
@@ -40,7 +40,7 @@ import {
   generateMapId,
   generateObjectId,
   generateTilesetId,
-} from "@/lib/ids";
+} from "@/utils/ids";
 import { findLastLayerId } from "@/features/map-editor/lib/layers";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";

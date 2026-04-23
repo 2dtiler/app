@@ -7,7 +7,7 @@ import {
   getTileColumns,
   getTileCount,
   stripExtension,
-} from "@/lib/tiled-xml-utils";
+} from "@/features/import-export/lib/tiled-xml-utils";
 import {
   buildJsonProperties,
   createRelativeAssetPath,
@@ -24,7 +24,7 @@ import {
   MAP_NAME_PROPERTY_KEY,
   prepareTiledMapBundleData,
   TILED_FORMAT_VERSION,
-} from "@/lib/import-export-tiled-shared";
+} from "@/features/import-export/lib/import-export-tiled-shared";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,

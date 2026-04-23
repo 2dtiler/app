@@ -14,7 +14,7 @@ import {
   DEFAULT_RASTER_EXPORT_OPTIONS,
   supportsRasterQuality,
   supportsRasterTransparency,
-} from "@/lib/import-export-raster";
+} from "@/features/import-export/lib/import-export-raster";
 import type {
   ImportExportRasterExportOptions,
   ImportExportRasterFileType,
