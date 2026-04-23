@@ -8,10 +8,7 @@ import type {
   PixelSelection,
 } from "./index";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type {
-  PaletteExportFormat,
-  PngSwatchSize,
-} from "./image-editor-hook";
+import type { PaletteExportFormat, PngSwatchSize } from "./image-editor-hook";
 
 export interface ToolSidebarProps {
   currentTool: ImageEditorTool;

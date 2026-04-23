@@ -36,7 +36,11 @@ export function NewMapGroupDialog({
           autoFocus
         />
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={onCreate} disabled={!name.trim()}>

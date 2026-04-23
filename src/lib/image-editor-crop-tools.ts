@@ -3,7 +3,10 @@ import type {
   StrokeState,
   ToolContext,
 } from "@/types/image-editor/image-editor-internals";
-import type { CropRect, CropState } from "@/types/image-editor/image-editor-tools";
+import type {
+  CropRect,
+  CropState,
+} from "@/types/image-editor/image-editor-tools";
 
 function createCropState(): CropState {
   return {

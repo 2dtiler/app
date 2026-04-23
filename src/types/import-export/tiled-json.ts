@@ -1,7 +1,4 @@
-import type {
-  TiledLayerCompression,
-  TiledLayerEncoding,
-} from "./index";
+import type { TiledLayerCompression, TiledLayerEncoding } from "./index";
 
 export interface TiledJsonProperty {
   name?: string;
