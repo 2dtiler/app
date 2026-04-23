@@ -62,7 +62,7 @@ export type TiledRenderOrder =
   | "left-down"
   | "left-up";
 
-export type TiledMapFormat = "xml" | "json";
+export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
@@ -112,7 +112,7 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
-export type TiledImportMissingResourceKind = "tsx" | "tsj" | "image";
+export type TiledImportMissingResourceKind = "tsx" | "tsj" | "lua" | "image";
 
 export interface TiledImportMissingResource {
   path: string;
@@ -240,6 +240,22 @@ export interface ImportExportArchiveEntry {
   data: Uint8Array;
 }
 
+export interface TiledMapBundlePreparationResult {
+  entries: ImportExportArchiveEntry[];
+  exportedTilesets: Tileset[];
+  groupMap: ReadonlyMap<string, LayerGroup>;
+  imageLayerMap: ReadonlyMap<string, ImageLayer>;
+  imagePathsByAssetId: ReadonlyMap<string, string>;
+  imageSourcesByLayerId: ReadonlyMap<string, string>;
+  layerMap: ReadonlyMap<string, TileLayer>;
+  objectIdMap: ReadonlyMap<string, number>;
+  objectLayerMap: ReadonlyMap<string, ObjectLayer>;
+  objectMap: ReadonlyMap<string, MapObject>;
+  tilesetFirstGids: ReadonlyMap<string, number>;
+  tilesetMap: ReadonlyMap<string, Tileset>;
+  usedPaths: Set<string>;
+}
+
 export interface ImportExportAssetPickerProps {
   assetType: ImportExportAssetType;
   selection: ImportExportSelectionConfig;
@@ -281,4 +297,5 @@ export interface ImportExportOptionDefinition {
   label: string;
   description: string;
   supportedNow: boolean;
+  supportedModes?: readonly ImportExportDialogMode[];
 }

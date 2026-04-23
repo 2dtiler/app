@@ -19,7 +19,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p className="text-xs tracking-widest uppercase text-primary font-medium">
-            Version 0.1.0
+            Version 0.1.1
           </p>
           <p>
             A tile map editor built with React for creating 2D game maps. Upload

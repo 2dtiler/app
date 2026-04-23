@@ -45,6 +45,7 @@ import {
   collectMissingTiledJsonMapResources,
   importTiledJsonMapEntries,
 } from "@/lib/tiled-map-import-json";
+import { prepareTiledLuaMapImport } from "@/lib/tiled-map-import-lua";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,
@@ -626,12 +627,20 @@ export async function prepareTiledMapImport(
   entries: readonly ImportExportArchiveEntry[],
   format: TiledMapFormat,
 ): Promise<TiledMapImportPreparationResult> {
+  if (format === "lua") {
+    return prepareTiledLuaMapImport(rootPath, entries);
+  }
+
   const normalizedRootPath = normalizeBundlePath(rootPath);
   const providedEntries = buildEntryMap(entries);
-  const missingResources =
-    format === "json"
-      ? collectMissingTiledJsonMapResources(normalizedRootPath, providedEntries)
-      : collectMissingTiledMapResources(normalizedRootPath, providedEntries);
+  const isJsonLikeFormat = format === "json" || format === "js";
+  const missingResources = isJsonLikeFormat
+    ? collectMissingTiledJsonMapResources(
+        normalizedRootPath,
+        providedEntries,
+        format,
+      )
+    : collectMissingTiledMapResources(normalizedRootPath, providedEntries);
 
   if (missingResources.length > 0) {
     return {
@@ -643,9 +652,12 @@ export async function prepareTiledMapImport(
 
   return {
     status: "ready",
-    result:
-      format === "json"
-        ? await importTiledJsonMapEntries(normalizedRootPath, providedEntries)
-        : await importTiledMapEntries(normalizedRootPath, providedEntries),
+    result: isJsonLikeFormat
+      ? await importTiledJsonMapEntries(
+          normalizedRootPath,
+          providedEntries,
+          format,
+        )
+      : await importTiledMapEntries(normalizedRootPath, providedEntries),
   };
 }

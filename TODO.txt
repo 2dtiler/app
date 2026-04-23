@@ -1,12 +1,21 @@
+Export - Should ask for target location on filesystem
+
 Export Options
   - Do the rest of the options
-  - Should ask for target location
+  - All tiled map exports should be an accordion
+  
 Import Options
-  - Should show which group to import to (if more than one)
   - Do the rest of the options
+  - All tiled map imports should just be one button
+
+Map type: infinite
+More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
+Dont do window.location.reload() in pwa.js. Find a better solution
 
 Allow quick export bottom right
+Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Check why website is not populating release notes
+Keyboard shortcuts not working?
 
 AI Asset Generation:
   AI Generation not working currently
@@ -17,13 +26,11 @@ AI Asset Generation:
   Add depleting progress bar to show remaining quota
   Ability to download/add to tileset/open in image Editor
 
-Map type: infinite
+Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
 
-Add Tileset/Add Map buttons or dragging and dropping should support all formats
-
 Exploration:
-  SpriteFusion
+  SpriteFusion (Autotile rules)
   Ogmo Editor
   Universal lpc spritesheet generator
   LDTK
@@ -41,10 +48,12 @@ Exploration:
   Spritely
   Makko.ai
   Keep Notes
+  tilengine.org
   https://itch.io/games-like/28768/tiled
   
+  
 Text Layer custom fonts not working
-Custom Animations i.e. water moving
+Image Editor Crop should change the dimensions of the image
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
@@ -60,3 +69,12 @@ Add tutorial video
 Add roadmap voting on home page
 Windows/Mac/Linux Apps
 Drive some traffic to it: 2dtiler.com
+Hover over tile: "V" flip vertical. "H" flip horizontal 
+First time start: Show example map with tutorial
+- Add import/export Godot3 map
+- Add import/export Cocos
+- Add import/export Phaser
+- Add import/export GDevelop
+- Add import/export Bevy
+- Add import/export Love2D
+- Add import/export GB Studio

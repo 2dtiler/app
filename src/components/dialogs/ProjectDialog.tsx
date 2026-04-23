@@ -40,11 +40,11 @@ import {
 } from "@/lib/ids";
 import {
   exportProject,
-  downloadFile,
   readFileAsUint8Array,
   importProject,
 } from "@/lib/format";
 import { openProjectInEditor } from "@/lib/project-session";
+import { saveByteArrayFile } from "@/lib/save-file";
 import type { Project } from "@/types";
 import type { ProjectDialogProps } from "@/types/dialogs";
 import type { ProjectRecord } from "@/types/persistence";
@@ -133,7 +133,7 @@ export function ProjectDialog({
     const project = await getProject(record.id);
     if (!project) return;
     const data = await exportProject(project);
-    downloadFile(data, `${project.name}.2dp`);
+    await saveByteArrayFile(data, `${project.name}.2dp`);
   }
 
   async function handleDeleteProject() {
