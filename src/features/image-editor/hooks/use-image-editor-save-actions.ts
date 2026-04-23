@@ -19,7 +19,9 @@ export function useImageEditorSaveActions(
   editor: ImageEditorController,
   activeTileCtx: TileEditorContext | null,
   activeImageLayerCtx: ImageLayerEditorContext | null,
-  setActiveImageLayerCtx: Dispatch<SetStateAction<ImageLayerEditorContext | null>>,
+  setActiveImageLayerCtx: Dispatch<
+    SetStateAction<ImageLayerEditorContext | null>
+  >,
   onRequestClose: ImageEditorProps["onRequestClose"],
   setShowUnsavedDialog: Dispatch<SetStateAction<boolean>>,
   setIsClosingAfterSave: Dispatch<SetStateAction<boolean>>,
@@ -191,7 +193,12 @@ export function useImageEditorSaveActions(
 
     toast("Use Export to save this image to a file.");
     return false;
-  }, [activeImageLayerCtx, activeTileCtx, handleSaveImageLayer, handleSaveTile]);
+  }, [
+    activeImageLayerCtx,
+    activeTileCtx,
+    handleSaveImageLayer,
+    handleSaveTile,
+  ]);
 
   const handleOpenExportDialog = useCallback(() => {
     setShowSaveDialog(true);
