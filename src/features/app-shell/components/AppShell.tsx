@@ -24,7 +24,7 @@ import { saveProject } from "@/services/db";
 import { clearTileEditorContext } from "@/features/map-editor/lib/tile-editor-context";
 import type { EditorWorkspaceTab } from "@/types/editor/editor-layout";
 import type { AppShellProps } from "@/types/app/app";
-import type { ImportExportDialogMode } from "@/types/import-export";
+import type { ImportExportDialogMode } from "@/features/import-export/types";
 import { markEditorSaved } from "@/store/editor-store";
 
 const SettingsDialog = lazy(() =>

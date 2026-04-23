@@ -5,7 +5,7 @@ import type {
   ImportExportOptionAction,
   TiledMapFormat,
   TiledImportMissingResource,
-} from "../import-export";
+} from "@/features/import-export/types";
 import type { NewMapType } from "../map/map-geometry";
 import type {
   MapObject,

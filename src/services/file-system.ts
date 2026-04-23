@@ -1,7 +1,7 @@
 import type {
   NativeSaveFilePickerOptions,
   NativeSaveWindow,
-} from "@/types/import-export/file-save";
+} from "@/features/import-export/types";
 
 const DEFAULT_DOWNLOAD_MIME_TYPE = "application/octet-stream";
 

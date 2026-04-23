@@ -6,7 +6,7 @@ import type { ZoomState } from "@/types/editor/editor-store";
 import type {
   PersistedZoomMap,
   ProjectPrefs,
-} from "@/types/import-export/persistence";
+} from "@/features/import-export/types";
 
 function pruneZoomMap(
   zoomMap: PersistedZoomMap | undefined,

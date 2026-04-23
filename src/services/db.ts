@@ -6,7 +6,7 @@ import type {
   AssetRecord,
   ProjectPrefs,
   ProjectRecord,
-} from "@/types/import-export/persistence";
+} from "@/features/import-export/types";
 
 // ---------------------------------------------------------------------------
 // Database

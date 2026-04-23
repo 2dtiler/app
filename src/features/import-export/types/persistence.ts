@@ -8,7 +8,7 @@ import type {
   TileLayer,
   TileMapData,
   Tileset,
-} from "../map/schema";
+} from "@/types/map/schema";
 
 export interface AssetRecord {
   id: AssetId;

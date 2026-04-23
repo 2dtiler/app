@@ -42,7 +42,7 @@ import {
 } from "@/utils/ids";
 import type { Project } from "@/types";
 import type { ProjectDialogProps } from "@/types/app/dialogs";
-import type { ProjectRecord } from "@/types/import-export/persistence";
+import type { ProjectRecord } from "@/features/import-export/types";
 import {
   exportProject,
   importProject,

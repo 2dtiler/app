@@ -8,7 +8,7 @@ import type {
   ZoomState,
   ZoomStoreHydration,
 } from "@/types/editor/editor-store";
-import type { PersistedZoomMap } from "@/types/import-export/persistence";
+import type { PersistedZoomMap } from "@/features/import-export/types";
 
 export const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.5;
