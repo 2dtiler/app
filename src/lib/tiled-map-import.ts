@@ -8,7 +8,7 @@ import {
 import {
   getDefaultTextObjectProperties,
   normalizeTextObject,
-} from "@/lib/text-objects";
+} from "@/features/map-editor/lib/text-objects";
 import {
   decodeText,
   normalizeBundlePath,

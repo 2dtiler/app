@@ -4,7 +4,7 @@
  */
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
-import { getEditorStore } from "@/lib/store";
+import { getEditorStore } from "@/store/editor-store";
 import type { EditorState } from "@/types";
 
 /**

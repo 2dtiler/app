@@ -1,5 +1,5 @@
 import { gunzipSync, unzlibSync } from "fflate";
-import { saveAsset } from "@/lib/db";
+import { saveAsset } from "@/services/db";
 import { generateAssetId } from "@/lib/ids";
 import {
   base64ToBytes,

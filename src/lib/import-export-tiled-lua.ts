@@ -1,5 +1,5 @@
 import { gunzipSync, unzlibSync } from "fflate";
-import { buildDownloadFilename } from "@/lib/format";
+import { buildDownloadFilename } from "@/utils/format";
 import { buildTiledMapJsonBundleData } from "@/lib/import-export-tiled-json";
 import {
   MAP_NAME_PROPERTY_KEY,

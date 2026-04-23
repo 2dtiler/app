@@ -34,10 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { TilesetCanvas } from "@/components/editor/TilesetCanvas";
+import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { getAllLayerIds } from "@/lib/layers";
-import { getAssetUrl } from "@/lib/db";
+import { getAllLayerIds } from "@/features/map-editor/lib/layers";
+import { getAssetUrl } from "@/services/db";
 import type { TileRef, TilesetId, LayerId, AssetId } from "@/types";
 import type {
   FindReplaceDialogProps,

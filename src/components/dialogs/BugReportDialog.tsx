@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { submitBugReportToSentry } from "@/lib/sentry";
+import { submitBugReportToSentry } from "@/services/sentry";
 import type { BugReportDialogProps } from "@/types/app/dialogs";
 
 export function BugReportDialog({ open, onOpenChange }: BugReportDialogProps) {

@@ -1,8 +1,8 @@
-import { buildDownloadFilename } from "@/lib/format";
+import { buildDownloadFilename } from "@/utils/format";
 import {
   getTextObjectSettings,
   isReservedTextObjectPropertyKey,
-} from "@/lib/text-objects";
+} from "@/features/map-editor/lib/text-objects";
 import {
   getTileColumns,
   getTileCount,

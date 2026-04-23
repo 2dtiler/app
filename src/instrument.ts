@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import { isSentryEnabled, sentryDsn } from "@/lib/sentry";
+import { isSentryEnabled, sentryDsn } from "@/services/sentry";
 
 // Sentry is loaded lazily (via requestIdleCallback in main.tsx) to avoid
 // blocking the critical render path. Early startup errors won't be captured,

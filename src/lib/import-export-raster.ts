@@ -1,11 +1,11 @@
 import {
   drawImageLayerWithOrientation,
   drawTileWithOrientation,
-} from "@/components/editor/MapCanvas/texture-cache";
-import { drawMapObjects } from "@/components/editor/MapCanvas/draw-map-objects";
-import { getAsset, saveAsset } from "@/lib/db";
+} from "@/features/map-editor/components/MapCanvas/texture-cache";
+import { drawMapObjects } from "@/features/map-editor/components/MapCanvas/draw-map-objects";
+import { getAsset, saveAsset } from "@/services/db";
 import { generateAssetId } from "@/lib/ids";
-import { getMapCellOrigin, getMapPixelSize } from "@/lib/map-geometry";
+import { getMapCellOrigin, getMapPixelSize } from "@/features/map-editor/lib/map-geometry";
 import type {
   AssetId,
   ImportExportRasterAsset,

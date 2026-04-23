@@ -5,7 +5,7 @@ import {
   getEditorStore,
   markEditorSaved,
   hasUnsavedChanges,
-} from "@/lib/store";
+} from "@/store/editor-store";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
@@ -13,17 +13,17 @@ import {
   getProject,
   loadProjectPrefs,
   loadLastProjectId,
-} from "@/lib/db";
-import {} from "@/lib/db";
+} from "@/services/db";
+import {} from "@/services/db";
 import {
   hydrateZoomStoreForProject,
   saveCurrentProjectPrefs,
-} from "@/lib/project-prefs";
-import { getActiveTilesetTileSize } from "@/lib/project";
-import { zoomStore } from "@/lib/zoom-store";
+} from "@/features/project-management/lib/project-prefs";
+import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
+import { zoomStore } from "@/store/zoom-store";
 import type { ToolName } from "@/types";
 import { Toaster } from "@/components/ui/Sonner";
-import { AppShell } from "@/components/app/AppShell";
+import { AppShell } from "@/features/app-shell";
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (

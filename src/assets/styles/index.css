@@ -1,0 +1,264 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource/doto/400.css";
+@import "@fontsource/doto/500.css";
+@import "@fontsource/doto/600.css";
+@import "@fontsource/doto/700.css";
+@import "@fontsource/space-grotesk/300.css";
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-display: "Doto", "Space Mono", monospace;
+  --font-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-label: "Space Mono", "JetBrains Mono", "SF Mono", monospace;
+
+  --display-xl: 4.5rem;
+  --display-lg: 3rem;
+  --display-md: 2.25rem;
+  --heading: 1.5rem;
+  --subheading: 1.125rem;
+  --body: 1rem;
+  --body-sm: 0.875rem;
+  --caption: 0.75rem;
+  --label: 0.6875rem;
+
+  --black: #000000;
+  --surface: #111111;
+  --surface-raised: #1a1a1a;
+  --border: #222222;
+  --border-visible: #333333;
+  --text-disabled: #666666;
+  --text-secondary: #999999;
+  --text-primary: #e8e8e8;
+  --text-display: #ffffff;
+  --signal: #d71921;
+  --signal-subtle: rgba(215, 25, 33, 0.15);
+  --success: #4a9e5c;
+  --warning: #d4a843;
+  --interactive: #5b9bf6;
+  --checkerboard-base: #1e1e1e;
+  --checkerboard-accent: #282828;
+
+  --background: var(--black);
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--text-display);
+  --primary-foreground: var(--black);
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--surface-raised);
+  --accent-foreground: var(--text-display);
+  --destructive: var(--signal);
+  --destructive-foreground: var(--text-display);
+  --input: var(--border-visible);
+  --ring: var(--text-display);
+  --chart-1: var(--text-display);
+  --chart-2: var(--text-secondary);
+  --chart-3: var(--warning);
+  --chart-4: var(--success);
+  --chart-5: var(--signal);
+  --radius: 0.75rem;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--text-display);
+  --sidebar-primary-foreground: var(--black);
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--text-display);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--text-display);
+}
+
+.light {
+  --black: #f5f5f5;
+  --surface: #ffffff;
+  --surface-raised: #f0f0f0;
+  --border: #e8e8e8;
+  --border-visible: #cccccc;
+  --text-disabled: #999999;
+  --text-secondary: #666666;
+  --text-primary: #1a1a1a;
+  --text-display: #000000;
+  --interactive: #007aff;
+  --checkerboard-base: #f0f0f0;
+  --checkerboard-accent: #e3e3e3;
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-label);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-visible: var(--border-visible);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-text-display: var(--text-display);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-disabled: var(--text-disabled);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-interactive: var(--interactive);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply bg-background;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    letter-spacing: -0.01em;
+    background-image: radial-gradient(
+      circle,
+      var(--border) 0.5px,
+      transparent 0.5px
+    );
+    background-size: 12px 12px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--text-display) 18%, transparent);
+    color: var(--text-display);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.ui-label {
+  font-family: var(--font-label);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Compact scrollbars for editor feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-visible);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Prevent body scroll */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* content-visibility: defer off-screen rendering for long layer lists (rendering-content-visibility) */
+.layer-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 52px;
+}
+
+/* Indeterminate progress bar animation for import loading */
+@keyframes progress-bar {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+  50% {
+    width: 60%;
+    margin-left: 20%;
+  }
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+/* Tool drawer slide animations */
+@keyframes drawer-slide-in {
+  from {
+    translate: 100% 0;
+    opacity: 0;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+@keyframes drawer-slide-out {
+  from {
+    translate: 0 0;
+    opacity: 1;
+  }
+  to {
+    translate: 100% 0;
+    opacity: 0;
+  }
+}
+.drawer-enter {
+  animation: drawer-slide-in 300ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+.drawer-exit {
+  animation: drawer-slide-out 300ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}

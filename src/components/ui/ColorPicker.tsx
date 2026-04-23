@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import type {
   ColorPickerContextValue,
   ColorPickerProps,

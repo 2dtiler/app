@@ -1,6 +1,6 @@
 import { gzipSync, zlibSync } from "fflate";
-import { getAsset } from "@/lib/db";
-import { sanitizeDownloadSegment } from "@/lib/format";
+import { getAsset } from "@/services/db";
+import { sanitizeDownloadSegment } from "@/utils/format";
 import {
   bytesToBase64,
   getFileExtensionFromMimeType,

@@ -183,7 +183,7 @@ export interface MapPanelCanvasActionParams {
   >;
   project: EditorState["project"];
   setPaintBufferVersion: Dispatch<SetStateAction<number>>;
-  setState: ReturnType<typeof import("@/lib/store").getEditorStore>["setState"];
+  setState: ReturnType<typeof import("@/store/editor-store").getEditorStore>["setState"];
   state: EditorState;
   textObjectEditing: MapPanelTextObjectEditingController;
 }
@@ -217,7 +217,7 @@ export interface MapPanelClipboardActionParams {
   hasContextMenuTile: boolean;
   hoverTileRef: React.MutableRefObject<MapCanvasContextMenuTile | null>;
   project: EditorState["project"];
-  setState: ReturnType<typeof import("@/lib/store").getEditorStore>["setState"];
+  setState: ReturnType<typeof import("@/store/editor-store").getEditorStore>["setState"];
   state: EditorState;
 }
 
