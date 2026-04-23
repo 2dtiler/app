@@ -3,7 +3,7 @@
  * copy/cut/paste operations in the map editor.
  */
 
-import type { ImageLayerClipboard } from "@/types/editor/editor-helpers";
+import type { ImageLayerClipboard } from "@/features/map-editor/types/editor-helpers";
 
 let imageLayerClipboard: ImageLayerClipboard | null = null;
 

@@ -38,11 +38,11 @@ import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { getAllLayerIds } from "@/features/map-editor/lib/layers";
 import { getAssetUrl } from "@/services/db";
-import type { TileRef, TilesetId, LayerId, AssetId } from "@/types";
 import type {
   FindReplaceDialogProps,
   FindReplaceGridSize as GridSize,
-} from "@/types/app/dialogs";
+} from "@/features/map-editor/types/dialogs";
+import type { TileRef, TilesetId, LayerId, AssetId } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Grid sizes

@@ -7,9 +7,11 @@
  */
 
 export * from "./image-editor-controller";
+export * from "./image-editor-context";
 export * from "./image-editor-hook";
 export * from "./image-editor-hook-internals";
 export * from "./image-editor-internals";
+export * from "./image-editor-layer-tree";
 export * from "./image-editor-tools";
 export * from "./image-editor-ui";
 

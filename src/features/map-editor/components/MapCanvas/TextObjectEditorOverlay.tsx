@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getTextObjectSettings } from "@/features/map-editor/lib/text-objects";
-import type { TextObjectEditorOverlayProps } from "@/types";
+import type { TextObjectEditorOverlayProps } from "@/features/map-editor/types/map-canvas";
 
 export function TextObjectEditorOverlay({
   object,

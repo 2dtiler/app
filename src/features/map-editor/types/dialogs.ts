@@ -1,12 +1,5 @@
 import type { ReactNode } from "react";
-import type { ToolName } from "./components";
-import type {
-  ImportExportDialogMode,
-  ImportExportOptionAction,
-  TiledMapFormat,
-  TiledImportMissingResource,
-} from "@/features/import-export/types";
-import type { NewMapType } from "../map/map-geometry";
+import type { NewMapType } from "@/types/map/map-geometry";
 import type {
   MapObject,
   ObjectId,
@@ -14,17 +7,7 @@ import type {
   PropertyValue,
   TerrainTile,
   TileMapData,
-} from "../map/schema";
-
-export interface AboutDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface BugReportDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+} from "@/types/map/schema";
 
 export interface FillTerrainDialogProps {
   open: boolean;
@@ -37,31 +20,6 @@ export type FindReplaceGridSize = 1 | 2 | 3 | 4 | 5;
 export interface FindReplaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-export interface KeyboardShortcutsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface ImportExportDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  mode: ImportExportDialogMode;
-  projectAction: ImportExportOptionAction;
-  mapAction: ImportExportOptionAction;
-  tilesetAction: ImportExportOptionAction;
-}
-
-export interface TiledMissingResourcesDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  format: TiledMapFormat;
-  resources: TiledImportMissingResource[];
-  selectedFileNames: Record<string, string>;
-  isSubmitting: boolean;
-  onSelectFile: (resource: TiledImportMissingResource) => void | Promise<void>;
-  onImport: () => void | Promise<void>;
 }
 
 export type AddLayerDialogLayerType = "tile" | "group" | "image" | "object";
@@ -141,27 +99,4 @@ export interface NewTilesetGroupDialogProps {
   name: string;
   onNameChange: (value: string) => void;
   onCreate: () => void;
-}
-
-export interface ProjectDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onProjectLoaded: () => void;
-}
-
-export interface SettingsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface SettingsKeyRowProps {
-  id: string;
-  label: string;
-  url: string;
-  placeholder: string;
-}
-
-export interface ToolDrawerProps {
-  activeTool: ToolName | null;
-  onClose: () => void;
 }

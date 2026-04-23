@@ -51,7 +51,7 @@ import {
   remapTileEntries,
 } from "@/features/project-management/lib/project-import";
 import { saveProject } from "@/services/db";
-import type { EditorTravels } from "@/types/editor/editor-store";
+import type { EditorTravels } from "@/store/types";
 import type {
   EditorState,
   ImageLayer,

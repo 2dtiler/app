@@ -14,7 +14,7 @@ import { cn } from "@/utils/cn";
 // rerender-defer-reads: use store directly for controls to avoid
 // subscribing to full state which would re-render on every change
 import { getEditorStore } from "@/store/editor-store";
-import type { ToolbarProps } from "@/types";
+import type { ToolbarProps } from "@/features/app-shell";
 
 export const Toolbar = memo(function Toolbar({
   onNewProject,

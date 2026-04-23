@@ -23,6 +23,15 @@ export * from "./tiled-lua";
 
 export type ImportExportDialogMode = "import" | "export";
 
+export interface ImportExportDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: ImportExportDialogMode;
+  projectAction: ImportExportOptionAction;
+  mapAction: ImportExportOptionAction;
+  tilesetAction: ImportExportOptionAction;
+}
+
 export type ImportExportAssetType = "project" | "map" | "tileset";
 
 export type ImportExportOptionId =
@@ -124,6 +133,17 @@ export interface TiledImportMissingResource {
   kind: TiledImportMissingResourceKind;
   referringPath: string;
   label: string;
+}
+
+export interface TiledMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  format: TiledMapFormat;
+  resources: TiledImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: TiledImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
 }
 
 export interface TiledMapImportPendingResult {

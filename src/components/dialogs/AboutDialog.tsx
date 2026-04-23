@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import type { AboutDialogProps } from "@/types/app/dialogs";
+import type { AboutDialogProps } from "@/features/app-shell";
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   return (
@@ -19,7 +19,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p className="text-xs tracking-widest uppercase text-primary font-medium">
-            Version 0.1.1
+            Version 0.1.2
           </p>
           <p>
             A tile map editor built with React for creating 2D game maps. Upload

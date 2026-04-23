@@ -21,7 +21,7 @@ import {
 } from "@/features/project-management/lib/project-prefs";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { zoomStore } from "@/store/zoom-store";
-import type { ToolName } from "@/types";
+import type { ToolName } from "@/features/app-shell";
 import { Toaster } from "@/components/ui/Sonner";
 import { AppShell } from "@/features/app-shell";
 

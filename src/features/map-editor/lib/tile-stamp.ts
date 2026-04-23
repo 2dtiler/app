@@ -3,7 +3,7 @@ import type {
   TileStamp,
   TileStampCell,
   TileStampSource,
-} from "@/types/editor/editor-helpers";
+} from "@/features/map-editor/types/editor-helpers";
 
 export function areTileRefsEqual(
   a: TileRef | null | undefined,

@@ -22,7 +22,7 @@ import { PROPERTY_TYPES, type PropertyValue, type TileMapData } from "@/types";
 import type {
   EditablePropertyEntry,
   MapOptionsDialogProps,
-} from "@/types/app/dialogs";
+} from "@/features/map-editor/types/dialogs";
 
 function mapPropertiesToEntries(
   properties: TileMapData["properties"],

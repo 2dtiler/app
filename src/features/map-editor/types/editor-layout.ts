@@ -5,7 +5,7 @@ import type {
   TerrainTile,
   TileSize,
   Tileset,
-} from "../map/schema";
+} from "@/types/map/schema";
 
 export type EditorWorkspaceTab = "layers" | "details";
 
@@ -64,6 +64,6 @@ export interface ObjectRowProps {
   dropIndicator: "above" | "below" | null;
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
-  onDragOver: (e: DragEvent, targetId: string) => void;
-  onDrop: (e: DragEvent) => void;
+  onDragOver: (event: DragEvent, targetId: string) => void;
+  onDrop: (event: DragEvent) => void;
 }

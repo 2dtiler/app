@@ -1,7 +1,7 @@
 import { ObjectPropertiesDialog } from "@/features/map-editor/dialogs/ObjectPropertiesDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { getTextObjectSettings } from "@/features/map-editor/lib/text-objects";
-import type { ObjectPropertiesDialogManagerProps } from "@/types";
+import type { ObjectPropertiesDialogManagerProps } from "@/features/map-editor/types/dialogs";
 
 export function ObjectPropertiesDialogManager({
   objectId,

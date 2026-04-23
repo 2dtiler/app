@@ -12,13 +12,7 @@ import type {
   TileMapData,
   TileRef,
   TilesetId,
-} from "../map/schema";
-import type {
-  ImageEditorGroupId,
-  ImageEditorImageLayer,
-  ImageEditorLayerGroup,
-  ImageEditorRasterLayer,
-} from "@/features/image-editor/types";
+} from "@/types/map/schema";
 
 export interface FillRegionOptions {
   map: TileMapData;
@@ -59,13 +53,6 @@ export interface TileEditorContext {
   layerId: LayerId;
   tileX: number;
   tileY: number;
-}
-
-export interface ImageLayerEditorContext {
-  layerId: LayerId;
-  assetId: AssetId;
-  width: number;
-  height: number;
 }
 
 export interface ImageLayerClipboard {
@@ -113,24 +100,4 @@ export type LayerTreeNode =
       group: LayerGroup;
       depth: number;
       parentGroupId: LayerGroupId | null;
-    };
-
-export type ImageEditorLayerTreeNode =
-  | {
-      type: "rasterLayer";
-      layer: ImageEditorRasterLayer;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
-    }
-  | {
-      type: "imageLayer";
-      layer: ImageEditorImageLayer;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
-    }
-  | {
-      type: "group";
-      group: ImageEditorLayerGroup;
-      depth: number;
-      parentGroupId: ImageEditorGroupId | null;
     };

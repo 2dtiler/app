@@ -2,13 +2,13 @@ import { useCallback, useState } from "react";
 import { readFileAsUint8Array } from "@/utils/format";
 import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-import";
 import { pickSingleFile } from "@/features/import-export/lib/import-export-action-utils";
+import type { TiledMissingResourcesDialogProps } from "@/features/import-export/types";
 import type {
   ImportExportArchiveEntry,
   PendingTiledMapImportState,
   TiledImportMissingResource,
   TiledMapFormat,
   TiledMapImportResult,
-  TiledMissingResourcesDialogProps,
 } from "@/types";
 
 const TILED_IMPORT_ACCEPT_BY_FORMAT: Record<TiledMapFormat, string> = {

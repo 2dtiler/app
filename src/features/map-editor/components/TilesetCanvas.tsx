@@ -18,7 +18,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
 import { getAssetUrl } from "@/services/db";
-import type { TilesetCanvasProps } from "@/types";
+import type { TilesetCanvasProps } from "@/features/map-editor/types/editor-ui";
 
 // ---------------------------------------------------------------------------
 // Component

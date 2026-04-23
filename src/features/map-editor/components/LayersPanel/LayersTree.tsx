@@ -1,6 +1,6 @@
 import { GroupRow } from "./GroupRow";
 import { LayerRow } from "./LayerRow";
-import type { LayersTreeProps } from "@/types/editor/layers-panel";
+import type { LayersTreeProps } from "@/features/map-editor/types/layers-panel";
 
 export function LayersTree({
   treeNodes,

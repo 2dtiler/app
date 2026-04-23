@@ -1,4 +1,4 @@
-import type { TileEditorContext } from "@/types/editor/editor-helpers";
+import type { TileEditorContext } from "@/features/map-editor/types/editor-helpers";
 
 export interface PendingTileEditorRequest {
   requestId: number;

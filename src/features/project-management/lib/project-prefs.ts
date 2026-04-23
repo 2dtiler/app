@@ -1,8 +1,8 @@
 import { saveProjectPrefs } from "@/services/db";
 import { getEditorStore } from "@/store/editor-store";
 import { DEFAULT_ZOOM, zoomStore } from "@/store/zoom-store";
+import type { ZoomState } from "@/store/types";
 import type { EditorState, Project } from "@/types";
-import type { ZoomState } from "@/types/editor/editor-store";
 import type {
   PersistedZoomMap,
   ProjectPrefs,

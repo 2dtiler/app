@@ -23,7 +23,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Slider } from "@/components/ui/Slider";
 import { getAssetUrl } from "@/services/db";
-import type { TerrainTileSelectorProps } from "@/types/editor/editor-layout";
+import type { TerrainTileSelectorProps } from "@/features/map-editor/types/editor-layout";
 
 // ---------------------------------------------------------------------------
 // Mini tile preview — draws a single tile from the tileset onto a tiny canvas

@@ -41,8 +41,8 @@ import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { TerrainTileSelector } from "@/features/map-editor/components/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateTerrainId } from "@/utils/ids";
+import type { FillTerrainDialogProps } from "@/features/map-editor/types/dialogs";
 import type { TerrainTile, TerrainId, TilesetId, Terrain } from "@/types";
-import type { FillTerrainDialogProps } from "@/types/app/dialogs";
 
 // ---------------------------------------------------------------------------
 // Component

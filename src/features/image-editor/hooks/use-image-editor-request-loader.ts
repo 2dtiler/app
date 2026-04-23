@@ -18,10 +18,8 @@ import {
   getImageEditorStore,
   isImageEditorStoreReady,
 } from "@/store/image-editor-store";
-import type {
-  ImageLayerEditorContext,
-  TileEditorContext,
-} from "@/types/editor/editor-helpers";
+import type { TileEditorContext } from "@/features/map-editor/types/editor-helpers";
+import type { ImageLayerEditorContext } from "@/features/image-editor/types/image-editor-context";
 import type { ImageEditorController } from "@/features/image-editor/types/image-editor-controller";
 
 export function useImageEditorRequestLoader(

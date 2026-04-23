@@ -43,8 +43,8 @@ import {
 import { ObjectPropertiesDialogManager } from "@/features/map-editor/components/ObjectPropertiesDialogManager";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateObjectId } from "@/utils/ids";
+import type { ObjectRowProps } from "@/features/map-editor/types/editor-layout";
 import type { ObjectId, ObjectType, MapObject } from "@/types";
-import type { ObjectRowProps } from "@/types/editor/editor-layout";
 import { cn } from "@/utils/cn";
 
 const OBJECT_TYPE_ICONS: Record<ObjectType, typeof Square> = {

@@ -16,7 +16,7 @@ import type {
   AddLayerDialogLayerType as LayerType,
   AddLayerDialogLayerTypeOption as LayerTypeOption,
   AddLayerDialogProps,
-} from "@/types/app/dialogs";
+} from "@/features/map-editor/types/dialogs";
 
 const LAYER_TYPES: LayerTypeOption[] = [
   {

@@ -7,10 +7,8 @@ import {
   evictTileset,
 } from "@/features/map-editor/components/MapCanvas/texture-cache";
 import { generateAssetId, generateTilesetId } from "@/utils/ids";
-import type {
-  ImageLayerEditorContext,
-  TileEditorContext,
-} from "@/types/editor/editor-helpers";
+import type { TileEditorContext } from "@/features/map-editor/types/editor-helpers";
+import type { ImageLayerEditorContext } from "@/features/image-editor/types/image-editor-context";
 import type { ImageEditorProps } from "@/features/image-editor/types/image-editor-ui";
 import type { ImageEditorController } from "@/features/image-editor/types/image-editor-controller";
 import type { Dispatch, SetStateAction } from "react";

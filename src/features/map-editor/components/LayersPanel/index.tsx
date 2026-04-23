@@ -33,7 +33,7 @@ import { DeleteLayerDialog } from "./DeleteLayerDialog";
 import type {
   LayerDropIndicator,
   LayersPanelDeleteTarget,
-} from "@/types/editor/layers-panel";
+} from "@/features/map-editor/types/layers-panel";
 
 export function LayersPanel() {
   const { state, setState } = useEditorStore();

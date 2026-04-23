@@ -14,6 +14,7 @@ import { cn } from "@/utils/cn";
 import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
 import { TiledXmlExportOptionsPanel } from "./import-export/TiledXmlExportOptionsPanel";
+import type { ImportExportDialogProps } from "@/features/import-export/types";
 import type {
   ImportExportAssetType,
   ImportExportDialogMode,
@@ -25,7 +26,6 @@ import type {
   ImportExportSelectableAssetId,
   TiledMapExportOptions,
 } from "@/types";
-import type { ImportExportDialogProps } from "@/types/app/dialogs";
 import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/features/import-export/lib/import-export-raster";
 
 const optionDefinitions: ImportExportOptionDefinition[] = [

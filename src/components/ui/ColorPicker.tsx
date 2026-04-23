@@ -22,18 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { cn } from "@/utils/cn";
 import type {
+  ColorPickerAlphaProps,
   ColorPickerContextValue,
+  ColorPickerEyeDropperProps,
+  ColorPickerFormatProps,
+  ColorPickerHueProps,
+  ColorPickerOutputProps,
   ColorPickerProps,
   ColorPickerSelectionProps,
-  ColorPickerHueProps,
-  ColorPickerAlphaProps,
-  ColorPickerEyeDropperProps,
-  ColorPickerOutputProps,
-  ColorPickerFormatProps,
   PercentageInputProps,
-} from "@/types";
+} from "@/types/components";
+import { cn } from "@/utils/cn";
 
 const ColorPickerContext = createContext<ColorPickerContextValue | undefined>(
   undefined,

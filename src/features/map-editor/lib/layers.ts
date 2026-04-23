@@ -20,10 +20,8 @@ import type {
   ImageEditorImageLayer,
   ImageEditorLayerGroup,
 } from "@/features/image-editor/types";
-import type {
-  ImageEditorLayerTreeNode,
-  LayerTreeNode,
-} from "@/types/editor/editor-helpers";
+import type { ImageEditorLayerTreeNode } from "@/features/image-editor/types/image-editor-layer-tree";
+import type { LayerTreeNode } from "@/features/map-editor/types/editor-helpers";
 
 // ---------------------------------------------------------------------------
 // Index Map builder (js-index-maps: O(1) lookups instead of O(n) .find())

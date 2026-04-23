@@ -25,7 +25,7 @@ import type {
 import type {
   ImageLayerClipboard,
   TileClipboard,
-} from "@/types/editor/editor-helpers";
+} from "@/features/map-editor/types/editor-helpers";
 import type {
   MapPanelClipboardActionParams,
   MapPanelClipboardActionResult,

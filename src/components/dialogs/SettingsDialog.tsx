@@ -23,11 +23,11 @@ import {
   saveApiKey,
   deleteApiKey,
 } from "@/config/api-keys";
-import type { AppSettings } from "@/types";
 import type {
   SettingsDialogProps,
   SettingsKeyRowProps as KeyRowProps,
-} from "@/types/app/dialogs";
+} from "@/features/app-shell";
+import type { AppSettings } from "@/types";
 
 function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [value, setValue] = useState("");

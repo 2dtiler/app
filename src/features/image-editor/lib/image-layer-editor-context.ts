@@ -1,4 +1,4 @@
-import type { ImageLayerEditorContext } from "@/types/editor/editor-helpers";
+import type { ImageLayerEditorContext } from "@/features/image-editor/types/image-editor-context";
 
 export interface PendingImageLayerEditorRequest {
   requestId: number;

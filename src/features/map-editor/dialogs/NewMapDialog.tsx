@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { NEW_MAP_TYPE_OPTIONS } from "@/features/map-editor/lib/map-geometry";
-import type { NewMapDialogProps } from "@/types/app/dialogs";
+import type { NewMapDialogProps } from "@/features/map-editor/types/dialogs";
 
 export function NewMapDialog({
   open,

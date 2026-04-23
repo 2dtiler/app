@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
-import type { DeleteLayerDialogProps } from "@/types/editor/layers-panel";
+import type { DeleteLayerDialogProps } from "@/features/map-editor/types/layers-panel";
 
 export function DeleteLayerDialog({
   deleteTarget,

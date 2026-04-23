@@ -9,8 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import type { ToolName } from "@/types";
-import type { ToolDrawerProps } from "@/types/app/dialogs";
+import type { ToolDrawerProps, ToolName } from "@/features/app-shell/types";
 
 const ImageEditor = lazy(() =>
   import("@/features/image-editor").then((module) => ({

@@ -27,7 +27,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
-import type { LayerRowProps } from "@/types";
+import type { LayerRowProps } from "@/features/map-editor/types/editor-ui";
 import { cn } from "@/utils/cn";
 
 export const LayerRow = memo(function LayerRow({

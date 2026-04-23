@@ -26,7 +26,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
-import type { GroupRowProps } from "@/types";
+import type { GroupRowProps } from "@/features/map-editor/types/editor-ui";
 import { cn } from "@/utils/cn";
 
 export const GroupRow = memo(function GroupRow({

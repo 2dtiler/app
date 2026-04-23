@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
-import type { NewMapGroupDialogProps } from "@/types/app/dialogs";
+import type { NewMapGroupDialogProps } from "@/features/map-editor/types/dialogs";
 
 export function NewMapGroupDialog({
   open,
