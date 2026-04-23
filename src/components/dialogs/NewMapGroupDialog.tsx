@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
-import type { NewMapGroupDialogProps } from "@/types/dialogs";
+import type { NewMapGroupDialogProps } from "@/features/map-editor/types/dialogs";
 
 export function NewMapGroupDialog({
   open,
@@ -36,7 +36,11 @@ export function NewMapGroupDialog({
           autoFocus
         />
         <DialogFooter>
-          <Button variant="ghost" size="sm" onMouseDown={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onMouseDown={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button size="sm" onMouseDown={onCreate} disabled={!name.trim()}>

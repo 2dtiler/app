@@ -16,9 +16,9 @@
  */
 
 import { useEffect } from "react";
-import { getEditorStore, markEditorSaved } from "@/lib/store";
-import { zoomStore } from "@/lib/zoom-store";
-import { saveProject } from "@/lib/db";
+import { getEditorStore, markEditorSaved } from "@/store/editor-store";
+import { zoomStore } from "@/store/zoom-store";
+import { saveProject } from "@/services/db";
 import type { BrushSize } from "@/types";
 
 const BRUSH_SIZE_MAP: Record<string, BrushSize> = {

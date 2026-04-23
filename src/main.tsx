@@ -1,23 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
 
-import "./index.css";
+import "@/assets/styles/index.css";
 import App from "./App";
-import { isSentryEnabled } from "@/lib/sentry";
+import { AppProviders } from "@/context/AppProviders";
+import { isSentryEnabled } from "@/services/sentry";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      disableTransitionOnChange
-      enableSystem={false}
-      storageKey="2dtiler-theme"
-      themes={["dark", "light"]}
-    >
+    <AppProviders>
       <App />
-    </ThemeProvider>
+    </AppProviders>
   </StrictMode>,
 );
 

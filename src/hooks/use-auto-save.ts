@@ -6,8 +6,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import { getEditorStore, markEditorSaved } from "@/lib/store";
-import { saveProject, getSettings, cleanOrphanedAssets } from "@/lib/db";
+import { getEditorStore, markEditorSaved } from "@/store/editor-store";
+import { saveProject, getSettings, cleanOrphanedAssets } from "@/services/db";
 
 const AUTO_SAVE_INTERVAL_MS = 60_000; // 1 minute
 

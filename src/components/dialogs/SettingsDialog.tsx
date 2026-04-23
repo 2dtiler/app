@@ -16,18 +16,18 @@ import {
 import { Switch } from "@/components/ui/Switch";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
-import { getSettings, saveSettings } from "@/lib/db";
+import { getSettings, saveSettings } from "@/services/db";
 import {
   API_KEY_PROVIDERS,
   hasApiKey,
   saveApiKey,
   deleteApiKey,
-} from "@/lib/api-keys";
-import type { AppSettings } from "@/types";
+} from "@/config/api-keys";
 import type {
   SettingsDialogProps,
   SettingsKeyRowProps as KeyRowProps,
-} from "@/types/dialogs";
+} from "@/features/app-shell";
+import type { AppSettings } from "@/types";
 
 function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [value, setValue] = useState("");
