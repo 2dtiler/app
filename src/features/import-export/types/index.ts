@@ -128,6 +128,13 @@ export interface TiledMapExportOptionsPanelProps {
   onExport: (options: TiledMapExportOptions) => void;
 }
 
+export interface GodotMapExportOptionsPanelProps {
+  options: GodotMapExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: GodotMapExportOptions) => void;
+  onExport: (options: GodotMapExportOptions) => void;
+}
+
 export interface TiledMapImportResult {
   map: TileMapData;
   layers: TileLayer[];

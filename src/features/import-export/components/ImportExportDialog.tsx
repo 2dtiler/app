@@ -12,10 +12,12 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/utils/cn";
 import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
+import { GodotMapExportOptionsPanel } from "./import-export/GodotMapExportOptionsPanel";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
 import { TiledMapExportOptionsPanel } from "./import-export/TiledMapExportOptionsPanel";
 import type { ImportExportDialogProps } from "@/features/import-export/types";
 import type {
+  GodotMapExportOptions,
   ImportExportAssetType,
   ImportExportDialogMode,
   ImportExportFormatExportOptions,
@@ -26,6 +28,7 @@ import type {
   ImportExportSelectableAssetId,
   TiledMapExportOptions,
 } from "@/types";
+import { DEFAULT_GODOT_MAP_EXPORT_OPTIONS } from "@/features/import-export/lib/godot-scene-utils";
 import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/features/import-export/lib/import-export-raster";
 
 const optionDefinitions: ImportExportOptionDefinition[] = [
@@ -206,8 +209,16 @@ function isTiledMapOption(optionId: ImportExportOptionId) {
   return optionId === "map-tiled";
 }
 
+function isGodotMapExportOption(optionId: ImportExportOptionId) {
+  return optionId === "map-godot";
+}
+
 function isExpandableExportOption(optionId: ImportExportOptionId) {
-  return isRasterImageOption(optionId) || isTiledMapOption(optionId);
+  return (
+    isRasterImageOption(optionId) ||
+    isTiledMapOption(optionId) ||
+    isGodotMapExportOption(optionId)
+  );
 }
 
 function createInitialRasterExportOptionsState() {
@@ -228,6 +239,12 @@ function createInitialTiledMapExportOptionsState() {
       renderOrder: "right-down",
     },
   } as Record<"map", TiledMapExportOptions>;
+}
+
+function createInitialGodotMapExportOptionsState() {
+  return {
+    map: { ...DEFAULT_GODOT_MAP_EXPORT_OPTIONS },
+  } as Record<"map", GodotMapExportOptions>;
 }
 
 function getActionForAssetType(
@@ -315,6 +332,10 @@ export function ImportExportDialog({
     tiledMapExportOptionsByAssetType,
     setTiledMapExportOptionsByAssetType,
   ] = useState(createInitialTiledMapExportOptionsState);
+  const [
+    godotMapExportOptionsByAssetType,
+    setGodotMapExportOptionsByAssetType,
+  ] = useState(createInitialGodotMapExportOptionsState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modeCopy = getModeCopy(mode);
   const ModeIcon = modeCopy.icon;
@@ -340,6 +361,9 @@ export function ImportExportDialog({
       );
       setTiledMapExportOptionsByAssetType(
         createInitialTiledMapExportOptionsState(),
+      );
+      setGodotMapExportOptionsByAssetType(
+        createInitialGodotMapExportOptionsState(),
       );
     }
   }, [open]);
@@ -490,6 +514,8 @@ export function ImportExportDialog({
                 : rasterExportOptionsByAssetType[assetType];
             const tiledMapExportOptions =
               assetType === "map" ? tiledMapExportOptionsByAssetType.map : null;
+            const godotMapExportOptions =
+              assetType === "map" ? godotMapExportOptionsByAssetType.map : null;
             const supportsRenderOrder =
               assetType === "map" && exportSelection
                 ? exportSelection.groups
@@ -533,6 +559,8 @@ export function ImportExportDialog({
                         mode === "export" && isRasterImageOption(option.id);
                       const isTiledMapExportAccordion =
                         mode === "export" && isTiledMapOption(option.id);
+                      const isGodotMapExportAccordion =
+                        mode === "export" && isGodotMapExportOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
@@ -664,6 +692,32 @@ export function ImportExportDialog({
                               supportsRenderOrder={supportsRenderOrder}
                               onOptionsChange={(nextOptions) =>
                                 setTiledMapExportOptionsByAssetType(
+                                  (currentValue) => ({
+                                    ...currentValue,
+                                    map: nextOptions,
+                                  }),
+                                )
+                              }
+                              onExport={(nextOptions) => {
+                                if (!isEnabled) return;
+                                void handleActionSelect(
+                                  action,
+                                  selectedIds,
+                                  option.id,
+                                  nextOptions,
+                                );
+                              }}
+                            />
+                          ) : null}
+
+                          {isGodotMapExportAccordion &&
+                          expandedExportOptionId === option.id &&
+                          godotMapExportOptions ? (
+                            <GodotMapExportOptionsPanel
+                              options={godotMapExportOptions}
+                              disabled={!isEnabled}
+                              onOptionsChange={(nextOptions) =>
+                                setGodotMapExportOptionsByAssetType(
                                   (currentValue) => ({
                                     ...currentValue,
                                     map: nextOptions,
