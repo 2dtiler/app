@@ -71,6 +71,13 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const GodotMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/GodotMissingResourcesDialog").then(
+    (module) => ({
+      default: module.GodotMissingResourcesDialog,
+    }),
+  ),
+);
 const ToolDrawer = lazy(() =>
   import("@/features/app-shell/components/ToolDrawer").then((module) => ({
     default: module.ToolDrawer,
@@ -184,6 +191,7 @@ export function AppShell({
     projectAction,
     mapAction,
     tilesetAction,
+    godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
   } = useImportExportActions({
     state,
@@ -377,6 +385,21 @@ export function AppShell({
             isSubmitting={tiledMissingResourcesDialogProps.isSubmitting}
             onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
             onImport={tiledMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {godotMissingResourcesDialogProps.open && (
+        <Suspense>
+          <GodotMissingResourcesDialog
+            open={godotMissingResourcesDialogProps.open}
+            onOpenChange={godotMissingResourcesDialogProps.onOpenChange}
+            resources={godotMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              godotMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={godotMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={godotMissingResourcesDialogProps.onSelectFile}
+            onImport={godotMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

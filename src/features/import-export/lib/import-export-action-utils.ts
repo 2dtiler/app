@@ -3,6 +3,7 @@ import {
   getAllLayerIds,
 } from "@/features/map-editor/lib/layers";
 import type {
+  GodotMapExportOptions,
   ImportExportAssetGroup,
   ImportExportFormatExportOptions,
   ImportExportRasterExportOptions,
@@ -24,6 +25,17 @@ export function isTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
 ): options is TiledMapExportOptions {
   return Boolean(options && "tilesetMode" in options && "format" in options);
+}
+
+export function isGodotMapExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is GodotMapExportOptions {
+  return Boolean(
+    options &&
+    "sceneRootName" in options &&
+    "tilesetMode" in options &&
+    "textureMode" in options,
+  );
 }
 
 export async function pickSingleFile(

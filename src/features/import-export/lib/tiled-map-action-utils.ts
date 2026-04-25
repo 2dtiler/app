@@ -51,7 +51,8 @@ function requireTiledMapExportOptions(
 function getStructuredTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
 ): TiledXmlExportOptions {
-  const { format, ...structuredOptions } = requireTiledMapExportOptions(options);
+  const { format, ...structuredOptions } =
+    requireTiledMapExportOptions(options);
   void format;
 
   return structuredOptions;

@@ -79,8 +79,8 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "map-godot",
     assetType: "map",
     label: "Godot 4 Scene File (.tscn)",
-    description: "Godot 4 scene export target.",
-    supportedNow: false,
+    description: "Import or export Godot 4 scene files for maps.",
+    supportedNow: true,
   },
   {
     id: "map-unity",

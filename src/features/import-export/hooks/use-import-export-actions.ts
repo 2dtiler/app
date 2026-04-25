@@ -33,6 +33,11 @@ import {
   isTiledMapImportOption,
   isTiledMapExportOption,
 } from "@/features/import-export/lib/tiled-map-action-utils";
+import {
+  exportSelectedGodotMaps,
+  isGodotMapOption,
+} from "@/features/import-export/lib/godot-map-action-utils";
+import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
 import {
   generateLayerGroupId,
@@ -472,6 +477,18 @@ export function useImportExportActions({
 
   const { handleImportTiledMap, tiledMissingResourcesDialogProps } =
     useTiledMapImport(Boolean(state.project), mergeImportedMapData);
+  const { handleImportGodotMap, godotMissingResourcesDialogProps } =
+    useGodotMapImport(Boolean(state.project), (imported) => {
+      mergeImportedMapData(imported);
+      if (imported.warnings.length > 0) {
+        alert(
+          `Imported with ${imported.warnings.length} Godot compatibility warning${
+            imported.warnings.length === 1 ? "" : "s"
+          }. See the console for details.`,
+        );
+        console.warn("[Import Godot Scene] Warnings:", imported.warnings);
+      }
+    });
   const handleImportNativeMap = useCallback(async () => {
     if (!state.project) return;
 
@@ -761,9 +778,19 @@ export function useImportExportActions({
         return;
       }
 
+      if (isGodotMapOption(optionId)) {
+        await handleImportGodotMap();
+        return;
+      }
+
       await handleImportNativeMap();
     },
-    [handleImportNativeMap, handleImportRasterMap, handleImportTiledMap],
+    [
+      handleImportGodotMap,
+      handleImportNativeMap,
+      handleImportRasterMap,
+      handleImportTiledMap,
+    ],
   );
 
   const handleTilesetActionSelect = useCallback(
@@ -796,6 +823,16 @@ export function useImportExportActions({
 
       if (isTiledMapExportOption(optionId)) {
         await exportSelectedTiledMaps(
+          state.project,
+          selectedIds,
+          optionId,
+          formatExportOptions,
+        );
+        return;
+      }
+
+      if (isGodotMapOption(optionId)) {
+        await exportSelectedGodotMaps(
           state.project,
           selectedIds,
           optionId,
@@ -957,6 +994,7 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
+    godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
   };
 }

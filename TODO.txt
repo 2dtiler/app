@@ -1,13 +1,11 @@
-Import - All tiled map imports should just be one button
+Add import/export Phaser
 
 Export Options
   - Do the rest of the options
 Import Options
   - Do the rest of the options
 
-Map type: infinite
-More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
-Dont do window.location.reload() in pwa.js. Find a better solution
+Add deeper Unity/Godot import/export functionality
 
 Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
@@ -25,6 +23,10 @@ AI Asset Generation:
 
 Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
+
+Map type: infinite
+More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
+Dont do window.location.reload() in pwa.js. Find a better solution
 
 Exploration:
   SpriteFusion (Autotile rules)
@@ -70,7 +72,6 @@ Hover over tile: "V" flip vertical. "H" flip horizontal
 First time start: Show example map with tutorial
 - Add import/export Godot3 map
 - Add import/export Cocos
-- Add import/export Phaser
 - Add import/export GDevelop
 - Add import/export Bevy
 - Add import/export Love2D

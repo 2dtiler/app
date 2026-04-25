@@ -1,60 +1,18 @@
 import { useCallback, useState } from "react";
 import { readFileAsUint8Array } from "@/utils/format";
-import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-import";
+import {
+  GODOT_SCENE_IMPORT_ACCEPT,
+  prepareGodotMapImport,
+} from "@/features/import-export/lib/godot-map-import";
 import { pickSingleFile } from "@/features/import-export/lib/import-export-action-utils";
 import { getLinkedImportResourceAccept } from "@/features/import-export/lib/linked-resource-utils";
-import type { TiledMissingResourcesDialogProps } from "@/features/import-export/types";
+import type { GodotMissingResourcesDialogProps } from "@/features/import-export/types";
 import type {
+  GodotImportMissingResource,
+  GodotMapImportResult,
   ImportExportArchiveEntry,
-  PendingTiledMapImportState,
-  TiledImportMissingResource,
-  TiledMapFormat,
-  TiledMapImportResult,
+  PendingGodotMapImportState,
 } from "@/types";
-
-const TILED_MAP_IMPORT_ACCEPT =
-  ".tmx,.xml,.tmj,.json,.js,.lua,text/xml,application/xml,application/json,text/json,application/javascript,text/javascript,application/ecmascript,text/ecmascript,text/plain,application/octet-stream";
-
-function getTiledImportLabel(format: TiledMapFormat) {
-  if (format === "json") {
-    return "Tiled JSON";
-  }
-  if (format === "js") {
-    return "Tiled JavaScript";
-  }
-  if (format === "lua") {
-    return "Tiled Lua";
-  }
-  return "TMX";
-}
-
-function detectTiledMapFormat(fileName: string): TiledMapFormat | null {
-  const normalizedFileName = fileName.toLowerCase();
-
-  if (
-    normalizedFileName.endsWith(".tmx") ||
-    normalizedFileName.endsWith(".xml")
-  ) {
-    return "xml";
-  }
-
-  if (
-    normalizedFileName.endsWith(".tmj") ||
-    normalizedFileName.endsWith(".json")
-  ) {
-    return "json";
-  }
-
-  if (normalizedFileName.endsWith(".js")) {
-    return "js";
-  }
-
-  if (normalizedFileName.endsWith(".lua")) {
-    return "lua";
-  }
-
-  return null;
-}
 
 async function createImportEntry(
   path: string,
@@ -66,12 +24,12 @@ async function createImportEntry(
   };
 }
 
-export function useTiledMapImport(
+export function useGodotMapImport(
   enabled: boolean,
-  onImportResolved: (imported: TiledMapImportResult) => void,
+  onImportResolved: (imported: GodotMapImportResult) => void,
 ) {
   const [pendingImport, setPendingImport] =
-    useState<PendingTiledMapImportState | null>(null);
+    useState<PendingGodotMapImportState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleDialogOpenChange = useCallback((open: boolean) => {
@@ -83,33 +41,28 @@ export function useTiledMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportTiledMap = useCallback(async () => {
+  const handleImportGodotMap = useCallback(async () => {
     if (!enabled) return;
 
     const file = await pickSingleFile(
-      TILED_MAP_IMPORT_ACCEPT,
-      "tiled-map-file",
+      GODOT_SCENE_IMPORT_ACCEPT,
+      "godot-scene-file",
     );
     if (!file) return;
 
-    const format = detectTiledMapFormat(file.name);
-    if (!format) {
-      alert("Unsupported Tiled map file type.");
+    if (!file.name.toLowerCase().endsWith(".tscn")) {
+      alert("Unsupported Godot scene file type.");
       return;
     }
 
     try {
       const rootData = await readFileAsUint8Array(file);
-      const attempt = await prepareTiledMapImport(
-        file.name,
-        [
-          {
-            path: file.name,
-            data: rootData,
-          },
-        ],
-        format,
-      );
+      const attempt = await prepareGodotMapImport(file.name, [
+        {
+          path: file.name,
+          data: rootData,
+        },
+      ]);
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
@@ -117,27 +70,26 @@ export function useTiledMapImport(
       }
 
       setPendingImport({
-        format,
         rootPath: attempt.rootPath,
         rootData,
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
     } catch (error) {
-      console.error(`[Import ${getTiledImportLabel(format)}] Failed:`, error);
+      console.error("[Import Godot Scene] Failed:", error);
       alert(
         error instanceof Error
           ? error.message
-          : `Failed to import ${getTiledImportLabel(format)} map.`,
+          : "Failed to import Godot scene.",
       );
     }
   }, [enabled, onImportResolved]);
 
   const handleSelectResourceFile = useCallback(
-    async (resource: TiledImportMissingResource) => {
+    async (resource: GodotImportMissingResource) => {
       const file = await pickSingleFile(
         getLinkedImportResourceAccept(resource.kind),
-        `tiled-resource-${resource.kind}`,
+        `godot-resource-${resource.kind}`,
       );
       if (!file) return;
 
@@ -176,17 +128,13 @@ export function useTiledMapImport(
           createImportEntry(path, file),
         ),
       );
-      const attempt = await prepareTiledMapImport(
-        pendingImport.rootPath,
-        [
-          {
-            path: pendingImport.rootPath,
-            data: pendingImport.rootData,
-          },
-          ...supplementalEntries,
-        ],
-        pendingImport.format,
-      );
+      const attempt = await prepareGodotMapImport(pendingImport.rootPath, [
+        {
+          path: pendingImport.rootPath,
+          data: pendingImport.rootData,
+        },
+        ...supplementalEntries,
+      ]);
 
       if (attempt.status === "missing-resources") {
         setPendingImport((current) => {
@@ -205,24 +153,20 @@ export function useTiledMapImport(
       setPendingImport(null);
       onImportResolved(attempt.result);
     } catch (error) {
-      console.error(
-        `[Import ${getTiledImportLabel(pendingImport.format)}] Failed:`,
-        error,
-      );
+      console.error("[Import Godot Scene] Failed:", error);
       alert(
         error instanceof Error
           ? error.message
-          : `Failed to import ${getTiledImportLabel(pendingImport.format)} map.`,
+          : "Failed to import Godot scene.",
       );
     } finally {
       setIsSubmitting(false);
     }
   }, [onImportResolved, pendingImport]);
 
-  const tiledMissingResourcesDialogProps: TiledMissingResourcesDialogProps = {
+  const godotMissingResourcesDialogProps: GodotMissingResourcesDialogProps = {
     open: pendingImport !== null,
     onOpenChange: handleDialogOpenChange,
-    format: pendingImport?.format ?? "xml",
     resources: pendingImport?.missingResources ?? [],
     selectedFileNames: Object.fromEntries(
       Object.entries(pendingImport?.resourceFilesByPath ?? {}).map(
@@ -235,7 +179,7 @@ export function useTiledMapImport(
   };
 
   return {
-    handleImportTiledMap,
-    tiledMissingResourcesDialogProps,
+    handleImportGodotMap,
+    godotMissingResourcesDialogProps,
   };
 }

@@ -77,6 +77,10 @@ export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
 export type TiledMapExportFormat = TiledMapFormat | "csv";
 
+export type GodotMapTilesetMode = "embedded" | "external";
+
+export type GodotMapTextureMode = "copy";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
@@ -95,11 +99,18 @@ export interface TiledMapExportOptions extends TiledBundleExportOptions {
   format: TiledMapExportFormat;
 }
 
+export interface GodotMapExportOptions {
+  sceneRootName: string;
+  tilesetMode: GodotMapTilesetMode;
+  textureMode: GodotMapTextureMode;
+}
+
 export type TiledXmlExportOptions = TiledBundleExportOptions;
 
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
-  | TiledMapExportOptions;
+  | TiledMapExportOptions
+  | GodotMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
   options: ImportExportRasterExportOptions;
@@ -127,13 +138,55 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
-export type TiledImportMissingResourceKind = "tsx" | "tsj" | "lua" | "image";
+export interface GodotMapImportResult extends TiledMapImportResult {
+  warnings: GodotImportWarning[];
+}
 
-export interface TiledImportMissingResource {
+export type LinkedImportResourceKind =
+  | "tsx"
+  | "tsj"
+  | "lua"
+  | "image"
+  | "tscn"
+  | "tres"
+  | "res";
+
+export interface LinkedImportMissingResource {
   path: string;
-  kind: TiledImportMissingResourceKind;
+  kind: LinkedImportResourceKind;
   referringPath: string;
   label: string;
+}
+
+export type TiledImportMissingResourceKind = Extract<
+  LinkedImportResourceKind,
+  "tsx" | "tsj" | "lua" | "image"
+>;
+
+export interface TiledImportMissingResource extends LinkedImportMissingResource {
+  kind: TiledImportMissingResourceKind;
+}
+
+export interface GodotImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "tscn" | "tres" | "res">;
+}
+
+export type GodotImportWarningCode =
+  | "unsupported-tile-transform"
+  | "unsupported-tile-metadata"
+  | "unsupported-node-type"
+  | "unsupported-scene-tile-source"
+  | "unsupported-shape"
+  | "unsupported-script"
+  | "unsupported-material"
+  | "unsupported-physics-data"
+  | "unsupported-navigation-data"
+  | "unsupported-occlusion-data";
+
+export interface GodotImportWarning {
+  code: GodotImportWarningCode;
+  message: string;
+  nodePath?: string;
 }
 
 export interface TiledMissingResourcesDialogProps {
@@ -144,6 +197,16 @@ export interface TiledMissingResourcesDialogProps {
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
   onSelectFile: (resource: TiledImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
+export interface GodotMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: GodotImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: GodotImportMissingResource) => void | Promise<void>;
   onImport: () => void | Promise<void>;
 }
 
@@ -169,6 +232,28 @@ export interface TiledMapImportReadyResult {
 export type TiledMapImportPreparationResult =
   | TiledMapImportPendingResult
   | TiledMapImportReadyResult;
+
+export interface GodotMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: GodotImportMissingResource[];
+}
+
+export interface PendingGodotMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: GodotImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface GodotMapImportReadyResult {
+  status: "ready";
+  result: GodotMapImportResult;
+}
+
+export type GodotMapImportPreparationResult =
+  | GodotMapImportPendingResult
+  | GodotMapImportReadyResult;
 
 export interface ImportExportRasterAsset {
   assetId: AssetId;
