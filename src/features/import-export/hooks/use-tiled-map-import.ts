@@ -11,12 +11,8 @@ import type {
   TiledMapImportResult,
 } from "@/types";
 
-const TILED_IMPORT_ACCEPT_BY_FORMAT: Record<TiledMapFormat, string> = {
-  xml: ".tmx,.xml,text/xml,application/xml",
-  json: ".tmj,.json,application/json,text/json",
-  js: ".js,application/javascript,text/javascript,application/ecmascript,text/ecmascript",
-  lua: ".lua,text/plain,application/octet-stream",
-};
+const TILED_MAP_IMPORT_ACCEPT =
+  ".tmx,.xml,.tmj,.json,.js,.lua,text/xml,application/xml,application/json,text/json,application/javascript,text/javascript,application/ecmascript,text/ecmascript,text/plain,application/octet-stream";
 
 const TILED_RESOURCE_ACCEPT_BY_KIND: Record<
   TiledImportMissingResource["kind"],
@@ -39,6 +35,28 @@ function getTiledImportLabel(format: TiledMapFormat) {
     return "Tiled Lua";
   }
   return "TMX";
+}
+
+function detectTiledMapFormat(fileName: string): TiledMapFormat | null {
+  const normalizedFileName = fileName.toLowerCase();
+
+  if (normalizedFileName.endsWith(".tmx") || normalizedFileName.endsWith(".xml")) {
+    return "xml";
+  }
+
+  if (normalizedFileName.endsWith(".tmj") || normalizedFileName.endsWith(".json")) {
+    return "json";
+  }
+
+  if (normalizedFileName.endsWith(".js")) {
+    return "js";
+  }
+
+  if (normalizedFileName.endsWith(".lua")) {
+    return "lua";
+  }
+
+  return null;
 }
 
 async function createImportEntry(
@@ -69,14 +87,17 @@ export function useTiledMapImport(
   }, []);
 
   const handleImportTiledMap = useCallback(
-    async (format: TiledMapFormat) => {
+    async () => {
       if (!enabled) return;
 
-      const file = await pickSingleFile(
-        TILED_IMPORT_ACCEPT_BY_FORMAT[format],
-        `${format}-tiled-map-file`,
-      );
+      const file = await pickSingleFile(TILED_MAP_IMPORT_ACCEPT, "tiled-map-file");
       if (!file) return;
+
+      const format = detectTiledMapFormat(file.name);
+      if (!format) {
+        alert("Unsupported Tiled map file type.");
+        return;
+      }
 
       try {
         const rootData = await readFileAsUint8Array(file);

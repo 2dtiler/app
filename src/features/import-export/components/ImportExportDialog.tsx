@@ -67,38 +67,11 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedModes: ["export"],
   },
   {
-    id: "map-tiled-xml",
+    id: "map-tiled-file",
     assetType: "map",
-    label: "Tiled XML Map File (.tmx, .xml)",
+    label: "Tiled Map File (.tmx, .xml, .tmj, .json, .js, .lua)",
     description:
-      "Imports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
-    supportedNow: true,
-    supportedModes: ["import"],
-  },
-  {
-    id: "map-tiled-json",
-    assetType: "map",
-    label: "Tiled JSON Map File (.tmj, .json)",
-    description:
-      "Imports Tiled JSON maps directly and prompts for linked TSJ or image files when needed.",
-    supportedNow: true,
-    supportedModes: ["import"],
-  },
-  {
-    id: "map-tiled-js",
-    assetType: "map",
-    label: "Tiled JavaScript Map File (.js)",
-    description:
-      "Imports Tiled JavaScript maps directly and prompts for linked TSJ/TSX or image files when needed.",
-    supportedNow: true,
-    supportedModes: ["import"],
-  },
-  {
-    id: "map-tiled-lua",
-    assetType: "map",
-    label: "Tiled Lua File (.lua)",
-    description:
-      "Imports Tiled Lua maps directly and prompts for linked Lua tileset or image files when needed.",
+      "Imports Tiled TMX, XML, JSON, JavaScript, or Lua maps and prompts for linked resources when needed.",
     supportedNow: true,
     supportedModes: ["import"],
   },

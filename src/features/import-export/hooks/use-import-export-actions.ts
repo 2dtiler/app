@@ -30,7 +30,7 @@ import {
 } from "@/features/import-export/lib/import-export-action-utils";
 import {
   exportSelectedTiledMaps,
-  getTiledMapImportFormat,
+  isTiledMapImportOption,
   isTiledMapExportOption,
 } from "@/features/import-export/lib/tiled-map-action-utils";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
@@ -756,9 +756,8 @@ export function useImportExportActions({
         return;
       }
 
-      const tiledFormat = getTiledMapImportFormat(optionId);
-      if (tiledFormat) {
-        await handleImportTiledMap(tiledFormat);
+      if (isTiledMapImportOption(optionId)) {
+        await handleImportTiledMap();
         return;
       }
 

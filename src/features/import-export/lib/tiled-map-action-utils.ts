@@ -22,7 +22,6 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
-  TiledMapFormat,
   TiledMapExportFormat,
   TiledMapExportOptions,
   TiledXmlExportOptions,
@@ -52,8 +51,8 @@ function requireTiledMapExportOptions(
 function getStructuredTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
 ): TiledXmlExportOptions {
-  const { format: _format, ...structuredOptions } =
-    requireTiledMapExportOptions(options);
+  const { format, ...structuredOptions } = requireTiledMapExportOptions(options);
+  void format;
 
   return structuredOptions;
 }
@@ -89,20 +88,8 @@ function withCsvMapExport(
   return (map, layers, tilesets) => exporter(map, layers, tilesets);
 }
 
-export function getTiledMapImportFormat(optionId: ImportExportOptionId) {
-  if (optionId === "map-tiled-xml") {
-    return "xml" satisfies TiledMapFormat;
-  }
-  if (optionId === "map-tiled-json") {
-    return "json" satisfies TiledMapFormat;
-  }
-  if (optionId === "map-tiled-js") {
-    return "js" satisfies TiledMapFormat;
-  }
-  if (optionId === "map-tiled-lua") {
-    return "lua" satisfies TiledMapFormat;
-  }
-  return null;
+export function isTiledMapImportOption(optionId: ImportExportOptionId) {
+  return optionId === "map-tiled-file";
 }
 
 export function isTiledMapExportOption(optionId: ImportExportOptionId) {

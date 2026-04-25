@@ -1,5 +1,3 @@
-Export - All tiled map exports should be an accordion
-
 Import - All tiled map imports should just be one button
 
 Export Options
