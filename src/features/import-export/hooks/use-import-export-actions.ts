@@ -37,26 +37,18 @@ import {
   exportSelectedGodotMaps,
   isGodotMapOption,
 } from "@/features/import-export/lib/godot-map-action-utils";
+import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
+import {
+  exportSelectedUnityMaps,
+  isUnityMapOption,
+} from "@/features/import-export/lib/unity-map-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
-import {
-  generateLayerGroupId,
-  generateLayerId,
-  generateMapId,
-  generateObjectId,
-  generateTilesetId,
-} from "@/utils/ids";
-import { findLastLayerId } from "@/features/map-editor/lib/layers";
+import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
+import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
-import {
-  cloneImportedTileset,
-  remapObjectPropertyValues,
-  remapLayerTreeId,
-  remapTileEntries,
-} from "@/features/project-management/lib/project-import";
 import { saveProject } from "@/services/db";
-import type { EditorTravels } from "@/store/types";
 import type {
   EditorState,
   ImageLayer,
@@ -66,20 +58,14 @@ import type {
   ImportExportOptionAction,
   ImportExportOptionId,
   ImportExportRasterExportOptions,
-  LayerGroup,
-  LayerGroupId,
-  LayerId,
   MapId,
   MapGroupId,
-  MapObject,
-  ObjectId,
-  ObjectLayer,
-  TileLayer,
   TileMapData,
   TiledMapImportResult,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
+import type { EditorTravels } from "@/store/types";
 
 interface UseImportExportActionsParams {
   state: EditorState;
@@ -282,190 +268,15 @@ export function useImportExportActions({
     [state.project],
   );
 
-  const mergeImportedMapData = useCallback(
+  const handleImportedMapResolved = useCallback(
     (imported: TiledMapImportResult) => {
-      if (!state.project) return;
-
-      const currentProject = state.project;
-      const {
-        map,
-        layers,
-        tilesets,
-        overrideTilesets = [],
-        imageLayers: importedImageLayers,
-        layerGroups: importedLayerGroups,
-        objectLayers: importedObjectLayers,
-        objects: importedObjects,
-      } = imported;
-
-      const targetMapGroupId =
-        state.activeMapGroupId ?? currentProject.mapGroups[0]?.id;
-      const targetTilesetGroupId =
-        state.activeTilesetGroupId ?? currentProject.tilesetGroups[0]?.id;
-      if (!targetMapGroupId || !targetTilesetGroupId) return;
-
-      const newMapId = generateMapId();
-      const layerIdMap = new Map<string, LayerId>();
-      const groupIdMap = new Map<string, LayerGroupId>();
-      const objectIdMap = new Map<string, ObjectId>();
-      const tilesetIdMap = new Map<string, TilesetId>();
-
-      for (const layer of layers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const layer of importedImageLayers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const layer of importedObjectLayers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const group of importedLayerGroups) {
-        groupIdMap.set(group.id as string, generateLayerGroupId());
-      }
-      for (const object of importedObjects) {
-        objectIdMap.set(object.id as string, generateObjectId());
-      }
-
-      const reservedTilesetIds = new Set(
-        [
-          ...currentProject.tilesets,
-          ...(currentProject.overrideTilesets ?? []),
-        ].map((tileset) => tileset.id as string),
+      mergeImportedMapData(
+        imported,
+        state.project,
+        state.activeMapGroupId,
+        state.activeTilesetGroupId,
+        setState,
       );
-      const reserveImportedTilesetId = (tilesetId: TilesetId): TilesetId => {
-        const existingId = tilesetIdMap.get(tilesetId as string);
-        if (existingId) return existingId;
-
-        const nextId = reservedTilesetIds.has(tilesetId as string)
-          ? generateTilesetId()
-          : tilesetId;
-        reservedTilesetIds.add(nextId as string);
-        tilesetIdMap.set(tilesetId as string, nextId);
-        return nextId;
-      };
-
-      for (const tileset of tilesets) {
-        reserveImportedTilesetId(tileset.id);
-      }
-      for (const tileset of overrideTilesets) {
-        reserveImportedTilesetId(tileset.id);
-      }
-
-      const remappedTilesets = tilesets.map((tileset) =>
-        cloneImportedTileset(
-          tileset,
-          tilesetIdMap,
-          targetTilesetGroupId as TilesetGroupId,
-        ),
-      );
-      const remappedOverrideTilesets = overrideTilesets.map((tileset) =>
-        cloneImportedTileset(
-          tileset,
-          tilesetIdMap,
-          targetTilesetGroupId as TilesetGroupId,
-        ),
-      );
-      const remappedLayers: TileLayer[] = layers.map((layer) => ({
-        ...layer,
-        id: layerIdMap.get(layer.id as string) ?? layer.id,
-        mapId: newMapId,
-        tiles: remapTileEntries(layer.tiles, tilesetIdMap),
-      }));
-      const remappedImageLayers: ImageLayer[] = importedImageLayers.map(
-        (layer) => ({
-          ...layer,
-          id: layerIdMap.get(layer.id as string) ?? layer.id,
-          mapId: newMapId,
-        }),
-      );
-      const remappedObjectLayers: ObjectLayer[] = importedObjectLayers.map(
-        (layer) => ({
-          ...layer,
-          id: layerIdMap.get(layer.id as string) ?? layer.id,
-          mapId: newMapId,
-          objectOrder: layer.objectOrder.map(
-            (objectId) => objectIdMap.get(objectId as string) ?? objectId,
-          ),
-        }),
-      );
-      const remappedLayerGroups: LayerGroup[] = importedLayerGroups.map(
-        (group) => ({
-          ...group,
-          id: groupIdMap.get(group.id as string) ?? group.id,
-          mapId: newMapId,
-          childOrder: group.childOrder.map((id) =>
-            remapLayerTreeId(id, layerIdMap, groupIdMap),
-          ),
-        }),
-      );
-      const remappedObjects: MapObject[] = importedObjects.map((object) => ({
-        ...object,
-        id: objectIdMap.get(object.id as string) ?? object.id,
-        layerId: (layerIdMap.get(object.layerId as string) ??
-          object.layerId) as LayerId,
-        points: object.points.map((point) => ({ ...point })),
-        properties: remapObjectPropertyValues(object.properties, objectIdMap),
-      }));
-      const remappedMap = {
-        ...map,
-        id: newMapId,
-        groupId: targetMapGroupId as MapGroupId,
-        layerOrder: map.layerOrder.map((id) =>
-          remapLayerTreeId(id, layerIdMap, groupIdMap),
-        ),
-        properties: remapObjectPropertyValues(
-          map.properties ?? {},
-          objectIdMap,
-        ),
-        createdAt: Date.now(),
-      };
-
-      setState((draft) => {
-        if (!draft.project) return;
-        if (!draft.project.imageLayers) draft.project.imageLayers = [];
-        if (!draft.project.layerGroups) draft.project.layerGroups = [];
-        if (!draft.project.objectLayers) draft.project.objectLayers = [];
-        if (!draft.project.objects) draft.project.objects = [];
-        if (!draft.project.overrideTilesets) {
-          draft.project.overrideTilesets = [];
-        }
-
-        for (const tileset of remappedTilesets) {
-          draft.project.tilesets.push(tileset);
-        }
-        for (const tileset of remappedOverrideTilesets) {
-          draft.project.overrideTilesets.push(tileset);
-        }
-
-        draft.project.maps.push(remappedMap);
-
-        for (const layer of remappedLayers) {
-          draft.project.layers.push(layer);
-        }
-        for (const layer of remappedImageLayers) {
-          draft.project.imageLayers.push(layer);
-        }
-        for (const group of remappedLayerGroups) {
-          draft.project.layerGroups.push(group);
-        }
-        for (const layer of remappedObjectLayers) {
-          draft.project.objectLayers.push(layer);
-        }
-        for (const object of remappedObjects) {
-          draft.project.objects.push(object);
-        }
-
-        draft.activeMapId = newMapId;
-        draft.activeLayerId =
-          findLastLayerId(
-            remappedMap.layerOrder,
-            remappedLayers,
-            remappedLayerGroups,
-            remappedImageLayers,
-            remappedObjectLayers,
-          ) ?? null;
-        draft.activeMapGroupId = targetMapGroupId as MapGroupId;
-      });
     },
     [
       setState,
@@ -476,10 +287,10 @@ export function useImportExportActions({
   );
 
   const { handleImportTiledMap, tiledMissingResourcesDialogProps } =
-    useTiledMapImport(Boolean(state.project), mergeImportedMapData);
+    useTiledMapImport(Boolean(state.project), handleImportedMapResolved);
   const { handleImportGodotMap, godotMissingResourcesDialogProps } =
     useGodotMapImport(Boolean(state.project), (imported) => {
-      mergeImportedMapData(imported);
+      handleImportedMapResolved(imported);
       if (imported.warnings.length > 0) {
         alert(
           `Imported with ${imported.warnings.length} Godot compatibility warning${
@@ -489,6 +300,8 @@ export function useImportExportActions({
         console.warn("[Import Godot Scene] Warnings:", imported.warnings);
       }
     });
+  const { handleImportUnityMap, unityMissingResourcesDialogProps } =
+    useUnityMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportNativeMap = useCallback(async () => {
     if (!state.project) return;
 
@@ -497,12 +310,12 @@ export function useImportExportActions({
 
     try {
       const raw = await readFileAsUint8Array(file);
-      mergeImportedMapData(await importMap(raw));
+      handleImportedMapResolved(await importMap(raw));
     } catch (error) {
       console.error("[Import Map] Failed:", error);
       alert("Failed to import map. The file may be corrupted.");
     }
-  }, [mergeImportedMapData, state.project]);
+  }, [handleImportedMapResolved, state.project]);
 
   const handleImportRasterMap = useCallback(async () => {
     if (!state.project) return;
@@ -783,6 +596,11 @@ export function useImportExportActions({
         return;
       }
 
+      if (isUnityMapOption(optionId)) {
+        await handleImportUnityMap();
+        return;
+      }
+
       await handleImportNativeMap();
     },
     [
@@ -790,6 +608,7 @@ export function useImportExportActions({
       handleImportNativeMap,
       handleImportRasterMap,
       handleImportTiledMap,
+      handleImportUnityMap,
     ],
   );
 
@@ -838,6 +657,11 @@ export function useImportExportActions({
           optionId,
           formatExportOptions,
         );
+        return;
+      }
+
+      if (isUnityMapOption(optionId)) {
+        await exportSelectedUnityMaps(state.project, selectedIds, optionId);
         return;
       }
 
@@ -996,5 +820,6 @@ export function useImportExportActions({
     tilesetAction,
     godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
+    unityMissingResourcesDialogProps,
   };
 }

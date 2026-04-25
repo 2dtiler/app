@@ -6,6 +6,7 @@ import type {
   ObjectLayer,
   TileLayer,
   TileMapData,
+  TileRef,
   TileSize,
   Tileset,
   TilesetId,
@@ -142,11 +143,60 @@ export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
 
+export type UnityMapImportResult = TiledMapImportResult;
+
+export interface UnityBundleManifestMap {
+  name: string;
+  widthInTiles: number;
+  heightInTiles: number;
+  tileSize: TileSize;
+  orientation: MapOrientation;
+}
+
+export interface UnityBundleManifestSourceTileset {
+  id: TilesetId;
+  name: string;
+  imagePath: string;
+  mimeType: string;
+  tileSize: TileSize;
+  imageWidth: number;
+  imageHeight: number;
+  createdAt: number;
+}
+
+export interface UnityBundleManifestCell {
+  coordinate: string;
+  tilesetId: TilesetId;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+  rotation?: TileRef["rotation"];
+  flipX?: boolean;
+  flipY?: boolean;
+}
+
+export interface UnityBundleManifestLayer {
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  cells: UnityBundleManifestCell[];
+}
+
+export interface UnityBundleManifest {
+  version: 1;
+  source: "2dtiler";
+  map: UnityBundleManifestMap;
+  sourceTilesets: UnityBundleManifestSourceTileset[];
+  layers: UnityBundleManifestLayer[];
+}
+
 export type LinkedImportResourceKind =
   | "tsx"
   | "tsj"
   | "lua"
   | "image"
+  | "json"
   | "tscn"
   | "tres"
   | "res";
@@ -169,6 +219,10 @@ export interface TiledImportMissingResource extends LinkedImportMissingResource 
 
 export interface GodotImportMissingResource extends LinkedImportMissingResource {
   kind: Extract<LinkedImportResourceKind, "image" | "tscn" | "tres" | "res">;
+}
+
+export interface UnityImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "json">;
 }
 
 export type GodotImportWarningCode =
@@ -210,6 +264,16 @@ export interface GodotMissingResourcesDialogProps {
   onImport: () => void | Promise<void>;
 }
 
+export interface UnityMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: UnityImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: UnityImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
 export interface TiledMapImportPendingResult {
   status: "missing-resources";
   rootPath: string;
@@ -245,6 +309,28 @@ export interface PendingGodotMapImportState {
   missingResources: GodotImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
 }
+
+export interface UnityMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: UnityImportMissingResource[];
+}
+
+export interface PendingUnityMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: UnityImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface UnityMapImportReadyResult {
+  status: "ready";
+  result: UnityMapImportResult;
+}
+
+export type UnityMapImportPreparationResult =
+  | UnityMapImportPendingResult
+  | UnityMapImportReadyResult;
 
 export interface GodotMapImportReadyResult {
   status: "ready";

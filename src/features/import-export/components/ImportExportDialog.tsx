@@ -85,9 +85,10 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
   {
     id: "map-unity",
     assetType: "map",
-    label: "Unity",
-    description: "Unity map export target.",
-    supportedNow: false,
+    label: "Unity Tilemap Bundle (.prefab)",
+    description:
+      "Imports and exports 2D Tiler Unity Tilemap prefab bundles with a linked manifest and image assets.",
+    supportedNow: true,
   },
   {
     id: "map-gamemaker-room",

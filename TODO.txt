@@ -1,11 +1,10 @@
+Add deeper Unity/Godot import/export functionality
 Add import/export Phaser
 
 Export Options
   - Do the rest of the options
 Import Options
   - Do the rest of the options
-
-Add deeper Unity/Godot import/export functionality
 
 Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
