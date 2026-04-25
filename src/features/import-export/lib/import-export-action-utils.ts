@@ -1,4 +1,7 @@
-import { getAllGroupIds, getAllLayerIds } from "@/features/map-editor/lib/layers";
+import {
+  getAllGroupIds,
+  getAllLayerIds,
+} from "@/features/map-editor/lib/layers";
 import type {
   ImportExportAssetGroup,
   ImportExportFormatExportOptions,
@@ -6,8 +9,8 @@ import type {
   Project,
   TileLayer,
   TileMapData,
+  TiledMapExportOptions,
   Tileset,
-  TiledXmlExportOptions,
   TilesetId,
 } from "@/types";
 
@@ -17,10 +20,10 @@ export function isRasterExportOptions(
   return Boolean(options && "fileType" in options);
 }
 
-export function isTiledXmlExportOptions(
+export function isTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
-): options is TiledXmlExportOptions {
-  return Boolean(options && "tilesetMode" in options);
+): options is TiledMapExportOptions {
+  return Boolean(options && "tilesetMode" in options && "format" in options);
 }
 
 export async function pickSingleFile(

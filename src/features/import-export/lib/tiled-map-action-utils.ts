@@ -14,7 +14,7 @@ import {
 import {
   getMapExportData,
   getUniqueArchivePath,
-  isTiledXmlExportOptions,
+  isTiledMapExportOptions,
 } from "@/features/import-export/lib/import-export-action-utils";
 import type {
   ImportExportArchiveEntry,
@@ -23,6 +23,8 @@ import type {
   MapId,
   Project,
   TiledMapFormat,
+  TiledMapExportFormat,
+  TiledMapExportOptions,
   TiledXmlExportOptions,
 } from "@/types";
 
@@ -39,12 +41,21 @@ type TiledMapBundleExporter = (
 
 function requireTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
-): TiledXmlExportOptions {
-  if (!isTiledXmlExportOptions(options)) {
+): TiledMapExportOptions {
+  if (!isTiledMapExportOptions(options)) {
     throw new Error("Missing Tiled export options.");
   }
 
   return options;
+}
+
+function getStructuredTiledMapExportOptions(
+  options?: ImportExportFormatExportOptions,
+): TiledXmlExportOptions {
+  const { format: _format, ...structuredOptions } =
+    requireTiledMapExportOptions(options);
+
+  return structuredOptions;
 }
 
 function withTiledMapOptions(
@@ -68,7 +79,7 @@ function withTiledMapOptions(
       layerGroups,
       objectLayers,
       objects,
-      requireTiledMapExportOptions(options),
+      getStructuredTiledMapExportOptions(options),
     );
 }
 
@@ -95,17 +106,11 @@ export function getTiledMapImportFormat(optionId: ImportExportOptionId) {
 }
 
 export function isTiledMapExportOption(optionId: ImportExportOptionId) {
-  return (
-    optionId === "map-tiled-xml" ||
-    optionId === "map-tiled-json" ||
-    optionId === "map-tiled-js" ||
-    optionId === "map-tiled-lua" ||
-    optionId === "map-tiled-csv"
-  );
+  return optionId === "map-tiled";
 }
 
-function getTiledMapExporter(optionId: ImportExportOptionId) {
-  if (optionId === "map-tiled-json") {
+function getTiledMapExporter(format: TiledMapExportFormat) {
+  if (format === "json") {
     return {
       archiveExtension: ".tmj.zip",
       archiveBaseName: "tiled json maps",
@@ -113,7 +118,7 @@ function getTiledMapExporter(optionId: ImportExportOptionId) {
     };
   }
 
-  if (optionId === "map-tiled-js") {
+  if (format === "js") {
     return {
       archiveExtension: ".js.zip",
       archiveBaseName: "tiled javascript maps",
@@ -121,7 +126,7 @@ function getTiledMapExporter(optionId: ImportExportOptionId) {
     };
   }
 
-  if (optionId === "map-tiled-lua") {
+  if (format === "lua") {
     return {
       archiveExtension: ".lua.zip",
       archiveBaseName: "tiled lua maps",
@@ -129,7 +134,7 @@ function getTiledMapExporter(optionId: ImportExportOptionId) {
     };
   }
 
-  if (optionId === "map-tiled-csv") {
+  if (format === "csv") {
     return {
       archiveExtension: ".csv.zip",
       archiveBaseName: "tiled csv maps",
@@ -154,8 +159,16 @@ export async function exportSelectedTiledMaps(
     return;
   }
 
+  if (!isTiledMapExportOption(optionId)) {
+    throw new Error(`Unsupported Tiled export option: ${optionId}.`);
+  }
+
+  const format = isTiledMapExportOptions(formatExportOptions)
+    ? formatExportOptions.format
+    : "xml";
+
   const { archiveExtension, archiveBaseName, exportBundle } =
-    getTiledMapExporter(optionId) satisfies {
+    getTiledMapExporter(format) satisfies {
       archiveExtension: string;
       archiveBaseName: string;
       exportBundle: TiledMapBundleExporter;

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/utils/cn";
 import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
-import { TiledXmlExportOptionsPanel } from "./import-export/TiledXmlExportOptionsPanel";
+import { TiledMapExportOptionsPanel } from "./import-export/TiledMapExportOptionsPanel";
 import type { ImportExportDialogProps } from "@/features/import-export/types";
 import type {
   ImportExportAssetType,
@@ -58,45 +58,49 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedNow: true,
   },
   {
+    id: "map-tiled",
+    assetType: "map",
+    label: "Tiled Map Export",
+    description:
+      "Exports Tiled XML, JSON, JavaScript, Lua, or CSV map files from a single settings panel.",
+    supportedNow: true,
+    supportedModes: ["export"],
+  },
+  {
     id: "map-tiled-xml",
     assetType: "map",
     label: "Tiled XML Map File (.tmx, .xml)",
     description:
-      "Imports or exports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
+      "Imports TMX/XML maps directly and prompts for linked TSX or image files when needed.",
     supportedNow: true,
+    supportedModes: ["import"],
   },
   {
     id: "map-tiled-json",
     assetType: "map",
     label: "Tiled JSON Map File (.tmj, .json)",
     description:
-      "Imports or exports Tiled JSON maps directly and prompts for linked TSJ or image files when needed.",
+      "Imports Tiled JSON maps directly and prompts for linked TSJ or image files when needed.",
     supportedNow: true,
+    supportedModes: ["import"],
   },
   {
     id: "map-tiled-js",
     assetType: "map",
     label: "Tiled JavaScript Map File (.js)",
     description:
-      "Imports or exports Tiled JavaScript maps directly and prompts for linked TSJ/TSX or image files when needed.",
+      "Imports Tiled JavaScript maps directly and prompts for linked TSJ/TSX or image files when needed.",
     supportedNow: true,
+    supportedModes: ["import"],
   },
   {
     id: "map-tiled-lua",
     assetType: "map",
     label: "Tiled Lua File (.lua)",
     description:
-      "Imports or exports Tiled Lua maps directly and prompts for linked Lua tileset or image files when needed.",
+      "Imports Tiled Lua maps directly and prompts for linked Lua tileset or image files when needed.",
     supportedNow: true,
-  },
-  {
-    id: "map-tiled-csv",
-    assetType: "map",
-    label: "Tiled CSV File (.csv)",
-    description:
-      "Exports tile layers as Tiled CSV files. Multi-layer maps generate one CSV per tile layer.",
-    supportedNow: true,
-    supportedModes: ["export"],
+    supportedModes: ["import"],
   },
   {
     id: "map-godot",
@@ -225,12 +229,7 @@ function isRasterImageOption(optionId: ImportExportOptionId) {
 }
 
 function isTiledMapOption(optionId: ImportExportOptionId) {
-  return (
-    optionId === "map-tiled-xml" ||
-    optionId === "map-tiled-json" ||
-    optionId === "map-tiled-js" ||
-    optionId === "map-tiled-lua"
-  );
+  return optionId === "map-tiled";
 }
 
 function isExpandableExportOption(optionId: ImportExportOptionId) {
@@ -247,6 +246,7 @@ function createInitialRasterExportOptionsState() {
 function createInitialTiledMapExportOptionsState() {
   return {
     map: {
+      format: "xml",
       encoding: "base64",
       compression: "zlib",
       compressionLevel: 6,
@@ -557,7 +557,7 @@ export function ImportExportDialog({
                       const isSupported = isOptionSupportedInMode(option, mode);
                       const isRasterOption =
                         mode === "export" && isRasterImageOption(option.id);
-                      const isTiledMapExportOption =
+                      const isTiledMapExportAccordion =
                         mode === "export" && isTiledMapOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
@@ -681,10 +681,10 @@ export function ImportExportDialog({
                             />
                           ) : null}
 
-                          {isTiledMapExportOption &&
+                          {isTiledMapExportAccordion &&
                           expandedExportOptionId === option.id &&
                           tiledMapExportOptions ? (
-                            <TiledXmlExportOptionsPanel
+                            <TiledMapExportOptionsPanel
                               options={tiledMapExportOptions}
                               disabled={!isEnabled}
                               supportsRenderOrder={supportsRenderOrder}

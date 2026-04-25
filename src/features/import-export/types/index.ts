@@ -39,11 +39,11 @@ export type ImportExportOptionId =
   | "project-tiled"
   | "map-native"
   | "map-image"
+  | "map-tiled"
   | "map-tiled-xml"
   | "map-tiled-json"
   | "map-tiled-js"
   | "map-tiled-lua"
-  | "map-tiled-csv"
   | "map-godot"
   | "map-unity"
   | "map-gamemaker-room"
@@ -78,13 +78,15 @@ export type TiledRenderOrder =
 
 export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
+export type TiledMapExportFormat = TiledMapFormat | "csv";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
   transparency: boolean;
 }
 
-export interface TiledMapExportOptions {
+export interface TiledBundleExportOptions {
   encoding: TiledLayerEncoding;
   compression: TiledLayerCompression;
   compressionLevel: number;
@@ -92,7 +94,11 @@ export interface TiledMapExportOptions {
   renderOrder: TiledRenderOrder;
 }
 
-export type TiledXmlExportOptions = TiledMapExportOptions;
+export interface TiledMapExportOptions extends TiledBundleExportOptions {
+  format: TiledMapExportFormat;
+}
+
+export type TiledXmlExportOptions = TiledBundleExportOptions;
 
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
@@ -112,8 +118,6 @@ export interface TiledMapExportOptionsPanelProps {
   onOptionsChange: (options: TiledMapExportOptions) => void;
   onExport: (options: TiledMapExportOptions) => void;
 }
-
-export type TiledXmlExportOptionsPanelProps = TiledMapExportOptionsPanelProps;
 
 export interface TiledMapImportResult {
   map: TileMapData;
