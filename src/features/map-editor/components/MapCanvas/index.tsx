@@ -882,8 +882,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       : "crosshair";
 
   const checkSize = 8 * zoom;
-  const wrapperWidth = canvasW + MAP_RESIZE_GUTTER;
-  const wrapperHeight = canvasH + MAP_RESIZE_GUTTER;
+  const canvasX = MAP_RESIZE_GUTTER;
+  const canvasY = MAP_RESIZE_GUTTER;
+  const wrapperWidth = canvasW + MAP_RESIZE_GUTTER * 2;
+  const wrapperHeight = canvasH + MAP_RESIZE_GUTTER * 2;
 
   return (
     <div
@@ -896,8 +898,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       <div
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
+          top: canvasY,
+          left: canvasX,
           width: canvasW,
           height: canvasH,
           backgroundColor: "var(--checkerboard-base)",
@@ -976,6 +978,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       <MapResizeControls
         canvasW={canvasW}
         canvasH={canvasH}
+        canvasX={canvasX}
+        canvasY={canvasY}
         previewWidth={previewMapW}
         previewHeight={previewMapH}
         activeHandle={activeMapResizeHandle}

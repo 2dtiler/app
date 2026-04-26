@@ -1,5 +1,9 @@
 Allow quick export bottom right
+Map type: infinite
+Tiled margin/spacing
 
+Support Tiled Project Import/Export
+Godot project Import/Export
 Add unit tests and add to CI/CD
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Keyboard shortcuts not working?
@@ -16,7 +20,6 @@ AI Asset Generation:
 Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
 
-Map type: infinite
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
 
 Exploration:

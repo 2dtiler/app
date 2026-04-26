@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  MapResizeRequest,
   UseMapResizeParams,
   UseMapResizeReturn,
 } from "@/features/map-editor/types/map-canvas";
@@ -47,7 +48,17 @@ export function useMapResize({
         (action.nextWidth !== action.origWidth ||
           action.nextHeight !== action.origHeight)
       ) {
-        onResizeMap(action.nextWidth, action.nextHeight);
+        const request: MapResizeRequest = {
+          width: action.nextWidth,
+          height: action.nextHeight,
+        };
+        if (action.nextOriginOffsetXInTiles !== 0) {
+          request.originOffsetXInTiles = action.nextOriginOffsetXInTiles;
+        }
+        if (action.nextOriginOffsetYInTiles !== 0) {
+          request.originOffsetYInTiles = action.nextOriginOffsetYInTiles;
+        }
+        onResizeMap(request);
       }
     },
     [onResizeMap],
@@ -66,19 +77,43 @@ export function useMapResize({
         clientY - action.startClientY,
         scaledTile,
       );
+      const nextOriginOffsetXInTiles =
+        action.handle === "w" || action.handle === "nw"
+          ? clampMapDimension(
+              action.origWidth - deltaTilesX,
+              action.origWidth,
+            ) - action.origWidth
+          : 0;
+      const nextOriginOffsetYInTiles =
+        action.handle === "n" || action.handle === "nw"
+          ? clampMapDimension(
+              action.origHeight - deltaTilesY,
+              action.origHeight,
+            ) - action.origHeight
+          : 0;
       const nextWidth = clampMapDimension(
         action.origWidth +
-          (action.handle === "e" || action.handle === "se" ? deltaTilesX : 0),
+          (action.handle === "e" || action.handle === "se"
+            ? deltaTilesX
+            : action.handle === "w" || action.handle === "nw"
+              ? -deltaTilesX
+              : 0),
         action.origWidth,
       );
       const nextHeight = clampMapDimension(
         action.origHeight +
-          (action.handle === "s" || action.handle === "se" ? deltaTilesY : 0),
+          (action.handle === "s" || action.handle === "se"
+            ? deltaTilesY
+            : action.handle === "n" || action.handle === "nw"
+              ? -deltaTilesY
+              : 0),
         action.origHeight,
       );
 
       action.nextWidth = nextWidth;
       action.nextHeight = nextHeight;
+      action.nextOriginOffsetXInTiles = nextOriginOffsetXInTiles;
+      action.nextOriginOffsetYInTiles = nextOriginOffsetYInTiles;
       setMapResizePreview({ width: nextWidth, height: nextHeight });
     },
     [scaledTile],
@@ -101,6 +136,8 @@ export function useMapResize({
         origHeight: mapHeight,
         nextWidth: mapWidth,
         nextHeight: mapHeight,
+        nextOriginOffsetXInTiles: 0,
+        nextOriginOffsetYInTiles: 0,
       };
       setActiveMapResizeHandle(handle);
       setHoveredMapResizeHandle(handle);

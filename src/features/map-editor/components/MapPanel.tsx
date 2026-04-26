@@ -29,9 +29,13 @@ import {
   getAllLayerIds,
   isLayerEffectivelyLocked,
 } from "@/features/map-editor/lib/layers";
+import { applyMapResizeToProject } from "@/features/map-editor/lib/map-resize";
 import { getGeometryForNewMapType } from "@/features/map-editor/lib/map-geometry";
 import { zoomStore } from "@/store/zoom-store";
-import type { MapCanvasImperativeHandle } from "@/features/map-editor/types/map-canvas";
+import type {
+  MapCanvasImperativeHandle,
+  MapResizeRequest,
+} from "@/features/map-editor/types/map-canvas";
 import {
   DEFAULT_NEW_MAP_TYPE,
   type EditorState,
@@ -582,6 +586,7 @@ export function MapPanel() {
     width: number,
     height: number,
     properties?: Record<string, PropertyValue>,
+    resizeRequest?: MapResizeRequest,
   ) {
     if (!activeMap) return;
 
@@ -595,22 +600,19 @@ export function MapPanel() {
       );
       if (!map) return;
 
-      map.widthInTiles = nextWidth;
-      map.heightInTiles = nextHeight;
-      if (properties) {
-        map.properties = properties;
-      }
-
-      for (const layer of draft.project.layers) {
-        if (layer.mapId !== map.id) continue;
-        for (const key of Object.keys(layer.tiles)) {
-          const [x, y] = key.split(",").map(Number);
-          if (x >= nextWidth || y >= nextHeight) {
-            delete layer.tiles[key];
-          }
-        }
-      }
+      applyMapResizeToProject(draft.project, {
+        mapId: map.id,
+        width: nextWidth,
+        height: nextHeight,
+        properties,
+        originOffsetXInTiles: resizeRequest?.originOffsetXInTiles,
+        originOffsetYInTiles: resizeRequest?.originOffsetYInTiles,
+      });
     });
+  }
+
+  function handleResizeMap(request: MapResizeRequest) {
+    handleSaveMapOptions(request.width, request.height, undefined, request);
   }
 
   function handleUpdateMapOptions(
@@ -741,7 +743,7 @@ export function MapPanel() {
         onPaintTile={handlePaintTile}
         onPasteSelection={handlePasteSelection}
         onResizeImageLayer={handleResizeImageLayer}
-        onResizeMap={handleSaveMapOptions}
+        onResizeMap={handleResizeMap}
         onResizeObject={handleResizeObject}
         onSelectObject={(objectId) => {
           setState((draft) => {

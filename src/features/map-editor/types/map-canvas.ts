@@ -29,7 +29,14 @@ export interface MapCanvasImperativeHandle {
 
 export type ResizeHandle = "nw" | "n" | "ne" | "w" | "e" | "sw" | "s" | "se";
 
-export type MapResizeHandle = "e" | "s" | "se";
+export type MapResizeHandle = "nw" | "n" | "w" | "e" | "s" | "se";
+
+export interface MapResizeRequest {
+  width: number;
+  height: number;
+  originOffsetXInTiles?: number;
+  originOffsetYInTiles?: number;
+}
 
 export interface MapResizePreview {
   width: number;
@@ -44,13 +51,15 @@ export interface MapResizeAction {
   origHeight: number;
   nextWidth: number;
   nextHeight: number;
+  nextOriginOffsetXInTiles: number;
+  nextOriginOffsetYInTiles: number;
 }
 
 export interface UseMapResizeParams {
   mapWidth: number;
   mapHeight: number;
   scaledTile: number;
-  onResizeMap: (width: number, height: number) => void;
+  onResizeMap: (request: MapResizeRequest) => void;
 }
 
 export interface UseMapResizeReturn {
@@ -71,6 +80,8 @@ export interface UseMapResizeReturn {
 export interface MapResizeControlsProps {
   canvasW: number;
   canvasH: number;
+  canvasX: number;
+  canvasY: number;
   previewWidth: number;
   previewHeight: number;
   activeHandle: MapResizeHandle | null;
@@ -94,7 +105,7 @@ export interface MapCanvasProps {
   brushSize: EditorState["brushSize"];
   selectedTileSize: EditorState["tileSize"];
   selectedTile: EditorState["selectedTile"];
-  onResizeMap: (width: number, height: number) => void;
+  onResizeMap: (request: MapResizeRequest) => void;
   onPaintTile: (gx: number, gy: number) => void;
   onPaintEnd: () => void;
   paintBuffer: Map<string, TileRef | null>;
