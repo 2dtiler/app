@@ -25,10 +25,19 @@ import {
   buildTilesetExportGroups,
   getMapExportData,
   getUniqueArchivePath,
+  isDefoldMapExportOptions,
   isGameMakerMapExportOptions,
   isRasterExportOptions,
   pickSingleFile,
 } from "@/features/import-export/lib/import-export-action-utils";
+import {
+  exportSelectedDefoldMaps,
+  isDefoldMapOption,
+} from "@/features/import-export/lib/defold-map-action-utils";
+import {
+  exportSelectedDefoldTilesets,
+  isDefoldTilesetOption,
+} from "@/features/import-export/lib/defold-tileset-action-utils";
 import {
   exportSelectedGameMakerMaps,
   isGameMakerMapOption,
@@ -66,6 +75,8 @@ import {
 } from "@/features/import-export/lib/unity-tileset-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
+import { useDefoldMapImport } from "@/features/import-export/hooks/use-defold-map-import";
+import { useDefoldTilesetImport } from "@/features/import-export/hooks/use-defold-tileset-import";
 import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
 import {
   PHASER_MAP_IMPORT_CONFIG,
@@ -342,6 +353,8 @@ export function useImportExportActions({
     });
   const { handleImportGameMakerMap, gameMakerMissingResourcesDialogProps } =
     useGameMakerMapImport(Boolean(state.project), handleImportedMapResolved);
+  const { handleImportDefoldMap, defoldMissingResourcesDialogProps } =
+    useDefoldMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportedTilesetsResolved = useCallback(
     (importedTilesets: Tileset[]) => {
       if (!state.project || importedTilesets.length === 0) return;
@@ -394,6 +407,13 @@ export function useImportExportActions({
     handleImportUnityTileset,
     unityMissingResourcesDialogProps: unityTilesetMissingResourcesDialogProps,
   } = useUnityTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
+  const {
+    handleImportDefoldTileset,
+    defoldMissingResourcesDialogProps: defoldTilesetMissingResourcesDialogProps,
+  } = useDefoldTilesetImport(
     Boolean(state.project),
     handleImportedTilesetsResolved,
   );
@@ -702,6 +722,10 @@ export function useImportExportActions({
         return handleImportGameMakerMap();
       }
 
+      if (isDefoldMapOption(optionId)) {
+        return handleImportDefoldMap();
+      }
+
       if (isUnityMapOption(optionId)) {
         return handleImportUnityMap();
       }
@@ -710,6 +734,7 @@ export function useImportExportActions({
     },
     [
       handleImportPhaserMap,
+      handleImportDefoldMap,
       handleImportGameMakerMap,
       handleImportGodotMap,
       handleImportNativeMap,
@@ -733,6 +758,10 @@ export function useImportExportActions({
         return handleImportGodotTileset();
       }
 
+      if (isDefoldTilesetOption(optionId)) {
+        return handleImportDefoldTileset();
+      }
+
       if (isUnityTilesetOption(optionId)) {
         return handleImportUnityTileset();
       }
@@ -741,6 +770,7 @@ export function useImportExportActions({
     },
     [
       handleImportGodotTileset,
+      handleImportDefoldTileset,
       handleImportNativeTileset,
       handleImportRasterTileset,
       handleImportTiledTileset,
@@ -796,6 +826,17 @@ export function useImportExportActions({
         );
       }
 
+      if (isDefoldMapOption(optionId)) {
+        return exportSelectedDefoldMaps(
+          state.project,
+          selectedIds,
+          optionId,
+          isDefoldMapExportOptions(formatExportOptions)
+            ? formatExportOptions
+            : undefined,
+        );
+      }
+
       if (isUnityMapOption(optionId)) {
         return exportSelectedUnityMaps(state.project, selectedIds, optionId);
       }
@@ -845,6 +886,14 @@ export function useImportExportActions({
         );
       }
 
+      if (isDefoldTilesetOption(optionId)) {
+        return exportSelectedDefoldTilesets(
+          state.project,
+          selectedIds,
+          optionId,
+        );
+      }
+
       return handleExportNativeTilesets(selectedIds);
     },
     [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
@@ -866,6 +915,11 @@ export function useImportExportActions({
     unityTilesetMissingResourcesDialogProps.open
       ? unityTilesetMissingResourcesDialogProps
       : unityMissingResourcesDialogProps;
+
+  const mergedDefoldMissingResourcesDialogProps =
+    defoldTilesetMissingResourcesDialogProps.open
+      ? defoldTilesetMissingResourcesDialogProps
+      : defoldMissingResourcesDialogProps;
 
   const mapExportGroups = useMemo(
     () =>
@@ -994,6 +1048,7 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
+    defoldMissingResourcesDialogProps: mergedDefoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,

@@ -1,3 +1,6 @@
+Hover over tile: "V" flip vertical. "H" flip horizontal 
+=================
+
 Export Options
   - Do the rest of the options
 Import Options
@@ -8,7 +11,6 @@ Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Check why website is not populating release notes
 Keyboard shortcuts not working?
-Hover over tile: "V" flip vertical. "H" flip horizontal 
 
 AI Asset Generation:
   AI Generation not working currently
@@ -24,7 +26,6 @@ Ad Marketplace for selling/buying tilesets etc.
 
 Map type: infinite
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
-Dont do window.location.reload() in pwa.js. Find a better solution
 
 Exploration:
   Defold

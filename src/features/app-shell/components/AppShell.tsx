@@ -71,6 +71,13 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const DefoldMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/DefoldMissingResourcesDialog").then(
+    (module) => ({
+      default: module.DefoldMissingResourcesDialog,
+    }),
+  ),
+);
 const GodotMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/GodotMissingResourcesDialog").then(
     (module) => ({
@@ -205,6 +212,7 @@ export function AppShell({
     projectAction,
     mapAction,
     tilesetAction,
+    defoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
@@ -401,6 +409,21 @@ export function AppShell({
             isSubmitting={tiledMissingResourcesDialogProps.isSubmitting}
             onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
             onImport={tiledMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {defoldMissingResourcesDialogProps.open && (
+        <Suspense>
+          <DefoldMissingResourcesDialog
+            open={defoldMissingResourcesDialogProps.open}
+            onOpenChange={defoldMissingResourcesDialogProps.onOpenChange}
+            resources={defoldMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              defoldMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={defoldMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={defoldMissingResourcesDialogProps.onSelectFile}
+            onImport={defoldMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

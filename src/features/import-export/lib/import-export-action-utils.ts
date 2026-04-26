@@ -3,6 +3,7 @@ import {
   getAllLayerIds,
 } from "@/features/map-editor/lib/layers";
 import type {
+  DefoldMapExportOptions,
   GameMakerMapExportOptions,
   GodotMapExportOptions,
   ImportExportAssetGroup,
@@ -53,6 +54,16 @@ export function isGameMakerMapExportOptions(
     options &&
     "format" in options &&
     (options.format === "gmx" || options.format === "yy"),
+  );
+}
+
+export function isDefoldMapExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is DefoldMapExportOptions {
+  return Boolean(
+    options &&
+    "format" in options &&
+    (options.format === "tilemap" || options.format === "collection"),
   );
 }
 

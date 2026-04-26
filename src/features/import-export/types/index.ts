@@ -48,8 +48,7 @@ export type ImportExportOptionId =
   | "map-gamemaker"
   | "map-gamemaker-room"
   | "map-gamemaker-studio-2"
-  | "map-defold-tilemap"
-  | "map-defold-collection"
+  | "map-defold"
   | "map-tide"
   | "map-tbin"
   | "map-mappy-fmp"
@@ -57,6 +56,7 @@ export type ImportExportOptionId =
   | "tileset-image"
   | "tileset-tiled"
   | "tileset-tiled-file"
+  | "tileset-defold"
   | "tileset-unity"
   | "tileset-godot"
   | "tileset-rpg-maker";
@@ -86,6 +86,8 @@ export type GodotMapTilesetMode = "embedded" | "external";
 export type GodotMapTextureMode = "copy";
 
 export type GameMakerMapFormat = "gmx" | "yy";
+
+export type DefoldMapFormat = "tilemap" | "collection";
 
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
@@ -119,6 +121,10 @@ export interface GameMakerMapExportOptions {
   format: GameMakerMapFormat;
 }
 
+export interface DefoldMapExportOptions {
+  format: DefoldMapFormat;
+}
+
 export type TiledXmlExportOptions = TiledBundleExportOptions;
 
 export type ImportExportFormatExportOptions =
@@ -126,7 +132,8 @@ export type ImportExportFormatExportOptions =
   | TiledMapExportOptions
   | TiledTilesetExportOptions
   | GodotMapExportOptions
-  | GameMakerMapExportOptions;
+  | GameMakerMapExportOptions
+  | DefoldMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
   options: ImportExportRasterExportOptions;
@@ -164,6 +171,13 @@ export interface GameMakerMapExportOptionsPanelProps {
   onExport: (options: GameMakerMapExportOptions) => void;
 }
 
+export interface DefoldMapExportOptionsPanelProps {
+  options: DefoldMapExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: DefoldMapExportOptions) => void;
+  onExport: (options: DefoldMapExportOptions) => void;
+}
+
 export interface TiledMapImportResult {
   map: TileMapData;
   layers: TileLayer[];
@@ -180,6 +194,8 @@ export interface GodotMapImportResult extends TiledMapImportResult {
 }
 
 export type GameMakerMapImportResult = TiledMapImportResult;
+
+export type DefoldMapImportResult = TiledMapImportResult;
 
 export type UnityMapImportResult = TiledMapImportResult;
 
@@ -238,6 +254,8 @@ export type LinkedImportResourceKind =
   | "json"
   | "asset"
   | "meta"
+  | "tilemap"
+  | "tilesource"
   | "tscn"
   | "tres"
   | "res";
@@ -268,6 +286,10 @@ export interface UnityImportMissingResource extends LinkedImportMissingResource 
 
 export interface GameMakerImportMissingResource extends LinkedImportMissingResource {
   kind: Extract<LinkedImportResourceKind, "image" | "json">;
+}
+
+export interface DefoldImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "tilemap" | "tilesource">;
 }
 
 export type GodotImportWarningCode =
@@ -328,6 +350,16 @@ export interface GameMakerMissingResourcesDialogProps {
   onSelectFile: (
     resource: GameMakerImportMissingResource,
   ) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
+export interface DefoldMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: DefoldImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: DefoldImportMissingResource) => void | Promise<void>;
   onImport: () => void | Promise<void>;
 }
 
@@ -416,6 +448,13 @@ export interface GameMakerMapImportPendingResult {
   missingResources: GameMakerImportMissingResource[];
 }
 
+export interface DefoldMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  format: DefoldMapFormat;
+  missingResources: DefoldImportMissingResource[];
+}
+
 export interface PendingUnityMapImportState {
   rootPath: string;
   rootData: Uint8Array;
@@ -428,6 +467,27 @@ export interface PendingGameMakerMapImportState {
   rootData: Uint8Array;
   format: GameMakerMapFormat;
   missingResources: GameMakerImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingDefoldMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  format: DefoldMapFormat;
+  missingResources: DefoldImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface DefoldTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: DefoldImportMissingResource[];
+}
+
+export interface PendingDefoldTilesetImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: DefoldImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
 }
 
@@ -454,6 +514,16 @@ export interface GameMakerMapImportReadyResult {
   result: GameMakerMapImportResult;
 }
 
+export interface DefoldMapImportReadyResult {
+  status: "ready";
+  result: DefoldMapImportResult;
+}
+
+export interface DefoldTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
 export interface UnityTilesetImportReadyResult {
   status: "ready";
   result: Tileset[];
@@ -466,6 +536,14 @@ export type UnityMapImportPreparationResult =
 export type GameMakerMapImportPreparationResult =
   | GameMakerMapImportPendingResult
   | GameMakerMapImportReadyResult;
+
+export type DefoldMapImportPreparationResult =
+  | DefoldMapImportPendingResult
+  | DefoldMapImportReadyResult;
+
+export type DefoldTilesetImportPreparationResult =
+  | DefoldTilesetImportPendingResult
+  | DefoldTilesetImportReadyResult;
 
 export type UnityTilesetImportPreparationResult =
   | UnityTilesetImportPendingResult

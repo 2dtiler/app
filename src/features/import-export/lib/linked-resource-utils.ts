@@ -11,6 +11,8 @@ const LINKED_IMPORT_RESOURCE_ACCEPT_BY_KIND: Record<
   json: ".json,application/json,text/json,text/plain,application/octet-stream",
   asset: ".asset,text/plain,application/octet-stream",
   meta: ".meta,text/plain,application/octet-stream",
+  tilemap: ".tilemap,text/plain,application/octet-stream",
+  tilesource: ".tilesource,text/plain,application/octet-stream",
   tscn: ".tscn,text/plain,application/octet-stream",
   tres: ".tres,text/plain,application/octet-stream",
   res: ".res,application/octet-stream",

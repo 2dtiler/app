@@ -12,12 +12,14 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/utils/cn";
 import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
+import { DefoldMapExportOptionsPanel } from "./import-export/DefoldMapExportOptionsPanel";
 import { GameMakerMapExportOptionsPanel } from "./import-export/GameMakerMapExportOptionsPanel";
 import { GodotMapExportOptionsPanel } from "./import-export/GodotMapExportOptionsPanel";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
 import { TiledMapExportOptionsPanel } from "./import-export/TiledMapExportOptionsPanel";
 import { TiledTilesetExportOptionsPanel } from "./import-export/TiledTilesetExportOptionsPanel";
 import type {
+  DefoldMapExportOptions,
   GameMakerMapExportOptions,
   GodotMapExportOptions,
   ImportExportAssetType,
@@ -114,18 +116,12 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedNow: true,
   },
   {
-    id: "map-defold-tilemap",
+    id: "map-defold",
     assetType: "map",
-    label: "Defold Tile Map (.tilemap)",
-    description: "Defold tile map resource.",
-    supportedNow: false,
-  },
-  {
-    id: "map-defold-collection",
-    assetType: "map",
-    label: "Defold Collection (.collection)",
-    description: "Defold collection scene target.",
-    supportedNow: false,
+    label: "Defold Tilemap / Collection (.tilemap, .collection)",
+    description:
+      "Imports Defold tilemap and collection resources and exports either format from one Defold settings panel.",
+    supportedNow: true,
   },
   {
     id: "map-tide",
@@ -180,6 +176,14 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedModes: ["import"],
   },
   {
+    id: "tileset-defold",
+    assetType: "tileset",
+    label: "Defold Tile Source (.tilesource)",
+    description:
+      "Imports and exports Defold tile source resources with linked source images.",
+    supportedNow: true,
+  },
+  {
     id: "tileset-godot",
     assetType: "tileset",
     label: "Godot 4 Tileset Bundle (.tres)",
@@ -218,13 +222,18 @@ function isGameMakerMapExportOption(optionId: ImportExportOptionId) {
   return optionId === "map-gamemaker";
 }
 
+function isDefoldMapExportOption(optionId: ImportExportOptionId) {
+  return optionId === "map-defold";
+}
+
 function isExpandableExportOption(optionId: ImportExportOptionId) {
   return (
     isRasterImageOption(optionId) ||
     isTiledMapOption(optionId) ||
     isTiledTilesetOption(optionId) ||
     isGodotMapExportOption(optionId) ||
-    isGameMakerMapExportOption(optionId)
+    isGameMakerMapExportOption(optionId) ||
+    isDefoldMapExportOption(optionId)
   );
 }
 
@@ -268,6 +277,14 @@ function createInitialGameMakerMapExportOptionsState() {
       format: "yy",
     },
   } as Record<"map", GameMakerMapExportOptions>;
+}
+
+function createInitialDefoldMapExportOptionsState() {
+  return {
+    map: {
+      format: "collection",
+    },
+  } as Record<"map", DefoldMapExportOptions>;
 }
 
 function getActionForAssetType(
@@ -367,6 +384,10 @@ export function ImportExportDialog({
     gameMakerMapExportOptionsByAssetType,
     setGameMakerMapExportOptionsByAssetType,
   ] = useState(createInitialGameMakerMapExportOptionsState);
+  const [
+    defoldMapExportOptionsByAssetType,
+    setDefoldMapExportOptionsByAssetType,
+  ] = useState(createInitialDefoldMapExportOptionsState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modeCopy = getModeCopy(mode);
   const ModeIcon = modeCopy.icon;
@@ -401,6 +422,9 @@ export function ImportExportDialog({
       );
       setGameMakerMapExportOptionsByAssetType(
         createInitialGameMakerMapExportOptionsState(),
+      );
+      setDefoldMapExportOptionsByAssetType(
+        createInitialDefoldMapExportOptionsState(),
       );
     }
   }, [open]);
@@ -566,6 +590,10 @@ export function ImportExportDialog({
               assetType === "map"
                 ? gameMakerMapExportOptionsByAssetType.map
                 : null;
+            const defoldMapExportOptions =
+              assetType === "map"
+                ? defoldMapExportOptionsByAssetType.map
+                : null;
             const supportsRenderOrder =
               assetType === "map" && exportSelection
                 ? exportSelection.groups
@@ -616,6 +644,8 @@ export function ImportExportDialog({
                       const isGameMakerMapExportAccordion =
                         mode === "export" &&
                         isGameMakerMapExportOption(option.id);
+                      const isDefoldMapExportAccordion =
+                        mode === "export" && isDefoldMapExportOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
@@ -825,6 +855,32 @@ export function ImportExportDialog({
                               disabled={!isEnabled}
                               onOptionsChange={(nextOptions) =>
                                 setGameMakerMapExportOptionsByAssetType(
+                                  (currentValue) => ({
+                                    ...currentValue,
+                                    map: nextOptions,
+                                  }),
+                                )
+                              }
+                              onExport={(nextOptions) => {
+                                if (!isEnabled) return;
+                                void handleActionSelect(
+                                  action,
+                                  selectedIds,
+                                  option.id,
+                                  nextOptions,
+                                );
+                              }}
+                            />
+                          ) : null}
+
+                          {isDefoldMapExportAccordion &&
+                          expandedExportOptionId === option.id &&
+                          defoldMapExportOptions ? (
+                            <DefoldMapExportOptionsPanel
+                              options={defoldMapExportOptions}
+                              disabled={!isEnabled}
+                              onOptionsChange={(nextOptions) =>
+                                setDefoldMapExportOptionsByAssetType(
                                   (currentValue) => ({
                                     ...currentValue,
                                     map: nextOptions,
