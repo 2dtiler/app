@@ -71,6 +71,20 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const GodotMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/GodotMissingResourcesDialog").then(
+    (module) => ({
+      default: module.GodotMissingResourcesDialog,
+    }),
+  ),
+);
+const UnityMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/UnityMissingResourcesDialog").then(
+    (module) => ({
+      default: module.UnityMissingResourcesDialog,
+    }),
+  ),
+);
 const ToolDrawer = lazy(() =>
   import("@/features/app-shell/components/ToolDrawer").then((module) => ({
     default: module.ToolDrawer,
@@ -184,7 +198,9 @@ export function AppShell({
     projectAction,
     mapAction,
     tilesetAction,
+    godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
+    unityMissingResourcesDialogProps,
   } = useImportExportActions({
     state,
     setState,
@@ -377,6 +393,36 @@ export function AppShell({
             isSubmitting={tiledMissingResourcesDialogProps.isSubmitting}
             onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
             onImport={tiledMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {godotMissingResourcesDialogProps.open && (
+        <Suspense>
+          <GodotMissingResourcesDialog
+            open={godotMissingResourcesDialogProps.open}
+            onOpenChange={godotMissingResourcesDialogProps.onOpenChange}
+            resources={godotMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              godotMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={godotMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={godotMissingResourcesDialogProps.onSelectFile}
+            onImport={godotMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {unityMissingResourcesDialogProps.open && (
+        <Suspense>
+          <UnityMissingResourcesDialog
+            open={unityMissingResourcesDialogProps.open}
+            onOpenChange={unityMissingResourcesDialogProps.onOpenChange}
+            resources={unityMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              unityMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={unityMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={unityMissingResourcesDialogProps.onSelectFile}
+            onImport={unityMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

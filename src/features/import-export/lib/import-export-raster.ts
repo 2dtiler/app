@@ -5,7 +5,11 @@ import {
 import { drawMapObjects } from "@/features/map-editor/components/MapCanvas/draw-map-objects";
 import { getAsset, saveAsset } from "@/services/db";
 import { generateAssetId } from "@/utils/ids";
-import { getMapCellOrigin, getMapPixelSize } from "@/features/map-editor/lib/map-geometry";
+import {
+  getMapCellOrigin,
+  getMapPixelSize,
+} from "@/features/map-editor/lib/map-geometry";
+import { pickSingleFile } from "@/features/import-export/lib/import-export-action-utils";
 import type {
   AssetId,
   ImportExportRasterAsset,
@@ -74,13 +78,7 @@ export function supportsRasterTransparency(
 }
 
 export async function pickRasterImageFile(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = RASTER_IMAGE_IMPORT_ACCEPT;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.click();
-  });
+  return pickSingleFile(RASTER_IMAGE_IMPORT_ACCEPT, "raster-image-file");
 }
 
 export async function importRasterAssetFromFile(

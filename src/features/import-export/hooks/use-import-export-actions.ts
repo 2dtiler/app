@@ -30,28 +30,48 @@ import {
 } from "@/features/import-export/lib/import-export-action-utils";
 import {
   exportSelectedTiledMaps,
-  getTiledMapImportFormat,
+  isTiledMapImportOption,
   isTiledMapExportOption,
 } from "@/features/import-export/lib/tiled-map-action-utils";
-import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
 import {
-  generateLayerGroupId,
-  generateLayerId,
-  generateMapId,
-  generateObjectId,
-  generateTilesetId,
-} from "@/utils/ids";
-import { findLastLayerId } from "@/features/map-editor/lib/layers";
+  exportSelectedPhaserMaps,
+  isPhaserMapOption,
+} from "@/features/import-export/lib/phaser-map-action-utils";
+import {
+  exportSelectedTiledTilesets,
+  isTiledTilesetExportOption,
+  isTiledTilesetImportOption,
+} from "@/features/import-export/lib/tiled-tileset-action-utils";
+import {
+  exportSelectedGodotMaps,
+  isGodotMapOption,
+} from "@/features/import-export/lib/godot-map-action-utils";
+import {
+  exportSelectedGodotTilesets,
+  isGodotTilesetOption,
+} from "@/features/import-export/lib/godot-tileset-action-utils";
+import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
+import {
+  exportSelectedUnityMaps,
+  isUnityMapOption,
+} from "@/features/import-export/lib/unity-map-action-utils";
+import {
+  exportSelectedUnityTilesets,
+  isUnityTilesetOption,
+} from "@/features/import-export/lib/unity-tileset-action-utils";
+import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
+import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
+import {
+  PHASER_MAP_IMPORT_CONFIG,
+  useTiledMapImport,
+} from "@/features/import-export/hooks/use-tiled-map-import";
+import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
+import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
+import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
+import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
-import {
-  cloneImportedTileset,
-  remapObjectPropertyValues,
-  remapLayerTreeId,
-  remapTileEntries,
-} from "@/features/project-management/lib/project-import";
 import { saveProject } from "@/services/db";
-import type { EditorTravels } from "@/store/types";
 import type {
   EditorState,
   ImageLayer,
@@ -61,20 +81,15 @@ import type {
   ImportExportOptionAction,
   ImportExportOptionId,
   ImportExportRasterExportOptions,
-  LayerGroup,
-  LayerGroupId,
-  LayerId,
   MapId,
   MapGroupId,
-  MapObject,
-  ObjectId,
-  ObjectLayer,
-  TileLayer,
   TileMapData,
   TiledMapImportResult,
+  Tileset,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
+import type { EditorTravels } from "@/store/types";
 
 interface UseImportExportActionsParams {
   state: EditorState;
@@ -94,24 +109,26 @@ export function useImportExportActions({
   setImportExportDialogOpen,
 }: UseImportExportActionsParams) {
   const handleExportProject = useCallback(async () => {
-    if (!state.project) return;
+    if (!state.project) return false;
     await saveProject(state.project);
     const data = await exportProject(state.project);
-    await saveByteArrayFile(data, `${state.project.name}.2dp`);
+    return saveByteArrayFile(data, `${state.project.name}.2dp`);
   }, [state.project]);
 
   const handleImportProject = useCallback(async () => {
     const file = await pickSingleFile(".2dp", "project-file");
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const raw = await readFileAsUint8Array(file);
       const project = await importProject(raw);
       await saveProject(project);
       openProjectInEditor(project);
+      return true;
     } catch (error) {
       console.error("[Import Project] Failed:", error);
       alert("Failed to import project. The file may be corrupted.");
+      return false;
     }
   }, []);
 
@@ -126,13 +143,13 @@ export function useImportExportActions({
 
   const handleExportNativeMaps = useCallback(
     async (selectedMapIds: string[]) => {
-      if (!state.project || selectedMapIds.length === 0) return;
+      if (!state.project || selectedMapIds.length === 0) return false;
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
         selectedIdSet.has(map.id),
       );
-      if (selectedMaps.length === 0) return;
+      if (selectedMaps.length === 0) return false;
 
       if (selectedMaps.length === 1) {
         const map = selectedMaps[0];
@@ -147,8 +164,7 @@ export function useImportExportActions({
           mapExportData.objectLayers,
           state.project.objects ?? [],
         );
-        await saveByteArrayFile(data, buildDownloadFilename(map.name, ".2dm"));
-        return;
+        return saveByteArrayFile(data, buildDownloadFilename(map.name, ".2dm"));
       }
 
       const groupNames = new Map(
@@ -181,7 +197,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      await saveByteArrayFile(
+      return saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -199,14 +215,14 @@ export function useImportExportActions({
         selectedMapIds.length === 0 ||
         !rasterExportOptions
       ) {
-        return;
+        return false;
       }
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
         selectedIdSet.has(map.id),
       );
-      if (selectedMaps.length === 0) return;
+      if (selectedMaps.length === 0) return false;
 
       const allTilesets = [
         ...state.project.tilesets,
@@ -226,14 +242,13 @@ export function useImportExportActions({
           mapExportData.objects,
         );
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        await saveBlobFile(
+        return saveBlobFile(
           blob,
           buildDownloadFilename(
             map.name,
             getRasterFileExtension(rasterExportOptions.fileType),
           ),
         );
-        return;
       }
 
       const groupNames = new Map(
@@ -269,7 +284,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      await saveByteArrayFile(
+      return saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -277,190 +292,15 @@ export function useImportExportActions({
     [state.project],
   );
 
-  const mergeImportedMapData = useCallback(
+  const handleImportedMapResolved = useCallback(
     (imported: TiledMapImportResult) => {
-      if (!state.project) return;
-
-      const currentProject = state.project;
-      const {
-        map,
-        layers,
-        tilesets,
-        overrideTilesets = [],
-        imageLayers: importedImageLayers,
-        layerGroups: importedLayerGroups,
-        objectLayers: importedObjectLayers,
-        objects: importedObjects,
-      } = imported;
-
-      const targetMapGroupId =
-        state.activeMapGroupId ?? currentProject.mapGroups[0]?.id;
-      const targetTilesetGroupId =
-        state.activeTilesetGroupId ?? currentProject.tilesetGroups[0]?.id;
-      if (!targetMapGroupId || !targetTilesetGroupId) return;
-
-      const newMapId = generateMapId();
-      const layerIdMap = new Map<string, LayerId>();
-      const groupIdMap = new Map<string, LayerGroupId>();
-      const objectIdMap = new Map<string, ObjectId>();
-      const tilesetIdMap = new Map<string, TilesetId>();
-
-      for (const layer of layers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const layer of importedImageLayers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const layer of importedObjectLayers) {
-        layerIdMap.set(layer.id as string, generateLayerId());
-      }
-      for (const group of importedLayerGroups) {
-        groupIdMap.set(group.id as string, generateLayerGroupId());
-      }
-      for (const object of importedObjects) {
-        objectIdMap.set(object.id as string, generateObjectId());
-      }
-
-      const reservedTilesetIds = new Set(
-        [
-          ...currentProject.tilesets,
-          ...(currentProject.overrideTilesets ?? []),
-        ].map((tileset) => tileset.id as string),
+      mergeImportedMapData(
+        imported,
+        state.project,
+        state.activeMapGroupId,
+        state.activeTilesetGroupId,
+        setState,
       );
-      const reserveImportedTilesetId = (tilesetId: TilesetId): TilesetId => {
-        const existingId = tilesetIdMap.get(tilesetId as string);
-        if (existingId) return existingId;
-
-        const nextId = reservedTilesetIds.has(tilesetId as string)
-          ? generateTilesetId()
-          : tilesetId;
-        reservedTilesetIds.add(nextId as string);
-        tilesetIdMap.set(tilesetId as string, nextId);
-        return nextId;
-      };
-
-      for (const tileset of tilesets) {
-        reserveImportedTilesetId(tileset.id);
-      }
-      for (const tileset of overrideTilesets) {
-        reserveImportedTilesetId(tileset.id);
-      }
-
-      const remappedTilesets = tilesets.map((tileset) =>
-        cloneImportedTileset(
-          tileset,
-          tilesetIdMap,
-          targetTilesetGroupId as TilesetGroupId,
-        ),
-      );
-      const remappedOverrideTilesets = overrideTilesets.map((tileset) =>
-        cloneImportedTileset(
-          tileset,
-          tilesetIdMap,
-          targetTilesetGroupId as TilesetGroupId,
-        ),
-      );
-      const remappedLayers: TileLayer[] = layers.map((layer) => ({
-        ...layer,
-        id: layerIdMap.get(layer.id as string) ?? layer.id,
-        mapId: newMapId,
-        tiles: remapTileEntries(layer.tiles, tilesetIdMap),
-      }));
-      const remappedImageLayers: ImageLayer[] = importedImageLayers.map(
-        (layer) => ({
-          ...layer,
-          id: layerIdMap.get(layer.id as string) ?? layer.id,
-          mapId: newMapId,
-        }),
-      );
-      const remappedObjectLayers: ObjectLayer[] = importedObjectLayers.map(
-        (layer) => ({
-          ...layer,
-          id: layerIdMap.get(layer.id as string) ?? layer.id,
-          mapId: newMapId,
-          objectOrder: layer.objectOrder.map(
-            (objectId) => objectIdMap.get(objectId as string) ?? objectId,
-          ),
-        }),
-      );
-      const remappedLayerGroups: LayerGroup[] = importedLayerGroups.map(
-        (group) => ({
-          ...group,
-          id: groupIdMap.get(group.id as string) ?? group.id,
-          mapId: newMapId,
-          childOrder: group.childOrder.map((id) =>
-            remapLayerTreeId(id, layerIdMap, groupIdMap),
-          ),
-        }),
-      );
-      const remappedObjects: MapObject[] = importedObjects.map((object) => ({
-        ...object,
-        id: objectIdMap.get(object.id as string) ?? object.id,
-        layerId: (layerIdMap.get(object.layerId as string) ??
-          object.layerId) as LayerId,
-        points: object.points.map((point) => ({ ...point })),
-        properties: remapObjectPropertyValues(object.properties, objectIdMap),
-      }));
-      const remappedMap = {
-        ...map,
-        id: newMapId,
-        groupId: targetMapGroupId as MapGroupId,
-        layerOrder: map.layerOrder.map((id) =>
-          remapLayerTreeId(id, layerIdMap, groupIdMap),
-        ),
-        properties: remapObjectPropertyValues(
-          map.properties ?? {},
-          objectIdMap,
-        ),
-        createdAt: Date.now(),
-      };
-
-      setState((draft) => {
-        if (!draft.project) return;
-        if (!draft.project.imageLayers) draft.project.imageLayers = [];
-        if (!draft.project.layerGroups) draft.project.layerGroups = [];
-        if (!draft.project.objectLayers) draft.project.objectLayers = [];
-        if (!draft.project.objects) draft.project.objects = [];
-        if (!draft.project.overrideTilesets) {
-          draft.project.overrideTilesets = [];
-        }
-
-        for (const tileset of remappedTilesets) {
-          draft.project.tilesets.push(tileset);
-        }
-        for (const tileset of remappedOverrideTilesets) {
-          draft.project.overrideTilesets.push(tileset);
-        }
-
-        draft.project.maps.push(remappedMap);
-
-        for (const layer of remappedLayers) {
-          draft.project.layers.push(layer);
-        }
-        for (const layer of remappedImageLayers) {
-          draft.project.imageLayers.push(layer);
-        }
-        for (const group of remappedLayerGroups) {
-          draft.project.layerGroups.push(group);
-        }
-        for (const layer of remappedObjectLayers) {
-          draft.project.objectLayers.push(layer);
-        }
-        for (const object of remappedObjects) {
-          draft.project.objects.push(object);
-        }
-
-        draft.activeMapId = newMapId;
-        draft.activeLayerId =
-          findLastLayerId(
-            remappedMap.layerOrder,
-            remappedLayers,
-            remappedLayerGroups,
-            remappedImageLayers,
-            remappedObjectLayers,
-          ) ?? null;
-        draft.activeMapGroupId = targetMapGroupId as MapGroupId;
-      });
     },
     [
       setState,
@@ -470,34 +310,113 @@ export function useImportExportActions({
     ],
   );
 
-  const { handleImportTiledMap, tiledMissingResourcesDialogProps } =
-    useTiledMapImport(Boolean(state.project), mergeImportedMapData);
+  const {
+    handleImportTiledMap,
+    tiledMissingResourcesDialogProps: tiledMapMissingResourcesDialogProps,
+  } = useTiledMapImport(Boolean(state.project), handleImportedMapResolved);
+  const {
+    handleImportTiledMap: handleImportPhaserMap,
+    tiledMissingResourcesDialogProps: phaserMapMissingResourcesDialogProps,
+  } = useTiledMapImport(
+    Boolean(state.project),
+    handleImportedMapResolved,
+    PHASER_MAP_IMPORT_CONFIG,
+  );
+  const { handleImportGodotMap, godotMissingResourcesDialogProps } =
+    useGodotMapImport(Boolean(state.project), (imported) => {
+      handleImportedMapResolved(imported);
+      if (imported.warnings.length > 0) {
+        alert(
+          `Imported with ${imported.warnings.length} Godot compatibility warning${
+            imported.warnings.length === 1 ? "" : "s"
+          }. See the console for details.`,
+        );
+        console.warn("[Import Godot Scene] Warnings:", imported.warnings);
+      }
+    });
+  const handleImportedTilesetsResolved = useCallback(
+    (importedTilesets: Tileset[]) => {
+      if (!state.project || importedTilesets.length === 0) return;
+
+      const targetGroupId =
+        state.activeTilesetGroupId ?? state.project.tilesetGroups[0]?.id;
+      if (!targetGroupId) return;
+
+      setState((draft) => {
+        if (!draft.project) return;
+
+        const remappedTilesets = importedTilesets.map((tileset) => ({
+          ...tileset,
+          groupId: targetGroupId as TilesetGroupId,
+        }));
+
+        for (const tileset of remappedTilesets) {
+          draft.project.tilesets.push(tileset);
+        }
+
+        draft.activeTilesetId =
+          remappedTilesets[0]?.id ?? draft.activeTilesetId;
+        draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+        draft.tileSize = getActiveTilesetTileSize(
+          draft.project,
+          draft.activeTilesetId,
+        );
+        draft.selectedTile = null;
+      });
+    },
+    [setState, state.activeTilesetGroupId, state.project],
+  );
+  const {
+    handleImportGodotTileset,
+    godotMissingResourcesDialogProps: godotTilesetMissingResourcesDialogProps,
+  } = useGodotTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
+  const {
+    handleImportTiledTileset,
+    tiledMissingResourcesDialogProps: tiledTilesetMissingResourcesDialogProps,
+  } = useTiledTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
+  const { handleImportUnityMap, unityMissingResourcesDialogProps } =
+    useUnityMapImport(Boolean(state.project), handleImportedMapResolved);
+  const {
+    handleImportUnityTileset,
+    unityMissingResourcesDialogProps: unityTilesetMissingResourcesDialogProps,
+  } = useUnityTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
   const handleImportNativeMap = useCallback(async () => {
-    if (!state.project) return;
+    if (!state.project) return false;
 
     const file = await pickSingleFile(".2dm", "native-map-file");
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const raw = await readFileAsUint8Array(file);
-      mergeImportedMapData(await importMap(raw));
+      handleImportedMapResolved(await importMap(raw));
+      return true;
     } catch (error) {
       console.error("[Import Map] Failed:", error);
       alert("Failed to import map. The file may be corrupted.");
+      return false;
     }
-  }, [mergeImportedMapData, state.project]);
+  }, [handleImportedMapResolved, state.project]);
 
   const handleImportRasterMap = useCallback(async () => {
-    if (!state.project) return;
+    if (!state.project) return false;
 
     const file = await pickRasterImageFile();
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const importedAsset = await importRasterAssetFromFile(file);
       const targetMapGroupId =
         state.activeMapGroupId ?? state.project.mapGroups[0]?.id;
-      if (!targetMapGroupId) return;
+      if (!targetMapGroupId) return false;
 
       const mapId = generateMapId();
       const layerId = generateLayerId();
@@ -553,30 +472,31 @@ export function useImportExportActions({
         draft.activeLayerId = layerId;
         draft.currentTool = "select";
       });
+      return true;
     } catch (error) {
       console.error("[Import Map Image] Failed:", error);
       alert("Failed to import the image as a map.");
+      return false;
     }
   }, [setState, state.activeMapGroupId, state.project, state.tileSize]);
 
   const handleExportNativeTilesets = useCallback(
     async (selectedTilesetIds: string[]) => {
-      if (!state.project || selectedTilesetIds.length === 0) return;
+      if (!state.project || selectedTilesetIds.length === 0) return false;
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
         selectedIdSet.has(tileset.id),
       );
-      if (selectedTilesets.length === 0) return;
+      if (selectedTilesets.length === 0) return false;
 
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];
         const data = await exportTileset(tileset);
-        await saveByteArrayFile(
+        return saveByteArrayFile(
           data,
           buildDownloadFilename(tileset.name, ".2dt"),
         );
-        return;
       }
 
       const groupNames = new Map(
@@ -599,7 +519,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      await saveByteArrayFile(
+      return saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -617,27 +537,26 @@ export function useImportExportActions({
         selectedTilesetIds.length === 0 ||
         !rasterExportOptions
       ) {
-        return;
+        return false;
       }
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
         selectedIdSet.has(tileset.id),
       );
-      if (selectedTilesets.length === 0) return;
+      if (selectedTilesets.length === 0) return false;
 
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];
         const canvas = await renderTilesetToCanvas(tileset);
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        await saveBlobFile(
+        return saveBlobFile(
           blob,
           buildDownloadFilename(
             tileset.name,
             getRasterFileExtension(rasterExportOptions.fileType),
           ),
         );
-        return;
       }
 
       const groupNames = new Map(
@@ -664,7 +583,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      await saveByteArrayFile(
+      return saveByteArrayFile(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -673,10 +592,10 @@ export function useImportExportActions({
   );
 
   const handleImportNativeTileset = useCallback(async () => {
-    if (!state.project) return;
+    if (!state.project) return false;
 
     const file = await pickSingleFile(".2dt", "native-tileset-file");
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const project = state.project;
@@ -684,7 +603,7 @@ export function useImportExportActions({
       const tileset = await importTileset(raw, state.tileSize);
       const targetGroupId =
         state.activeTilesetGroupId ?? project.tilesetGroups[0]?.id;
-      if (!targetGroupId) return;
+      if (!targetGroupId) return false;
 
       const exists = project.tilesets.some((entry) => entry.id === tileset.id);
 
@@ -704,23 +623,25 @@ export function useImportExportActions({
         );
         draft.selectedTile = null;
       });
+      return true;
     } catch (error) {
       console.error("[Import Tileset] Failed:", error);
       alert("Failed to import tileset. The file may be corrupted.");
+      return false;
     }
   }, [setState, state.activeTilesetGroupId, state.project, state.tileSize]);
 
   const handleImportRasterTileset = useCallback(async () => {
-    if (!state.project) return;
+    if (!state.project) return false;
 
     const file = await pickRasterImageFile();
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const importedAsset = await importRasterAssetFromFile(file);
       const targetGroupId =
         state.activeTilesetGroupId ?? state.project.tilesetGroups[0]?.id;
-      if (!targetGroupId) return;
+      if (!targetGroupId) return false;
 
       const tilesetId = generateTilesetId();
 
@@ -743,40 +664,75 @@ export function useImportExportActions({
         draft.tileSize = getActiveTilesetTileSize(draft.project, tilesetId);
         draft.selectedTile = null;
       });
+      return true;
     } catch (error) {
       console.error("[Import Tileset Image] Failed:", error);
       alert("Failed to import the image as a tileset.");
+      return false;
     }
   }, [setState, state.activeTilesetGroupId, state.project]);
 
   const handleMapActionSelect = useCallback(
     async (optionId: ImportExportOptionId) => {
       if (optionId === "map-image") {
-        await handleImportRasterMap();
-        return;
+        return handleImportRasterMap();
       }
 
-      const tiledFormat = getTiledMapImportFormat(optionId);
-      if (tiledFormat) {
-        await handleImportTiledMap(tiledFormat);
-        return;
+      if (isTiledMapImportOption(optionId)) {
+        return handleImportTiledMap();
       }
 
-      await handleImportNativeMap();
+      if (isPhaserMapOption(optionId)) {
+        return handleImportPhaserMap();
+      }
+
+      if (isGodotMapOption(optionId)) {
+        return handleImportGodotMap();
+      }
+
+      if (isUnityMapOption(optionId)) {
+        return handleImportUnityMap();
+      }
+
+      return handleImportNativeMap();
     },
-    [handleImportNativeMap, handleImportRasterMap, handleImportTiledMap],
+    [
+      handleImportPhaserMap,
+      handleImportGodotMap,
+      handleImportNativeMap,
+      handleImportRasterMap,
+      handleImportTiledMap,
+      handleImportUnityMap,
+    ],
   );
 
   const handleTilesetActionSelect = useCallback(
     async (optionId: ImportExportOptionId) => {
       if (optionId === "tileset-image") {
-        await handleImportRasterTileset();
-        return;
+        return handleImportRasterTileset();
       }
 
-      await handleImportNativeTileset();
+      if (isTiledTilesetImportOption(optionId)) {
+        return handleImportTiledTileset();
+      }
+
+      if (isGodotTilesetOption(optionId)) {
+        return handleImportGodotTileset();
+      }
+
+      if (isUnityTilesetOption(optionId)) {
+        return handleImportUnityTileset();
+      }
+
+      return handleImportNativeTileset();
     },
-    [handleImportNativeTileset, handleImportRasterTileset],
+    [
+      handleImportGodotTileset,
+      handleImportNativeTileset,
+      handleImportRasterTileset,
+      handleImportTiledTileset,
+      handleImportUnityTileset,
+    ],
   );
 
   const handleMapExportSubmit = useCallback(
@@ -786,26 +742,41 @@ export function useImportExportActions({
       formatExportOptions?: ImportExportFormatExportOptions,
     ) => {
       if (optionId === "map-image") {
-        await handleExportRasterMaps(
+        return handleExportRasterMaps(
           selectedIds,
           isRasterExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
         );
-        return;
       }
 
       if (isTiledMapExportOption(optionId)) {
-        await exportSelectedTiledMaps(
+        return exportSelectedTiledMaps(
           state.project,
           selectedIds,
           optionId,
           formatExportOptions,
         );
-        return;
       }
 
-      await handleExportNativeMaps(selectedIds);
+      if (isPhaserMapOption(optionId)) {
+        return exportSelectedPhaserMaps(state.project, selectedIds, optionId);
+      }
+
+      if (isGodotMapOption(optionId)) {
+        return exportSelectedGodotMaps(
+          state.project,
+          selectedIds,
+          optionId,
+          formatExportOptions,
+        );
+      }
+
+      if (isUnityMapOption(optionId)) {
+        return exportSelectedUnityMaps(state.project, selectedIds, optionId);
+      }
+
+      return handleExportNativeMaps(selectedIds);
     },
     [handleExportNativeMaps, handleExportRasterMaps, state.project],
   );
@@ -817,19 +788,60 @@ export function useImportExportActions({
       formatExportOptions?: ImportExportFormatExportOptions,
     ) => {
       if (optionId === "tileset-image") {
-        await handleExportRasterTilesets(
+        return handleExportRasterTilesets(
           selectedIds,
           isRasterExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
         );
-        return;
       }
 
-      await handleExportNativeTilesets(selectedIds);
+      if (isGodotTilesetOption(optionId)) {
+        return exportSelectedGodotTilesets(
+          state.project,
+          selectedIds,
+          optionId,
+        );
+      }
+
+      if (isTiledTilesetExportOption(optionId)) {
+        return exportSelectedTiledTilesets(
+          state.project,
+          selectedIds,
+          optionId,
+          formatExportOptions,
+        );
+      }
+
+      if (isUnityTilesetOption(optionId)) {
+        return exportSelectedUnityTilesets(
+          state.project,
+          selectedIds,
+          optionId,
+        );
+      }
+
+      return handleExportNativeTilesets(selectedIds);
     },
-    [handleExportNativeTilesets, handleExportRasterTilesets],
+    [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
   );
+
+  const mergedTiledMissingResourcesDialogProps =
+    phaserMapMissingResourcesDialogProps.open
+      ? phaserMapMissingResourcesDialogProps
+      : tiledTilesetMissingResourcesDialogProps.open
+        ? tiledTilesetMissingResourcesDialogProps
+        : tiledMapMissingResourcesDialogProps;
+
+  const mergedGodotMissingResourcesDialogProps =
+    godotTilesetMissingResourcesDialogProps.open
+      ? godotTilesetMissingResourcesDialogProps
+      : godotMissingResourcesDialogProps;
+
+  const mergedUnityMissingResourcesDialogProps =
+    unityTilesetMissingResourcesDialogProps.open
+      ? unityTilesetMissingResourcesDialogProps
+      : unityMissingResourcesDialogProps;
 
   const mapExportGroups = useMemo(
     () =>
@@ -958,6 +970,8 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
-    tiledMissingResourcesDialogProps,
+    godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
+    tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
+    unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,
   };
 }

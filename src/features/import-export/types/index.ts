@@ -6,6 +6,7 @@ import type {
   ObjectLayer,
   TileLayer,
   TileMapData,
+  TileRef,
   TileSize,
   Tileset,
   TilesetId,
@@ -39,11 +40,9 @@ export type ImportExportOptionId =
   | "project-tiled"
   | "map-native"
   | "map-image"
-  | "map-tiled-xml"
-  | "map-tiled-json"
-  | "map-tiled-js"
-  | "map-tiled-lua"
-  | "map-tiled-csv"
+  | "map-phaser"
+  | "map-tiled"
+  | "map-tiled-file"
   | "map-godot"
   | "map-unity"
   | "map-gamemaker-room"
@@ -55,9 +54,8 @@ export type ImportExportOptionId =
   | "map-mappy-fmp"
   | "tileset-native"
   | "tileset-image"
-  | "tileset-tiled-xml"
-  | "tileset-tiled-json"
-  | "tileset-tiled-lua"
+  | "tileset-tiled"
+  | "tileset-tiled-file"
   | "tileset-unity"
   | "tileset-godot"
   | "tileset-rpg-maker";
@@ -78,13 +76,21 @@ export type TiledRenderOrder =
 
 export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
+export type TiledMapExportFormat = TiledMapFormat | "csv";
+
+export type TiledTilesetFormat = "xml" | "json" | "lua";
+
+export type GodotMapTilesetMode = "embedded" | "external";
+
+export type GodotMapTextureMode = "copy";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
   transparency: boolean;
 }
 
-export interface TiledMapExportOptions {
+export interface TiledBundleExportOptions {
   encoding: TiledLayerEncoding;
   compression: TiledLayerCompression;
   compressionLevel: number;
@@ -92,11 +98,27 @@ export interface TiledMapExportOptions {
   renderOrder: TiledRenderOrder;
 }
 
-export type TiledXmlExportOptions = TiledMapExportOptions;
+export interface TiledMapExportOptions extends TiledBundleExportOptions {
+  format: TiledMapExportFormat;
+}
+
+export interface TiledTilesetExportOptions {
+  format: TiledTilesetFormat;
+}
+
+export interface GodotMapExportOptions {
+  sceneRootName: string;
+  tilesetMode: GodotMapTilesetMode;
+  textureMode: GodotMapTextureMode;
+}
+
+export type TiledXmlExportOptions = TiledBundleExportOptions;
 
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
-  | TiledMapExportOptions;
+  | TiledMapExportOptions
+  | TiledTilesetExportOptions
+  | GodotMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
   options: ImportExportRasterExportOptions;
@@ -113,7 +135,19 @@ export interface TiledMapExportOptionsPanelProps {
   onExport: (options: TiledMapExportOptions) => void;
 }
 
-export type TiledXmlExportOptionsPanelProps = TiledMapExportOptionsPanelProps;
+export interface TiledTilesetExportOptionsPanelProps {
+  options: TiledTilesetExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: TiledTilesetExportOptions) => void;
+  onExport: (options: TiledTilesetExportOptions) => void;
+}
+
+export interface GodotMapExportOptionsPanelProps {
+  options: GodotMapExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: GodotMapExportOptions) => void;
+  onExport: (options: GodotMapExportOptions) => void;
+}
 
 export interface TiledMapImportResult {
   map: TileMapData;
@@ -126,13 +160,111 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
-export type TiledImportMissingResourceKind = "tsx" | "tsj" | "lua" | "image";
+export interface GodotMapImportResult extends TiledMapImportResult {
+  warnings: GodotImportWarning[];
+}
 
-export interface TiledImportMissingResource {
+export type UnityMapImportResult = TiledMapImportResult;
+
+export interface UnityBundleManifestMap {
+  name: string;
+  widthInTiles: number;
+  heightInTiles: number;
+  tileSize: TileSize;
+  orientation: MapOrientation;
+}
+
+export interface UnityBundleManifestSourceTileset {
+  id: TilesetId;
+  name: string;
+  imagePath: string;
+  mimeType: string;
+  tileSize: TileSize;
+  imageWidth: number;
+  imageHeight: number;
+  createdAt: number;
+}
+
+export interface UnityBundleManifestCell {
+  coordinate: string;
+  tilesetId: TilesetId;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+  rotation?: TileRef["rotation"];
+  flipX?: boolean;
+  flipY?: boolean;
+}
+
+export interface UnityBundleManifestLayer {
+  exportId?: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  cells: UnityBundleManifestCell[];
+}
+
+export interface UnityBundleManifest {
+  version: 1;
+  source: "2dtiler";
+  map: UnityBundleManifestMap;
+  sourceTilesets: UnityBundleManifestSourceTileset[];
+  layers: UnityBundleManifestLayer[];
+}
+
+export type LinkedImportResourceKind =
+  | "tsx"
+  | "tsj"
+  | "lua"
+  | "image"
+  | "json"
+  | "asset"
+  | "meta"
+  | "tscn"
+  | "tres"
+  | "res";
+
+export interface LinkedImportMissingResource {
   path: string;
-  kind: TiledImportMissingResourceKind;
+  kind: LinkedImportResourceKind;
   referringPath: string;
   label: string;
+}
+
+export type TiledImportMissingResourceKind = Extract<
+  LinkedImportResourceKind,
+  "tsx" | "tsj" | "lua" | "image"
+>;
+
+export interface TiledImportMissingResource extends LinkedImportMissingResource {
+  kind: TiledImportMissingResourceKind;
+}
+
+export interface GodotImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "tscn" | "tres" | "res">;
+}
+
+export interface UnityImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "json" | "asset" | "meta">;
+}
+
+export type GodotImportWarningCode =
+  | "unsupported-tile-transform"
+  | "unsupported-tile-metadata"
+  | "unsupported-node-type"
+  | "unsupported-scene-tile-source"
+  | "unsupported-shape"
+  | "unsupported-script"
+  | "unsupported-material"
+  | "unsupported-physics-data"
+  | "unsupported-navigation-data"
+  | "unsupported-occlusion-data";
+
+export interface GodotImportWarning {
+  code: GodotImportWarningCode;
+  message: string;
+  nodePath?: string;
 }
 
 export interface TiledMissingResourcesDialogProps {
@@ -143,6 +275,26 @@ export interface TiledMissingResourcesDialogProps {
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
   onSelectFile: (resource: TiledImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
+export interface GodotMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: GodotImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: GodotImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
+export interface UnityMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: UnityImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (resource: UnityImportMissingResource) => void | Promise<void>;
   onImport: () => void | Promise<void>;
 }
 
@@ -160,14 +312,125 @@ export interface PendingTiledMapImportState {
   resourceFilesByPath: Record<string, File>;
 }
 
+export interface TiledTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface PendingTiledTilesetImportState {
+  format: TiledTilesetFormat;
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
 export interface TiledMapImportReadyResult {
   status: "ready";
   result: TiledMapImportResult;
 }
 
+export interface TiledTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
 export type TiledMapImportPreparationResult =
   | TiledMapImportPendingResult
   | TiledMapImportReadyResult;
+
+export type TiledTilesetImportPreparationResult =
+  | TiledTilesetImportPendingResult
+  | TiledTilesetImportReadyResult;
+
+export interface GodotMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: GodotImportMissingResource[];
+}
+
+export interface PendingGodotMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: GodotImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface GodotTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: GodotImportMissingResource[];
+}
+
+export interface PendingGodotTilesetImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: GodotImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface UnityMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: UnityImportMissingResource[];
+}
+
+export interface PendingUnityMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: UnityImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface UnityTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: UnityImportMissingResource[];
+}
+
+export interface PendingUnityTilesetImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: UnityImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface UnityMapImportReadyResult {
+  status: "ready";
+  result: UnityMapImportResult;
+}
+
+export interface UnityTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
+export type UnityMapImportPreparationResult =
+  | UnityMapImportPendingResult
+  | UnityMapImportReadyResult;
+
+export type UnityTilesetImportPreparationResult =
+  | UnityTilesetImportPendingResult
+  | UnityTilesetImportReadyResult;
+
+export interface GodotMapImportReadyResult {
+  status: "ready";
+  result: GodotMapImportResult;
+}
+
+export interface GodotTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
+export type GodotMapImportPreparationResult =
+  | GodotMapImportPendingResult
+  | GodotMapImportReadyResult;
+
+export type GodotTilesetImportPreparationResult =
+  | GodotTilesetImportPendingResult
+  | GodotTilesetImportReadyResult;
 
 export interface ImportExportRasterAsset {
   assetId: AssetId;
@@ -257,7 +520,7 @@ export interface ImportExportSelectionConfig {
     selectedIds: ImportExportSelectableAssetId[],
     optionId: ImportExportOptionId,
     formatExportOptions?: ImportExportFormatExportOptions,
-  ) => void | Promise<void>;
+  ) => boolean | Promise<boolean>;
 }
 
 export interface ImportExportArchiveEntry {
@@ -311,7 +574,7 @@ export interface ImportExportOptionAction {
   onSelect?: (
     optionId: ImportExportOptionId,
     formatExportOptions?: ImportExportFormatExportOptions,
-  ) => void | Promise<void>;
+  ) => boolean | Promise<boolean>;
   disabledReason?: string;
   exportSelection?: ImportExportSelectionConfig;
 }

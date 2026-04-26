@@ -1,13 +1,18 @@
-import { getAllGroupIds, getAllLayerIds } from "@/features/map-editor/lib/layers";
+import {
+  getAllGroupIds,
+  getAllLayerIds,
+} from "@/features/map-editor/lib/layers";
 import type {
+  GodotMapExportOptions,
   ImportExportAssetGroup,
   ImportExportFormatExportOptions,
   ImportExportRasterExportOptions,
   Project,
   TileLayer,
   TileMapData,
+  TiledMapExportOptions,
+  TiledTilesetExportOptions,
   Tileset,
-  TiledXmlExportOptions,
   TilesetId,
 } from "@/types";
 
@@ -17,10 +22,27 @@ export function isRasterExportOptions(
   return Boolean(options && "fileType" in options);
 }
 
-export function isTiledXmlExportOptions(
+export function isTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
-): options is TiledXmlExportOptions {
-  return Boolean(options && "tilesetMode" in options);
+): options is TiledMapExportOptions {
+  return Boolean(options && "tilesetMode" in options && "format" in options);
+}
+
+export function isTiledTilesetExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is TiledTilesetExportOptions {
+  return Boolean(options && "format" in options && !("tilesetMode" in options));
+}
+
+export function isGodotMapExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is GodotMapExportOptions {
+  return Boolean(
+    options &&
+    "sceneRootName" in options &&
+    "tilesetMode" in options &&
+    "textureMode" in options,
+  );
 }
 
 export async function pickSingleFile(
@@ -29,11 +51,53 @@ export async function pickSingleFile(
 ): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
+    let cancelTimeoutId: number | null = null;
+    let settled = false;
+
+    const cleanup = () => {
+      input.removeEventListener("change", handleChange);
+      input.removeEventListener("cancel", handleCancel);
+      window.removeEventListener("focus", handleWindowFocus, true);
+
+      if (cancelTimeoutId !== null) {
+        window.clearTimeout(cancelTimeoutId);
+      }
+    };
+
+    const settle = (file: File | null) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve(file);
+    };
+
+    const handleChange = () => {
+      settle(input.files?.[0] ?? null);
+    };
+
+    const handleCancel = () => {
+      settle(null);
+    };
+
+    const handleWindowFocus = () => {
+      // Some browsers do not emit a file-input cancel event after the picker closes.
+      cancelTimeoutId = window.setTimeout(() => {
+        if (!input.files?.length) {
+          settle(null);
+        }
+      }, 250);
+    };
+
     input.type = "file";
     input.accept = accept;
     input.name = inputName;
     input.id = `${inputName}-${Math.random().toString(36).slice(2)}`;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.addEventListener("change", handleChange);
+    input.addEventListener("cancel", handleCancel);
+    window.addEventListener("focus", handleWindowFocus, true);
     input.click();
   });
 }

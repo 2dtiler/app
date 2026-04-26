@@ -18,7 +18,7 @@ import type {
   ObjectLayer,
   PropertyValue,
   TiledMapBundlePreparationResult,
-  TiledMapExportOptions,
+  TiledBundleExportOptions,
   TileLayer,
   TileMapData,
   TileRef,
@@ -277,7 +277,7 @@ export function buildTiledTilesetLookups(
 
 export function encodeLayerData(
   gids: Uint32Array,
-  options: TiledMapExportOptions,
+  options: TiledBundleExportOptions,
 ) {
   if (options.encoding === "csv") {
     return Array.from(gids).join(",");
