@@ -18,7 +18,9 @@ import type {
 } from "@/types/map/map-geometry";
 
 export * from "./file-save";
+export * from "./mappy";
 export * from "./persistence";
+export * from "./tide";
 export * from "./tiled-json";
 export * from "./tiled-lua";
 

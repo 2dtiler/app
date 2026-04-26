@@ -135,8 +135,9 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "map-mappy-fmp",
     assetType: "map",
     label: "Mappy FMP (.fmp)",
-    description: "Mappy FMP export format.",
-    supportedNow: false,
+    description:
+      "Imports and exports standalone Mappy FMP 1.0 tile maps with up to 8 orthogonal tile layers.",
+    supportedNow: true,
   },
   {
     id: "tileset-native",

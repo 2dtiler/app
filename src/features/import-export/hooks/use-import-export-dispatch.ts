@@ -12,6 +12,10 @@ import {
   isGameMakerMapOption,
 } from "@/features/import-export/lib/gamemaker-map-action-utils";
 import {
+  exportSelectedMappyMaps,
+  isMappyMapOption,
+} from "@/features/import-export/lib/mappy-map-action-utils";
+import {
   exportSelectedGodotMaps,
   isGodotMapOption,
 } from "@/features/import-export/lib/godot-map-action-utils";
@@ -74,6 +78,7 @@ interface UseImportExportDispatchParams {
   handleImportGameMakerMap: () => Promise<boolean>;
   handleImportGodotMap: () => Promise<boolean>;
   handleImportGodotTileset: () => Promise<boolean>;
+  handleImportMappyMap: () => Promise<boolean>;
   handleImportNativeMap: () => Promise<boolean>;
   handleImportNativeTileset: () => Promise<boolean>;
   handleImportPhaserMap: () => Promise<boolean>;
@@ -97,6 +102,7 @@ export function useImportExportDispatch({
   handleImportGameMakerMap,
   handleImportGodotMap,
   handleImportGodotTileset,
+  handleImportMappyMap,
   handleImportNativeMap,
   handleImportNativeTileset,
   handleImportPhaserMap,
@@ -130,6 +136,10 @@ export function useImportExportDispatch({
         return handleImportGameMakerMap();
       }
 
+      if (isMappyMapOption(optionId)) {
+        return handleImportMappyMap();
+      }
+
       if (isDefoldMapOption(optionId)) {
         return handleImportDefoldMap();
       }
@@ -148,6 +158,7 @@ export function useImportExportDispatch({
       handleImportDefoldMap,
       handleImportGameMakerMap,
       handleImportGodotMap,
+      handleImportMappyMap,
       handleImportNativeMap,
       handleImportPhaserMap,
       handleImportRasterMap,
@@ -237,6 +248,10 @@ export function useImportExportDispatch({
             ? formatExportOptions
             : undefined,
         );
+      }
+
+      if (isMappyMapOption(optionId)) {
+        return exportSelectedMappyMaps(project, selectedIds, optionId);
       }
 
       if (isDefoldMapOption(optionId)) {

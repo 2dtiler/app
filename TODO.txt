@@ -1,10 +1,6 @@
-Export Options
-  - Do the rest of the options
-Import Options
-  - Do the rest of the options
+Allow quick export bottom right
 
 Add unit tests and add to CI/CD
-Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Keyboard shortcuts not working?
 
@@ -69,3 +65,4 @@ First time start: Show example map with tutorial
 - Add import/export Bevy
 - Add import/export Love2D
 - Add import/export GB Studio
+Additional Import/Export compatibility

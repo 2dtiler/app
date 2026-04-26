@@ -34,6 +34,7 @@ import { useDefoldMapImport } from "@/features/import-export/hooks/use-defold-ma
 import { useDefoldTilesetImport } from "@/features/import-export/hooks/use-defold-tileset-import";
 import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
 import { useImportExportDispatch } from "@/features/import-export/hooks/use-import-export-dispatch";
+import { useMappyMapImport } from "@/features/import-export/hooks/use-mappy-map-import";
 import {
   PHASER_MAP_IMPORT_CONFIG,
   useTiledMapImport,
@@ -61,7 +62,7 @@ import type {
   TilesetGroupId,
   TilesetId,
 } from "@/types";
-import type { EditorTravels } from "@/store/types";
+import type { EditorTravels } from "@/types/store";
 
 interface UseImportExportActionsParams {
   state: EditorState;
@@ -308,6 +309,10 @@ export function useImportExportActions({
     });
   const { handleImportGameMakerMap, gameMakerMissingResourcesDialogProps } =
     useGameMakerMapImport(Boolean(state.project), handleImportedMapResolved);
+  const { handleImportMappyMap } = useMappyMapImport(
+    Boolean(state.project),
+    handleImportedMapResolved,
+  );
   const { handleImportDefoldMap, defoldMissingResourcesDialogProps } =
     useDefoldMapImport(Boolean(state.project), handleImportedMapResolved);
   const { handleImportTideMap, tideMissingResourcesDialogProps } =
@@ -673,6 +678,7 @@ export function useImportExportActions({
     handleImportGameMakerMap,
     handleImportGodotMap,
     handleImportGodotTileset,
+    handleImportMappyMap,
     handleImportNativeMap,
     handleImportNativeTileset,
     handleImportPhaserMap,
