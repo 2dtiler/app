@@ -29,8 +29,10 @@ It is designed to replace large parts of the day-to-day workflow usually split a
 - Export full projects as `.2dp`
 - Export single maps as `.2dm`
 - Export single tilesets as `.2dt`
+- Import and export Phaser-ready map bundles as `.json` archives with linked tileset images
 - Import and export raster images including PNG, JPG, WEBP, BMP, and GIF
 - Export with format-specific options like transparency and quality where supported
+- Phaser tilesets continue to use the existing image-based tileset workflow instead of a separate Phaser tileset format
 
 ### Image and palette tools
 

@@ -196,15 +196,106 @@ export function parseUnityTileAssetTextureGuid(data: Uint8Array | string) {
 
 export function parseUnityTextureMetaTileSize(data: Uint8Array | string) {
   const text = typeof data === "string" ? data : decoder.decode(data);
-  const match = text.match(
+
+  const userDataMatch = text.match(
     new RegExp(`${UNITY_TILE_SIZE_USER_DATA_PREFIX}(\\d+)`),
   );
-  if (!match) {
+  if (userDataMatch) {
+    const tileSize = Number(userDataMatch[1]);
+    return Number.isFinite(tileSize) && tileSize > 0 ? tileSize : null;
+  }
+
+  const spriteSheetTileSize = parseUnitySpriteSheetTileSize(text);
+  if (spriteSheetTileSize) {
+    return spriteSheetTileSize;
+  }
+
+  return null;
+}
+
+function parseUnitySpriteSheetTileSize(text: string) {
+  const normalizedText = text.replace(/\r\n?/g, "\n");
+  const lines = normalizedText.split("\n");
+  const spriteSizes: number[] = [];
+  let withinSprites = false;
+  let withinRect = false;
+  let rectWidth: number | null = null;
+  let rectHeight: number | null = null;
+
+  const flushRect = () => {
+    if (
+      rectWidth !== null &&
+      rectHeight !== null &&
+      rectWidth > 0 &&
+      rectWidth === rectHeight
+    ) {
+      spriteSizes.push(rectWidth);
+    }
+    rectWidth = null;
+    rectHeight = null;
+  };
+
+  for (const line of lines) {
+    if (!withinSprites) {
+      if (/^\s*spriteSheet:\s*$/.test(line)) {
+        withinSprites = true;
+      }
+      continue;
+    }
+
+    if (/^\s{2}[A-Za-z]/.test(line) && !/^\s{2}spriteSheet:/.test(line)) {
+      flushRect();
+      break;
+    }
+
+    if (/^\s{4}sprites:\s*\[\]\s*$/.test(line)) {
+      flushRect();
+      break;
+    }
+
+    if (/^\s{4}-\s/.test(line)) {
+      flushRect();
+      withinRect = false;
+      continue;
+    }
+
+    if (/^\s{6}rect:\s*$/.test(line) || /^\s{4}rect:\s*$/.test(line)) {
+      flushRect();
+      withinRect = true;
+      continue;
+    }
+
+    if (withinRect) {
+      const widthMatch = line.match(/^\s{6,8}width:\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (widthMatch) {
+        rectWidth = Math.round(Number(widthMatch[1]));
+        continue;
+      }
+
+      const heightMatch = line.match(/^\s{6,8}height:\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (heightMatch) {
+        rectHeight = Math.round(Number(heightMatch[1]));
+        continue;
+      }
+
+      if (/^\s{4,6}[A-Za-z]/.test(line)) {
+        flushRect();
+        withinRect = false;
+      }
+    }
+  }
+
+  flushRect();
+  if (spriteSizes.length === 0) {
     return null;
   }
 
-  const tileSize = Number(match[1]);
-  return Number.isFinite(tileSize) && tileSize > 0 ? tileSize : null;
+  const distinctSizes = [...new Set(spriteSizes)];
+  if (distinctSizes.length !== 1) {
+    return null;
+  }
+
+  return distinctSizes[0];
 }
 
 function normalizeMatrixValue(value: number) {

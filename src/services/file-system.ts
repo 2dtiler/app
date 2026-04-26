@@ -111,14 +111,14 @@ async function saveBlobWithPicker(blob: Blob, filename: string): Promise<void> {
 export async function saveBlobFile(
   blob: Blob,
   filename: string,
-): Promise<void> {
+): Promise<boolean> {
   if (canUseNativeSavePicker()) {
     try {
       await saveBlobWithPicker(blob, filename);
-      return;
+      return true;
     } catch (error) {
       if (isUserCanceledSave(error)) {
-        return;
+        return false;
       }
 
       console.error(
@@ -129,15 +129,16 @@ export async function saveBlobFile(
   }
 
   downloadBlobFallback(blob, filename);
+  return true;
 }
 
 export async function saveByteArrayFile(
   data: Uint8Array,
   filename: string,
   mimeType = DEFAULT_DOWNLOAD_MIME_TYPE,
-): Promise<void> {
+): Promise<boolean> {
   const blob = new Blob([data.slice().buffer as ArrayBuffer], {
     type: mimeType,
   });
-  await saveBlobFile(blob, filename);
+  return saveBlobFile(blob, filename);
 }

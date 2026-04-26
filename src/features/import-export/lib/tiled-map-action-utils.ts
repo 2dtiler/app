@@ -144,7 +144,7 @@ export async function exportSelectedTiledMaps(
   formatExportOptions?: ImportExportFormatExportOptions,
 ) {
   if (!project) {
-    return;
+    return false;
   }
 
   if (!isTiledMapExportOption(optionId)) {
@@ -164,7 +164,7 @@ export async function exportSelectedTiledMaps(
   const selectedIdSet = new Set(selectedIds as MapId[]);
   const selectedMaps = project.maps.filter((map) => selectedIdSet.has(map.id));
   if (selectedMaps.length === 0) {
-    return;
+    return false;
   }
 
   const allTilesets = [
@@ -185,11 +185,10 @@ export async function exportSelectedTiledMaps(
       mapExportData.objects,
       formatExportOptions,
     );
-    await saveByteArrayFile(
+    return saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(map.name, archiveExtension),
     );
-    return;
   }
 
   const groupNames = new Map(
@@ -227,7 +226,7 @@ export async function exportSelectedTiledMaps(
     }
   }
 
-  await saveByteArrayFile(
+  return saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} ${archiveBaseName}`, ".zip"),
   );

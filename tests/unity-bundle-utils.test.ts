@@ -43,3 +43,37 @@ test("Unity meta and tile asset helpers parse exported GUID chain", () => {
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   );
 });
+
+test("Unity meta helper infers tile size from standard sprite slicing metadata", () => {
+  const textureMeta = `fileFormatVersion: 2
+guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  spriteMode: 2
+  spritePixelsToUnits: 100
+  userData: 
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: tile_0_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 16
+        height: 16
+    - serializedVersion: 2
+      name: tile_1_0
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 0
+        width: 16
+        height: 16
+`;
+
+  assert.equal(parseUnityTextureMetaTileSize(textureMeta), 16);
+});

@@ -23,7 +23,7 @@ export async function exportSelectedGodotTilesets(
   optionId: ImportExportOptionId,
 ) {
   if (!project) {
-    return;
+    return false;
   }
 
   if (!isGodotTilesetOption(optionId)) {
@@ -35,7 +35,7 @@ export async function exportSelectedGodotTilesets(
     selectedIdSet.has(tileset.id),
   );
   if (selectedTilesets.length === 0) {
-    return;
+    return false;
   }
 
   if (selectedTilesets.length === 1) {
@@ -43,18 +43,16 @@ export async function exportSelectedGodotTilesets(
     const entries = await exportGodotTilesetBundle(tileset);
 
     if (entries.length === 1 && entries[0].path.endsWith(".tres")) {
-      await saveByteArrayFile(
+      return saveByteArrayFile(
         entries[0].data,
         buildDownloadFilename(tileset.name, ".tres"),
       );
-      return;
     }
 
-    await saveByteArrayFile(
+    return saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(tileset.name, ".tres.zip"),
     );
-    return;
   }
 
   const groupNames = new Map(
@@ -82,7 +80,7 @@ export async function exportSelectedGodotTilesets(
     }
   }
 
-  await saveByteArrayFile(
+  return saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} godot tilesets`, ".zip"),
   );

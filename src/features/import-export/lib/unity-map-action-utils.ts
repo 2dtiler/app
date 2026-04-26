@@ -26,7 +26,7 @@ export async function exportSelectedUnityMaps(
   optionId: ImportExportOptionId,
 ) {
   if (!project) {
-    return;
+    return false;
   }
 
   if (!isUnityMapOption(optionId)) {
@@ -36,7 +36,7 @@ export async function exportSelectedUnityMaps(
   const selectedIdSet = new Set(selectedIds as MapId[]);
   const selectedMaps = project.maps.filter((map) => selectedIdSet.has(map.id));
   if (selectedMaps.length === 0) {
-    return;
+    return false;
   }
 
   const allTilesets = [
@@ -57,11 +57,10 @@ export async function exportSelectedUnityMaps(
       mapExportData.objects,
     );
 
-    await saveByteArrayFile(
+    return saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(map.name, ".prefab.zip"),
     );
-    return;
   }
 
   const groupNames = new Map(
@@ -98,7 +97,7 @@ export async function exportSelectedUnityMaps(
     }
   }
 
-  await saveByteArrayFile(
+  return saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} unity maps`, ".zip"),
   );

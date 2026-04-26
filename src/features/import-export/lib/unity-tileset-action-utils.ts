@@ -23,7 +23,7 @@ export async function exportSelectedUnityTilesets(
   optionId: ImportExportOptionId,
 ) {
   if (!project) {
-    return;
+    return false;
   }
 
   if (!isUnityTilesetOption(optionId)) {
@@ -35,17 +35,16 @@ export async function exportSelectedUnityTilesets(
     selectedIdSet.has(tileset.id),
   );
   if (selectedTilesets.length === 0) {
-    return;
+    return false;
   }
 
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportUnityTilesetBundle(tileset);
-    await saveByteArrayFile(
+    return saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(tileset.name, ".unity-tileset.zip"),
     );
-    return;
   }
 
   const groupNames = new Map(
@@ -73,7 +72,7 @@ export async function exportSelectedUnityTilesets(
     }
   }
 
-  await saveByteArrayFile(
+  return saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} unity tilesets`, ".zip"),
   );

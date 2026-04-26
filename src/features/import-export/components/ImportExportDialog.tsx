@@ -63,6 +63,14 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedNow: true,
   },
   {
+    id: "map-phaser",
+    assetType: "map",
+    label: "Phaser.js Map Bundle (.json)",
+    description:
+      "Imports and exports Phaser-ready Tiled JSON map bundles with inline tileset data and linked tileset images.",
+    supportedNow: true,
+  },
+  {
     id: "map-tiled",
     assetType: "map",
     label: "Tiled Map Export",
@@ -162,8 +170,7 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     id: "tileset-tiled",
     assetType: "tileset",
     label: "Tiled Tileset Export",
-    description:
-      "Exports Tiled XML, JSON, or Lua tileset bundles from a single settings panel.",
+    description: "Exports Tiled XML, JSON, or Lua tileset bundles.",
     supportedNow: true,
     supportedModes: ["export"],
   },
@@ -183,20 +190,6 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     description:
       "Imports and exports Unity sprite-sheet bundles using a texture image plus a Unity .meta sidecar with tile-size metadata.",
     supportedNow: true,
-  },
-  {
-    id: "tileset-godot",
-    assetType: "tileset",
-    label: "Godot (.tres)",
-    description: "Godot tileset resource format.",
-    supportedNow: true,
-  },
-  {
-    id: "tileset-rpg-maker",
-    assetType: "tileset",
-    label: "RPG Maker",
-    description: "RPG Maker tileset target.",
-    supportedNow: false,
   },
 ];
 
@@ -397,17 +390,22 @@ export function ImportExportDialog({
     setIsSubmitting(true);
 
     try {
+      let shouldClose = false;
+
       if (mode === "export" && action.exportSelection) {
-        await action.exportSelection.onSubmit(
+        shouldClose = await action.exportSelection.onSubmit(
           selectedIds,
           optionId,
           formatExportOptions,
         );
       } else {
-        await action.onSelect?.(optionId, formatExportOptions);
+        shouldClose =
+          (await action.onSelect?.(optionId, formatExportOptions)) ?? false;
       }
 
-      onOpenChange(false);
+      if (shouldClose) {
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error("[ImportExportDialog] Action failed:", error);
     } finally {

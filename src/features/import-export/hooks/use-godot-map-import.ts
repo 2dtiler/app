@@ -42,17 +42,17 @@ export function useGodotMapImport(
   }, []);
 
   const handleImportGodotMap = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
     const file = await pickSingleFile(
       GODOT_SCENE_IMPORT_ACCEPT,
       "godot-scene-file",
     );
-    if (!file) return;
+    if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".tscn")) {
       alert("Unsupported Godot scene file type.");
-      return;
+      return false;
     }
 
     try {
@@ -66,7 +66,7 @@ export function useGodotMapImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -75,6 +75,7 @@ export function useGodotMapImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
       console.error("[Import Godot Scene] Failed:", error);
       alert(
@@ -82,6 +83,7 @@ export function useGodotMapImport(
           ? error.message
           : "Failed to import Godot scene.",
       );
+      return false;
     }
   }, [enabled, onImportResolved]);
 

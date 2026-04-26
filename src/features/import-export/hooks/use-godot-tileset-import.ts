@@ -42,17 +42,17 @@ export function useGodotTilesetImport(
   }, []);
 
   const handleImportGodotTileset = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
     const file = await pickSingleFile(
       GODOT_TILESET_IMPORT_ACCEPT,
       "godot-tileset-file",
     );
-    if (!file) return;
+    if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".tres")) {
       alert("Unsupported Godot tileset file type.");
-      return;
+      return false;
     }
 
     try {
@@ -66,7 +66,7 @@ export function useGodotTilesetImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -75,6 +75,7 @@ export function useGodotTilesetImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
       console.error("[Import Godot TileSet] Failed:", error);
       alert(
@@ -82,6 +83,7 @@ export function useGodotTilesetImport(
           ? error.message
           : "Failed to import Godot TileSet.",
       );
+      return false;
     }
   }, [enabled, onImportResolved]);
 

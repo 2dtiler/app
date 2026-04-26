@@ -14,6 +14,7 @@ import {
   parseUnityMetaGuid,
   parseUnityTileAssetTextureGuid,
   parseUnityBundleManifest,
+  parseUnityTextureMetaTileSize,
 } from "@/features/import-export/lib/unity-bundle-utils";
 import { parseUnityPrefabTilemap } from "@/features/import-export/lib/unity-prefab-parser";
 import { generateTilesetId } from "@/utils/ids";
@@ -29,6 +30,17 @@ import type {
   UnityMapImportPreparationResult,
   UnityMapImportResult,
 } from "@/types";
+import { TILE_SIZES } from "@/types";
+
+function coerceUnityTileSize(tileSize: number, context: string) {
+  if (!TILE_SIZES.includes(tileSize as Tileset["tileSize"])) {
+    throw new Error(
+      `Unsupported Unity tile size ${tileSize} in ${normalizeBundlePath(context)}. Supported sizes are ${TILE_SIZES.join(", ")}.`,
+    );
+  }
+
+  return tileSize as Tileset["tileSize"];
+}
 
 function getUnityMissingResourceLabel(
   kind: UnityImportMissingResource["kind"],
@@ -219,6 +231,65 @@ async function importManifestSourceTilesets(
   return tilesets;
 }
 
+function inferUnityPrefabTileSize(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  prefab: ReturnType<typeof parseUnityPrefabTilemap>,
+) {
+  const resourcePathByGuid = buildUnityGuidResourceIndex(providedEntries);
+  const inferredTileSizes = new Set<number>();
+
+  for (const tileAssetGuid of getUsedUnityTileAssetGuids(prefab)) {
+    const tileAssetPath = resourcePathByGuid.get(tileAssetGuid);
+    if (!tileAssetPath) {
+      throw new Error(
+        `Missing Unity Tile asset metadata for GUID ${tileAssetGuid}.`,
+      );
+    }
+
+    const tileAssetData = requireProvidedEntry(providedEntries, tileAssetPath);
+    const textureGuid = parseUnityTileAssetTextureGuid(tileAssetData);
+    if (!textureGuid) {
+      throw new Error(
+        `Unsupported Unity Tile asset: ${tileAssetPath}. Missing referenced sprite GUID.`,
+      );
+    }
+
+    const texturePath = resourcePathByGuid.get(textureGuid);
+    if (!texturePath) {
+      throw new Error(
+        `Missing Unity texture metadata for GUID ${textureGuid} referenced by ${tileAssetPath}.`,
+      );
+    }
+
+    const textureMetaPath = `${texturePath}.meta`;
+    const inferredTileSize = parseUnityTextureMetaTileSize(
+      requireProvidedEntry(providedEntries, textureMetaPath),
+    );
+    if (!inferredTileSize) {
+      throw new Error(
+        `Unity texture metadata is missing tile slicing information: ${normalizeBundlePath(textureMetaPath)}.`,
+      );
+    }
+
+    inferredTileSizes.add(inferredTileSize);
+  }
+
+  if (inferredTileSizes.size === 0) {
+    return null;
+  }
+
+  if (inferredTileSizes.size > 1) {
+    throw new Error(
+      "Unity import found multiple tile sizes across referenced textures. Use a consistent slice size before importing.",
+    );
+  }
+
+  return coerceUnityTileSize(
+    [...inferredTileSizes][0],
+    "Unity texture metadata",
+  );
+}
+
 async function resolveUnityPrefabTileAssets(
   providedEntries: ReadonlyMap<string, Uint8Array>,
   prefab: ReturnType<typeof parseUnityPrefabTilemap>,
@@ -347,12 +418,15 @@ async function importUnityMapEntries(
     };
   }
 
+  const prefabTileSize =
+    inferUnityPrefabTileSize(providedEntries, prefab) ?? manifest.map.tileSize;
+  const mapName =
+    stripExtension(
+      normalizeBundlePath(rootPath).split("/").pop() ?? rootPath,
+    ) || manifest.map.name;
+
   const { tilesets, tileRefByTileAssetGuid } =
-    await resolveUnityPrefabTileAssets(
-      providedEntries,
-      prefab,
-      manifest.map.tileSize,
-    );
+    await resolveUnityPrefabTileAssets(providedEntries, prefab, prefabTileSize);
 
   const layers = buildUnityImportLayersFromPrefab(
     prefab,
@@ -364,12 +438,12 @@ async function importUnityMapEntries(
   return {
     map: {
       id: mapId,
-      name: manifest.map.name,
+      name: mapName,
       groupId: "unity-import-group" as TileMapData["groupId"],
-      orientation: manifest.map.orientation,
-      widthInTiles: prefab?.widthInTiles || manifest.map.widthInTiles,
-      heightInTiles: prefab?.heightInTiles || manifest.map.heightInTiles,
-      tileSize: manifest.map.tileSize,
+      orientation: "orthogonal",
+      widthInTiles: prefab.widthInTiles,
+      heightInTiles: prefab.heightInTiles,
+      tileSize: prefabTileSize,
       properties: {},
       layerOrder: layers.map((layer) => layer.id),
       createdAt: Date.now(),

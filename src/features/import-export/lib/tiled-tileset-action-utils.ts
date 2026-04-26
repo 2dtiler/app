@@ -153,7 +153,7 @@ export async function exportSelectedTiledTilesets(
   formatExportOptions?: ImportExportFormatExportOptions,
 ) {
   if (!project) {
-    return;
+    return false;
   }
 
   if (!isTiledTilesetExportOption(optionId)) {
@@ -166,20 +166,19 @@ export async function exportSelectedTiledTilesets(
     selectedIdSet.has(tileset.id),
   );
   if (selectedTilesets.length === 0) {
-    return;
+    return false;
   }
 
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportTiledTilesetBundle(tileset, format);
-    await saveByteArrayFile(
+    return saveByteArrayFile(
       createZipArchive(entries),
       buildDownloadFilename(
         tileset.name,
         getTiledTilesetArchiveExtension(format),
       ),
     );
-    return;
   }
 
   const groupNames = new Map(
@@ -207,7 +206,7 @@ export async function exportSelectedTiledTilesets(
     }
   }
 
-  await saveByteArrayFile(
+  return saveByteArrayFile(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} tiled tilesets`, ".zip"),
   );

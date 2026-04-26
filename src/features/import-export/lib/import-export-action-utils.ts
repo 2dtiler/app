@@ -51,11 +51,53 @@ export async function pickSingleFile(
 ): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
+    let cancelTimeoutId: number | null = null;
+    let settled = false;
+
+    const cleanup = () => {
+      input.removeEventListener("change", handleChange);
+      input.removeEventListener("cancel", handleCancel);
+      window.removeEventListener("focus", handleWindowFocus, true);
+
+      if (cancelTimeoutId !== null) {
+        window.clearTimeout(cancelTimeoutId);
+      }
+    };
+
+    const settle = (file: File | null) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve(file);
+    };
+
+    const handleChange = () => {
+      settle(input.files?.[0] ?? null);
+    };
+
+    const handleCancel = () => {
+      settle(null);
+    };
+
+    const handleWindowFocus = () => {
+      // Some browsers do not emit a file-input cancel event after the picker closes.
+      cancelTimeoutId = window.setTimeout(() => {
+        if (!input.files?.length) {
+          settle(null);
+        }
+      }, 250);
+    };
+
     input.type = "file";
     input.accept = accept;
     input.name = inputName;
     input.id = `${inputName}-${Math.random().toString(36).slice(2)}`;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.addEventListener("change", handleChange);
+    input.addEventListener("cancel", handleCancel);
+    window.addEventListener("focus", handleWindowFocus, true);
     input.click();
   });
 }

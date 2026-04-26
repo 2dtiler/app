@@ -42,17 +42,17 @@ export function useUnityMapImport(
   }, []);
 
   const handleImportUnityMap = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
     const file = await pickSingleFile(
       UNITY_PREFAB_IMPORT_ACCEPT,
       "unity-prefab-file",
     );
-    if (!file) return;
+    if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".prefab")) {
       alert("Unsupported Unity prefab file type.");
-      return;
+      return false;
     }
 
     try {
@@ -66,7 +66,7 @@ export function useUnityMapImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -75,6 +75,7 @@ export function useUnityMapImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
       console.error("[Import Unity Tilemap] Failed:", error);
       alert(
@@ -82,6 +83,7 @@ export function useUnityMapImport(
           ? error.message
           : "Failed to import Unity Tilemap prefab bundle.",
       );
+      return false;
     }
   }, [enabled, onImportResolved]);
 

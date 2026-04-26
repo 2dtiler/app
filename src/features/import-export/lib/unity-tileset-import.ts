@@ -46,7 +46,7 @@ function requireUnityTileSize(rootPath: string, metaData: Uint8Array) {
   const tileSize = parseUnityTextureMetaTileSize(metaData);
   if (!tileSize) {
     throw new Error(
-      `Unity texture meta is missing 2D Tiler tile size metadata: ${normalizeBundlePath(rootPath)}.meta`,
+      `Unity texture meta is missing tile slicing metadata: ${normalizeBundlePath(rootPath)}.meta`,
     );
   }
 

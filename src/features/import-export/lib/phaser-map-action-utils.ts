@@ -4,36 +4,60 @@ import {
   sanitizeDownloadSegment,
 } from "@/utils/format";
 import { saveByteArrayFile } from "@/services/file-system";
+import { exportTiledMapJsonBundle } from "@/features/import-export/lib/import-export-tiled";
 import {
   getMapExportData,
   getUniqueArchivePath,
-  isGodotMapExportOptions,
 } from "@/features/import-export/lib/import-export-action-utils";
-import { exportGodotMapBundle } from "@/features/import-export/lib/import-export-godot";
 import type {
   ImportExportArchiveEntry,
-  ImportExportFormatExportOptions,
   ImportExportOptionId,
   MapId,
   Project,
+  TiledMapExportOptions,
 } from "@/types";
 
-export function isGodotMapOption(optionId: ImportExportOptionId) {
-  return optionId === "map-godot";
+export const DEFAULT_PHASER_MAP_EXPORT_OPTIONS = {
+  format: "json",
+  encoding: "base64",
+  compression: "zlib",
+  compressionLevel: 6,
+  tilesetMode: "inline",
+  renderOrder: "right-down",
+} satisfies TiledMapExportOptions;
+
+function toPhaserJsonPath(path: string) {
+  if (!path.endsWith(".tmj")) {
+    return path;
+  }
+
+  return `${path.slice(0, -4)}.json`;
 }
 
-export async function exportSelectedGodotMaps(
+export function normalizePhaserMapBundleEntries(
+  entries: readonly ImportExportArchiveEntry[],
+) {
+  return entries.map((entry) => ({
+    ...entry,
+    path: toPhaserJsonPath(entry.path),
+  }));
+}
+
+export function isPhaserMapOption(optionId: ImportExportOptionId) {
+  return optionId === "map-phaser";
+}
+
+export async function exportSelectedPhaserMaps(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
-  formatExportOptions?: ImportExportFormatExportOptions,
 ) {
   if (!project) {
     return false;
   }
 
-  if (!isGodotMapOption(optionId)) {
-    throw new Error(`Unsupported Godot export option: ${optionId}.`);
+  if (!isPhaserMapOption(optionId)) {
+    throw new Error(`Unsupported Phaser export option: ${optionId}.`);
   }
 
   const selectedIdSet = new Set(selectedIds as MapId[]);
@@ -50,29 +74,22 @@ export async function exportSelectedGodotMaps(
   if (selectedMaps.length === 1) {
     const map = selectedMaps[0];
     const mapExportData = getMapExportData(project, map);
-    const entries = await exportGodotMapBundle(
-      map,
-      mapExportData.layers,
-      allTilesets,
-      mapExportData.imageLayers,
-      mapExportData.layerGroups,
-      mapExportData.objectLayers,
-      mapExportData.objects,
-      isGodotMapExportOptions(formatExportOptions)
-        ? formatExportOptions
-        : undefined,
+    const entries = normalizePhaserMapBundleEntries(
+      await exportTiledMapJsonBundle(
+        map,
+        mapExportData.layers,
+        allTilesets,
+        mapExportData.imageLayers,
+        mapExportData.layerGroups,
+        mapExportData.objectLayers,
+        mapExportData.objects,
+        DEFAULT_PHASER_MAP_EXPORT_OPTIONS,
+      ),
     );
-
-    if (entries.length === 1 && entries[0].path.endsWith(".tscn")) {
-      return saveByteArrayFile(
-        entries[0].data,
-        buildDownloadFilename(map.name, ".tscn"),
-      );
-    }
 
     return saveByteArrayFile(
       createZipArchive(entries),
-      buildDownloadFilename(map.name, ".tscn.zip"),
+      buildDownloadFilename(map.name, ".json.zip"),
     );
   }
 
@@ -84,17 +101,17 @@ export async function exportSelectedGodotMaps(
 
   for (const map of selectedMaps) {
     const mapExportData = getMapExportData(project, map);
-    const entries = await exportGodotMapBundle(
-      map,
-      mapExportData.layers,
-      allTilesets,
-      mapExportData.imageLayers,
-      mapExportData.layerGroups,
-      mapExportData.objectLayers,
-      mapExportData.objects,
-      isGodotMapExportOptions(formatExportOptions)
-        ? formatExportOptions
-        : undefined,
+    const entries = normalizePhaserMapBundleEntries(
+      await exportTiledMapJsonBundle(
+        map,
+        mapExportData.layers,
+        allTilesets,
+        mapExportData.imageLayers,
+        mapExportData.layerGroups,
+        mapExportData.objectLayers,
+        mapExportData.objects,
+        DEFAULT_PHASER_MAP_EXPORT_OPTIONS,
+      ),
     );
     const folderName = sanitizeDownloadSegment(
       groupNames.get(map.groupId) ?? "Ungrouped",
@@ -115,6 +132,6 @@ export async function exportSelectedGodotMaps(
 
   return saveByteArrayFile(
     createZipArchive(archiveEntries),
-    buildDownloadFilename(`${project.name} godot maps`, ".zip"),
+    buildDownloadFilename(`${project.name} phaser maps`, ".zip"),
   );
 }

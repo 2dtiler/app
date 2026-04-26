@@ -79,18 +79,18 @@ export function useTiledTilesetImport(
   }, []);
 
   const handleImportTiledTileset = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
     const file = await pickSingleFile(
       TILED_TILESET_IMPORT_ACCEPT,
       "tiled-tileset-file",
     );
-    if (!file) return;
+    if (!file) return false;
 
     const format = detectTiledTilesetFormat(file.name);
     if (!format) {
       alert("Unsupported Tiled tileset file type.");
-      return;
+      return false;
     }
 
     try {
@@ -108,7 +108,7 @@ export function useTiledTilesetImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -118,6 +118,7 @@ export function useTiledTilesetImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
       console.error(
         `[Import ${getTiledImportLabel(format)} Tileset] Failed:`,
@@ -128,6 +129,7 @@ export function useTiledTilesetImport(
           ? error.message
           : `Failed to import ${getTiledImportLabel(format)} tileset.`,
       );
+      return false;
     }
   }, [enabled, onImportResolved]);
 

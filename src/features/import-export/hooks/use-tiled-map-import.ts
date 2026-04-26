@@ -15,6 +15,17 @@ import type {
 const TILED_MAP_IMPORT_ACCEPT =
   ".tmx,.xml,.tmj,.json,.js,.lua,text/xml,application/xml,application/json,text/json,application/javascript,text/javascript,application/ecmascript,text/ecmascript,text/plain,application/octet-stream";
 
+const PHASER_MAP_IMPORT_ACCEPT =
+  ".tmj,.json,application/json,text/json,text/plain,application/octet-stream";
+
+interface TiledMapImportConfig {
+  accept: string;
+  inputName: string;
+  detectFormat: (fileName: string) => TiledMapFormat | null;
+  getImportLabel: (format: TiledMapFormat) => string;
+  unsupportedTypeMessage: string;
+}
+
 function getTiledImportLabel(format: TiledMapFormat) {
   if (format === "json") {
     return "Tiled JSON";
@@ -56,6 +67,35 @@ function detectTiledMapFormat(fileName: string): TiledMapFormat | null {
   return null;
 }
 
+function detectPhaserMapFormat(fileName: string): TiledMapFormat | null {
+  const normalizedFileName = fileName.toLowerCase();
+
+  if (
+    normalizedFileName.endsWith(".tmj") ||
+    normalizedFileName.endsWith(".json")
+  ) {
+    return "json";
+  }
+
+  return null;
+}
+
+const DEFAULT_TILED_MAP_IMPORT_CONFIG: TiledMapImportConfig = {
+  accept: TILED_MAP_IMPORT_ACCEPT,
+  inputName: "tiled-map-file",
+  detectFormat: detectTiledMapFormat,
+  getImportLabel: getTiledImportLabel,
+  unsupportedTypeMessage: "Unsupported Tiled map file type.",
+};
+
+export const PHASER_MAP_IMPORT_CONFIG: TiledMapImportConfig = {
+  accept: PHASER_MAP_IMPORT_ACCEPT,
+  inputName: "phaser-map-file",
+  detectFormat: detectPhaserMapFormat,
+  getImportLabel: () => "Phaser Tiled JSON",
+  unsupportedTypeMessage: "Unsupported Phaser map file type.",
+};
+
 async function createImportEntry(
   path: string,
   file: File,
@@ -69,6 +109,7 @@ async function createImportEntry(
 export function useTiledMapImport(
   enabled: boolean,
   onImportResolved: (imported: TiledMapImportResult) => void,
+  config: TiledMapImportConfig = DEFAULT_TILED_MAP_IMPORT_CONFIG,
 ) {
   const [pendingImport, setPendingImport] =
     useState<PendingTiledMapImportState | null>(null);
@@ -84,18 +125,15 @@ export function useTiledMapImport(
   }, []);
 
   const handleImportTiledMap = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      TILED_MAP_IMPORT_ACCEPT,
-      "tiled-map-file",
-    );
-    if (!file) return;
+    const file = await pickSingleFile(config.accept, config.inputName);
+    if (!file) return false;
 
-    const format = detectTiledMapFormat(file.name);
+    const format = config.detectFormat(file.name);
     if (!format) {
-      alert("Unsupported Tiled map file type.");
-      return;
+      alert(config.unsupportedTypeMessage);
+      return false;
     }
 
     try {
@@ -113,7 +151,7 @@ export function useTiledMapImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -123,15 +161,17 @@ export function useTiledMapImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
-      console.error(`[Import ${getTiledImportLabel(format)}] Failed:`, error);
+      console.error(`[Import ${config.getImportLabel(format)}] Failed:`, error);
       alert(
         error instanceof Error
           ? error.message
-          : `Failed to import ${getTiledImportLabel(format)} map.`,
+          : `Failed to import ${config.getImportLabel(format)} map.`,
       );
+      return false;
     }
-  }, [enabled, onImportResolved]);
+  }, [config, enabled, onImportResolved]);
 
   const handleSelectResourceFile = useCallback(
     async (resource: TiledImportMissingResource) => {
@@ -206,18 +246,18 @@ export function useTiledMapImport(
       onImportResolved(attempt.result);
     } catch (error) {
       console.error(
-        `[Import ${getTiledImportLabel(pendingImport.format)}] Failed:`,
+        `[Import ${config.getImportLabel(pendingImport.format)}] Failed:`,
         error,
       );
       alert(
         error instanceof Error
           ? error.message
-          : `Failed to import ${getTiledImportLabel(pendingImport.format)} map.`,
+          : `Failed to import ${config.getImportLabel(pendingImport.format)} map.`,
       );
     } finally {
       setIsSubmitting(false);
     }
-  }, [onImportResolved, pendingImport]);
+  }, [config, onImportResolved, pendingImport]);
 
   const tiledMissingResourcesDialogProps: TiledMissingResourcesDialogProps = {
     open: pendingImport !== null,

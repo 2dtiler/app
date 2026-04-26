@@ -40,6 +40,7 @@ export type ImportExportOptionId =
   | "project-tiled"
   | "map-native"
   | "map-image"
+  | "map-phaser"
   | "map-tiled"
   | "map-tiled-file"
   | "map-godot"
@@ -519,7 +520,7 @@ export interface ImportExportSelectionConfig {
     selectedIds: ImportExportSelectableAssetId[],
     optionId: ImportExportOptionId,
     formatExportOptions?: ImportExportFormatExportOptions,
-  ) => void | Promise<void>;
+  ) => boolean | Promise<boolean>;
 }
 
 export interface ImportExportArchiveEntry {
@@ -573,7 +574,7 @@ export interface ImportExportOptionAction {
   onSelect?: (
     optionId: ImportExportOptionId,
     formatExportOptions?: ImportExportFormatExportOptions,
-  ) => void | Promise<void>;
+  ) => boolean | Promise<boolean>;
   disabledReason?: string;
   exportSelection?: ImportExportSelectionConfig;
 }

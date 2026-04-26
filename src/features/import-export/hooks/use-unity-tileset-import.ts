@@ -42,13 +42,13 @@ export function useUnityTilesetImport(
   }, []);
 
   const handleImportUnityTileset = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) return false;
 
     const file = await pickSingleFile(
       UNITY_TILESET_IMPORT_ACCEPT,
       "unity-tileset-image-file",
     );
-    if (!file) return;
+    if (!file) return false;
 
     try {
       const rootData = await readFileAsUint8Array(file);
@@ -61,7 +61,7 @@ export function useUnityTilesetImport(
 
       if (attempt.status === "ready") {
         onImportResolved(attempt.result);
-        return;
+        return true;
       }
 
       setPendingImport({
@@ -70,6 +70,7 @@ export function useUnityTilesetImport(
         missingResources: attempt.missingResources,
         resourceFilesByPath: {},
       });
+      return true;
     } catch (error) {
       console.error("[Import Unity Tileset] Failed:", error);
       alert(
@@ -77,6 +78,7 @@ export function useUnityTilesetImport(
           ? error.message
           : "Failed to import Unity tileset bundle.",
       );
+      return false;
     }
   }, [enabled, onImportResolved]);
 
