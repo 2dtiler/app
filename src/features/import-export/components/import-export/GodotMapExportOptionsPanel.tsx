@@ -28,7 +28,8 @@ const GODOT_TILESET_MODE_OPTIONS: {
   {
     value: "external",
     label: "External TileSet resource (.tres)",
-    description: "Write the TileSet as a separate .tres resource next to the scene.",
+    description:
+      "Write the TileSet as a separate .tres resource next to the scene.",
   },
 ];
 
@@ -99,7 +100,10 @@ export function GodotMapExportOptionsPanel({
             }
             disabled={disabled}
           >
-            <SelectTrigger id={tilesetModeId} className="h-10 w-full rounded-xl px-3">
+            <SelectTrigger
+              id={tilesetModeId}
+              className="h-10 w-full rounded-xl px-3"
+            >
               <SelectValue placeholder="Choose TileSet output" />
             </SelectTrigger>
             <SelectContent>
@@ -138,7 +142,11 @@ export function GodotMapExportOptionsPanel({
       </div>
 
       <div className="flex justify-end">
-        <Button type="button" onClick={() => onExport(options)} disabled={disabled}>
+        <Button
+          type="button"
+          onClick={() => onExport(options)}
+          disabled={disabled}
+        >
           {getGodotExportButtonLabel(options)}
         </Button>
       </div>

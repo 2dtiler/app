@@ -37,12 +37,17 @@ import {
   exportSelectedGodotMaps,
   isGodotMapOption,
 } from "@/features/import-export/lib/godot-map-action-utils";
+import {
+  exportSelectedGodotTilesets,
+  isGodotTilesetOption,
+} from "@/features/import-export/lib/godot-tileset-action-utils";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
 import {
   exportSelectedUnityMaps,
   isUnityMapOption,
 } from "@/features/import-export/lib/unity-map-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
+import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
@@ -62,6 +67,7 @@ import type {
   MapGroupId,
   TileMapData,
   TiledMapImportResult,
+  Tileset,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
@@ -300,6 +306,45 @@ export function useImportExportActions({
         console.warn("[Import Godot Scene] Warnings:", imported.warnings);
       }
     });
+  const handleImportedTilesetsResolved = useCallback(
+    (importedTilesets: Tileset[]) => {
+      if (!state.project || importedTilesets.length === 0) return;
+
+      const targetGroupId =
+        state.activeTilesetGroupId ?? state.project.tilesetGroups[0]?.id;
+      if (!targetGroupId) return;
+
+      setState((draft) => {
+        if (!draft.project) return;
+
+        const remappedTilesets = importedTilesets.map((tileset) => ({
+          ...tileset,
+          groupId: targetGroupId as TilesetGroupId,
+        }));
+
+        for (const tileset of remappedTilesets) {
+          draft.project.tilesets.push(tileset);
+        }
+
+        draft.activeTilesetId =
+          remappedTilesets[0]?.id ?? draft.activeTilesetId;
+        draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+        draft.tileSize = getActiveTilesetTileSize(
+          draft.project,
+          draft.activeTilesetId,
+        );
+        draft.selectedTile = null;
+      });
+    },
+    [setState, state.activeTilesetGroupId, state.project],
+  );
+  const {
+    handleImportGodotTileset,
+    godotMissingResourcesDialogProps: godotTilesetMissingResourcesDialogProps,
+  } = useGodotTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
   const { handleImportUnityMap, unityMissingResourcesDialogProps } =
     useUnityMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportNativeMap = useCallback(async () => {
@@ -619,9 +664,18 @@ export function useImportExportActions({
         return;
       }
 
+      if (isGodotTilesetOption(optionId)) {
+        await handleImportGodotTileset();
+        return;
+      }
+
       await handleImportNativeTileset();
     },
-    [handleImportNativeTileset, handleImportRasterTileset],
+    [
+      handleImportGodotTileset,
+      handleImportNativeTileset,
+      handleImportRasterTileset,
+    ],
   );
 
   const handleMapExportSubmit = useCallback(
@@ -686,10 +740,20 @@ export function useImportExportActions({
         return;
       }
 
+      if (isGodotTilesetOption(optionId)) {
+        await exportSelectedGodotTilesets(state.project, selectedIds, optionId);
+        return;
+      }
+
       await handleExportNativeTilesets(selectedIds);
     },
-    [handleExportNativeTilesets, handleExportRasterTilesets],
+    [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
   );
+
+  const mergedGodotMissingResourcesDialogProps =
+    godotTilesetMissingResourcesDialogProps.open
+      ? godotTilesetMissingResourcesDialogProps
+      : godotMissingResourcesDialogProps;
 
   const mapExportGroups = useMemo(
     () =>
@@ -818,7 +882,7 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
-    godotMissingResourcesDialogProps,
+    godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps,
   };

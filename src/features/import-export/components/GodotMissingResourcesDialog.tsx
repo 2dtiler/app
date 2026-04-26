@@ -31,8 +31,8 @@ export function GodotMissingResourcesDialog({
           <DialogTitle>Resolve linked Godot resources</DialogTitle>
           <DialogDescription>
             Select the missing `.tres`, `.tscn`, `.res`, and image files
-            referenced by this Godot scene. If a chosen resource links to more
-            files, this list will update after you continue.
+            referenced by this Godot scene or tileset. If a chosen resource
+            links to more files, this list will update after you continue.
           </DialogDescription>
         </DialogHeader>
 

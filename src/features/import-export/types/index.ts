@@ -317,6 +317,19 @@ export interface PendingGodotMapImportState {
   resourceFilesByPath: Record<string, File>;
 }
 
+export interface GodotTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: GodotImportMissingResource[];
+}
+
+export interface PendingGodotTilesetImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: GodotImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
 export interface UnityMapImportPendingResult {
   status: "missing-resources";
   rootPath: string;
@@ -344,9 +357,18 @@ export interface GodotMapImportReadyResult {
   result: GodotMapImportResult;
 }
 
+export interface GodotTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
 export type GodotMapImportPreparationResult =
   | GodotMapImportPendingResult
   | GodotMapImportReadyResult;
+
+export type GodotTilesetImportPreparationResult =
+  | GodotTilesetImportPendingResult
+  | GodotTilesetImportReadyResult;
 
 export interface ImportExportRasterAsset {
   assetId: AssetId;

@@ -189,7 +189,7 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     assetType: "tileset",
     label: "Godot (.tres)",
     description: "Godot tileset resource format.",
-    supportedNow: false,
+    supportedNow: true,
   },
   {
     id: "tileset-rpg-maker",
