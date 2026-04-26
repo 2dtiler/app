@@ -3,6 +3,7 @@ import test from "node:test";
 import { isDefoldMapOption } from "../src/features/import-export/lib/defold-map-action-utils";
 import { isDefoldTilesetOption } from "../src/features/import-export/lib/defold-tileset-action-utils";
 import {
+  exportDefoldTilesourceBundle,
   exportDefoldMapBundle,
   prepareDefoldMapImport,
   prepareDefoldTilesetImport,
@@ -290,6 +291,112 @@ test("exportDefoldMapBundle emits linked Defold resources for collection export"
           entries.find((entry) => entry.path === "level.collection")?.data,
         ),
         /component: \\\"\/level\.tilemap\\\"/,
+      );
+    },
+  );
+});
+
+test("exportDefoldMapBundle emits a standalone Defold tilemap bundle", async () => {
+  await withStubbedAssetLookup(
+    {
+      data: new Uint8Array([1, 2, 3]).buffer,
+      mimeType: "image/png",
+    },
+    async () => {
+      const tileset: Tileset = {
+        id: generateTilesetId(),
+        name: "terrain",
+        groupId: "group" as Tileset["groupId"],
+        tileSize: 16,
+        assetId: generateAssetId(),
+        imageWidth: 32,
+        imageHeight: 32,
+        createdAt: Date.now(),
+      };
+      const map: TileMapData = {
+        id: generateMapId(),
+        name: "level",
+        groupId: "group" as TileMapData["groupId"],
+        orientation: "orthogonal",
+        widthInTiles: 2,
+        heightInTiles: 2,
+        tileSize: 16,
+        properties: {},
+        layerOrder: [],
+        createdAt: Date.now(),
+      };
+      const layer: TileLayer = {
+        id: generateLayerId(),
+        mapId: map.id,
+        name: "Ground",
+        type: "tile",
+        visible: true,
+        locked: false,
+        tiles: {
+          "0,0": {
+            tilesetId: tileset.id,
+            sx: 0,
+            sy: 0,
+            sw: 16,
+            sh: 16,
+          },
+        },
+      };
+
+      const entries = await exportDefoldMapBundle(
+        map,
+        [layer],
+        [tileset],
+        [],
+        [],
+        [],
+        [],
+        { format: "tilemap" },
+      );
+      const paths = entries.map((entry) => entry.path).sort();
+
+      assert.deepEqual(paths, [
+        "images/terrain.png",
+        "level.tilemap",
+        "tilesources/terrain.tilesource",
+      ]);
+      assert.match(
+        new TextDecoder().decode(
+          entries.find((entry) => entry.path === "level.tilemap")?.data,
+        ),
+        /tile_set: "\/tilesources\/terrain\.tilesource"/,
+      );
+    },
+  );
+});
+
+test("exportDefoldTilesourceBundle emits tilesource and image resources", async () => {
+  await withStubbedAssetLookup(
+    {
+      data: new Uint8Array([1, 2, 3]).buffer,
+      mimeType: "image/png",
+    },
+    async () => {
+      const tileset: Tileset = {
+        id: generateTilesetId(),
+        name: "terrain",
+        groupId: "group" as Tileset["groupId"],
+        tileSize: 16,
+        assetId: generateAssetId(),
+        imageWidth: 32,
+        imageHeight: 32,
+        createdAt: Date.now(),
+      };
+
+      const entries = await exportDefoldTilesourceBundle(tileset);
+      const paths = entries.map((entry) => entry.path).sort();
+
+      assert.deepEqual(paths, ["images/terrain.png", "terrain.tilesource"]);
+      assert.match(
+        new TextDecoder().decode(
+          entries.find((entry) => entry.path === "terrain.tilesource")?.data,
+        ),
+        /image: "\/images\/terrain\.png"/,
       );
     },
   );

@@ -14,7 +14,10 @@ import {
   setClipboard,
 } from "@/features/map-editor/lib/tile-clipboard";
 import { createTileStamp } from "@/features/map-editor/lib/tile-stamp";
-import type { OrientAction } from "@/features/map-editor/types/map-panel-context-menu";
+import type {
+  MapCanvasContextMenuTile,
+  OrientAction,
+} from "@/features/map-editor/types/map-panel-context-menu";
 import type {
   ImageLayer,
   LayerGroup,
@@ -643,7 +646,11 @@ export function useMapPanelClipboardActions({
   );
 
   const handleOrientTiles = useCallback(
-    (action: OrientAction, fromContextMenu = false) => {
+    (
+      action: OrientAction,
+      fromContextMenu = false,
+      tileTarget: MapCanvasContextMenuTile | null = null,
+    ) => {
       if (!activeLayer || !activeMap) return;
 
       const effectivelyLocked = isLayerEffectivelyLocked(
@@ -661,7 +668,14 @@ export function useMapPanelClipboardActions({
         height: number;
       } | null = null;
 
-      if (state.mapSelection) {
+      if (tileTarget) {
+        region = {
+          x: tileTarget.x,
+          y: tileTarget.y,
+          width: 1,
+          height: 1,
+        };
+      } else if (state.mapSelection) {
         region = state.mapSelection;
       } else if (fromContextMenu && contextMenuTileRef.current) {
         region = {
@@ -765,6 +779,15 @@ export function useMapPanelClipboardActions({
     ],
   );
 
+  const handleOrientHoveredTile = useCallback(
+    (action: OrientAction) => {
+      if (!activeLayer || activeImageLayer) return;
+
+      handleOrientTiles(action, false, hoverTileRef.current);
+    },
+    [activeImageLayer, activeLayer, handleOrientTiles, hoverTileRef],
+  );
+
   const handleOrientImageLayer = useCallback(
     (action: OrientAction) => {
       if (!activeImageLayer || activeImageLayer.locked) return;
@@ -853,22 +876,33 @@ export function useMapPanelClipboardActions({
     const onDelete = () => {
       handleDeleteSelection(false);
     };
+    const onFlipHorizontal = () => {
+      handleOrientHoveredTile("flipH");
+    };
+    const onFlipVertical = () => {
+      handleOrientHoveredTile("flipV");
+    };
 
     window.addEventListener("tile-copy", onCopy);
     window.addEventListener("tile-cut", onCut);
     window.addEventListener("tile-paste", onPaste);
     window.addEventListener("map-delete-selection", onDelete);
+    window.addEventListener("tile-flip-h", onFlipHorizontal);
+    window.addEventListener("tile-flip-v", onFlipVertical);
 
     return () => {
       window.removeEventListener("tile-copy", onCopy);
       window.removeEventListener("tile-cut", onCut);
       window.removeEventListener("tile-paste", onPaste);
       window.removeEventListener("map-delete-selection", onDelete);
+      window.removeEventListener("tile-flip-h", onFlipHorizontal);
+      window.removeEventListener("tile-flip-v", onFlipVertical);
     };
   }, [
     handleCopySelection,
     handleCutSelection,
     handleDeleteSelection,
+    handleOrientHoveredTile,
     handlePasteSelection,
   ]);
 
