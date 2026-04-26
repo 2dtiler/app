@@ -9,7 +9,6 @@ Import Options
 Add unit tests and add to CI/CD
 Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
-Check why website is not populating release notes
 Keyboard shortcuts not working?
 
 AI Asset Generation:

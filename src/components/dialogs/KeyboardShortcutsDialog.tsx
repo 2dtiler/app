@@ -28,6 +28,13 @@ const shortcuts = [
     ],
   },
   {
+    category: "Map Editing",
+    items: [
+      { keys: "H", description: "Flip hovered tile horizontally" },
+      { keys: "V", description: "Flip hovered tile vertically" },
+    ],
+  },
+  {
     category: "Brush Size",
     items: [
       { keys: "1", description: "1×1 brush" },

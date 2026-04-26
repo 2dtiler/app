@@ -11,6 +11,8 @@
  *   Ctrl+Shift+Z / Cmd+Shift+Z — Redo
  *   Ctrl+S / Cmd+S — Manual save
  *   Delete / Backspace — Delete current selection
+ *   H — Flip hovered tile horizontally
+ *   V — Flip hovered tile vertically
  *   + / = — Zoom in (map)
  *   - — Zoom out (map)
  */
@@ -139,6 +141,14 @@ export function useKeyboardShortcuts() {
           store.setState((draft) => {
             draft.currentTool = "fill";
           });
+          break;
+        case "h":
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("tile-flip-h"));
+          break;
+        case "v":
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("tile-flip-v"));
           break;
         case "=":
         case "+":
