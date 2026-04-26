@@ -15,6 +15,7 @@ import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
 import { GodotMapExportOptionsPanel } from "./import-export/GodotMapExportOptionsPanel";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
 import { TiledMapExportOptionsPanel } from "./import-export/TiledMapExportOptionsPanel";
+import { TiledTilesetExportOptionsPanel } from "./import-export/TiledTilesetExportOptionsPanel";
 import type { ImportExportDialogProps } from "@/features/import-export/types";
 import type {
   GodotMapExportOptions,
@@ -27,6 +28,7 @@ import type {
   ImportExportOptionDefinition,
   ImportExportSelectableAssetId,
   TiledMapExportOptions,
+  TiledTilesetExportOptions,
 } from "@/types";
 import { DEFAULT_GODOT_MAP_EXPORT_OPTIONS } from "@/features/import-export/lib/godot-scene-utils";
 import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/features/import-export/lib/import-export-raster";
@@ -157,25 +159,22 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedNow: true,
   },
   {
-    id: "tileset-tiled-xml",
+    id: "tileset-tiled",
     assetType: "tileset",
-    label: "Tiled XML Tileset File (.tsx, .xml)",
-    description: "Tiled XML tileset format.",
-    supportedNow: false,
+    label: "Tiled Tileset Export",
+    description:
+      "Exports Tiled XML, JSON, or Lua tileset bundles from a single settings panel.",
+    supportedNow: true,
+    supportedModes: ["export"],
   },
   {
-    id: "tileset-tiled-json",
+    id: "tileset-tiled-file",
     assetType: "tileset",
-    label: "Tiled JSON Tileset File (.tsj, .json)",
-    description: "Tiled JSON tileset format.",
-    supportedNow: false,
-  },
-  {
-    id: "tileset-tiled-lua",
-    assetType: "tileset",
-    label: "Tiled Lua File (.lua)",
-    description: "Tiled Lua tileset format.",
-    supportedNow: false,
+    label: "Tiled Tileset File (.tsx, .xml, .tsj, .json, .lua)",
+    description:
+      "Imports Tiled XML, JSON, or Lua tilesets and prompts for linked resources when needed.",
+    supportedNow: true,
+    supportedModes: ["import"],
   },
   {
     id: "tileset-unity",
@@ -209,6 +208,10 @@ function isTiledMapOption(optionId: ImportExportOptionId) {
   return optionId === "map-tiled";
 }
 
+function isTiledTilesetOption(optionId: ImportExportOptionId) {
+  return optionId === "tileset-tiled";
+}
+
 function isGodotMapExportOption(optionId: ImportExportOptionId) {
   return optionId === "map-godot";
 }
@@ -217,6 +220,7 @@ function isExpandableExportOption(optionId: ImportExportOptionId) {
   return (
     isRasterImageOption(optionId) ||
     isTiledMapOption(optionId) ||
+    isTiledTilesetOption(optionId) ||
     isGodotMapExportOption(optionId)
   );
 }
@@ -239,6 +243,14 @@ function createInitialTiledMapExportOptionsState() {
       renderOrder: "right-down",
     },
   } as Record<"map", TiledMapExportOptions>;
+}
+
+function createInitialTiledTilesetExportOptionsState() {
+  return {
+    tileset: {
+      format: "xml",
+    },
+  } as Record<"tileset", TiledTilesetExportOptions>;
 }
 
 function createInitialGodotMapExportOptionsState() {
@@ -333,6 +345,10 @@ export function ImportExportDialog({
     setTiledMapExportOptionsByAssetType,
   ] = useState(createInitialTiledMapExportOptionsState);
   const [
+    tiledTilesetExportOptionsByAssetType,
+    setTiledTilesetExportOptionsByAssetType,
+  ] = useState(createInitialTiledTilesetExportOptionsState);
+  const [
     godotMapExportOptionsByAssetType,
     setGodotMapExportOptionsByAssetType,
   ] = useState(createInitialGodotMapExportOptionsState);
@@ -361,6 +377,9 @@ export function ImportExportDialog({
       );
       setTiledMapExportOptionsByAssetType(
         createInitialTiledMapExportOptionsState(),
+      );
+      setTiledTilesetExportOptionsByAssetType(
+        createInitialTiledTilesetExportOptionsState(),
       );
       setGodotMapExportOptionsByAssetType(
         createInitialGodotMapExportOptionsState(),
@@ -514,6 +533,10 @@ export function ImportExportDialog({
                 : rasterExportOptionsByAssetType[assetType];
             const tiledMapExportOptions =
               assetType === "map" ? tiledMapExportOptionsByAssetType.map : null;
+            const tiledTilesetExportOptions =
+              assetType === "tileset"
+                ? tiledTilesetExportOptionsByAssetType.tileset
+                : null;
             const godotMapExportOptions =
               assetType === "map" ? godotMapExportOptionsByAssetType.map : null;
             const supportsRenderOrder =
@@ -559,6 +582,8 @@ export function ImportExportDialog({
                         mode === "export" && isRasterImageOption(option.id);
                       const isTiledMapExportAccordion =
                         mode === "export" && isTiledMapOption(option.id);
+                      const isTiledTilesetExportAccordion =
+                        mode === "export" && isTiledTilesetOption(option.id);
                       const isGodotMapExportAccordion =
                         mode === "export" && isGodotMapExportOption(option.id);
                       const hasSelection =
@@ -695,6 +720,32 @@ export function ImportExportDialog({
                                   (currentValue) => ({
                                     ...currentValue,
                                     map: nextOptions,
+                                  }),
+                                )
+                              }
+                              onExport={(nextOptions) => {
+                                if (!isEnabled) return;
+                                void handleActionSelect(
+                                  action,
+                                  selectedIds,
+                                  option.id,
+                                  nextOptions,
+                                );
+                              }}
+                            />
+                          ) : null}
+
+                          {isTiledTilesetExportAccordion &&
+                          expandedExportOptionId === option.id &&
+                          tiledTilesetExportOptions ? (
+                            <TiledTilesetExportOptionsPanel
+                              options={tiledTilesetExportOptions}
+                              disabled={!isEnabled}
+                              onOptionsChange={(nextOptions) =>
+                                setTiledTilesetExportOptionsByAssetType(
+                                  (currentValue) => ({
+                                    ...currentValue,
+                                    tileset: nextOptions,
                                   }),
                                 )
                               }

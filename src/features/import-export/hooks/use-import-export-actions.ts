@@ -34,6 +34,11 @@ import {
   isTiledMapExportOption,
 } from "@/features/import-export/lib/tiled-map-action-utils";
 import {
+  exportSelectedTiledTilesets,
+  isTiledTilesetExportOption,
+  isTiledTilesetImportOption,
+} from "@/features/import-export/lib/tiled-tileset-action-utils";
+import {
   exportSelectedGodotMaps,
   isGodotMapOption,
 } from "@/features/import-export/lib/godot-map-action-utils";
@@ -49,6 +54,7 @@ import {
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
+import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
@@ -292,8 +298,10 @@ export function useImportExportActions({
     ],
   );
 
-  const { handleImportTiledMap, tiledMissingResourcesDialogProps } =
-    useTiledMapImport(Boolean(state.project), handleImportedMapResolved);
+  const {
+    handleImportTiledMap,
+    tiledMissingResourcesDialogProps: tiledMapMissingResourcesDialogProps,
+  } = useTiledMapImport(Boolean(state.project), handleImportedMapResolved);
   const { handleImportGodotMap, godotMissingResourcesDialogProps } =
     useGodotMapImport(Boolean(state.project), (imported) => {
       handleImportedMapResolved(imported);
@@ -342,6 +350,13 @@ export function useImportExportActions({
     handleImportGodotTileset,
     godotMissingResourcesDialogProps: godotTilesetMissingResourcesDialogProps,
   } = useGodotTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
+  const {
+    handleImportTiledTileset,
+    tiledMissingResourcesDialogProps: tiledTilesetMissingResourcesDialogProps,
+  } = useTiledTilesetImport(
     Boolean(state.project),
     handleImportedTilesetsResolved,
   );
@@ -664,6 +679,11 @@ export function useImportExportActions({
         return;
       }
 
+      if (isTiledTilesetImportOption(optionId)) {
+        await handleImportTiledTileset();
+        return;
+      }
+
       if (isGodotTilesetOption(optionId)) {
         await handleImportGodotTileset();
         return;
@@ -675,6 +695,7 @@ export function useImportExportActions({
       handleImportGodotTileset,
       handleImportNativeTileset,
       handleImportRasterTileset,
+      handleImportTiledTileset,
     ],
   );
 
@@ -745,10 +766,25 @@ export function useImportExportActions({
         return;
       }
 
+      if (isTiledTilesetExportOption(optionId)) {
+        await exportSelectedTiledTilesets(
+          state.project,
+          selectedIds,
+          optionId,
+          formatExportOptions,
+        );
+        return;
+      }
+
       await handleExportNativeTilesets(selectedIds);
     },
     [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
   );
+
+  const mergedTiledMissingResourcesDialogProps =
+    tiledTilesetMissingResourcesDialogProps.open
+      ? tiledTilesetMissingResourcesDialogProps
+      : tiledMapMissingResourcesDialogProps;
 
   const mergedGodotMissingResourcesDialogProps =
     godotTilesetMissingResourcesDialogProps.open
@@ -883,7 +919,7 @@ export function useImportExportActions({
     mapAction,
     tilesetAction,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
-    tiledMissingResourcesDialogProps,
+    tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps,
   };
 }

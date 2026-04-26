@@ -53,9 +53,8 @@ export type ImportExportOptionId =
   | "map-mappy-fmp"
   | "tileset-native"
   | "tileset-image"
-  | "tileset-tiled-xml"
-  | "tileset-tiled-json"
-  | "tileset-tiled-lua"
+  | "tileset-tiled"
+  | "tileset-tiled-file"
   | "tileset-unity"
   | "tileset-godot"
   | "tileset-rpg-maker";
@@ -77,6 +76,8 @@ export type TiledRenderOrder =
 export type TiledMapFormat = "xml" | "json" | "js" | "lua";
 
 export type TiledMapExportFormat = TiledMapFormat | "csv";
+
+export type TiledTilesetFormat = "xml" | "json" | "lua";
 
 export type GodotMapTilesetMode = "embedded" | "external";
 
@@ -100,6 +101,10 @@ export interface TiledMapExportOptions extends TiledBundleExportOptions {
   format: TiledMapExportFormat;
 }
 
+export interface TiledTilesetExportOptions {
+  format: TiledTilesetFormat;
+}
+
 export interface GodotMapExportOptions {
   sceneRootName: string;
   tilesetMode: GodotMapTilesetMode;
@@ -111,6 +116,7 @@ export type TiledXmlExportOptions = TiledBundleExportOptions;
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
   | TiledMapExportOptions
+  | TiledTilesetExportOptions
   | GodotMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
@@ -126,6 +132,13 @@ export interface TiledMapExportOptionsPanelProps {
   supportsRenderOrder: boolean;
   onOptionsChange: (options: TiledMapExportOptions) => void;
   onExport: (options: TiledMapExportOptions) => void;
+}
+
+export interface TiledTilesetExportOptionsPanelProps {
+  options: TiledTilesetExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: TiledTilesetExportOptions) => void;
+  onExport: (options: TiledTilesetExportOptions) => void;
 }
 
 export interface GodotMapExportOptionsPanelProps {
@@ -295,14 +308,37 @@ export interface PendingTiledMapImportState {
   resourceFilesByPath: Record<string, File>;
 }
 
+export interface TiledTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface PendingTiledTilesetImportState {
+  format: TiledTilesetFormat;
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
 export interface TiledMapImportReadyResult {
   status: "ready";
   result: TiledMapImportResult;
 }
 
+export interface TiledTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
 export type TiledMapImportPreparationResult =
   | TiledMapImportPendingResult
   | TiledMapImportReadyResult;
+
+export type TiledTilesetImportPreparationResult =
+  | TiledTilesetImportPendingResult
+  | TiledTilesetImportReadyResult;
 
 export interface GodotMapImportPendingResult {
   status: "missing-resources";

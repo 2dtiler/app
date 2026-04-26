@@ -11,6 +11,7 @@ import type {
   TileLayer,
   TileMapData,
   TiledMapExportOptions,
+  TiledTilesetExportOptions,
   Tileset,
   TilesetId,
 } from "@/types";
@@ -25,6 +26,12 @@ export function isTiledMapExportOptions(
   options?: ImportExportFormatExportOptions,
 ): options is TiledMapExportOptions {
   return Boolean(options && "tilesetMode" in options && "format" in options);
+}
+
+export function isTiledTilesetExportOptions(
+  options?: ImportExportFormatExportOptions,
+): options is TiledTilesetExportOptions {
+  return Boolean(options && "format" in options && !("tilesetMode" in options));
 }
 
 export function isGodotMapExportOptions(
