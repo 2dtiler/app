@@ -3,10 +3,12 @@ Export Options
 Import Options
   - Do the rest of the options
 
+Add unit tests and add to CI/CD
 Allow quick export bottom right
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Check why website is not populating release notes
 Keyboard shortcuts not working?
+Hover over tile: "V" flip vertical. "H" flip horizontal 
 
 AI Asset Generation:
   AI Generation not working currently
@@ -59,12 +61,10 @@ World View
 Animations
 Royalty free packs
 Terrain Brush
-Add unit tests and add to CI/CD
 Add tutorial video
 Add roadmap voting on home page
 Windows/Mac/Linux Apps
 Drive some traffic to it: 2dtiler.com
-Hover over tile: "V" flip vertical. "H" flip horizontal 
 First time start: Show example map with tutorial
 - Add import/export Godot3 map
 - Add import/export Cocos

@@ -25,9 +25,14 @@ import {
   buildTilesetExportGroups,
   getMapExportData,
   getUniqueArchivePath,
+  isGameMakerMapExportOptions,
   isRasterExportOptions,
   pickSingleFile,
 } from "@/features/import-export/lib/import-export-action-utils";
+import {
+  exportSelectedGameMakerMaps,
+  isGameMakerMapOption,
+} from "@/features/import-export/lib/gamemaker-map-action-utils";
 import {
   exportSelectedTiledMaps,
   isTiledMapImportOption,
@@ -61,6 +66,7 @@ import {
 } from "@/features/import-export/lib/unity-tileset-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
+import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
 import {
   PHASER_MAP_IMPORT_CONFIG,
   useTiledMapImport,
@@ -334,6 +340,8 @@ export function useImportExportActions({
         console.warn("[Import Godot Scene] Warnings:", imported.warnings);
       }
     });
+  const { handleImportGameMakerMap, gameMakerMissingResourcesDialogProps } =
+    useGameMakerMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportedTilesetsResolved = useCallback(
     (importedTilesets: Tileset[]) => {
       if (!state.project || importedTilesets.length === 0) return;
@@ -690,6 +698,10 @@ export function useImportExportActions({
         return handleImportGodotMap();
       }
 
+      if (isGameMakerMapOption(optionId)) {
+        return handleImportGameMakerMap();
+      }
+
       if (isUnityMapOption(optionId)) {
         return handleImportUnityMap();
       }
@@ -698,6 +710,7 @@ export function useImportExportActions({
     },
     [
       handleImportPhaserMap,
+      handleImportGameMakerMap,
       handleImportGodotMap,
       handleImportNativeMap,
       handleImportRasterMap,
@@ -769,6 +782,17 @@ export function useImportExportActions({
           selectedIds,
           optionId,
           formatExportOptions,
+        );
+      }
+
+      if (isGameMakerMapOption(optionId)) {
+        return exportSelectedGameMakerMaps(
+          state.project,
+          selectedIds,
+          optionId,
+          isGameMakerMapExportOptions(formatExportOptions)
+            ? formatExportOptions
+            : undefined,
         );
       }
 
@@ -970,6 +994,7 @@ export function useImportExportActions({
     projectAction,
     mapAction,
     tilesetAction,
+    gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,

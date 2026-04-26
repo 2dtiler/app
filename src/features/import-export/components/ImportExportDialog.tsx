@@ -12,24 +12,26 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/utils/cn";
 import { ExportAssetPicker } from "./import-export/ExportAssetPicker";
+import { GameMakerMapExportOptionsPanel } from "./import-export/GameMakerMapExportOptionsPanel";
 import { GodotMapExportOptionsPanel } from "./import-export/GodotMapExportOptionsPanel";
 import { RasterExportOptionsPanel } from "./import-export/RasterExportOptionsPanel";
 import { TiledMapExportOptionsPanel } from "./import-export/TiledMapExportOptionsPanel";
 import { TiledTilesetExportOptionsPanel } from "./import-export/TiledTilesetExportOptionsPanel";
-import type { ImportExportDialogProps } from "@/features/import-export/types";
 import type {
+  GameMakerMapExportOptions,
   GodotMapExportOptions,
   ImportExportAssetType,
+  ImportExportDialogProps,
   ImportExportDialogMode,
   ImportExportFormatExportOptions,
-  ImportExportRasterExportOptions,
-  ImportExportOptionId,
   ImportExportOptionAction,
   ImportExportOptionDefinition,
+  ImportExportOptionId,
+  ImportExportRasterExportOptions,
   ImportExportSelectableAssetId,
   TiledMapExportOptions,
   TiledTilesetExportOptions,
-} from "@/types";
+} from "@/features/import-export/types";
 import { DEFAULT_GODOT_MAP_EXPORT_OPTIONS } from "@/features/import-export/lib/godot-scene-utils";
 import { DEFAULT_RASTER_EXPORT_OPTIONS } from "@/features/import-export/lib/import-export-raster";
 
@@ -104,18 +106,12 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedNow: true,
   },
   {
-    id: "map-gamemaker-room",
+    id: "map-gamemaker",
     assetType: "map",
-    label: "GameMaker room File (.room.gmx)",
-    description: "GameMaker room file target.",
-    supportedNow: false,
-  },
-  {
-    id: "map-gamemaker-studio-2",
-    assetType: "map",
-    label: "GameMaker Studio 2 file (.yy)",
-    description: "GameMaker Studio 2 room data.",
-    supportedNow: false,
+    label: "GameMaker Room (.room.gmx, .yy)",
+    description:
+      "Imports GameMaker room files and exports either legacy GMX or GameMaker Studio 2 YY rooms from one settings panel.",
+    supportedNow: true,
   },
   {
     id: "map-defold-tilemap",
@@ -218,12 +214,17 @@ function isGodotMapExportOption(optionId: ImportExportOptionId) {
   return optionId === "map-godot";
 }
 
+function isGameMakerMapExportOption(optionId: ImportExportOptionId) {
+  return optionId === "map-gamemaker";
+}
+
 function isExpandableExportOption(optionId: ImportExportOptionId) {
   return (
     isRasterImageOption(optionId) ||
     isTiledMapOption(optionId) ||
     isTiledTilesetOption(optionId) ||
-    isGodotMapExportOption(optionId)
+    isGodotMapExportOption(optionId) ||
+    isGameMakerMapExportOption(optionId)
   );
 }
 
@@ -259,6 +260,14 @@ function createInitialGodotMapExportOptionsState() {
   return {
     map: { ...DEFAULT_GODOT_MAP_EXPORT_OPTIONS },
   } as Record<"map", GodotMapExportOptions>;
+}
+
+function createInitialGameMakerMapExportOptionsState() {
+  return {
+    map: {
+      format: "yy",
+    },
+  } as Record<"map", GameMakerMapExportOptions>;
 }
 
 function getActionForAssetType(
@@ -354,6 +363,10 @@ export function ImportExportDialog({
     godotMapExportOptionsByAssetType,
     setGodotMapExportOptionsByAssetType,
   ] = useState(createInitialGodotMapExportOptionsState);
+  const [
+    gameMakerMapExportOptionsByAssetType,
+    setGameMakerMapExportOptionsByAssetType,
+  ] = useState(createInitialGameMakerMapExportOptionsState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modeCopy = getModeCopy(mode);
   const ModeIcon = modeCopy.icon;
@@ -385,6 +398,9 @@ export function ImportExportDialog({
       );
       setGodotMapExportOptionsByAssetType(
         createInitialGodotMapExportOptionsState(),
+      );
+      setGameMakerMapExportOptionsByAssetType(
+        createInitialGameMakerMapExportOptionsState(),
       );
     }
   }, [open]);
@@ -546,6 +562,10 @@ export function ImportExportDialog({
                 : null;
             const godotMapExportOptions =
               assetType === "map" ? godotMapExportOptionsByAssetType.map : null;
+            const gameMakerMapExportOptions =
+              assetType === "map"
+                ? gameMakerMapExportOptionsByAssetType.map
+                : null;
             const supportsRenderOrder =
               assetType === "map" && exportSelection
                 ? exportSelection.groups
@@ -593,6 +613,9 @@ export function ImportExportDialog({
                         mode === "export" && isTiledTilesetOption(option.id);
                       const isGodotMapExportAccordion =
                         mode === "export" && isGodotMapExportOption(option.id);
+                      const isGameMakerMapExportAccordion =
+                        mode === "export" &&
+                        isGameMakerMapExportOption(option.id);
                       const hasSelection =
                         exportSelection === undefined || selectedIds.length > 0;
                       const isEnabled =
@@ -776,6 +799,32 @@ export function ImportExportDialog({
                               disabled={!isEnabled}
                               onOptionsChange={(nextOptions) =>
                                 setGodotMapExportOptionsByAssetType(
+                                  (currentValue) => ({
+                                    ...currentValue,
+                                    map: nextOptions,
+                                  }),
+                                )
+                              }
+                              onExport={(nextOptions) => {
+                                if (!isEnabled) return;
+                                void handleActionSelect(
+                                  action,
+                                  selectedIds,
+                                  option.id,
+                                  nextOptions,
+                                );
+                              }}
+                            />
+                          ) : null}
+
+                          {isGameMakerMapExportAccordion &&
+                          expandedExportOptionId === option.id &&
+                          gameMakerMapExportOptions ? (
+                            <GameMakerMapExportOptionsPanel
+                              options={gameMakerMapExportOptions}
+                              disabled={!isEnabled}
+                              onOptionsChange={(nextOptions) =>
+                                setGameMakerMapExportOptionsByAssetType(
                                   (currentValue) => ({
                                     ...currentValue,
                                     map: nextOptions,

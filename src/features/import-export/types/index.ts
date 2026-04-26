@@ -45,6 +45,7 @@ export type ImportExportOptionId =
   | "map-tiled-file"
   | "map-godot"
   | "map-unity"
+  | "map-gamemaker"
   | "map-gamemaker-room"
   | "map-gamemaker-studio-2"
   | "map-defold-tilemap"
@@ -84,6 +85,8 @@ export type GodotMapTilesetMode = "embedded" | "external";
 
 export type GodotMapTextureMode = "copy";
 
+export type GameMakerMapFormat = "gmx" | "yy";
+
 export interface ImportExportRasterExportOptions {
   fileType: ImportExportRasterFileType;
   quality: number;
@@ -112,13 +115,18 @@ export interface GodotMapExportOptions {
   textureMode: GodotMapTextureMode;
 }
 
+export interface GameMakerMapExportOptions {
+  format: GameMakerMapFormat;
+}
+
 export type TiledXmlExportOptions = TiledBundleExportOptions;
 
 export type ImportExportFormatExportOptions =
   | ImportExportRasterExportOptions
   | TiledMapExportOptions
   | TiledTilesetExportOptions
-  | GodotMapExportOptions;
+  | GodotMapExportOptions
+  | GameMakerMapExportOptions;
 
 export interface RasterExportOptionsPanelProps {
   options: ImportExportRasterExportOptions;
@@ -149,6 +157,13 @@ export interface GodotMapExportOptionsPanelProps {
   onExport: (options: GodotMapExportOptions) => void;
 }
 
+export interface GameMakerMapExportOptionsPanelProps {
+  options: GameMakerMapExportOptions;
+  disabled: boolean;
+  onOptionsChange: (options: GameMakerMapExportOptions) => void;
+  onExport: (options: GameMakerMapExportOptions) => void;
+}
+
 export interface TiledMapImportResult {
   map: TileMapData;
   layers: TileLayer[];
@@ -163,6 +178,8 @@ export interface TiledMapImportResult {
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
+
+export type GameMakerMapImportResult = TiledMapImportResult;
 
 export type UnityMapImportResult = TiledMapImportResult;
 
@@ -249,6 +266,10 @@ export interface UnityImportMissingResource extends LinkedImportMissingResource 
   kind: Extract<LinkedImportResourceKind, "image" | "json" | "asset" | "meta">;
 }
 
+export interface GameMakerImportMissingResource extends LinkedImportMissingResource {
+  kind: Extract<LinkedImportResourceKind, "image" | "json">;
+}
+
 export type GodotImportWarningCode =
   | "unsupported-tile-transform"
   | "unsupported-tile-metadata"
@@ -295,6 +316,18 @@ export interface UnityMissingResourcesDialogProps {
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
   onSelectFile: (resource: UnityImportMissingResource) => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+}
+
+export interface GameMakerMissingResourcesDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resources: GameMakerImportMissingResource[];
+  selectedFileNames: Record<string, string>;
+  isSubmitting: boolean;
+  onSelectFile: (
+    resource: GameMakerImportMissingResource,
+  ) => void | Promise<void>;
   onImport: () => void | Promise<void>;
 }
 
@@ -376,10 +409,25 @@ export interface UnityMapImportPendingResult {
   missingResources: UnityImportMissingResource[];
 }
 
+export interface GameMakerMapImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  format: GameMakerMapFormat;
+  missingResources: GameMakerImportMissingResource[];
+}
+
 export interface PendingUnityMapImportState {
   rootPath: string;
   rootData: Uint8Array;
   missingResources: UnityImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingGameMakerMapImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  format: GameMakerMapFormat;
+  missingResources: GameMakerImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
 }
 
@@ -401,6 +449,11 @@ export interface UnityMapImportReadyResult {
   result: UnityMapImportResult;
 }
 
+export interface GameMakerMapImportReadyResult {
+  status: "ready";
+  result: GameMakerMapImportResult;
+}
+
 export interface UnityTilesetImportReadyResult {
   status: "ready";
   result: Tileset[];
@@ -409,6 +462,10 @@ export interface UnityTilesetImportReadyResult {
 export type UnityMapImportPreparationResult =
   | UnityMapImportPendingResult
   | UnityMapImportReadyResult;
+
+export type GameMakerMapImportPreparationResult =
+  | GameMakerMapImportPendingResult
+  | GameMakerMapImportReadyResult;
 
 export type UnityTilesetImportPreparationResult =
   | UnityTilesetImportPendingResult

@@ -78,6 +78,13 @@ const GodotMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const GameMakerMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/GameMakerMissingResourcesDialog").then(
+    (module) => ({
+      default: module.GameMakerMissingResourcesDialog,
+    }),
+  ),
+);
 const UnityMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/UnityMissingResourcesDialog").then(
     (module) => ({
@@ -198,6 +205,7 @@ export function AppShell({
     projectAction,
     mapAction,
     tilesetAction,
+    gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps,
@@ -408,6 +416,21 @@ export function AppShell({
             isSubmitting={godotMissingResourcesDialogProps.isSubmitting}
             onSelectFile={godotMissingResourcesDialogProps.onSelectFile}
             onImport={godotMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {gameMakerMissingResourcesDialogProps.open && (
+        <Suspense>
+          <GameMakerMissingResourcesDialog
+            open={gameMakerMissingResourcesDialogProps.open}
+            onOpenChange={gameMakerMissingResourcesDialogProps.onOpenChange}
+            resources={gameMakerMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              gameMakerMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={gameMakerMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={gameMakerMissingResourcesDialogProps.onSelectFile}
+            onImport={gameMakerMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}
