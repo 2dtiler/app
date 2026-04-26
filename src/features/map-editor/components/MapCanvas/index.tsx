@@ -124,6 +124,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     widthInTiles: previewMapW,
     heightInTiles: previewMapH,
   };
+  const previewOffsetXInTiles = mapResizePreview?.originOffsetXInTiles ?? 0;
+  const previewOffsetYInTiles = mapResizePreview?.originOffsetYInTiles ?? 0;
   const previewPixelSize = getMapPixelSize(previewMap, zoom);
   const canvasW = Math.ceil(previewPixelSize.width);
   const canvasH = Math.ceil(previewPixelSize.height);
@@ -573,6 +575,59 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
     }
 
+    // ---- Map resize destination overlay ----
+    if (previewOffsetXInTiles !== 0 || previewOffsetYInTiles !== 0) {
+      const destinationCells = new Set<string>();
+      for (const entry of orderedLayerEntries) {
+        if (entry.kind !== "tile") {
+          continue;
+        }
+        const layer = entry.layer as TileLayer;
+        if (!layer.visible) {
+          continue;
+        }
+        for (const key of Object.keys(layer.tiles)) {
+          const [gx, gy] = key.split(",").map(Number);
+          const destX = gx + previewOffsetXInTiles;
+          const destY = gy + previewOffsetYInTiles;
+          if (
+            destX < 0 ||
+            destY < 0 ||
+            destX >= previewMapW ||
+            destY >= previewMapH
+          ) {
+            continue;
+          }
+          destinationCells.add(`${destX},${destY}`);
+        }
+      }
+
+      ctx.fillStyle = "rgba(251, 146, 60, 0.14)";
+      ctx.strokeStyle = "rgba(251, 146, 60, 0.85)";
+      ctx.lineWidth = 1.5;
+
+      for (const key of destinationCells) {
+        const [tx, ty] = key.split(",").map(Number);
+        if (usesPolygonCells) {
+          traceCellPath(ctx, tx, ty);
+          ctx.fill();
+          traceCellPath(ctx, tx, ty);
+          ctx.stroke();
+          continue;
+        }
+
+        const sx = tx * scaledTile;
+        const sy = ty * scaledTile;
+        ctx.fillRect(sx, sy, scaledTile, scaledTile);
+        ctx.strokeRect(
+          sx + 0.75,
+          sy + 0.75,
+          scaledTile - 1.5,
+          scaledTile - 1.5,
+        );
+      }
+    }
+
     // ---- Selection overlay ----
     if (currentTool === "select" && renderedSelection) {
       if (usesPolygonCells) {
@@ -787,6 +842,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     polygonCursorPos,
     moveDestSel,
     moveTiles,
+    previewMapW,
+    previewMapH,
+    previewOffsetXInTiles,
+    previewOffsetYInTiles,
     getDisplayImageLayer,
     scaleImageLayer,
     traceCellPath,

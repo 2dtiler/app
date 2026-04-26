@@ -41,6 +41,8 @@ export interface MapResizeRequest {
 export interface MapResizePreview {
   width: number;
   height: number;
+  originOffsetXInTiles: number;
+  originOffsetYInTiles: number;
 }
 
 export interface MapResizeAction {

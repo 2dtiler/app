@@ -114,7 +114,12 @@ export function useMapResize({
       action.nextHeight = nextHeight;
       action.nextOriginOffsetXInTiles = nextOriginOffsetXInTiles;
       action.nextOriginOffsetYInTiles = nextOriginOffsetYInTiles;
-      setMapResizePreview({ width: nextWidth, height: nextHeight });
+      setMapResizePreview({
+        width: nextWidth,
+        height: nextHeight,
+        originOffsetXInTiles: nextOriginOffsetXInTiles,
+        originOffsetYInTiles: nextOriginOffsetYInTiles,
+      });
     },
     [scaledTile],
   );
@@ -141,7 +146,12 @@ export function useMapResize({
       };
       setActiveMapResizeHandle(handle);
       setHoveredMapResizeHandle(handle);
-      setMapResizePreview({ width: mapWidth, height: mapHeight });
+      setMapResizePreview({
+        width: mapWidth,
+        height: mapHeight,
+        originOffsetXInTiles: 0,
+        originOffsetYInTiles: 0,
+      });
     },
     [mapHeight, mapWidth],
   );
