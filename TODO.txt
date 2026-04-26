@@ -27,6 +27,7 @@ More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplic
 Dont do window.location.reload() in pwa.js. Find a better solution
 
 Exploration:
+  Defold
   SpriteFusion (Autotile rules)
   Ogmo Editor
   Universal lpc spritesheet generator
@@ -47,8 +48,7 @@ Exploration:
   Keep Notes
   tilengine.org
   https://itch.io/games-like/28768/tiled
-  
-  
+
 Text Layer custom fonts not working
 Image Editor Crop should change the dimensions of the image
 

@@ -1,8 +1,25 @@
-import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
+import {
+  generateLayerId,
+  generateMapId,
+  generateObjectId,
+  generateTilesetId,
+} from "@/utils/ids";
+import {
+  GAMEMAKER_INSTANCE_CREATION_CODE_PATH_PROPERTY_KEY,
+  GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY,
+  GAMEMAKER_INSTANCE_OBJECT_PATH_PROPERTY_KEY,
+  GAMEMAKER_INSTANCE_SCALE_X_PROPERTY_KEY,
+  GAMEMAKER_INSTANCE_SCALE_Y_PROPERTY_KEY,
+  GAMEMAKER_ROOM_CAPTION_PROPERTY_KEY,
+  GAMEMAKER_ROOM_CREATION_CODE_PATH_PROPERTY_KEY,
+  GAMEMAKER_ROOM_PERSISTENT_PROPERTY_KEY,
+  GAMEMAKER_ROOM_SPEED_PROPERTY_KEY,
+} from "@/features/import-export/lib/gamemaker-property-keys";
 import {
   decodeText,
   normalizeBundlePath,
   parseXmlDocument,
+  resolveBundlePath,
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
 import {
@@ -16,20 +33,29 @@ import type {
   GameMakerMapFormat,
   GameMakerMapImportPreparationResult,
   GameMakerMapImportResult,
+  ImageLayer,
   ImportExportArchiveEntry,
+  MapObject,
+  ObjectLayer,
+  PropertyValue,
   TileLayer,
   TileMapData,
   TileSize,
   Tileset,
 } from "@/types";
 
-export const GAME_MAKER_MAP_IMPORT_ACCEPT =
-  ".room.gmx,.yy,text/xml,application/xml,application/json,text/json,text/plain,application/octet-stream";
+const DEFAULT_GAMEMAKER_TILE_SIZE = 32 as TileSize;
+const DEFAULT_ROOM_SPEED = 60;
 
 type LegacyTilesetDescriptor = {
   name: string;
   imagePath: string;
   tileSize: number;
+};
+
+type LegacyBackgroundDescriptor = {
+  name: string;
+  imagePath: string;
 };
 
 type ModernTilesetDescriptor = {
@@ -43,6 +69,21 @@ type ModernTilesetDescriptor = {
   outColumns: number;
 };
 
+type ImportedImageRecord = Awaited<ReturnType<typeof importImageAsset>>;
+
+type ParsedModernTileData = {
+  width: number;
+  height: number;
+  cells: Array<{
+    x: number;
+    y: number;
+    value: number;
+  }>;
+};
+
+export const GAME_MAKER_MAP_IMPORT_ACCEPT =
+  ".room.gmx,.yy,text/xml,application/xml,application/json,text/json,text/plain,application/octet-stream";
+
 function detectGameMakerMapFormat(fileName: string): GameMakerMapFormat | null {
   const normalizedFileName = fileName.toLowerCase();
 
@@ -55,6 +96,14 @@ function detectGameMakerMapFormat(fileName: string): GameMakerMapFormat | null {
   }
 
   return null;
+}
+
+function normalizeGameMakerPath(fromPath: string, candidatePath: string) {
+  if (candidatePath.startsWith("./") || candidatePath.startsWith("../")) {
+    return resolveBundlePath(fromPath, candidatePath);
+  }
+
+  return normalizeBundlePath(candidatePath);
 }
 
 function addMissingResource(
@@ -99,6 +148,33 @@ function readNumberField(
   return fallback;
 }
 
+function readBooleanField(
+  value: Record<string, unknown>,
+  keys: string[],
+  fallback = false,
+) {
+  for (const key of keys) {
+    const candidate = value[key];
+    if (typeof candidate === "boolean") {
+      return candidate;
+    }
+    if (typeof candidate === "number") {
+      return candidate !== 0;
+    }
+    if (typeof candidate === "string") {
+      const normalized = candidate.trim().toLowerCase();
+      if (["true", "1", "yes"].includes(normalized)) {
+        return true;
+      }
+      if (["false", "0", "no"].includes(normalized)) {
+        return false;
+      }
+    }
+  }
+
+  return fallback;
+}
+
 function readStringField(value: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const candidate = value[key];
@@ -127,6 +203,231 @@ function toTileSize(value: number): TileSize {
   return value as TileSize;
 }
 
+function createProperty(
+  value: string,
+  type: PropertyValue["type"],
+): PropertyValue {
+  return { value, type };
+}
+
+function readResourceRef(
+  source: Record<string, unknown>,
+  objectKeys: string[],
+  pathKeys: string[],
+  nameKeys: string[],
+  defaultFolder?: string,
+) {
+  let name: string | null = null;
+  let path: string | null = null;
+
+  for (const key of objectKeys) {
+    const candidate = source[key];
+    if (!candidate || typeof candidate !== "object") {
+      continue;
+    }
+
+    const candidateRecord = candidate as Record<string, unknown>;
+    name ??= readStringField(candidateRecord, ["name"]);
+    path ??= readStringField(candidateRecord, ["path"]);
+  }
+
+  name ??= readStringField(source, nameKeys);
+  path ??= readStringField(source, pathKeys);
+
+  if (!path && name && defaultFolder) {
+    path = `${defaultFolder}/${name}/${name}.yy`;
+  }
+
+  return name || path ? { name, path } : null;
+}
+
+function readLayerType(layer: Record<string, unknown>) {
+  return readStringField(layer, ["resourceType", "modelName", "__type"]);
+}
+
+function isTileLayer(layer: Record<string, unknown>) {
+  return Boolean(readLayerType(layer)?.includes("TileLayer"));
+}
+
+function isBackgroundLayer(layer: Record<string, unknown>) {
+  return Boolean(readLayerType(layer)?.includes("BackgroundLayer"));
+}
+
+function isInstanceLayer(layer: Record<string, unknown>) {
+  return Boolean(readLayerType(layer)?.includes("InstanceLayer"));
+}
+
+function readTilesetRef(layer: Record<string, unknown>) {
+  return readResourceRef(
+    layer,
+    ["tilesetId", "tileSetId", "tileset"],
+    ["tilesetPath", "tileSetPath"],
+    ["tilesetName", "tileSetName"],
+    "tilesets",
+  );
+}
+
+function readSpriteRef(record: Record<string, unknown>) {
+  return readResourceRef(
+    record,
+    ["spriteId", "backgroundId", "sprite", "background"],
+    ["spritePath", "backgroundPath"],
+    ["spriteName", "backgroundName"],
+    "sprites",
+  );
+}
+
+function readObjectRef(record: Record<string, unknown>) {
+  return readResourceRef(
+    record,
+    ["objectId", "objId", "object"],
+    ["objectPath", "objPath"],
+    ["objectName", "objName"],
+    "objects",
+  );
+}
+
+function readDirectImagePath(
+  record: Record<string, unknown>,
+  recordPath: string,
+) {
+  const directPath = readStringField(record, [
+    "imagePath",
+    "texturePath",
+    "sourceImagePath",
+    "backgroundPath",
+    "spriteSheetPath",
+  ]);
+  return directPath ? normalizeGameMakerPath(recordPath, directPath) : null;
+}
+
+function deriveSpriteImagePath(
+  spritePath: string,
+  spriteRecord: Record<string, unknown>,
+) {
+  const directPath = readDirectImagePath(spriteRecord, spritePath);
+  if (directPath) {
+    return directPath;
+  }
+
+  const frames = Array.isArray(spriteRecord.frames) ? spriteRecord.frames : [];
+  for (const frame of frames) {
+    if (!frame || typeof frame !== "object") {
+      continue;
+    }
+
+    const frameRecord = frame as Record<string, unknown>;
+    const framePath = readStringField(frameRecord, ["path"]);
+    if (framePath) {
+      return normalizeGameMakerPath(spritePath, framePath);
+    }
+
+    const frameName = readStringField(frameRecord, ["name"]);
+    if (frameName) {
+      return normalizeGameMakerPath(spritePath, `${frameName}.png`);
+    }
+  }
+
+  return null;
+}
+
+function resolveImagePathFromRecord(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  recordPath: string,
+  record: Record<string, unknown>,
+) {
+  const directPath = readDirectImagePath(record, recordPath);
+  if (directPath) {
+    return directPath;
+  }
+
+  const spriteRef = readSpriteRef(record);
+  const spritePath = spriteRef?.path
+    ? normalizeGameMakerPath(recordPath, spriteRef.path)
+    : null;
+  if (!spritePath) {
+    return null;
+  }
+
+  const spriteRecord = parseJsonEntry(providedEntries, spritePath);
+  return deriveSpriteImagePath(spritePath, spriteRecord);
+}
+
+function collectMissingImageChain(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  missingResources: Map<string, GameMakerImportMissingResource>,
+  referringPath: string,
+  record: Record<string, unknown>,
+  label: string,
+) {
+  const directPath = readDirectImagePath(record, referringPath);
+  if (directPath) {
+    if (!getProvidedEntry(providedEntries, directPath)) {
+      addMissingResource(
+        missingResources,
+        directPath,
+        "image",
+        referringPath,
+        label,
+      );
+    }
+    return;
+  }
+
+  const spriteRef = readSpriteRef(record);
+  const spritePath = spriteRef?.path
+    ? normalizeGameMakerPath(referringPath, spriteRef.path)
+    : null;
+  if (!spritePath) {
+    return;
+  }
+
+  if (!getProvidedEntry(providedEntries, spritePath)) {
+    addMissingResource(
+      missingResources,
+      spritePath,
+      "json",
+      referringPath,
+      `${label} sprite resource`,
+    );
+    return;
+  }
+
+  const spriteRecord = parseJsonEntry(providedEntries, spritePath);
+  const derivedImagePath = deriveSpriteImagePath(spritePath, spriteRecord);
+  if (
+    derivedImagePath &&
+    !getProvidedEntry(providedEntries, derivedImagePath)
+  ) {
+    addMissingResource(
+      missingResources,
+      derivedImagePath,
+      "image",
+      spritePath,
+      label,
+    );
+  }
+}
+
+async function ensureImportedImage(
+  imagePath: string,
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  importedImages: Map<string, ImportedImageRecord>,
+) {
+  const normalizedPath = normalizeBundlePath(imagePath);
+  const existing = importedImages.get(normalizedPath);
+  if (existing) {
+    return existing;
+  }
+
+  const imported = await importImageAsset(
+    normalizedPath,
+    requireProvidedEntry(providedEntries, normalizedPath),
+  );
+  importedImages.set(normalizedPath, imported);
+  return imported;
+}
+
 function getLegacyTilesetDescriptors(document: XMLDocument) {
   const descriptors = new Map<string, LegacyTilesetDescriptor>();
 
@@ -150,6 +451,172 @@ function getLegacyTilesetDescriptors(document: XMLDocument) {
   return descriptors;
 }
 
+function getLegacyBackgroundDescriptors(document: XMLDocument) {
+  const descriptors = new Map<string, LegacyBackgroundDescriptor>();
+
+  for (const element of Array.from(
+    document.querySelectorAll("backgroundResources > background"),
+  )) {
+    const name =
+      element.getAttribute("name") ?? element.getAttribute("backgroundName");
+    const imagePath =
+      element.getAttribute("image") ?? element.getAttribute("backgroundPath");
+    if (!name || !imagePath) {
+      continue;
+    }
+
+    descriptors.set(name, {
+      name,
+      imagePath,
+    });
+  }
+
+  return descriptors;
+}
+
+function buildRoomMetadataProperties(
+  source: Record<string, unknown>,
+  roomSettings: Record<string, unknown>,
+) {
+  const properties: Record<string, PropertyValue> = {};
+
+  const caption = readStringField(source, ["caption"]);
+  if (caption) {
+    properties[GAMEMAKER_ROOM_CAPTION_PROPERTY_KEY] = createProperty(
+      caption,
+      "string",
+    );
+  }
+
+  properties[GAMEMAKER_ROOM_PERSISTENT_PROPERTY_KEY] = createProperty(
+    readBooleanField(roomSettings, ["persistent"], false) ? "true" : "false",
+    "bool",
+  );
+  properties[GAMEMAKER_ROOM_SPEED_PROPERTY_KEY] = createProperty(
+    String(readNumberField(source, ["roomSpeed", "speed"], DEFAULT_ROOM_SPEED)),
+    "int",
+  );
+
+  const creationCodePath = readStringField(source, [
+    "roomCreationCodeFile",
+    "creationCodeFile",
+  ]);
+  if (creationCodePath) {
+    properties[GAMEMAKER_ROOM_CREATION_CODE_PATH_PROPERTY_KEY] = createProperty(
+      creationCodePath,
+      "file",
+    );
+  }
+
+  return properties;
+}
+
+function parseModernTileData(tileData: Record<string, unknown>) {
+  let width = readNumberField(
+    tileData,
+    ["SerialiseWidth", "serialiseWidth", "width"],
+    0,
+  );
+  let height = readNumberField(
+    tileData,
+    ["SerialiseHeight", "serialiseHeight", "height"],
+    0,
+  );
+  const cells: ParsedModernTileData["cells"] = [];
+
+  const denseValues = Array.isArray(tileData.TileSerialiseData)
+    ? tileData.TileSerialiseData
+    : Array.isArray(tileData.tileSerialiseData)
+      ? tileData.tileSerialiseData
+      : typeof tileData.TileCompressedData === "string"
+        ? tileData.TileCompressedData.split(/[\s,]+/).filter(Boolean)
+        : [];
+
+  if (denseValues.length > 0) {
+    if (width === 0 && height > 0) {
+      width = Math.max(1, Math.ceil(denseValues.length / height));
+    }
+    if (height === 0 && width > 0) {
+      height = Math.max(1, Math.ceil(denseValues.length / width));
+    }
+
+    denseValues.forEach((value, tileIndex) => {
+      if (value && typeof value === "object") {
+        const entry = value as Record<string, unknown>;
+        const cellX = readNumberField(
+          entry,
+          ["x", "tileX"],
+          tileIndex % Math.max(1, width),
+        );
+        const cellY = readNumberField(
+          entry,
+          ["y", "tileY"],
+          Math.floor(tileIndex / Math.max(1, width)),
+        );
+        const tileValue = readNumberField(
+          entry,
+          ["value", "index", "tileIndex", "tile"],
+          -1,
+        );
+        if (tileValue >= 0) {
+          cells.push({ x: cellX, y: cellY, value: tileValue });
+        }
+        width = Math.max(width, cellX + 1);
+        height = Math.max(height, cellY + 1);
+        return;
+      }
+
+      const tileValue = Number(value);
+      if (!Number.isFinite(tileValue) || tileValue < 0) {
+        return;
+      }
+
+      const cellX = tileIndex % Math.max(1, width);
+      const cellY = Math.floor(tileIndex / Math.max(1, width));
+      cells.push({ x: cellX, y: cellY, value: tileValue });
+    });
+
+    return {
+      width,
+      height,
+      cells,
+    } satisfies ParsedModernTileData;
+  }
+
+  const sparseValues = Array.isArray(tileData.tiles)
+    ? tileData.tiles
+    : Array.isArray(tileData.TileData)
+      ? tileData.TileData
+      : [];
+  for (const value of sparseValues) {
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+
+    const entry = value as Record<string, unknown>;
+    const cellX = readNumberField(entry, ["x", "tileX"], 0);
+    const cellY = readNumberField(entry, ["y", "tileY"], 0);
+    const tileValue = readNumberField(
+      entry,
+      ["value", "index", "tileIndex", "tile"],
+      -1,
+    );
+    if (tileValue < 0) {
+      continue;
+    }
+
+    cells.push({ x: cellX, y: cellY, value: tileValue });
+    width = Math.max(width, cellX + 1);
+    height = Math.max(height, cellY + 1);
+  }
+
+  return {
+    width,
+    height,
+    cells,
+  } satisfies ParsedModernTileData;
+}
+
 function collectMissingLegacyResources(
   rootPath: string,
   providedEntries: ReadonlyMap<string, Uint8Array>,
@@ -157,7 +624,8 @@ function collectMissingLegacyResources(
   const document = parseXmlDocument(
     decodeText(requireProvidedEntry(providedEntries, rootPath)),
   );
-  const descriptors = getLegacyTilesetDescriptors(document);
+  const tilesetDescriptors = getLegacyTilesetDescriptors(document);
+  const backgroundDescriptors = getLegacyBackgroundDescriptors(document);
   const missingResources = new Map<string, GameMakerImportMissingResource>();
 
   for (const tileElement of Array.from(
@@ -170,7 +638,7 @@ function collectMissingLegacyResources(
 
     const imagePath =
       tileElement.getAttribute("bgPath") ??
-      descriptors.get(bgName)?.imagePath ??
+      tilesetDescriptors.get(bgName)?.imagePath ??
       `images/${bgName}.png`;
     if (!getProvidedEntry(providedEntries, imagePath)) {
       addMissingResource(
@@ -179,6 +647,33 @@ function collectMissingLegacyResources(
         "image",
         rootPath,
         `Tileset image: ${bgName}`,
+      );
+    }
+  }
+
+  for (const backgroundElement of Array.from(
+    document.querySelectorAll("backgrounds > background"),
+  )) {
+    const backgroundName =
+      backgroundElement.getAttribute("backgroundName") ??
+      backgroundElement.getAttribute("name");
+    const imagePath =
+      backgroundElement.getAttribute("backgroundPath") ??
+      (backgroundName
+        ? backgroundDescriptors.get(backgroundName)?.imagePath
+        : null) ??
+      (backgroundName ? `images/${backgroundName}.png` : null);
+    if (!imagePath) {
+      continue;
+    }
+
+    if (!getProvidedEntry(providedEntries, imagePath)) {
+      addMissingResource(
+        missingResources,
+        imagePath,
+        "image",
+        rootPath,
+        `Background image: ${backgroundName ?? stripExtension(imagePath)}`,
       );
     }
   }
@@ -202,60 +697,46 @@ function collectMissingModernResources(
     }
 
     const layerRecord = layer as Record<string, unknown>;
-    const resourceType = readStringField(layerRecord, [
-      "resourceType",
-      "modelName",
-      "__type",
-    ]);
-    if (!resourceType?.includes("TileLayer")) {
+    if (isTileLayer(layerRecord)) {
+      const tilesetRef = readTilesetRef(layerRecord);
+      const tilesetPath = tilesetRef?.path
+        ? normalizeGameMakerPath(rootPath, tilesetRef.path)
+        : null;
+      if (!tilesetPath) {
+        throw new Error(
+          "GameMaker YY tile layer is missing a tileset reference.",
+        );
+      }
+
+      if (!getProvidedEntry(providedEntries, tilesetPath)) {
+        addMissingResource(
+          missingResources,
+          tilesetPath,
+          "json",
+          rootPath,
+          `Tileset resource: ${tilesetRef?.name ?? stripExtension(tilesetPath)}`,
+        );
+        continue;
+      }
+
+      const tilesetRecord = parseJsonEntry(providedEntries, tilesetPath);
+      collectMissingImageChain(
+        providedEntries,
+        missingResources,
+        tilesetPath,
+        tilesetRecord,
+        `Tileset image: ${tilesetRef?.name ?? stripExtension(tilesetPath)}`,
+      );
       continue;
     }
 
-    const tilesetId = layerRecord.tilesetId;
-    const tilesetPath =
-      tilesetId && typeof tilesetId === "object"
-        ? readStringField(tilesetId as Record<string, unknown>, ["path"])
-        : readStringField(layerRecord, ["tilesetPath"]);
-    const tilesetName =
-      tilesetId && typeof tilesetId === "object"
-        ? readStringField(tilesetId as Record<string, unknown>, ["name"])
-        : readStringField(layerRecord, ["tilesetName", "name"]);
-    const resolvedTilesetPath =
-      tilesetPath ??
-      (tilesetName ? `tilesets/${tilesetName}/${tilesetName}.yy` : null);
-
-    if (!resolvedTilesetPath) {
-      throw new Error(
-        "GameMaker YY tile layer is missing a tileset reference.",
-      );
-    }
-
-    if (!getProvidedEntry(providedEntries, resolvedTilesetPath)) {
-      addMissingResource(
+    if (isBackgroundLayer(layerRecord)) {
+      collectMissingImageChain(
+        providedEntries,
         missingResources,
-        resolvedTilesetPath,
-        "json",
         rootPath,
-        `Tileset resource: ${tilesetName ?? stripExtension(resolvedTilesetPath)}`,
-      );
-      continue;
-    }
-
-    const tilesetRecord = parseJsonEntry(providedEntries, resolvedTilesetPath);
-    const imagePath =
-      readStringField(tilesetRecord, [
-        "texturePath",
-        "imagePath",
-        "sourceImagePath",
-      ]) ??
-      `images/${stripExtension(resolvedTilesetPath).split("/").pop() ?? "tileset"}.png`;
-    if (!getProvidedEntry(providedEntries, imagePath)) {
-      addMissingResource(
-        missingResources,
-        imagePath,
-        "image",
-        resolvedTilesetPath,
-        `Tileset image: ${tilesetName ?? stripExtension(resolvedTilesetPath)}`,
+        layerRecord,
+        `Background image: ${readStringField(layerRecord, ["name"]) ?? "Background"}`,
       );
     }
   }
@@ -272,35 +753,38 @@ async function importLegacyRoom(
   const document = parseXmlDocument(
     decodeText(requireProvidedEntry(providedEntries, rootPath)),
   );
-  const tileElements = Array.from(document.querySelectorAll("tiles > tile"));
-  const legacyDescriptors = getLegacyTilesetDescriptors(document);
+  const tilesetDescriptors = getLegacyTilesetDescriptors(document);
+  const backgroundDescriptors = getLegacyBackgroundDescriptors(document);
+  const importedImages = new Map<string, ImportedImageRecord>();
+  const mapId = generateMapId();
+  const layers: TileLayer[] = [];
+  const imageLayers: ImageLayer[] = [];
+  const objectLayers: ObjectLayer[] = [];
+  const objects: MapObject[] = [];
+  const layerOrderEntries: Array<{ id: string; depth: number }> = [];
   const referencedTilesets = new Map<string, Tileset>();
+  let mapTileSize = Number(
+    document.querySelector("tilewidth")?.textContent ?? "0",
+  );
+  let maxCellX = 0;
+  let maxCellY = 0;
 
-  for (const tileElement of tileElements) {
-    const bgName = tileElement.getAttribute("bgName");
-    if (!bgName || referencedTilesets.has(bgName)) {
-      continue;
+  const ensureLegacyTileset = async (bgName: string) => {
+    const existing = referencedTilesets.get(bgName);
+    if (existing) {
+      return existing;
     }
 
-    const descriptor = legacyDescriptors.get(bgName);
-    const tileSize = Number(
-      descriptor?.tileSize ?? tileElement.getAttribute("w") ?? "0",
-    );
-    if (tileSize <= 0) {
-      throw new Error(
-        `Unable to resolve tile size for GameMaker tileset ${bgName}.`,
-      );
-    }
-
-    const imagePath =
-      tileElement.getAttribute("bgPath") ??
-      descriptor?.imagePath ??
-      `images/${bgName}.png`;
-    const importedImage = await importImageAsset(
+    const descriptor = tilesetDescriptors.get(bgName);
+    const imagePath = descriptor?.imagePath ?? `images/${bgName}.png`;
+    const importedImage = await ensureImportedImage(
       imagePath,
-      requireProvidedEntry(providedEntries, imagePath),
+      providedEntries,
+      importedImages,
     );
-    referencedTilesets.set(bgName, {
+    const tileSize =
+      descriptor?.tileSize ?? mapTileSize ?? DEFAULT_GAMEMAKER_TILE_SIZE;
+    const tileset: Tileset = {
       id: generateTilesetId(),
       name: bgName,
       groupId: "gamemaker-import" as Tileset["groupId"],
@@ -309,9 +793,13 @@ async function importLegacyRoom(
       imageWidth: importedImage.width,
       imageHeight: importedImage.height,
       createdAt: Date.now(),
-    });
-  }
+    };
+    referencedTilesets.set(bgName, tileset);
+    mapTileSize = tileset.tileSize;
+    return tileset;
+  };
 
+  const tileElements = Array.from(document.querySelectorAll("tiles > tile"));
   const layersByDepth = new Map<number, Element[]>();
   for (const tileElement of tileElements) {
     const depth = Number(tileElement.getAttribute("depth") ?? "0");
@@ -320,17 +808,9 @@ async function importLegacyRoom(
     layersByDepth.set(depth, bucket);
   }
 
-  const orderedDepths = [...layersByDepth.keys()].sort(
-    (left, right) => right - left,
-  );
-  const layers: TileLayer[] = [];
-  const layerOrder: TileMapData["layerOrder"] = [];
-  let maxCellX = 0;
-  let maxCellY = 0;
-  let mapTileSize: TileSize | null = null;
-
-  orderedDepths.forEach((depth, index) => {
-    const entries = layersByDepth.get(depth) ?? [];
+  for (const [depth, entries] of [...layersByDepth.entries()].sort(
+    (left, right) => right[0] - left[0],
+  )) {
     const layerId = generateLayerId();
     const tiles: TileLayer["tiles"] = {};
 
@@ -340,22 +820,13 @@ async function importLegacyRoom(
         continue;
       }
 
-      const tileset = referencedTilesets.get(bgName);
-      if (!tileset) {
-        continue;
-      }
-
-      mapTileSize ??= tileset.tileSize;
-      if (mapTileSize !== tileset.tileSize) {
-        throw new Error(
-          "GameMaker import requires all tilesets to use the same tile size.",
-        );
-      }
-
-      const x = Number(tileElement.getAttribute("x") ?? "0");
-      const y = Number(tileElement.getAttribute("y") ?? "0");
-      const cellX = Math.round(x / tileset.tileSize);
-      const cellY = Math.round(y / tileset.tileSize);
+      const tileset = await ensureLegacyTileset(bgName);
+      const cellX = Math.round(
+        Number(tileElement.getAttribute("x") ?? "0") / tileset.tileSize,
+      );
+      const cellY = Math.round(
+        Number(tileElement.getAttribute("y") ?? "0") / tileset.tileSize,
+      );
       maxCellX = Math.max(maxCellX, cellX);
       maxCellY = Math.max(maxCellY, cellY);
       tiles[`${cellX},${cellY}`] = {
@@ -369,17 +840,134 @@ async function importLegacyRoom(
 
     layers.push({
       id: layerId,
-      mapId: "gamemaker-import" as TileMapData["id"],
-      name: entries[0]?.getAttribute("name") ?? `Tiles ${index + 1}`,
+      mapId,
+      name: entries[0]?.getAttribute("name") ?? "Tiles",
       visible: true,
       locked: false,
       tiles,
     });
-    layerOrder.push(layerId);
-  });
+    layerOrderEntries.push({ id: layerId, depth });
+  }
 
-  if (!mapTileSize) {
-    throw new Error("GameMaker room does not contain any tiles.");
+  for (const backgroundElement of Array.from(
+    document.querySelectorAll("backgrounds > background"),
+  )) {
+    const backgroundName =
+      backgroundElement.getAttribute("backgroundName") ??
+      backgroundElement.getAttribute("name") ??
+      "Background";
+    const imagePath =
+      backgroundElement.getAttribute("backgroundPath") ??
+      backgroundDescriptors.get(backgroundName)?.imagePath ??
+      `images/${backgroundName}.png`;
+    const importedImage = await ensureImportedImage(
+      imagePath,
+      providedEntries,
+      importedImages,
+    );
+    const layerId = generateLayerId();
+    imageLayers.push({
+      id: layerId,
+      mapId,
+      name: backgroundElement.getAttribute("name") ?? backgroundName,
+      type: "image",
+      visible: backgroundElement.getAttribute("visible") !== "0",
+      locked: false,
+      assetId: importedImage.assetId,
+      x: Number(backgroundElement.getAttribute("x") ?? "0"),
+      y: Number(backgroundElement.getAttribute("y") ?? "0"),
+      width:
+        Number(backgroundElement.getAttribute("w") ?? "0") ||
+        importedImage.width,
+      height:
+        Number(backgroundElement.getAttribute("h") ?? "0") ||
+        importedImage.height,
+      opacity: 100,
+    });
+    layerOrderEntries.push({
+      id: layerId,
+      depth: Number(backgroundElement.getAttribute("depth") ?? "0"),
+    });
+  }
+
+  const instancesByDepth = new Map<number, Element[]>();
+  for (const instanceElement of Array.from(
+    document.querySelectorAll("instances > instance"),
+  )) {
+    const depth = Number(instanceElement.getAttribute("depth") ?? "0");
+    const bucket = instancesByDepth.get(depth) ?? [];
+    bucket.push(instanceElement);
+    instancesByDepth.set(depth, bucket);
+  }
+
+  for (const [depth, entries] of [...instancesByDepth.entries()].sort(
+    (left, right) => right[0] - left[0],
+  )) {
+    const layerId = generateLayerId();
+    const objectOrder: ObjectLayer["objectOrder"] = [];
+
+    for (const instanceElement of entries) {
+      const objectId = generateObjectId();
+      objectOrder.push(objectId);
+      objects.push({
+        id: objectId,
+        layerId,
+        name: instanceElement.getAttribute("name") ?? "Instance",
+        type: "point",
+        x: Number(instanceElement.getAttribute("x") ?? "0"),
+        y: Number(instanceElement.getAttribute("y") ?? "0"),
+        width: 0,
+        height: 0,
+        rotation: Number(instanceElement.getAttribute("rotation") ?? "0"),
+        points: [],
+        visible: instanceElement.getAttribute("visible") !== "0",
+        locked: false,
+        properties: {
+          [GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY]: createProperty(
+            instanceElement.getAttribute("objName") ??
+              instanceElement.getAttribute("name") ??
+              "Instance",
+            "string",
+          ),
+          [GAMEMAKER_INSTANCE_SCALE_X_PROPERTY_KEY]: createProperty(
+            String(Number(instanceElement.getAttribute("scaleX") ?? "1")),
+            "float",
+          ),
+          [GAMEMAKER_INSTANCE_SCALE_Y_PROPERTY_KEY]: createProperty(
+            String(Number(instanceElement.getAttribute("scaleY") ?? "1")),
+            "float",
+          ),
+          ...(instanceElement.getAttribute("objPath")
+            ? {
+                [GAMEMAKER_INSTANCE_OBJECT_PATH_PROPERTY_KEY]: createProperty(
+                  instanceElement.getAttribute("objPath") ?? "",
+                  "file",
+                ),
+              }
+            : {}),
+          ...(instanceElement.getAttribute("code")
+            ? {
+                [GAMEMAKER_INSTANCE_CREATION_CODE_PATH_PROPERTY_KEY]:
+                  createProperty(
+                    instanceElement.getAttribute("code") ?? "",
+                    "file",
+                  ),
+              }
+            : {}),
+        },
+      });
+    }
+
+    objectLayers.push({
+      id: layerId,
+      mapId,
+      name: entries[0]?.getAttribute("layerName") ?? `Instances ${depth}`,
+      type: "object",
+      visible: true,
+      locked: false,
+      objectOrder,
+    });
+    layerOrderEntries.push({ id: layerId, depth });
   }
 
   const widthPixels = Number(
@@ -388,11 +976,18 @@ async function importLegacyRoom(
   const heightPixels = Number(
     document.querySelector("height")?.textContent ?? "0",
   );
-  const widthInTiles =
-    widthPixels > 0 ? Math.ceil(widthPixels / mapTileSize) : maxCellX + 1;
-  const heightInTiles =
-    heightPixels > 0 ? Math.ceil(heightPixels / mapTileSize) : maxCellY + 1;
-  const mapId = generateMapId();
+  const tileSize = toTileSize(mapTileSize || DEFAULT_GAMEMAKER_TILE_SIZE);
+  const roomMetadata = buildRoomMetadataProperties(
+    {
+      caption: document.querySelector("caption")?.textContent ?? undefined,
+      speed: document.querySelector("speed")?.textContent ?? undefined,
+      creationCodeFile:
+        document.querySelector("creationCodeFile")?.textContent ?? undefined,
+    },
+    {
+      persistent: document.querySelector("persistent")?.textContent ?? "0",
+    },
+  );
 
   return {
     map: {
@@ -401,18 +996,27 @@ async function importLegacyRoom(
         document.querySelector("name")?.textContent || stripExtension(rootPath),
       groupId: "gamemaker-import" as TileMapData["groupId"],
       orientation: "orthogonal",
-      widthInTiles,
-      heightInTiles,
-      tileSize: mapTileSize,
-      layerOrder,
+      widthInTiles:
+        widthPixels > 0
+          ? Math.ceil(widthPixels / tileSize)
+          : Math.max(1, maxCellX + 1),
+      heightInTiles:
+        heightPixels > 0
+          ? Math.ceil(heightPixels / tileSize)
+          : Math.max(1, maxCellY + 1),
+      tileSize,
+      properties: roomMetadata,
+      layerOrder: layerOrderEntries
+        .sort((left, right) => right.depth - left.depth)
+        .map((entry) => entry.id as TileMapData["layerOrder"][number]),
       createdAt: Date.now(),
     },
-    layers: layers.map((layer) => ({ ...layer, mapId })),
+    layers,
     tilesets: [...referencedTilesets.values()],
-    imageLayers: [],
+    imageLayers,
     layerGroups: [],
-    objectLayers: [],
-    objects: [],
+    objectLayers,
+    objects,
   };
 }
 
@@ -432,15 +1036,17 @@ function parseModernTilesetDescriptor(
     throw new Error(`Unsupported GameMaker tileset dimensions for ${name}.`);
   }
 
+  const imagePath = resolveImagePathFromRecord(providedEntries, path, record);
+  if (!imagePath) {
+    throw new Error(
+      `GameMaker tileset ${name} does not resolve to an image asset.`,
+    );
+  }
+
   return {
     path,
     name,
-    imagePath:
-      readStringField(record, [
-        "texturePath",
-        "imagePath",
-        "sourceImagePath",
-      ]) ?? `images/${stripExtension(path).split("/").pop() ?? name}.png`,
+    imagePath,
     tileSize,
     tileXOffset: readNumberField(record, ["tilexoff", "tileXOffset"]),
     tileYOffset: readNumberField(record, ["tileyoff", "tileYOffset"]),
@@ -458,184 +1064,296 @@ async function importModernRoom(
 ): Promise<GameMakerMapImportResult> {
   const room = parseJsonEntry(providedEntries, rootPath);
   const layersInput = Array.isArray(room.layers) ? room.layers : [];
-  const tileLayersInput = layersInput.filter(
-    (layer): layer is Record<string, unknown> =>
-      Boolean(
-        layer &&
-        typeof layer === "object" &&
-        readStringField(layer as Record<string, unknown>, [
-          "resourceType",
-          "modelName",
-          "__type",
-        ])?.includes("TileLayer"),
-      ),
-  );
-  if (tileLayersInput.length === 0) {
-    throw new Error("GameMaker YY room does not contain any tile layers.");
-  }
-
-  const tilesetDescriptors = new Map<string, ModernTilesetDescriptor>();
-  const tilesetsByPath = new Map<string, Tileset>();
-  let mapTileSize: TileSize | null = null;
-
-  for (const layer of tileLayersInput) {
-    const tilesetId = layer.tilesetId;
-    const tilesetPath =
-      tilesetId && typeof tilesetId === "object"
-        ? readStringField(tilesetId as Record<string, unknown>, ["path"])
-        : readStringField(layer, ["tilesetPath"]);
-    const tilesetName =
-      tilesetId && typeof tilesetId === "object"
-        ? readStringField(tilesetId as Record<string, unknown>, ["name"])
-        : readStringField(layer, ["tilesetName", "name"]);
-    const resolvedTilesetPath =
-      tilesetPath ??
-      (tilesetName ? `tilesets/${tilesetName}/${tilesetName}.yy` : null);
-    if (!resolvedTilesetPath) {
-      throw new Error(
-        "GameMaker YY tile layer is missing a tileset reference.",
-      );
-    }
-
-    if (!tilesetDescriptors.has(resolvedTilesetPath)) {
-      const descriptor = parseModernTilesetDescriptor(
-        providedEntries,
-        resolvedTilesetPath,
-      );
-      const importedImage = await importImageAsset(
-        descriptor.imagePath,
-        requireProvidedEntry(providedEntries, descriptor.imagePath),
-      );
-      const tileSize = toTileSize(descriptor.tileSize);
-      mapTileSize ??= tileSize;
-      if (mapTileSize !== tileSize) {
-        throw new Error(
-          "GameMaker import requires all tilesets to use the same tile size.",
-        );
-      }
-
-      tilesetDescriptors.set(resolvedTilesetPath, descriptor);
-      tilesetsByPath.set(resolvedTilesetPath, {
-        id: generateTilesetId(),
-        name: descriptor.name,
-        groupId: "gamemaker-import" as Tileset["groupId"],
-        tileSize,
-        assetId: importedImage.assetId,
-        imageWidth: importedImage.width,
-        imageHeight: importedImage.height,
-        createdAt: Date.now(),
-      });
-    }
-  }
-
-  if (!mapTileSize) {
-    throw new Error("GameMaker YY room does not contain usable tileset data.");
-  }
-
-  const mapId = generateMapId();
-  const layers: TileLayer[] = [];
-  const layerOrder: TileMapData["layerOrder"] = [];
-  let widthInTiles = 0;
-  let heightInTiles = 0;
-
-  tileLayersInput.forEach((layer, index) => {
-    const tilesetIdValue = layer.tilesetId;
-    const tilesetPath =
-      tilesetIdValue && typeof tilesetIdValue === "object"
-        ? readStringField(tilesetIdValue as Record<string, unknown>, ["path"])
-        : readStringField(layer, ["tilesetPath"]);
-    const tilesetName =
-      tilesetIdValue && typeof tilesetIdValue === "object"
-        ? readStringField(tilesetIdValue as Record<string, unknown>, ["name"])
-        : readStringField(layer, ["tilesetName", "name"]);
-    const resolvedTilesetPath =
-      tilesetPath ??
-      (tilesetName ? `tilesets/${tilesetName}/${tilesetName}.yy` : null);
-    if (!resolvedTilesetPath) {
-      return;
-    }
-
-    const descriptor = tilesetDescriptors.get(resolvedTilesetPath);
-    const tileset = tilesetsByPath.get(resolvedTilesetPath);
-    if (!descriptor || !tileset) {
-      return;
-    }
-
-    const tilesRecord = layer.tiles;
-    const tileData =
-      tilesRecord && typeof tilesRecord === "object"
-        ? (tilesRecord as Record<string, unknown>)
-        : {};
-    const serialisedWidth = readNumberField(
-      tileData,
-      ["SerialiseWidth", "serialiseWidth", "width"],
-      0,
-    );
-    const serialisedHeight = readNumberField(
-      tileData,
-      ["SerialiseHeight", "serialiseHeight", "height"],
-      0,
-    );
-    const denseTiles = Array.isArray(tileData.TileSerialiseData)
-      ? tileData.TileSerialiseData
-      : Array.isArray(tileData.tileSerialiseData)
-        ? tileData.tileSerialiseData
-        : [];
-    widthInTiles = Math.max(widthInTiles, serialisedWidth);
-    heightInTiles = Math.max(heightInTiles, serialisedHeight);
-
-    const tiles: TileLayer["tiles"] = {};
-    denseTiles.forEach((value, tileIndex) => {
-      const numericValue = Number(value);
-      if (!Number.isFinite(numericValue) || numericValue < 0) {
-        return;
-      }
-
-      const cellX = tileIndex % serialisedWidth;
-      const cellY = Math.floor(tileIndex / serialisedWidth);
-      tiles[`${cellX},${cellY}`] = {
-        tilesetId: tileset.id,
-        sx:
-          descriptor.tileXOffset +
-          (numericValue % descriptor.outColumns) *
-            (descriptor.tileSize + descriptor.tileSeparation),
-        sy:
-          descriptor.tileYOffset +
-          Math.floor(numericValue / descriptor.outColumns) *
-            (descriptor.tileSize + descriptor.tileSeparation),
-        sw: descriptor.tileSize,
-        sh: descriptor.tileSize,
-      };
-    });
-
-    const layerId = generateLayerId();
-    layers.push({
-      id: layerId,
-      mapId,
-      name: readStringField(layer, ["name"]) ?? `Tiles ${index + 1}`,
-      visible: layer.visible !== false,
-      locked: false,
-      tiles,
-    });
-    layerOrder.push(layerId);
-  });
-
   const roomSettings =
     room.roomSettings && typeof room.roomSettings === "object"
       ? (room.roomSettings as Record<string, unknown>)
       : {};
-  const roomWidthPixels = readNumberField(roomSettings, ["Width", "width"]);
-  const roomHeightPixels = readNumberField(roomSettings, ["Height", "height"]);
+  const importedImages = new Map<string, ImportedImageRecord>();
+  const tilesetDescriptors = new Map<string, ModernTilesetDescriptor>();
+  const tilesetsByPath = new Map<string, Tileset>();
+  const mapId = generateMapId();
+  const layers: TileLayer[] = [];
+  const imageLayers: ImageLayer[] = [];
+  const objectLayers: ObjectLayer[] = [];
+  const objects: MapObject[] = [];
+  const layerOrder: TileMapData["layerOrder"] = [];
+  let inferredTileSize: TileSize | null = null;
+  let widthInTiles = 0;
+  let heightInTiles = 0;
+
+  const ensureTileset = async (tilesetPath: string) => {
+    const existing = tilesetsByPath.get(tilesetPath);
+    if (existing) {
+      return existing;
+    }
+
+    const descriptor = parseModernTilesetDescriptor(
+      providedEntries,
+      tilesetPath,
+    );
+    const importedImage = await ensureImportedImage(
+      descriptor.imagePath,
+      providedEntries,
+      importedImages,
+    );
+    const tileSize = toTileSize(descriptor.tileSize);
+    inferredTileSize ??= tileSize;
+    if (inferredTileSize !== tileSize) {
+      throw new Error(
+        "GameMaker import requires all tilesets to use the same tile size.",
+      );
+    }
+
+    const outColumns =
+      descriptor.outColumns > 0
+        ? descriptor.outColumns
+        : Math.max(1, Math.floor(importedImage.width / descriptor.tileSize));
+    const normalizedDescriptor = {
+      ...descriptor,
+      outColumns,
+    } satisfies ModernTilesetDescriptor;
+    tilesetDescriptors.set(tilesetPath, normalizedDescriptor);
+
+    const tileset: Tileset = {
+      id: generateTilesetId(),
+      name: normalizedDescriptor.name,
+      groupId: "gamemaker-import" as Tileset["groupId"],
+      tileSize,
+      assetId: importedImage.assetId,
+      imageWidth: importedImage.width,
+      imageHeight: importedImage.height,
+      createdAt: Date.now(),
+    };
+    tilesetsByPath.set(tilesetPath, tileset);
+    return tileset;
+  };
+
+  for (const layer of layersInput) {
+    if (!layer || typeof layer !== "object") {
+      continue;
+    }
+
+    const layerRecord = layer as Record<string, unknown>;
+    const layerName = readStringField(layerRecord, ["name"]) ?? "Layer";
+
+    if (isTileLayer(layerRecord)) {
+      const tilesetRef = readTilesetRef(layerRecord);
+      const tilesetPath = tilesetRef?.path
+        ? normalizeGameMakerPath(rootPath, tilesetRef.path)
+        : null;
+      if (!tilesetPath) {
+        throw new Error(
+          "GameMaker YY tile layer is missing a tileset reference.",
+        );
+      }
+
+      const tileset = await ensureTileset(tilesetPath);
+      const descriptor = tilesetDescriptors.get(tilesetPath);
+      if (!descriptor) {
+        continue;
+      }
+
+      const tilesRecord =
+        layerRecord.tiles && typeof layerRecord.tiles === "object"
+          ? (layerRecord.tiles as Record<string, unknown>)
+          : layerRecord;
+      const tileData = parseModernTileData(tilesRecord);
+      widthInTiles = Math.max(widthInTiles, tileData.width);
+      heightInTiles = Math.max(heightInTiles, tileData.height);
+
+      const tiles: TileLayer["tiles"] = {};
+      for (const cell of tileData.cells) {
+        tiles[`${cell.x},${cell.y}`] = {
+          tilesetId: tileset.id,
+          sx:
+            descriptor.tileXOffset +
+            (cell.value % descriptor.outColumns) *
+              (descriptor.tileSize + descriptor.tileSeparation),
+          sy:
+            descriptor.tileYOffset +
+            Math.floor(cell.value / descriptor.outColumns) *
+              (descriptor.tileSize + descriptor.tileSeparation),
+          sw: descriptor.tileSize,
+          sh: descriptor.tileSize,
+        };
+      }
+
+      const layerId = generateLayerId();
+      layers.push({
+        id: layerId,
+        mapId,
+        name: layerName,
+        visible: readBooleanField(layerRecord, ["visible"], true),
+        locked: false,
+        tiles,
+      });
+      layerOrder.push(layerId);
+      continue;
+    }
+
+    if (isBackgroundLayer(layerRecord)) {
+      const imagePath = resolveImagePathFromRecord(
+        providedEntries,
+        rootPath,
+        layerRecord,
+      );
+      if (!imagePath) {
+        continue;
+      }
+
+      const importedImage = await ensureImportedImage(
+        imagePath,
+        providedEntries,
+        importedImages,
+      );
+      const roomWidthPixels = readNumberField(
+        roomSettings,
+        ["Width", "width"],
+        0,
+      );
+      const roomHeightPixels = readNumberField(
+        roomSettings,
+        ["Height", "height"],
+        0,
+      );
+      const stretch = readBooleanField(layerRecord, ["stretch"], false);
+      const scaleX = readNumberField(layerRecord, ["scaleX"], 1);
+      const scaleY = readNumberField(layerRecord, ["scaleY"], 1);
+      const colorValue = readNumberField(
+        layerRecord,
+        ["colour", "color"],
+        0xffffffff,
+      );
+      const alpha = Math.max(
+        0,
+        Math.min(255, Math.floor(colorValue / 0x1000000)),
+      );
+      const layerId = generateLayerId();
+      imageLayers.push({
+        id: layerId,
+        mapId,
+        name: layerName,
+        type: "image",
+        visible: readBooleanField(layerRecord, ["visible"], true),
+        locked: false,
+        assetId: importedImage.assetId,
+        x: readNumberField(layerRecord, ["x"], 0),
+        y: readNumberField(layerRecord, ["y"], 0),
+        width: stretch
+          ? roomWidthPixels || importedImage.width
+          : Math.max(1, Math.round(importedImage.width * scaleX)),
+        height: stretch
+          ? roomHeightPixels || importedImage.height
+          : Math.max(1, Math.round(importedImage.height * scaleY)),
+        opacity: Math.round((alpha / 255) * 100),
+      });
+      layerOrder.push(layerId);
+      continue;
+    }
+
+    if (isInstanceLayer(layerRecord)) {
+      const instances = Array.isArray(layerRecord.instances)
+        ? layerRecord.instances
+        : Array.isArray(layerRecord.instancesData)
+          ? layerRecord.instancesData
+          : [];
+      const layerId = generateLayerId();
+      const objectOrder: ObjectLayer["objectOrder"] = [];
+
+      for (const instance of instances) {
+        if (!instance || typeof instance !== "object") {
+          continue;
+        }
+
+        const instanceRecord = instance as Record<string, unknown>;
+        const creationCodePath = readStringField(instanceRecord, [
+          "creationCodeFile",
+          "code",
+        ]);
+        const objectId = generateObjectId();
+        const objectRef = readObjectRef(instanceRecord);
+        objectOrder.push(objectId);
+        objects.push({
+          id: objectId,
+          layerId,
+          name:
+            readStringField(instanceRecord, ["name"]) ??
+            objectRef?.name ??
+            "Instance",
+          type: "point",
+          x: readNumberField(instanceRecord, ["x"], 0),
+          y: readNumberField(instanceRecord, ["y"], 0),
+          width: 0,
+          height: 0,
+          rotation: readNumberField(
+            instanceRecord,
+            ["rotation", "imageAngle"],
+            0,
+          ),
+          points: [],
+          visible: readBooleanField(instanceRecord, ["visible"], true),
+          locked: false,
+          properties: {
+            [GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY]: createProperty(
+              objectRef?.name ?? "Instance",
+              "string",
+            ),
+            [GAMEMAKER_INSTANCE_SCALE_X_PROPERTY_KEY]: createProperty(
+              String(readNumberField(instanceRecord, ["scaleX"], 1)),
+              "float",
+            ),
+            [GAMEMAKER_INSTANCE_SCALE_Y_PROPERTY_KEY]: createProperty(
+              String(readNumberField(instanceRecord, ["scaleY"], 1)),
+              "float",
+            ),
+            ...(objectRef?.path
+              ? {
+                  [GAMEMAKER_INSTANCE_OBJECT_PATH_PROPERTY_KEY]: createProperty(
+                    normalizeGameMakerPath(rootPath, objectRef.path),
+                    "file",
+                  ),
+                }
+              : {}),
+            ...(creationCodePath
+              ? {
+                  [GAMEMAKER_INSTANCE_CREATION_CODE_PATH_PROPERTY_KEY]:
+                    createProperty(creationCodePath, "file"),
+                }
+              : {}),
+          },
+        });
+      }
+
+      objectLayers.push({
+        id: layerId,
+        mapId,
+        name: layerName,
+        type: "object",
+        visible: readBooleanField(layerRecord, ["visible"], true),
+        locked: false,
+        objectOrder,
+      });
+      layerOrder.push(layerId);
+    }
+  }
+
+  const roomWidthPixels = readNumberField(roomSettings, ["Width", "width"], 0);
+  const roomHeightPixels = readNumberField(
+    roomSettings,
+    ["Height", "height"],
+    0,
+  );
+  const tileSize = inferredTileSize ?? DEFAULT_GAMEMAKER_TILE_SIZE;
   if (roomWidthPixels > 0) {
     widthInTiles = Math.max(
       widthInTiles,
-      Math.ceil(roomWidthPixels / mapTileSize),
+      Math.ceil(roomWidthPixels / tileSize),
     );
   }
   if (roomHeightPixels > 0) {
     heightInTiles = Math.max(
       heightInTiles,
-      Math.ceil(roomHeightPixels / mapTileSize),
+      Math.ceil(roomHeightPixels / tileSize),
     );
   }
 
@@ -645,18 +1363,19 @@ async function importModernRoom(
       name: readStringField(room, ["name"]) ?? stripExtension(rootPath),
       groupId: "gamemaker-import" as TileMapData["groupId"],
       orientation: "orthogonal",
-      widthInTiles,
-      heightInTiles,
-      tileSize: mapTileSize,
+      widthInTiles: Math.max(1, widthInTiles),
+      heightInTiles: Math.max(1, heightInTiles),
+      tileSize,
+      properties: buildRoomMetadataProperties(room, roomSettings),
       layerOrder,
       createdAt: Date.now(),
     },
     layers,
     tilesets: [...tilesetsByPath.values()],
-    imageLayers: [],
+    imageLayers,
     layerGroups: [],
-    objectLayers: [],
-    objects: [],
+    objectLayers,
+    objects,
   };
 }
 
