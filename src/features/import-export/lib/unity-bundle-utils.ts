@@ -5,6 +5,8 @@ export const UNITY_PREFAB_IMPORT_ACCEPT =
   ".prefab,text/plain,application/octet-stream";
 export const UNITY_BUNDLE_MANIFEST_SUFFIX = ".2dtiler-unity.json";
 export const UNITY_TILE_SCRIPT_GUID = "2ec8746730cd2434685714e6b22c0697";
+export const UNITY_LAYER_EXPORT_ID_PREFIX = " [2DTILER:";
+export const UNITY_TILE_SIZE_USER_DATA_PREFIX = "2dtiler-tile-size=";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -59,6 +61,13 @@ export function buildUnityGenericMetaFile(guid: string) {
 }
 
 export function buildUnityTextureMetaFile(guid: string) {
+  return buildUnityTextureMetaFileWithUserData(guid);
+}
+
+export function buildUnityTextureMetaFileWithUserData(
+  guid: string,
+  userData?: string,
+) {
   return [
     "fileFormatVersion: 2",
     `guid: ${guid}`,
@@ -78,11 +87,22 @@ export function buildUnityTextureMetaFile(guid: string) {
     "    wrapW: 1",
     "  spriteMode: 1",
     "  spritePixelsToUnits: 100",
+    `  userData: ${userData ?? ""}`,
     "  spriteSheet:",
     "    serializedVersion: 2",
     "    sprites: []",
     "",
   ].join("\n");
+}
+
+export function buildUnityTilesetTextureMetaFile(
+  guid: string,
+  tileSize: number,
+) {
+  return buildUnityTextureMetaFileWithUserData(
+    guid,
+    `${UNITY_TILE_SIZE_USER_DATA_PREFIX}${tileSize}`,
+  );
 }
 
 export function buildUnityTileAssetFile(tileName: string, textureGuid: string) {
@@ -130,6 +150,61 @@ export function getUnityTileKey(
   ref: Pick<TileRef, "tilesetId" | "sx" | "sy" | "sw" | "sh">,
 ) {
   return `${ref.tilesetId}:${ref.sx}:${ref.sy}:${ref.sw}:${ref.sh}`;
+}
+
+export function buildUnityLayerExportName(name: string, exportId: string) {
+  return `${name}${UNITY_LAYER_EXPORT_ID_PREFIX}${exportId}]`;
+}
+
+export function parseUnityLayerExportName(value: string) {
+  const markerIndex = value.lastIndexOf(UNITY_LAYER_EXPORT_ID_PREFIX);
+  if (markerIndex === -1 || !value.endsWith("]")) {
+    return {
+      name: value,
+    };
+  }
+
+  const exportId = value.slice(
+    markerIndex + UNITY_LAYER_EXPORT_ID_PREFIX.length,
+    -1,
+  );
+  if (exportId.length === 0) {
+    return {
+      name: value,
+    };
+  }
+
+  return {
+    name: value.slice(0, markerIndex),
+    exportId,
+  };
+}
+
+export function parseUnityMetaGuid(data: Uint8Array | string) {
+  const text = typeof data === "string" ? data : decoder.decode(data);
+  const match = text.match(/^guid: ([0-9a-f]{32})$/im);
+  return match?.[1] ?? null;
+}
+
+export function parseUnityTileAssetTextureGuid(data: Uint8Array | string) {
+  const text = typeof data === "string" ? data : decoder.decode(data);
+  const match = text.match(
+    /^\s*m_Sprite: \{fileID: -?\d+, guid: ([0-9a-f]{32}), type: \d+\}$/im,
+  );
+  return match?.[1] ?? null;
+}
+
+export function parseUnityTextureMetaTileSize(data: Uint8Array | string) {
+  const text = typeof data === "string" ? data : decoder.decode(data);
+  const match = text.match(
+    new RegExp(`${UNITY_TILE_SIZE_USER_DATA_PREFIX}(\\d+)`),
+  );
+  if (!match) {
+    return null;
+  }
+
+  const tileSize = Number(match[1]);
+  return Number.isFinite(tileSize) && tileSize > 0 ? tileSize : null;
 }
 
 function normalizeMatrixValue(value: number) {

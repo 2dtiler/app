@@ -1,5 +1,6 @@
+Add phaser.js support
+Remove godot tileset export
 Add deeper Unity/Godot import/export functionality
-Add import/export Phaser
 
 Export Options
   - Do the rest of the options

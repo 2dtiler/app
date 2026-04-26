@@ -1,6 +1,7 @@
 import {
   buildUnityTileMatrix,
   encodeUnityTextFile,
+  parseUnityLayerExportName,
 } from "@/features/import-export/lib/unity-bundle-utils";
 import type { TileRef } from "@/types";
 
@@ -44,6 +45,7 @@ export interface UnityParsedPrefabTile {
 
 export interface UnityParsedPrefabLayer {
   name: string;
+  exportId?: string;
   visible: boolean;
   widthInTiles: number;
   heightInTiles: number;
@@ -487,16 +489,22 @@ export function parseUnityPrefabTilemap(data: Uint8Array | string) {
   return {
     widthInTiles,
     heightInTiles,
-    layers: orderedTilemaps.map((tilemap) => ({
-      name:
+    layers: orderedTilemaps.map((tilemap) => {
+      const parsedName = parseUnityLayerExportName(
         gameObjectsByFileId.get(tilemap.gameObjectId)?.name ??
-        `Layer ${tilemap.fileId}`,
-      visible: gameObjectsByFileId.get(tilemap.gameObjectId)?.active ?? true,
-      widthInTiles: tilemap.widthInTiles,
-      heightInTiles: tilemap.heightInTiles,
-      tileAssetGuids: tilemap.tileAssetGuids,
-      tiles: tilemap.tiles,
-    })),
+          `Layer ${tilemap.fileId}`,
+      );
+
+      return {
+        name: parsedName.name,
+        exportId: parsedName.exportId,
+        visible: gameObjectsByFileId.get(tilemap.gameObjectId)?.active ?? true,
+        widthInTiles: tilemap.widthInTiles,
+        heightInTiles: tilemap.heightInTiles,
+        tileAssetGuids: tilemap.tileAssetGuids,
+        tiles: tilemap.tiles,
+      };
+    }),
   } satisfies UnityParsedPrefab;
 }
 

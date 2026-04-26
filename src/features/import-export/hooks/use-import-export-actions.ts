@@ -51,11 +51,16 @@ import {
   exportSelectedUnityMaps,
   isUnityMapOption,
 } from "@/features/import-export/lib/unity-map-action-utils";
+import {
+  exportSelectedUnityTilesets,
+  isUnityTilesetOption,
+} from "@/features/import-export/lib/unity-tileset-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
 import { useTiledMapImport } from "@/features/import-export/hooks/use-tiled-map-import";
 import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
+import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
@@ -362,6 +367,14 @@ export function useImportExportActions({
   );
   const { handleImportUnityMap, unityMissingResourcesDialogProps } =
     useUnityMapImport(Boolean(state.project), handleImportedMapResolved);
+  const {
+    handleImportUnityTileset,
+    unityMissingResourcesDialogProps:
+      unityTilesetMissingResourcesDialogProps,
+  } = useUnityTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
   const handleImportNativeMap = useCallback(async () => {
     if (!state.project) return;
 
@@ -689,6 +702,11 @@ export function useImportExportActions({
         return;
       }
 
+      if (isUnityTilesetOption(optionId)) {
+        await handleImportUnityTileset();
+        return;
+      }
+
       await handleImportNativeTileset();
     },
     [
@@ -696,6 +714,7 @@ export function useImportExportActions({
       handleImportNativeTileset,
       handleImportRasterTileset,
       handleImportTiledTileset,
+      handleImportUnityTileset,
     ],
   );
 
@@ -776,6 +795,11 @@ export function useImportExportActions({
         return;
       }
 
+      if (isUnityTilesetOption(optionId)) {
+        await exportSelectedUnityTilesets(state.project, selectedIds, optionId);
+        return;
+      }
+
       await handleExportNativeTilesets(selectedIds);
     },
     [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
@@ -790,6 +814,11 @@ export function useImportExportActions({
     godotTilesetMissingResourcesDialogProps.open
       ? godotTilesetMissingResourcesDialogProps
       : godotMissingResourcesDialogProps;
+
+  const mergedUnityMissingResourcesDialogProps =
+    unityTilesetMissingResourcesDialogProps.open
+      ? unityTilesetMissingResourcesDialogProps
+      : unityMissingResourcesDialogProps;
 
   const mapExportGroups = useMemo(
     () =>
@@ -920,6 +949,6 @@ export function useImportExportActions({
     tilesetAction,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
-    unityMissingResourcesDialogProps,
+    unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,
   };
 }

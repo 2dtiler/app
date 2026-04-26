@@ -197,6 +197,7 @@ export interface UnityBundleManifestCell {
 }
 
 export interface UnityBundleManifestLayer {
+  exportId?: string;
   name: string;
   visible: boolean;
   locked: boolean;
@@ -217,6 +218,8 @@ export type LinkedImportResourceKind =
   | "lua"
   | "image"
   | "json"
+  | "asset"
+  | "meta"
   | "tscn"
   | "tres"
   | "res";
@@ -242,7 +245,7 @@ export interface GodotImportMissingResource extends LinkedImportMissingResource 
 }
 
 export interface UnityImportMissingResource extends LinkedImportMissingResource {
-  kind: Extract<LinkedImportResourceKind, "image" | "json">;
+  kind: Extract<LinkedImportResourceKind, "image" | "json" | "asset" | "meta">;
 }
 
 export type GodotImportWarningCode =
@@ -379,14 +382,36 @@ export interface PendingUnityMapImportState {
   resourceFilesByPath: Record<string, File>;
 }
 
+export interface UnityTilesetImportPendingResult {
+  status: "missing-resources";
+  rootPath: string;
+  missingResources: UnityImportMissingResource[];
+}
+
+export interface PendingUnityTilesetImportState {
+  rootPath: string;
+  rootData: Uint8Array;
+  missingResources: UnityImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
 export interface UnityMapImportReadyResult {
   status: "ready";
   result: UnityMapImportResult;
 }
 
+export interface UnityTilesetImportReadyResult {
+  status: "ready";
+  result: Tileset[];
+}
+
 export type UnityMapImportPreparationResult =
   | UnityMapImportPendingResult
   | UnityMapImportReadyResult;
+
+export type UnityTilesetImportPreparationResult =
+  | UnityTilesetImportPendingResult
+  | UnityTilesetImportReadyResult;
 
 export interface GodotMapImportReadyResult {
   status: "ready";

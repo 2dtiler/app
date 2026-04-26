@@ -92,7 +92,7 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     assetType: "map",
     label: "Unity Tilemap Bundle (.prefab)",
     description:
-      "Imports and exports 2D Tiler Unity Tilemap prefab bundles with a linked manifest and image assets.",
+      "Imports and exports Unity Tilemap prefab bundles, including 2D Tiler exports with linked manifests, Tile assets, and .meta resources.",
     supportedNow: true,
   },
   {
@@ -179,9 +179,10 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
   {
     id: "tileset-unity",
     assetType: "tileset",
-    label: "Unity (.asset)",
-    description: "Unity tileset asset target.",
-    supportedNow: false,
+    label: "Unity Sprite Sheet Bundle (.png + .meta)",
+    description:
+      "Imports and exports Unity sprite-sheet bundles using a texture image plus a Unity .meta sidecar with tile-size metadata.",
+    supportedNow: true,
   },
   {
     id: "tileset-godot",

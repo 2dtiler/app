@@ -28,11 +28,12 @@ export function UnityMissingResourcesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" showCloseButton={!isSubmitting}>
         <DialogHeader>
-          <DialogTitle>Resolve linked Unity bundle resources</DialogTitle>
+          <DialogTitle>Resolve linked Unity resources</DialogTitle>
           <DialogDescription>
-            Select the missing `.json` manifest and source image files
-            referenced by this Unity Tilemap prefab bundle. If a chosen file
-            links to more resources, this list will update after you continue.
+            Select the missing Unity-linked files referenced by this import,
+            including manifests, Tile assets, `.meta` sidecars, and texture
+            images. If a chosen file links to more resources, this list will
+            update after you continue.
           </DialogDescription>
         </DialogHeader>
 

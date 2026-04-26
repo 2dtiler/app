@@ -125,7 +125,7 @@ GameObject:
   - component: {fileID: 200012}
   - component: {fileID: 200013}
   m_Layer: 0
-  m_Name: Foreground
+  m_Name: Foreground [2DTILER:layer-foreground]
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -198,7 +198,7 @@ GameObject:
   - component: {fileID: 200002}
   - component: {fileID: 200003}
   m_Layer: 0
-  m_Name: Ground Renamed
+  m_Name: Ground Renamed [2DTILER:layer-ground]
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -227,10 +227,10 @@ test("parseUnityPrefabTilemap reads actual layer order and tile transforms", () 
   assert.equal(parsed.widthInTiles, 4);
   assert.equal(parsed.heightInTiles, 3);
   assert.deepEqual(
-    parsed.layers.map((layer) => [layer.name, layer.visible]),
+    parsed.layers.map((layer) => [layer.name, layer.exportId, layer.visible]),
     [
-      ["Foreground", false],
-      ["Ground Renamed", true],
+      ["Foreground", "layer-foreground", false],
+      ["Ground Renamed", "layer-ground", true],
     ],
   );
 

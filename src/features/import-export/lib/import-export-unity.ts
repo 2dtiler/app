@@ -1,6 +1,7 @@
 import { canvasToPngBlob } from "@/features/image-editor/lib/image-editor-document";
 import { createRelativeAssetPath } from "@/features/import-export/lib/import-export-tiled-shared";
 import {
+  buildUnityLayerExportName,
   buildUnityBundleManifestPath,
   buildUnityGenericMetaFile,
   buildUnityTextureMetaFile,
@@ -398,7 +399,7 @@ function buildLayerSection(
     `  - component: {fileID: ${layerTilemapId}}`,
     `  - component: {fileID: ${layerRendererId}}`,
     "  m_Layer: 0",
-    `  m_Name: ${layer.name}`,
+    `  m_Name: ${buildUnityLayerExportName(layer.name, layer.id)}`,
     "  m_TagString: Untagged",
     "  m_Icon: {fileID: 0}",
     "  m_NavMeshLayer: 0",
@@ -523,6 +524,7 @@ export async function exportUnityMapBundle(
     },
     sourceTilesets: manifestTilesets,
     layers: layers.map((layer) => ({
+      exportId: layer.id,
       name: layer.name,
       visible: layer.visible,
       locked: layer.locked,

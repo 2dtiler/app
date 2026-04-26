@@ -4,25 +4,46 @@ import {
   importImageAsset,
   requireProvidedEntry,
 } from "@/features/import-export/lib/tiled-map-import-shared";
-import { normalizeBundlePath } from "@/features/import-export/lib/tiled-xml-utils";
+import {
+  normalizeBundlePath,
+  stripExtension,
+} from "@/features/import-export/lib/tiled-xml-utils";
 import {
   UNITY_PREFAB_IMPORT_ACCEPT,
   buildUnityBundleManifestPath,
-  getUnityTileKey,
+  parseUnityMetaGuid,
+  parseUnityTileAssetTextureGuid,
   parseUnityBundleManifest,
 } from "@/features/import-export/lib/unity-bundle-utils";
 import { parseUnityPrefabTilemap } from "@/features/import-export/lib/unity-prefab-parser";
+import { generateTilesetId } from "@/utils/ids";
 import type {
   ImportExportArchiveEntry,
   TileLayer,
   TileMapData,
   TileRef,
   Tileset,
+  UnityBundleManifest,
   UnityBundleManifestLayer,
   UnityImportMissingResource,
   UnityMapImportPreparationResult,
   UnityMapImportResult,
 } from "@/types";
+
+function getUnityMissingResourceLabel(
+  kind: UnityImportMissingResource["kind"],
+) {
+  if (kind === "json") {
+    return "2D Tiler Unity manifest";
+  }
+  if (kind === "asset") {
+    return "Unity Tile asset";
+  }
+  if (kind === "meta") {
+    return "Unity .meta file";
+  }
+  return "Unity texture image";
+}
 
 function addUnityMissingResource(
   missingResources: Map<string, UnityImportMissingResource>,
@@ -39,19 +60,142 @@ function addUnityMissingResource(
     path: normalizedPath,
     kind,
     referringPath: normalizeBundlePath(referringPath),
-    label: kind === "json" ? "2D Tiler Unity manifest" : "Source tileset image",
+    label: getUnityMissingResourceLabel(kind),
   });
 }
 
-async function importUnityMapEntries(
+function buildMissingUnityTileAssetPath(guid: string) {
+  return normalizeBundlePath(`.unity-missing/tiles/${guid}.asset`);
+}
+
+function buildMissingUnityTileAssetMetaPath(guid: string) {
+  return `${buildMissingUnityTileAssetPath(guid)}.meta`;
+}
+
+function buildMissingUnityTexturePath(guid: string) {
+  return normalizeBundlePath(`.unity-missing/textures/${guid}.png`);
+}
+
+function buildMissingUnityTextureMetaPath(guid: string) {
+  return `${buildMissingUnityTexturePath(guid)}.meta`;
+}
+
+function buildUnityGuidResourceIndex(
   providedEntries: ReadonlyMap<string, Uint8Array>,
-  manifestPath: string,
+) {
+  const resourcePathByGuid = new Map<string, string>();
+
+  for (const [path, data] of providedEntries.entries()) {
+    if (!path.toLowerCase().endsWith(".meta")) {
+      continue;
+    }
+
+    const guid = parseUnityMetaGuid(data);
+    if (!guid) {
+      continue;
+    }
+
+    resourcePathByGuid.set(guid, path.slice(0, -5));
+  }
+
+  return resourcePathByGuid;
+}
+
+function getUsedUnityTileAssetGuids(
+  prefab: ReturnType<typeof parseUnityPrefabTilemap>,
+) {
+  const tileAssetGuids = new Set<string>();
+
+  for (const layer of prefab.layers) {
+    for (const tile of layer.tiles) {
+      const tileAssetGuid = layer.tileAssetGuids[tile.tileIndex];
+      if (tileAssetGuid) {
+        tileAssetGuids.add(tileAssetGuid);
+      }
+    }
+  }
+
+  return [...tileAssetGuids];
+}
+
+function collectUnityPrefabMissingResources(
+  prefab: ReturnType<typeof parseUnityPrefabTilemap>,
+  providedEntries: ReadonlyMap<string, Uint8Array>,
   rootPath: string,
-): Promise<UnityMapImportResult> {
-  const manifest = parseUnityBundleManifest(
-    requireProvidedEntry(providedEntries, manifestPath),
-  );
-  const mapId = "unity-import-map" as TileMapData["id"];
+) {
+  const missingResources = new Map<string, UnityImportMissingResource>();
+  const resourcePathByGuid = buildUnityGuidResourceIndex(providedEntries);
+
+  for (const tileAssetGuid of getUsedUnityTileAssetGuids(prefab)) {
+    const tileAssetPath = resourcePathByGuid.get(tileAssetGuid);
+    if (!tileAssetPath) {
+      addUnityMissingResource(
+        missingResources,
+        buildMissingUnityTileAssetMetaPath(tileAssetGuid),
+        "meta",
+        rootPath,
+      );
+      addUnityMissingResource(
+        missingResources,
+        buildMissingUnityTileAssetPath(tileAssetGuid),
+        "asset",
+        rootPath,
+      );
+      continue;
+    }
+
+    const tileAssetData = getProvidedEntry(providedEntries, tileAssetPath);
+    if (!tileAssetData) {
+      addUnityMissingResource(
+        missingResources,
+        tileAssetPath,
+        "asset",
+        `${tileAssetPath}.meta`,
+      );
+      continue;
+    }
+
+    const textureGuid = parseUnityTileAssetTextureGuid(tileAssetData);
+    if (!textureGuid) {
+      throw new Error(
+        `Unsupported Unity Tile asset: ${tileAssetPath}. Missing referenced sprite GUID.`,
+      );
+    }
+
+    const texturePath = resourcePathByGuid.get(textureGuid);
+    if (!texturePath) {
+      addUnityMissingResource(
+        missingResources,
+        buildMissingUnityTextureMetaPath(textureGuid),
+        "meta",
+        tileAssetPath,
+      );
+      addUnityMissingResource(
+        missingResources,
+        buildMissingUnityTexturePath(textureGuid),
+        "image",
+        tileAssetPath,
+      );
+      continue;
+    }
+
+    if (!getProvidedEntry(providedEntries, texturePath)) {
+      addUnityMissingResource(
+        missingResources,
+        texturePath,
+        "image",
+        `${texturePath}.meta`,
+      );
+    }
+  }
+
+  return missingResources;
+}
+
+async function importManifestSourceTilesets(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  manifest: UnityBundleManifest,
+) {
   const tilesets: Tileset[] = [];
 
   for (const descriptor of manifest.sourceTilesets) {
@@ -72,13 +216,143 @@ async function importUnityMapEntries(
     });
   }
 
-  const layers = buildUnityImportLayers(
-    requireProvidedEntry(providedEntries, rootPath),
+  return tilesets;
+}
+
+async function resolveUnityPrefabTileAssets(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  prefab: ReturnType<typeof parseUnityPrefabTilemap>,
+  tileSize: number,
+) {
+  const resourcePathByGuid = buildUnityGuidResourceIndex(providedEntries);
+  const tileRefByTileAssetGuid = new Map<string, TileRef>();
+  const tilesets: Tileset[] = [];
+
+  for (const tileAssetGuid of getUsedUnityTileAssetGuids(prefab)) {
+    if (tileRefByTileAssetGuid.has(tileAssetGuid)) {
+      continue;
+    }
+
+    const tileAssetPath = resourcePathByGuid.get(tileAssetGuid);
+    if (!tileAssetPath) {
+      throw new Error(`Missing Unity Tile asset metadata for GUID ${tileAssetGuid}.`);
+    }
+
+    const tileAssetData = requireProvidedEntry(providedEntries, tileAssetPath);
+    const textureGuid = parseUnityTileAssetTextureGuid(tileAssetData);
+    if (!textureGuid) {
+      throw new Error(
+        `Unsupported Unity Tile asset: ${tileAssetPath}. Missing referenced sprite GUID.`,
+      );
+    }
+
+    const texturePath = resourcePathByGuid.get(textureGuid);
+    if (!texturePath) {
+      throw new Error(
+        `Missing Unity texture metadata for GUID ${textureGuid} referenced by ${tileAssetPath}.`,
+      );
+    }
+
+    const importedAsset = await importImageAsset(
+      texturePath,
+      requireProvidedEntry(providedEntries, texturePath),
+    );
+    const tilesetId = generateTilesetId();
+    const tilesetName =
+      stripExtension(tileAssetPath.split("/").pop() ?? tileAssetGuid) ||
+      tileAssetGuid;
+
+    tilesets.push({
+      id: tilesetId,
+      name: tilesetName,
+      groupId: "unity-import-tilesets" as Tileset["groupId"],
+      tileSize: tileSize as Tileset["tileSize"],
+      assetId: importedAsset.assetId,
+      imageWidth: importedAsset.width,
+      imageHeight: importedAsset.height,
+      createdAt: Date.now(),
+    });
+    tileRefByTileAssetGuid.set(tileAssetGuid, {
+      tilesetId,
+      sx: 0,
+      sy: 0,
+      sw: tileSize,
+      sh: tileSize,
+    });
+  }
+
+  return {
+    tilesets,
+    tileRefByTileAssetGuid,
+  };
+}
+
+function getManifestLayerForPrefabLayer(
+  prefabLayer: ReturnType<typeof parseUnityPrefabTilemap>["layers"][number],
+  manifestLayers: readonly UnityBundleManifestLayer[],
+  index: number,
+) {
+  if (prefabLayer.exportId) {
+    const manifestLayer = manifestLayers.find(
+      (layer) => layer.exportId === prefabLayer.exportId,
+    );
+    if (manifestLayer) {
+      return manifestLayer;
+    }
+  }
+
+  return manifestLayers[index];
+}
+
+async function importUnityMapEntries(
+  providedEntries: ReadonlyMap<string, Uint8Array>,
+  manifestPath: string,
+  rootPath: string,
+): Promise<UnityMapImportResult> {
+  const manifest = parseUnityBundleManifest(
+    requireProvidedEntry(providedEntries, manifestPath),
+  );
+  const mapId = "unity-import-map" as TileMapData["id"];
+  const prefabData = requireProvidedEntry(providedEntries, rootPath);
+  const prefab = tryParseUnityPrefab(prefabData);
+
+  if (!prefab) {
+    const tilesets = await importManifestSourceTilesets(providedEntries, manifest);
+    const layers = buildUnityImportLayersFromManifest(manifest.layers, mapId);
+
+    return {
+      map: {
+        id: mapId,
+        name: manifest.map.name,
+        groupId: "unity-import-group" as TileMapData["groupId"],
+        orientation: manifest.map.orientation,
+        widthInTiles: manifest.map.widthInTiles,
+        heightInTiles: manifest.map.heightInTiles,
+        tileSize: manifest.map.tileSize,
+        properties: {},
+        layerOrder: layers.map((layer) => layer.id),
+        createdAt: Date.now(),
+      },
+      layers,
+      tilesets,
+      imageLayers: [],
+      layerGroups: [],
+      objectLayers: [],
+      objects: [],
+    };
+  }
+
+  const { tilesets, tileRefByTileAssetGuid } = await resolveUnityPrefabTileAssets(
+    providedEntries,
+    prefab,
+    manifest.map.tileSize,
+  );
+
+  const layers = buildUnityImportLayersFromPrefab(
+    prefab,
     manifest.layers,
     mapId,
-  );
-  const prefab = tryParseUnityPrefab(
-    requireProvidedEntry(providedEntries, rootPath),
+    tileRefByTileAssetGuid,
   );
 
   return {
@@ -109,7 +383,7 @@ function buildManifestOnlyLayer(
   mapId: TileMapData["id"],
 ) {
   return {
-    id: `unity-layer-${index}` as TileLayer["id"],
+    id: (layer.exportId ?? `unity-layer-${index}`) as TileLayer["id"],
     mapId,
     name: layer.name,
     visible: layer.visible,
@@ -141,49 +415,17 @@ function tryParseUnityPrefab(prefabData: Uint8Array) {
   }
 }
 
-function buildManifestLayerTileRefLookup(
-  layer: UnityBundleManifestLayer | undefined,
-) {
-  if (!layer) {
-    return [];
-  }
-
-  const tileRefs: TileRef[] = [];
-  const seenTileKeys = new Set<string>();
-
-  for (const cell of layer.cells) {
-    const tileRef: TileRef = {
-      tilesetId: cell.tilesetId,
-      sx: cell.sx,
-      sy: cell.sy,
-      sw: cell.sw,
-      sh: cell.sh,
-      rotation: cell.rotation,
-      flipX: cell.flipX,
-      flipY: cell.flipY,
-    };
-    const tileKey = getUnityTileKey(tileRef);
-    if (seenTileKeys.has(tileKey)) {
-      continue;
-    }
-
-    seenTileKeys.add(tileKey);
-    tileRefs.push(tileRef);
-  }
-
-  return tileRefs;
-}
-
 function buildPrefabLayerTiles(
   prefabLayer: ReturnType<typeof parseUnityPrefabTilemap>["layers"][number],
-  manifestLayer: UnityBundleManifestLayer | undefined,
+  tileRefByTileAssetGuid: ReadonlyMap<string, TileRef>,
 ) {
-  const manifestTileRefs = buildManifestLayerTileRefLookup(manifestLayer);
-
   return Object.fromEntries(
     prefabLayer.tiles.flatMap((tile) => {
-      const manifestTileRef = manifestTileRefs[tile.tileIndex];
-      if (!manifestTileRef) {
+      const tileAssetGuid = prefabLayer.tileAssetGuids[tile.tileIndex];
+      const tileRef = tileAssetGuid
+        ? tileRefByTileAssetGuid.get(tileAssetGuid)
+        : undefined;
+      if (!tileRef) {
         return [];
       }
 
@@ -191,7 +433,7 @@ function buildPrefabLayerTiles(
         [
           tile.coordinate,
           {
-            ...manifestTileRef,
+            ...tileRef,
             rotation: tile.rotation,
             flipX: tile.flipX,
             flipY: tile.flipY,
@@ -202,26 +444,33 @@ function buildPrefabLayerTiles(
   );
 }
 
-function buildUnityImportLayers(
-  prefabData: Uint8Array,
+function buildUnityImportLayersFromManifest(
   manifestLayers: readonly UnityBundleManifestLayer[],
   mapId: TileMapData["id"],
 ) {
-  const prefab = tryParseUnityPrefab(prefabData);
-  if (!prefab) {
-    return manifestLayers.map((layer, index) =>
-      buildManifestOnlyLayer(layer, index, mapId),
-    );
-  }
+  return manifestLayers.map((layer, index) =>
+    buildManifestOnlyLayer(layer, index, mapId),
+  );
+}
 
+function buildUnityImportLayersFromPrefab(
+  prefab: ReturnType<typeof parseUnityPrefabTilemap>,
+  manifestLayers: readonly UnityBundleManifestLayer[],
+  mapId: TileMapData["id"],
+  tileRefByTileAssetGuid: ReadonlyMap<string, TileRef>,
+) {
   return prefab.layers.map((layer, index) => ({
-    id: `unity-layer-${index}` as TileLayer["id"],
+    id: (
+      layer.exportId ??
+      getManifestLayerForPrefabLayer(layer, manifestLayers, index)?.exportId ??
+      `unity-layer-${index}`
+    ) as TileLayer["id"],
     mapId,
     name: layer.name,
     visible: layer.visible,
-    locked: manifestLayers[index]?.locked ?? false,
+    locked: getManifestLayerForPrefabLayer(layer, manifestLayers, index)?.locked ?? false,
     type: "tile" as const,
-    tiles: buildPrefabLayerTiles(layer, manifestLayers[index]),
+    tiles: buildPrefabLayerTiles(layer, tileRefByTileAssetGuid),
   }));
 }
 
@@ -256,15 +505,30 @@ export async function prepareUnityMapImport(
   }
 
   const manifest = parseUnityBundleManifest(manifestData);
+  const prefab = tryParseUnityPrefab(
+    requireProvidedEntry(providedEntries, normalizedRootPath),
+  );
 
-  for (const descriptor of manifest.sourceTilesets) {
-    if (!getProvidedEntry(providedEntries, descriptor.imagePath)) {
-      addUnityMissingResource(
-        missingResources,
-        descriptor.imagePath,
-        "image",
-        manifestPath,
-      );
+  if (prefab) {
+    const prefabMissingResources = collectUnityPrefabMissingResources(
+      prefab,
+      providedEntries,
+      normalizedRootPath,
+    );
+
+    for (const [path, resource] of prefabMissingResources.entries()) {
+      missingResources.set(path, resource);
+    }
+  } else {
+    for (const descriptor of manifest.sourceTilesets) {
+      if (!getProvidedEntry(providedEntries, descriptor.imagePath)) {
+        addUnityMissingResource(
+          missingResources,
+          descriptor.imagePath,
+          "image",
+          manifestPath,
+        );
+      }
     }
   }
 
