@@ -460,7 +460,7 @@ function parseVector(rawValue: string | undefined) {
     return null;
   }
 
-  const match = rawValue.match(/^Vector2i?\(([^,]+),\s*([^\)]+)\)$/);
+  const match = rawValue.match(/^Vector2i?\(([^,]+),\s*([^)]+)\)$/);
   if (!match) {
     return null;
   }
@@ -480,7 +480,7 @@ function parseColorAlpha(rawValue: string | undefined) {
   }
 
   const match = rawValue.match(
-    /^Color\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)$/,
+    /^Color\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)$/,
   );
   if (!match) {
     return 1;

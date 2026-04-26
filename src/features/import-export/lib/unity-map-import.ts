@@ -8,13 +8,17 @@ import { normalizeBundlePath } from "@/features/import-export/lib/tiled-xml-util
 import {
   UNITY_PREFAB_IMPORT_ACCEPT,
   buildUnityBundleManifestPath,
+  getUnityTileKey,
   parseUnityBundleManifest,
 } from "@/features/import-export/lib/unity-bundle-utils";
+import { parseUnityPrefabTilemap } from "@/features/import-export/lib/unity-prefab-parser";
 import type {
   ImportExportArchiveEntry,
   TileLayer,
   TileMapData,
+  TileRef,
   Tileset,
+  UnityBundleManifestLayer,
   UnityImportMissingResource,
   UnityMapImportPreparationResult,
   UnityMapImportResult,
@@ -42,6 +46,7 @@ function addUnityMissingResource(
 async function importUnityMapEntries(
   providedEntries: ReadonlyMap<string, Uint8Array>,
   manifestPath: string,
+  rootPath: string,
 ): Promise<UnityMapImportResult> {
   const manifest = parseUnityBundleManifest(
     requireProvidedEntry(providedEntries, manifestPath),
@@ -67,13 +72,47 @@ async function importUnityMapEntries(
     });
   }
 
-  const layers: TileLayer[] = manifest.layers.map((layer, index) => ({
+  const layers = buildUnityImportLayers(
+    requireProvidedEntry(providedEntries, rootPath),
+    manifest.layers,
+    mapId,
+  );
+  const prefab = tryParseUnityPrefab(requireProvidedEntry(providedEntries, rootPath));
+
+  return {
+    map: {
+      id: mapId,
+      name: manifest.map.name,
+      groupId: "unity-import-group" as TileMapData["groupId"],
+      orientation: manifest.map.orientation,
+      widthInTiles: prefab?.widthInTiles || manifest.map.widthInTiles,
+      heightInTiles: prefab?.heightInTiles || manifest.map.heightInTiles,
+      tileSize: manifest.map.tileSize,
+      properties: {},
+      layerOrder: layers.map((layer) => layer.id),
+      createdAt: Date.now(),
+    },
+    layers,
+    tilesets,
+    imageLayers: [],
+    layerGroups: [],
+    objectLayers: [],
+    objects: [],
+  };
+}
+
+function buildManifestOnlyLayer(
+  layer: UnityBundleManifestLayer,
+  index: number,
+  mapId: TileMapData["id"],
+) {
+  return {
     id: `unity-layer-${index}` as TileLayer["id"],
     mapId,
     name: layer.name,
     visible: layer.visible,
     locked: layer.locked,
-    type: "tile",
+    type: "tile" as const,
     tiles: Object.fromEntries(
       layer.cells.map((cell) => [
         cell.coordinate,
@@ -89,28 +128,97 @@ async function importUnityMapEntries(
         },
       ]),
     ),
-  }));
-
-  return {
-    map: {
-      id: mapId,
-      name: manifest.map.name,
-      groupId: "unity-import-group" as TileMapData["groupId"],
-      orientation: manifest.map.orientation,
-      widthInTiles: manifest.map.widthInTiles,
-      heightInTiles: manifest.map.heightInTiles,
-      tileSize: manifest.map.tileSize,
-      properties: {},
-      layerOrder: layers.map((layer) => layer.id),
-      createdAt: Date.now(),
-    },
-    layers,
-    tilesets,
-    imageLayers: [],
-    layerGroups: [],
-    objectLayers: [],
-    objects: [],
   };
+}
+
+function tryParseUnityPrefab(prefabData: Uint8Array) {
+  try {
+    return parseUnityPrefabTilemap(prefabData);
+  } catch {
+    return null;
+  }
+}
+
+function buildManifestLayerTileRefLookup(layer: UnityBundleManifestLayer | undefined) {
+  if (!layer) {
+    return [];
+  }
+
+  const tileRefs: TileRef[] = [];
+  const seenTileKeys = new Set<string>();
+
+  for (const cell of layer.cells) {
+    const tileRef: TileRef = {
+      tilesetId: cell.tilesetId,
+      sx: cell.sx,
+      sy: cell.sy,
+      sw: cell.sw,
+      sh: cell.sh,
+      rotation: cell.rotation,
+      flipX: cell.flipX,
+      flipY: cell.flipY,
+    };
+    const tileKey = getUnityTileKey(tileRef);
+    if (seenTileKeys.has(tileKey)) {
+      continue;
+    }
+
+    seenTileKeys.add(tileKey);
+    tileRefs.push(tileRef);
+  }
+
+  return tileRefs;
+}
+
+function buildPrefabLayerTiles(
+  prefabLayer: ReturnType<typeof parseUnityPrefabTilemap>["layers"][number],
+  manifestLayer: UnityBundleManifestLayer | undefined,
+) {
+  const manifestTileRefs = buildManifestLayerTileRefLookup(manifestLayer);
+
+  return Object.fromEntries(
+    prefabLayer.tiles.flatMap((tile) => {
+      const manifestTileRef = manifestTileRefs[tile.tileIndex];
+      if (!manifestTileRef) {
+        return [];
+      }
+
+      return [
+        [
+          tile.coordinate,
+          {
+            ...manifestTileRef,
+            rotation: tile.rotation,
+            flipX: tile.flipX,
+            flipY: tile.flipY,
+          },
+        ],
+      ];
+    }),
+  );
+}
+
+function buildUnityImportLayers(
+  prefabData: Uint8Array,
+  manifestLayers: readonly UnityBundleManifestLayer[],
+  mapId: TileMapData["id"],
+) {
+  const prefab = tryParseUnityPrefab(prefabData);
+  if (!prefab) {
+    return manifestLayers.map((layer, index) =>
+      buildManifestOnlyLayer(layer, index, mapId),
+    );
+  }
+
+  return prefab.layers.map((layer, index) => ({
+    id: `unity-layer-${index}` as TileLayer["id"],
+    mapId,
+    name: layer.name,
+    visible: layer.visible,
+    locked: manifestLayers[index]?.locked ?? false,
+    type: "tile" as const,
+    tiles: buildPrefabLayerTiles(layer, manifestLayers[index]),
+  }));
 }
 
 export async function prepareUnityMapImport(
@@ -166,7 +274,11 @@ export async function prepareUnityMapImport(
 
   return {
     status: "ready",
-    result: await importUnityMapEntries(providedEntries, manifestPath),
+    result: await importUnityMapEntries(
+      providedEntries,
+      manifestPath,
+      normalizedRootPath,
+    ),
   };
 }
 
