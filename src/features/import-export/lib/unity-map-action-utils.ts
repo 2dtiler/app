@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { exportUnityMapBundle } from "@/features/import-export/lib/import-export-unity";
 import {
   getMapExportData,
@@ -14,6 +14,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isUnityMapOption(optionId: ImportExportOptionId) {
@@ -24,6 +25,7 @@ export async function exportSelectedUnityMaps(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -38,6 +40,7 @@ export async function exportSelectedUnityMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   const allTilesets = [
     ...project.tilesets,
@@ -57,7 +60,7 @@ export async function exportSelectedUnityMaps(
       mapExportData.objects,
     );
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, ".prefab.zip"),
     );
@@ -97,7 +100,7 @@ export async function exportSelectedUnityMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} unity maps`, ".zip"),
   );

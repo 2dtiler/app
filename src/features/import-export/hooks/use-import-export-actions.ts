@@ -19,7 +19,8 @@ import {
   renderMapToCanvas,
   renderTilesetToCanvas,
 } from "@/features/import-export/lib/import-export-raster";
-import { saveBlobFile, saveByteArrayFile } from "@/services/file-system";
+import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   buildMapExportGroups,
   buildTilesetExportGroups,
@@ -49,6 +50,7 @@ import { openProjectInEditor } from "@/features/project-management/lib/project-s
 import { saveProject } from "@/services/db";
 import type {
   EditorState,
+  ExportSaveStrategy,
   ImageLayer,
   ImportExportArchiveEntry,
   ImportExportDialogMode,
@@ -115,8 +117,9 @@ export function useImportExportActions({
   }, [setImportExportDialogMode, setImportExportDialogOpen]);
 
   const handleExportNativeMaps = useCallback(
-    async (selectedMapIds: string[]) => {
+    async (selectedMapIds: string[], saveStrategy?: ExportSaveStrategy) => {
       if (!state.project || selectedMapIds.length === 0) return false;
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
@@ -137,7 +140,10 @@ export function useImportExportActions({
           mapExportData.objectLayers,
           state.project.objects ?? [],
         );
-        return saveByteArrayFile(data, buildDownloadFilename(map.name, ".2dm"));
+        return resolvedSaveStrategy.saveByteArray(
+          data,
+          buildDownloadFilename(map.name, ".2dm"),
+        );
       }
 
       const groupNames = new Map(
@@ -170,7 +176,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -182,6 +188,7 @@ export function useImportExportActions({
     async (
       selectedMapIds: string[],
       rasterExportOptions?: ImportExportRasterExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (
         !state.project ||
@@ -190,6 +197,7 @@ export function useImportExportActions({
       ) {
         return false;
       }
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
@@ -215,7 +223,7 @@ export function useImportExportActions({
           mapExportData.objects,
         );
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        return saveBlobFile(
+        return resolvedSaveStrategy.saveBlob(
           blob,
           buildDownloadFilename(
             map.name,
@@ -257,7 +265,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -471,8 +479,9 @@ export function useImportExportActions({
   }, [setState, state.activeMapGroupId, state.project, state.tileSize]);
 
   const handleExportNativeTilesets = useCallback(
-    async (selectedTilesetIds: string[]) => {
+    async (selectedTilesetIds: string[], saveStrategy?: ExportSaveStrategy) => {
       if (!state.project || selectedTilesetIds.length === 0) return false;
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
@@ -483,7 +492,7 @@ export function useImportExportActions({
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];
         const data = await exportTileset(tileset);
-        return saveByteArrayFile(
+        return resolvedSaveStrategy.saveByteArray(
           data,
           buildDownloadFilename(tileset.name, ".2dt"),
         );
@@ -509,7 +518,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -521,6 +530,7 @@ export function useImportExportActions({
     async (
       selectedTilesetIds: string[],
       rasterExportOptions?: ImportExportRasterExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (
         !state.project ||
@@ -529,6 +539,7 @@ export function useImportExportActions({
       ) {
         return false;
       }
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
@@ -540,7 +551,7 @@ export function useImportExportActions({
         const tileset = selectedTilesets[0];
         const canvas = await renderTilesetToCanvas(tileset);
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        return saveBlobFile(
+        return resolvedSaveStrategy.saveBlob(
           blob,
           buildDownloadFilename(
             tileset.name,
@@ -573,7 +584,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -837,6 +848,8 @@ export function useImportExportActions({
   return {
     handleOpenImportDialog,
     handleOpenExportDialog,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
     projectAction,
     mapAction,
     tilesetAction,

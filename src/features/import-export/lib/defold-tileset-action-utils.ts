@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { getUniqueArchivePath } from "@/features/import-export/lib/import-export-action-utils";
 import { exportDefoldTilesourceBundle } from "@/features/import-export/lib/import-export-defold";
 import type {
@@ -11,6 +11,7 @@ import type {
   ImportExportOptionId,
   Project,
   TilesetId,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isDefoldTilesetOption(optionId: ImportExportOptionId) {
@@ -21,6 +22,7 @@ export async function exportSelectedDefoldTilesets(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -37,11 +39,12 @@ export async function exportSelectedDefoldTilesets(
   if (selectedTilesets.length === 0) {
     return false;
   }
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportDefoldTilesourceBundle(tileset);
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(tileset.name, ".tilesource.zip"),
     );
@@ -72,7 +75,7 @@ export async function exportSelectedDefoldTilesets(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} defold tilesets`, ".zip"),
   );

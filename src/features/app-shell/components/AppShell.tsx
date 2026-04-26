@@ -8,6 +8,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useImportExportActions } from "@/features/import-export/hooks/use-import-export-actions";
+import { useQuickExportController } from "@/features/import-export/hooks/use-quick-export-controller";
 import { Toolbar } from "@/layouts/Toolbar";
 import { TilesetPanel } from "@/features/map-editor/components/TilesetPanel";
 import { MapPanel } from "@/features/map-editor/components/MapPanel";
@@ -61,6 +62,13 @@ const ImportExportDialog = lazy(() =>
   import("@/features/import-export/components/ImportExportDialog").then(
     (module) => ({
       default: module.ImportExportDialog,
+    }),
+  ),
+);
+const QuickExportSetupDialog = lazy(() =>
+  import("@/features/import-export/components/QuickExportSetupDialog").then(
+    (module) => ({
+      default: module.QuickExportSetupDialog,
     }),
   ),
 );
@@ -216,6 +224,8 @@ export function AppShell({
   const {
     handleOpenImportDialog,
     handleOpenExportDialog,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
     projectAction,
     mapAction,
     tilesetAction,
@@ -233,6 +243,14 @@ export function AppShell({
     setImportExportDialogMode,
     setImportExportDialogOpen,
   });
+  const { mapQuickExport, quickExportSetupDialogProps, tilesetQuickExport } =
+    useQuickExportController({
+      activeMapId: state.activeMapId,
+      activeTilesetId: state.activeTilesetId,
+      project: state.project,
+      handleMapExportSubmit,
+      handleTilesetExportSubmit,
+    });
 
   const activeWorkspaceSummary =
     activeLayerKind === "object"
@@ -316,8 +334,10 @@ export function AppShell({
           {isCompactLayout ? (
             <>
               <CompactEditorShell
-                tilesetPanel={<TilesetPanel />}
-                mapPanel={<MapPanel />}
+                tilesetPanel={
+                  <TilesetPanel quickExportControl={tilesetQuickExport} />
+                }
+                mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
                 workspaceSummary={activeWorkspaceSummary}
                 workspaceButtonLabel={workspaceButtonLabel}
                 workspaceOpen={workspaceDrawerOpen}
@@ -337,8 +357,10 @@ export function AppShell({
             </>
           ) : (
             <DesktopEditorLayout
-              tilesetPanel={<TilesetPanel />}
-              mapPanel={<MapPanel />}
+              tilesetPanel={
+                <TilesetPanel quickExportControl={tilesetQuickExport} />
+              }
+              mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
               layersPanel={<LayersPanel />}
               detailsPanel={detailsPanel}
               showDetailsPanel={showDetailsPanel}
@@ -402,6 +424,11 @@ export function AppShell({
             mapAction={mapAction}
             tilesetAction={tilesetAction}
           />
+        </Suspense>
+      )}
+      {quickExportSetupDialogProps.open && (
+        <Suspense>
+          <QuickExportSetupDialog {...quickExportSetupDialogProps} />
         </Suspense>
       )}
       {tiledMissingResourcesDialogProps.open && (

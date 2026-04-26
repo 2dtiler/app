@@ -54,6 +54,7 @@ import {
   type TileLayer,
   type TileMapData,
   type TileRef,
+  type QuickExportSurfaceProps,
 } from "@/types";
 
 function clampMapDimension(value: number, fallback: number): number {
@@ -70,7 +71,7 @@ function getAdjacentItemId<T extends { id: string }>(
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
-export function MapPanel() {
+export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
   "use no memo";
 
   const { state, setState, controls } = useEditorStore();
@@ -755,6 +756,7 @@ export function MapPanel() {
         paintBuffer={paintBuffer}
         paintBufferVersion={paintBufferVersion}
         project={currentProject}
+        quickExportControl={quickExportControl}
         state={state}
         textObjectEditing={textObjectEditing}
       />

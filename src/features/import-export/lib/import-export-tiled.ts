@@ -491,6 +491,8 @@ export async function exportTiledMapBundle(
       tsxElement.setAttribute("tileheight", String(tileset.tileSize));
       tsxElement.setAttribute("tilecount", String(getTileCount(tileset)));
       tsxElement.setAttribute("columns", String(getTileColumns(tileset)));
+      tsxElement.setAttribute("margin", "0");
+      tsxElement.setAttribute("spacing", "0");
 
       const imageElement = tsxDocument.createElement("image");
       imageElement.setAttribute("source", `../${imagePath}`);
@@ -512,6 +514,8 @@ export async function exportTiledMapBundle(
     tilesetElement.setAttribute("tileheight", String(tileset.tileSize));
     tilesetElement.setAttribute("tilecount", String(getTileCount(tileset)));
     tilesetElement.setAttribute("columns", String(getTileColumns(tileset)));
+    tilesetElement.setAttribute("margin", "0");
+    tilesetElement.setAttribute("spacing", "0");
     const imageElement = document.createElement("image");
     imageElement.setAttribute("source", imagePath);
     imageElement.setAttribute("width", String(tileset.imageWidth));

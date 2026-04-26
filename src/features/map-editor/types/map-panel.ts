@@ -14,6 +14,7 @@ import type {
   TileLayer,
   TileMapData,
 } from "@/types/map/schema";
+import type { QuickExportControlState } from "@/types";
 import type { NewMapType } from "@/types/map/map-geometry";
 import type { TextObjectEditingState } from "@/types/map/text-object";
 import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
@@ -127,6 +128,7 @@ export interface MapPanelWorkspaceProps {
   paintBuffer: MapCanvasProps["paintBuffer"];
   paintBufferVersion: number;
   project: NonNullable<EditorState["project"]>;
+  quickExportControl: QuickExportControlState;
   state: EditorState;
   textObjectEditing: MapPanelTextObjectEditingController;
 }

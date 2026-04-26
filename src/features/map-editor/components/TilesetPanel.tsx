@@ -53,11 +53,13 @@ import {
   TILE_SIZES,
   type TileSize,
   type EditorState,
+  type QuickExportSurfaceProps,
   type TilesetGroupId,
   type TilesetId,
   type Tileset,
   type TilesetGroup,
 } from "@/types";
+import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 
 function getAdjacentItemId<T extends { id: string }>(
   items: T[],
@@ -83,7 +85,7 @@ function syncActiveTilesetState(
   draft.selectedTile = null;
 }
 
-export function TilesetPanel() {
+export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
   const { state, setState } = useEditorStore();
   const { tilesetZoom } = useSyncExternalStore(
     zoomStore.subscribe,
@@ -654,6 +656,15 @@ export function TilesetPanel() {
               : "Select a tileset tab"
           }
         />
+        <div className="absolute bottom-3 right-3 z-20">
+          <QuickExportButtonGroup
+            buttonId="tileset-quick-export-button"
+            buttonName="tileset-quick-export-button"
+            dropdownButtonId="tileset-quick-export-dropdown"
+            dropdownButtonName="tileset-quick-export-dropdown"
+            state={quickExportControl}
+          />
+        </div>
         {isDropTargetActive && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
             <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">

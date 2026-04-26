@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -14,6 +14,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isTideMapOption(optionId: ImportExportOptionId) {
@@ -24,6 +25,7 @@ export async function exportSelectedTideMaps(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -43,6 +45,7 @@ export async function exportSelectedTideMaps(
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
   ];
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedMaps.length === 1) {
     const map = selectedMaps[0];
@@ -57,7 +60,7 @@ export async function exportSelectedTideMaps(
       mapExportData.objects,
     );
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, ".tide.zip"),
     );
@@ -97,7 +100,7 @@ export async function exportSelectedTideMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} tide maps`, ".zip"),
   );

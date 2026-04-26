@@ -45,6 +45,7 @@ import { MapResizeControls } from "./MapResizeControls";
 import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
 import { useMapResize } from "./use-map-resize";
 import { useSceneInteraction } from "./use-scene-interaction";
+import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 
 const MAP_RESIZE_GUTTER = 14;
 
@@ -1033,6 +1034,22 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
             onCancel={onCancelTextEditing}
           />
         )}
+        <div
+          style={{
+            position: "absolute",
+            right: MAP_RESIZE_GUTTER + 8,
+            bottom: MAP_RESIZE_GUTTER + 8,
+            zIndex: 20,
+          }}
+        >
+          <QuickExportButtonGroup
+            buttonId="map-quick-export-button"
+            buttonName="map-quick-export-button"
+            dropdownButtonId="map-quick-export-dropdown"
+            dropdownButtonName="map-quick-export-dropdown"
+            state={props.quickExportControl}
+          />
+        </div>
       </div>
       <MapResizeControls
         canvasW={canvasW}

@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -16,6 +16,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isDefoldMapOption(optionId: ImportExportOptionId) {
@@ -27,6 +28,7 @@ export async function exportSelectedDefoldMaps(
   selectedIds: string[],
   optionId: ImportExportOptionId,
   formatExportOptions?: ImportExportFormatExportOptions,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -46,6 +48,7 @@ export async function exportSelectedDefoldMaps(
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
   ];
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
   const exportOptions = isDefoldMapExportOptions(formatExportOptions)
     ? formatExportOptions
     : undefined;
@@ -64,7 +67,7 @@ export async function exportSelectedDefoldMaps(
       exportOptions,
     );
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(
         map.name,
@@ -110,7 +113,7 @@ export async function exportSelectedDefoldMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} defold maps`, ".zip"),
   );

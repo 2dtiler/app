@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -14,6 +14,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isMappyMapOption(optionId: ImportExportOptionId) {
@@ -24,6 +25,7 @@ export async function exportSelectedMappyMaps(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -43,6 +45,7 @@ export async function exportSelectedMappyMaps(
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
   ];
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedMaps.length === 1) {
     const map = selectedMaps[0];
@@ -57,7 +60,10 @@ export async function exportSelectedMappyMaps(
       mapExportData.objects,
     );
 
-    return saveByteArrayFile(data, buildDownloadFilename(map.name, ".fmp"));
+    return resolvedSaveStrategy.saveByteArray(
+      data,
+      buildDownloadFilename(map.name, ".fmp"),
+    );
   }
 
   const groupNames = new Map(
@@ -88,7 +94,7 @@ export async function exportSelectedMappyMaps(
     });
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} mappy maps`, ".zip"),
   );

@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { exportGameMakerMapBundle } from "@/features/import-export/lib/import-export-gamemaker";
 import {
   getMapExportData,
@@ -15,6 +15,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isGameMakerMapOption(optionId: ImportExportOptionId) {
@@ -30,6 +31,7 @@ export async function exportSelectedGameMakerMaps(
   selectedIds: string[],
   optionId: ImportExportOptionId,
   formatExportOptions?: GameMakerMapExportOptions,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -49,6 +51,7 @@ export async function exportSelectedGameMakerMaps(
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
   ];
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedMaps.length === 1) {
     const map = selectedMaps[0];
@@ -65,10 +68,13 @@ export async function exportSelectedGameMakerMaps(
     );
 
     if (entries.length === 1) {
-      return saveByteArrayFile(entries[0].data, entries[0].path);
+      return resolvedSaveStrategy.saveByteArray(
+        entries[0].data,
+        entries[0].path,
+      );
     }
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, getArchiveExtension(formatExportOptions)),
     );
@@ -109,7 +115,7 @@ export async function exportSelectedGameMakerMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} gamemaker maps`, ".zip"),
   );

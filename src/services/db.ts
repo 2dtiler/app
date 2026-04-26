@@ -1,5 +1,12 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { Project, AppSettings, AssetId } from "@/types";
+import type {
+  Project,
+  AppSettings,
+  AssetId,
+  QuickExportAssetType,
+  QuickExportPreferenceRecord,
+  QuickExportSaveTargetRecord,
+} from "@/types";
 import type { Palette } from "@/features/image-editor/types";
 import { normalizeProject } from "@/features/project-management/lib/project";
 import type {
@@ -16,6 +23,8 @@ class TilerDatabase extends Dexie {
   projects!: EntityTable<ProjectRecord, "id">;
   assets!: EntityTable<AssetRecord, "id">;
   settings!: EntityTable<AppSettings & { id: string }, "id">;
+  quickExportPreferences!: EntityTable<QuickExportPreferenceRecord, "id">;
+  quickExportSaveTargets!: EntityTable<QuickExportSaveTargetRecord, "id">;
 
   constructor() {
     super("TilerDB");
@@ -26,10 +35,37 @@ class TilerDatabase extends Dexie {
       settings: "id",
       history: "id",
     });
+
+    this.version(2).stores({
+      projects: "id, name, updatedAt",
+      assets: "id, createdAt",
+      settings: "id",
+      history: "id",
+      quickExportPreferences: "id, projectId, assetType, assetId, updatedAt",
+      quickExportSaveTargets:
+        "id, projectId, assetType, assetId, optionId, updatedAt",
+    });
   }
 }
 
 export const db = new TilerDatabase();
+
+function buildQuickExportPreferenceKey(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+): string {
+  return `${projectId}:${assetType}:${assetId}`;
+}
+
+function buildQuickExportSaveTargetKey(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+  optionId: string,
+): string {
+  return `${projectId}:${assetType}:${assetId}:${optionId}`;
+}
 
 // ---------------------------------------------------------------------------
 // Asset helpers
@@ -155,7 +191,80 @@ export async function deleteProject(id: string): Promise<void> {
     const assetIds = project.tilesets.map((t) => t.assetId);
     await db.assets.bulkDelete(assetIds);
   }
+  await db.quickExportPreferences.where("projectId").equals(id).delete();
+  await db.quickExportSaveTargets.where("projectId").equals(id).delete();
   await db.projects.delete(id);
+}
+
+export async function saveQuickExportPreference(
+  record: Omit<QuickExportPreferenceRecord, "id" | "updatedAt">,
+): Promise<void> {
+  await db.quickExportPreferences.put({
+    ...record,
+    id: buildQuickExportPreferenceKey(
+      record.projectId,
+      record.assetType,
+      record.assetId,
+    ),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function loadQuickExportPreference(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+): Promise<QuickExportPreferenceRecord | undefined> {
+  return db.quickExportPreferences.get(
+    buildQuickExportPreferenceKey(projectId, assetType, assetId),
+  );
+}
+
+export async function deleteQuickExportPreference(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+): Promise<void> {
+  await db.quickExportPreferences.delete(
+    buildQuickExportPreferenceKey(projectId, assetType, assetId),
+  );
+}
+
+export async function saveQuickExportSaveTarget(
+  record: Omit<QuickExportSaveTargetRecord, "id" | "updatedAt">,
+): Promise<void> {
+  await db.quickExportSaveTargets.put({
+    ...record,
+    id: buildQuickExportSaveTargetKey(
+      record.projectId,
+      record.assetType,
+      record.assetId,
+      record.optionId,
+    ),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function loadQuickExportSaveTarget(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+  optionId: string,
+): Promise<QuickExportSaveTargetRecord | undefined> {
+  return db.quickExportSaveTargets.get(
+    buildQuickExportSaveTargetKey(projectId, assetType, assetId, optionId),
+  );
+}
+
+export async function deleteQuickExportSaveTarget(
+  projectId: string,
+  assetType: QuickExportAssetType,
+  assetId: string,
+  optionId: string,
+): Promise<void> {
+  await db.quickExportSaveTargets.delete(
+    buildQuickExportSaveTargetKey(projectId, assetType, assetId, optionId),
+  );
 }
 
 const PROJECT_PREFS_PREFIX = "project-prefs-";

@@ -30,7 +30,7 @@ import {
   IMAGE_HEIGHT_PROPERTY_KEY,
   IMAGE_ROTATION_PROPERTY_KEY,
   IMAGE_WIDTH_PROPERTY_KEY,
-  importImageAsset,
+  importTiledTilesetImageAsset,
   LOCKED_PROPERTY_KEY,
   MAP_NAME_PROPERTY_KEY,
   parsePropertiesWithObjectRefs,
@@ -249,9 +249,6 @@ async function parseTilesetElement(
   }
   const margin = Number(tilesetElement.getAttribute("margin") ?? "0");
   const spacing = Number(tilesetElement.getAttribute("spacing") ?? "0");
-  if (margin !== 0 || spacing !== 0) {
-    throw new Error("TMX tilesets with margin or spacing are not supported.");
-  }
 
   const imageElement = tilesetElement.querySelector(":scope > image");
   if (!imageElement) {
@@ -264,9 +261,19 @@ async function parseTilesetElement(
   }
 
   const resolvedImagePath = resolveBundlePath(tilesetPath, imageSource);
-  const importedImage = await importImageAsset(
+  const importedImage = await importTiledTilesetImageAsset(
     resolvedImagePath,
     requireProvidedEntry(providedEntries, resolvedImagePath),
+    {
+      tileWidth,
+      tileHeight,
+      margin,
+      spacing,
+      imageWidth:
+        Number(imageElement.getAttribute("width") ?? "0") || undefined,
+      imageHeight:
+        Number(imageElement.getAttribute("height") ?? "0") || undefined,
+    },
   );
 
   return {
@@ -279,12 +286,8 @@ async function parseTilesetElement(
       groupId: "tmx-import" as Tileset["groupId"],
       tileSize: tileWidth as TileSize,
       assetId: importedImage.assetId,
-      imageWidth:
-        Number(imageElement.getAttribute("width") ?? importedImage.width) ||
-        importedImage.width,
-      imageHeight:
-        Number(imageElement.getAttribute("height") ?? importedImage.height) ||
-        importedImage.height,
+      imageWidth: importedImage.width,
+      imageHeight: importedImage.height,
       createdAt: Date.now(),
     },
   };

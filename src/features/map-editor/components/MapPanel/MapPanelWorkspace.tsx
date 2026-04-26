@@ -50,6 +50,7 @@ export function MapPanelWorkspace({
   paintBuffer,
   paintBufferVersion,
   project,
+  quickExportControl,
   state,
   textObjectEditing,
 }: MapPanelWorkspaceProps) {
@@ -109,6 +110,7 @@ export function MapPanelWorkspace({
               onDoubleClickObject={(id) =>
                 onOpenObjectProperties(id as ObjectId)
               }
+              quickExportControl={quickExportControl}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">

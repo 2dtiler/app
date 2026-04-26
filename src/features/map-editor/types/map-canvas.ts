@@ -20,6 +20,7 @@ import type {
   TextObjectEditingState,
   TextObjectMapObject,
 } from "@/types/map/text-object";
+import type { QuickExportControlState } from "@/types";
 
 export interface MapCanvasImperativeHandle {
   drawBufferTile: (gx: number, gy: number, ref: TileRef) => void;
@@ -156,6 +157,7 @@ export interface MapCanvasProps {
   onCancelTextEditing: () => void;
   onCancelPendingObject?: () => void;
   onDoubleClickObject?: (objectId: string) => void;
+  quickExportControl: QuickExportControlState;
 }
 
 export interface TextObjectEditorOverlayProps {

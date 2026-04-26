@@ -1,10 +1,10 @@
 Allow quick export bottom right
-Map type: infinite
-Tiled margin/spacing
+Handle Tiled Margin/Spacing
+Add unit tests and add to CI/CD
 
 Support Tiled Project Import/Export
+
 Godot project Import/Export
-Add unit tests and add to CI/CD
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 Keyboard shortcuts not working?
 

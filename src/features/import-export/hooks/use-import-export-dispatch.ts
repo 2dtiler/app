@@ -55,6 +55,7 @@ import {
   isUnityTilesetOption,
 } from "@/features/import-export/lib/unity-tileset-action-utils";
 import type {
+  ExportSaveStrategy,
   ImportExportFormatExportOptions,
   ImportExportOptionId,
   ImportExportRasterExportOptions,
@@ -63,15 +64,23 @@ import type {
 
 interface UseImportExportDispatchParams {
   project: Project | null;
-  handleExportNativeMaps: (selectedIds: string[]) => Promise<boolean>;
-  handleExportNativeTilesets: (selectedIds: string[]) => Promise<boolean>;
   handleExportRasterMaps: (
     selectedIds: string[],
     rasterExportOptions?: ImportExportRasterExportOptions,
+    saveStrategy?: ExportSaveStrategy,
   ) => Promise<boolean>;
   handleExportRasterTilesets: (
     selectedIds: string[],
     rasterExportOptions?: ImportExportRasterExportOptions,
+    saveStrategy?: ExportSaveStrategy,
+  ) => Promise<boolean>;
+  handleExportNativeMaps: (
+    selectedIds: string[],
+    saveStrategy?: ExportSaveStrategy,
+  ) => Promise<boolean>;
+  handleExportNativeTilesets: (
+    selectedIds: string[],
+    saveStrategy?: ExportSaveStrategy,
   ) => Promise<boolean>;
   handleImportDefoldMap: () => Promise<boolean>;
   handleImportDefoldTileset: () => Promise<boolean>;
@@ -207,6 +216,7 @@ export function useImportExportDispatch({
       selectedIds: string[],
       optionId: ImportExportOptionId,
       formatExportOptions?: ImportExportFormatExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (optionId === "map-image") {
         return handleExportRasterMaps(
@@ -214,6 +224,7 @@ export function useImportExportDispatch({
           isRasterExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
+          saveStrategy,
         );
       }
 
@@ -223,11 +234,17 @@ export function useImportExportDispatch({
           selectedIds,
           optionId,
           formatExportOptions,
+          saveStrategy,
         );
       }
 
       if (isPhaserMapOption(optionId)) {
-        return exportSelectedPhaserMaps(project, selectedIds, optionId);
+        return exportSelectedPhaserMaps(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
       if (isGodotMapOption(optionId)) {
@@ -236,6 +253,7 @@ export function useImportExportDispatch({
           selectedIds,
           optionId,
           formatExportOptions,
+          saveStrategy,
         );
       }
 
@@ -247,11 +265,17 @@ export function useImportExportDispatch({
           isGameMakerMapExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
+          saveStrategy,
         );
       }
 
       if (isMappyMapOption(optionId)) {
-        return exportSelectedMappyMaps(project, selectedIds, optionId);
+        return exportSelectedMappyMaps(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
       if (isDefoldMapOption(optionId)) {
@@ -262,18 +286,29 @@ export function useImportExportDispatch({
           isDefoldMapExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
+          saveStrategy,
         );
       }
 
       if (isTideMapOption(optionId)) {
-        return exportSelectedTideMaps(project, selectedIds, optionId);
+        return exportSelectedTideMaps(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
       if (isUnityMapOption(optionId)) {
-        return exportSelectedUnityMaps(project, selectedIds, optionId);
+        return exportSelectedUnityMaps(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
-      return handleExportNativeMaps(selectedIds);
+      return handleExportNativeMaps(selectedIds, saveStrategy);
     },
     [handleExportNativeMaps, handleExportRasterMaps, project],
   );
@@ -283,6 +318,7 @@ export function useImportExportDispatch({
       selectedIds: string[],
       optionId: ImportExportOptionId,
       formatExportOptions?: ImportExportFormatExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (optionId === "tileset-image") {
         return handleExportRasterTilesets(
@@ -290,11 +326,17 @@ export function useImportExportDispatch({
           isRasterExportOptions(formatExportOptions)
             ? formatExportOptions
             : undefined,
+          saveStrategy,
         );
       }
 
       if (isGodotTilesetOption(optionId)) {
-        return exportSelectedGodotTilesets(project, selectedIds, optionId);
+        return exportSelectedGodotTilesets(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
       if (isTiledTilesetExportOption(optionId)) {
@@ -303,18 +345,29 @@ export function useImportExportDispatch({
           selectedIds,
           optionId,
           formatExportOptions,
+          saveStrategy,
         );
       }
 
       if (isUnityTilesetOption(optionId)) {
-        return exportSelectedUnityTilesets(project, selectedIds, optionId);
+        return exportSelectedUnityTilesets(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
       if (isDefoldTilesetOption(optionId)) {
-        return exportSelectedDefoldTilesets(project, selectedIds, optionId);
+        return exportSelectedDefoldTilesets(
+          project,
+          selectedIds,
+          optionId,
+          saveStrategy,
+        );
       }
 
-      return handleExportNativeTilesets(selectedIds);
+      return handleExportNativeTilesets(selectedIds, saveStrategy);
     },
     [handleExportNativeTilesets, handleExportRasterTilesets, project],
   );
