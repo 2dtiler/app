@@ -25,63 +25,20 @@ import {
   buildTilesetExportGroups,
   getMapExportData,
   getUniqueArchivePath,
-  isDefoldMapExportOptions,
-  isGameMakerMapExportOptions,
-  isRasterExportOptions,
   pickSingleFile,
 } from "@/features/import-export/lib/import-export-action-utils";
-import {
-  exportSelectedDefoldMaps,
-  isDefoldMapOption,
-} from "@/features/import-export/lib/defold-map-action-utils";
-import {
-  exportSelectedDefoldTilesets,
-  isDefoldTilesetOption,
-} from "@/features/import-export/lib/defold-tileset-action-utils";
-import {
-  exportSelectedGameMakerMaps,
-  isGameMakerMapOption,
-} from "@/features/import-export/lib/gamemaker-map-action-utils";
-import {
-  exportSelectedTiledMaps,
-  isTiledMapImportOption,
-  isTiledMapExportOption,
-} from "@/features/import-export/lib/tiled-map-action-utils";
-import {
-  exportSelectedPhaserMaps,
-  isPhaserMapOption,
-} from "@/features/import-export/lib/phaser-map-action-utils";
-import {
-  exportSelectedTiledTilesets,
-  isTiledTilesetExportOption,
-  isTiledTilesetImportOption,
-} from "@/features/import-export/lib/tiled-tileset-action-utils";
-import {
-  exportSelectedGodotMaps,
-  isGodotMapOption,
-} from "@/features/import-export/lib/godot-map-action-utils";
-import {
-  exportSelectedGodotTilesets,
-  isGodotTilesetOption,
-} from "@/features/import-export/lib/godot-tileset-action-utils";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
-import {
-  exportSelectedUnityMaps,
-  isUnityMapOption,
-} from "@/features/import-export/lib/unity-map-action-utils";
-import {
-  exportSelectedUnityTilesets,
-  isUnityTilesetOption,
-} from "@/features/import-export/lib/unity-tileset-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
 import { useDefoldMapImport } from "@/features/import-export/hooks/use-defold-map-import";
 import { useDefoldTilesetImport } from "@/features/import-export/hooks/use-defold-tileset-import";
 import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
+import { useImportExportDispatch } from "@/features/import-export/hooks/use-import-export-dispatch";
 import {
   PHASER_MAP_IMPORT_CONFIG,
   useTiledMapImport,
 } from "@/features/import-export/hooks/use-tiled-map-import";
+import { useTideMapImport } from "@/features/import-export/hooks/use-tide-map-import";
 import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
@@ -94,9 +51,7 @@ import type {
   ImageLayer,
   ImportExportArchiveEntry,
   ImportExportDialogMode,
-  ImportExportFormatExportOptions,
   ImportExportOptionAction,
-  ImportExportOptionId,
   ImportExportRasterExportOptions,
   MapId,
   MapGroupId,
@@ -355,6 +310,8 @@ export function useImportExportActions({
     useGameMakerMapImport(Boolean(state.project), handleImportedMapResolved);
   const { handleImportDefoldMap, defoldMissingResourcesDialogProps } =
     useDefoldMapImport(Boolean(state.project), handleImportedMapResolved);
+  const { handleImportTideMap, tideMissingResourcesDialogProps } =
+    useTideMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportedTilesetsResolved = useCallback(
     (importedTilesets: Tileset[]) => {
       if (!state.project || importedTilesets.length === 0) return;
@@ -700,204 +657,33 @@ export function useImportExportActions({
     }
   }, [setState, state.activeTilesetGroupId, state.project]);
 
-  const handleMapActionSelect = useCallback(
-    async (optionId: ImportExportOptionId) => {
-      if (optionId === "map-image") {
-        return handleImportRasterMap();
-      }
-
-      if (isTiledMapImportOption(optionId)) {
-        return handleImportTiledMap();
-      }
-
-      if (isPhaserMapOption(optionId)) {
-        return handleImportPhaserMap();
-      }
-
-      if (isGodotMapOption(optionId)) {
-        return handleImportGodotMap();
-      }
-
-      if (isGameMakerMapOption(optionId)) {
-        return handleImportGameMakerMap();
-      }
-
-      if (isDefoldMapOption(optionId)) {
-        return handleImportDefoldMap();
-      }
-
-      if (isUnityMapOption(optionId)) {
-        return handleImportUnityMap();
-      }
-
-      return handleImportNativeMap();
-    },
-    [
-      handleImportPhaserMap,
-      handleImportDefoldMap,
-      handleImportGameMakerMap,
-      handleImportGodotMap,
-      handleImportNativeMap,
-      handleImportRasterMap,
-      handleImportTiledMap,
-      handleImportUnityMap,
-    ],
-  );
-
-  const handleTilesetActionSelect = useCallback(
-    async (optionId: ImportExportOptionId) => {
-      if (optionId === "tileset-image") {
-        return handleImportRasterTileset();
-      }
-
-      if (isTiledTilesetImportOption(optionId)) {
-        return handleImportTiledTileset();
-      }
-
-      if (isGodotTilesetOption(optionId)) {
-        return handleImportGodotTileset();
-      }
-
-      if (isDefoldTilesetOption(optionId)) {
-        return handleImportDefoldTileset();
-      }
-
-      if (isUnityTilesetOption(optionId)) {
-        return handleImportUnityTileset();
-      }
-
-      return handleImportNativeTileset();
-    },
-    [
-      handleImportGodotTileset,
-      handleImportDefoldTileset,
-      handleImportNativeTileset,
-      handleImportRasterTileset,
-      handleImportTiledTileset,
-      handleImportUnityTileset,
-    ],
-  );
-
-  const handleMapExportSubmit = useCallback(
-    async (
-      selectedIds: string[],
-      optionId: ImportExportOptionId,
-      formatExportOptions?: ImportExportFormatExportOptions,
-    ) => {
-      if (optionId === "map-image") {
-        return handleExportRasterMaps(
-          selectedIds,
-          isRasterExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isTiledMapExportOption(optionId)) {
-        return exportSelectedTiledMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isPhaserMapOption(optionId)) {
-        return exportSelectedPhaserMaps(state.project, selectedIds, optionId);
-      }
-
-      if (isGodotMapOption(optionId)) {
-        return exportSelectedGodotMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isGameMakerMapOption(optionId)) {
-        return exportSelectedGameMakerMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          isGameMakerMapExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isDefoldMapOption(optionId)) {
-        return exportSelectedDefoldMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          isDefoldMapExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isUnityMapOption(optionId)) {
-        return exportSelectedUnityMaps(state.project, selectedIds, optionId);
-      }
-
-      return handleExportNativeMaps(selectedIds);
-    },
-    [handleExportNativeMaps, handleExportRasterMaps, state.project],
-  );
-
-  const handleTilesetExportSubmit = useCallback(
-    async (
-      selectedIds: string[],
-      optionId: ImportExportOptionId,
-      formatExportOptions?: ImportExportFormatExportOptions,
-    ) => {
-      if (optionId === "tileset-image") {
-        return handleExportRasterTilesets(
-          selectedIds,
-          isRasterExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isGodotTilesetOption(optionId)) {
-        return exportSelectedGodotTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-        );
-      }
-
-      if (isTiledTilesetExportOption(optionId)) {
-        return exportSelectedTiledTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isUnityTilesetOption(optionId)) {
-        return exportSelectedUnityTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-        );
-      }
-
-      if (isDefoldTilesetOption(optionId)) {
-        return exportSelectedDefoldTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-        );
-      }
-
-      return handleExportNativeTilesets(selectedIds);
-    },
-    [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
-  );
+  const {
+    handleMapActionSelect,
+    handleTilesetActionSelect,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
+  } = useImportExportDispatch({
+    project: state.project,
+    handleExportNativeMaps,
+    handleExportNativeTilesets,
+    handleExportRasterMaps,
+    handleExportRasterTilesets,
+    handleImportDefoldMap,
+    handleImportDefoldTileset,
+    handleImportGameMakerMap,
+    handleImportGodotMap,
+    handleImportGodotTileset,
+    handleImportNativeMap,
+    handleImportNativeTileset,
+    handleImportPhaserMap,
+    handleImportRasterMap,
+    handleImportRasterTileset,
+    handleImportTideMap,
+    handleImportTiledMap,
+    handleImportTiledTileset,
+    handleImportUnityMap,
+    handleImportUnityTileset,
+  });
 
   const mergedTiledMissingResourcesDialogProps =
     phaserMapMissingResourcesDialogProps.open
@@ -1051,6 +837,7 @@ export function useImportExportActions({
     defoldMissingResourcesDialogProps: mergedDefoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
+    tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,
   };

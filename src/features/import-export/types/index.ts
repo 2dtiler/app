@@ -50,7 +50,6 @@ export type ImportExportOptionId =
   | "map-gamemaker-studio-2"
   | "map-defold"
   | "map-tide"
-  | "map-tbin"
   | "map-mappy-fmp"
   | "tileset-native"
   | "tileset-image"

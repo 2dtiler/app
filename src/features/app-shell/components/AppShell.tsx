@@ -71,6 +71,13 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const TideMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/TideMissingResourcesDialog").then(
+    (module) => ({
+      default: module.TideMissingResourcesDialog,
+    }),
+  ),
+);
 const DefoldMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/DefoldMissingResourcesDialog").then(
     (module) => ({
@@ -215,6 +222,7 @@ export function AppShell({
     defoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps,
+    tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps,
   } = useImportExportActions({
@@ -409,6 +417,21 @@ export function AppShell({
             isSubmitting={tiledMissingResourcesDialogProps.isSubmitting}
             onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
             onImport={tiledMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {tideMissingResourcesDialogProps.open && (
+        <Suspense>
+          <TideMissingResourcesDialog
+            open={tideMissingResourcesDialogProps.open}
+            onOpenChange={tideMissingResourcesDialogProps.onOpenChange}
+            resources={tideMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              tideMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={tideMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={tideMissingResourcesDialogProps.onSelectFile}
+            onImport={tideMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

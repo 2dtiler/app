@@ -1,6 +1,3 @@
-Hover over tile: "V" flip vertical. "H" flip horizontal 
-=================
-
 Export Options
   - Do the rest of the options
 Import Options

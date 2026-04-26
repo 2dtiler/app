@@ -126,16 +126,10 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
   {
     id: "map-tide",
     assetType: "map",
-    label: "tIDE Map Format (.tide)",
-    description: "tIDE map export format.",
-    supportedNow: false,
-  },
-  {
-    id: "map-tbin",
-    assetType: "map",
-    label: "tBIN Map Format (.tbin)",
-    description: "tIDE binary map export format.",
-    supportedNow: false,
+    label: "tIDE Maps (.tide)",
+    description:
+      "Imports tIDE XML maps and exports bundled tIDE map archives with linked tileset images.",
+    supportedNow: true,
   },
   {
     id: "map-mappy-fmp",
