@@ -184,6 +184,14 @@ const optionDefinitions: ImportExportOptionDefinition[] = [
     supportedModes: ["import"],
   },
   {
+    id: "tileset-godot",
+    assetType: "tileset",
+    label: "Godot 4 Tileset Bundle (.tres)",
+    description: "Exports Godot 4 tileset resources for selected tilesets.",
+    supportedNow: true,
+    supportedModes: ["export"],
+  },
+  {
     id: "tileset-unity",
     assetType: "tileset",
     label: "Unity Sprite Sheet Bundle (.png + .meta)",
