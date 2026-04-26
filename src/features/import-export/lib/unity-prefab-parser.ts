@@ -107,16 +107,15 @@ function parseYamlDocuments(text: string) {
     .map((document) => ({
       ...document,
       objectType:
-        document.lines.find((line) => /^[A-Za-z][A-Za-z0-9_]*:$/.test(line))?.slice(0, -1) ??
-        "",
+        document.lines
+          .find((line) => /^[A-Za-z][A-Za-z0-9_]*:$/.test(line))
+          ?.slice(0, -1) ?? "",
     }))
     .filter((document) => document.objectType.length > 0);
 }
 
 function parseFileIdReference(line: string, key: string) {
-  const match = line.match(
-    new RegExp(`^\\s*${key}: \\{fileID: (-?\\d+)\\}$`),
-  );
+  const match = line.match(new RegExp(`^\\s*${key}: \\{fileID: (-?\\d+)\\}$`));
   return match?.[1] ?? null;
 }
 
@@ -164,7 +163,9 @@ function parseTransformDocument(document: UnityYamlDocument) {
   const gameObjectLine = document.lines.find((line) =>
     line.startsWith("  m_GameObject: "),
   );
-  const fatherLine = document.lines.find((line) => line.startsWith("  m_Father: "));
+  const fatherLine = document.lines.find((line) =>
+    line.startsWith("  m_Father: "),
+  );
   const childrenIndex = document.lines.findIndex((line) =>
     line.startsWith("  m_Children:"),
   );
@@ -241,7 +242,10 @@ function parseTileEntries(
   }
 
   const tiles: UnityParsedPrefabTile[] = [];
-  let pendingTile: Omit<UnityParsedPrefabTile, "rotation" | "flipX" | "flipY"> | null = null;
+  let pendingTile: Omit<
+    UnityParsedPrefabTile,
+    "rotation" | "flipX" | "flipY"
+  > | null = null;
   let currentMatrix: Partial<UnityTileMatrix> = {};
 
   for (let index = startIndex + 1; index < lines.length; index += 1) {
@@ -318,7 +322,12 @@ function parseTilemapDocument(document: UnityYamlDocument) {
     line.startsWith("  m_Tiles:"),
   );
 
-  if (!gameObjectLine || !sizeLine || tileAssetArrayIndex < 0 || tilesIndex < 0) {
+  if (
+    !gameObjectLine ||
+    !sizeLine ||
+    tileAssetArrayIndex < 0 ||
+    tilesIndex < 0
+  ) {
     return null;
   }
 
@@ -406,10 +415,13 @@ function orderLayerTilemaps(
   }
 
   const orderedChildTransforms =
-    transformByFileId.get(orderedRootParentId)?.childIds
-      .map((childId) => transformByFileId.get(childId))
+    transformByFileId
+      .get(orderedRootParentId)
+      ?.childIds.map((childId) => transformByFileId.get(childId))
       .filter((transform): transform is UnityTransformDocument =>
-        Boolean(transform && tilemapsByGameObjectId.has(transform.gameObjectId)),
+        Boolean(
+          transform && tilemapsByGameObjectId.has(transform.gameObjectId),
+        ),
       ) ?? [];
 
   const orderedGameObjectIds = new Set(
@@ -418,7 +430,10 @@ function orderLayerTilemaps(
 
   return [
     ...orderedChildTransforms.map(
-      (transform) => tilemapsByGameObjectId.get(transform.gameObjectId) as UnityTilemapDocument,
+      (transform) =>
+        tilemapsByGameObjectId.get(
+          transform.gameObjectId,
+        ) as UnityTilemapDocument,
     ),
     ...[...tilemapsByGameObjectId.values()]
       .filter((tilemap) => !orderedGameObjectIds.has(tilemap.gameObjectId))
@@ -432,18 +447,24 @@ export function parseUnityPrefabTilemap(data: Uint8Array | string) {
   const gameObjects = documents
     .filter((document) => document.objectType === "GameObject")
     .map(parseGameObjectDocument)
-    .filter((document): document is UnityGameObjectDocument => Boolean(document));
+    .filter((document): document is UnityGameObjectDocument =>
+      Boolean(document),
+    );
   const transforms = documents
     .filter((document) => document.objectType === "Transform")
     .map(parseTransformDocument)
-    .filter((document): document is UnityTransformDocument => Boolean(document));
+    .filter((document): document is UnityTransformDocument =>
+      Boolean(document),
+    );
   const tilemaps = documents
     .filter((document) => document.objectType === "Tilemap")
     .map(parseTilemapDocument)
     .filter((document): document is UnityTilemapDocument => Boolean(document));
 
   if (tilemaps.length === 0) {
-    throw new Error("The selected Unity prefab does not contain any Tilemap components.");
+    throw new Error(
+      "The selected Unity prefab does not contain any Tilemap components.",
+    );
   }
 
   const gameObjectsByFileId = new Map(
@@ -452,8 +473,13 @@ export function parseUnityPrefabTilemap(data: Uint8Array | string) {
   const tilemapsByGameObjectId = new Map(
     tilemaps.map((tilemap) => [tilemap.gameObjectId, tilemap]),
   );
-  const orderedTilemaps = orderLayerTilemaps(transforms, tilemapsByGameObjectId);
-  const widthInTiles = Math.max(...orderedTilemaps.map((tilemap) => tilemap.widthInTiles));
+  const orderedTilemaps = orderLayerTilemaps(
+    transforms,
+    tilemapsByGameObjectId,
+  );
+  const widthInTiles = Math.max(
+    ...orderedTilemaps.map((tilemap) => tilemap.widthInTiles),
+  );
   const heightInTiles = Math.max(
     ...orderedTilemaps.map((tilemap) => tilemap.heightInTiles),
   );

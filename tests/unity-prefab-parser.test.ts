@@ -234,7 +234,10 @@ test("parseUnityPrefabTilemap reads actual layer order and tile transforms", () 
     ],
   );
 
-  assert.equal(parsed.layers[0].tileAssetGuids[1], "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+  assert.equal(
+    parsed.layers[0].tileAssetGuids[1],
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  );
   assert.deepEqual(parsed.layers[0].tiles[0], {
     coordinate: "1,2",
     tileIndex: 1,
@@ -260,7 +263,8 @@ test("parseUnityPrefabTilemap reads actual layer order and tile transforms", () 
 
 test("parseUnityPrefabTilemap rejects prefabs without Tilemap components", () => {
   assert.throws(
-    () => parseUnityPrefabTilemap("%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n"),
+    () =>
+      parseUnityPrefabTilemap("%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n"),
     /does not contain any Tilemap components/,
   );
 });

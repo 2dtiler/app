@@ -77,7 +77,9 @@ async function importUnityMapEntries(
     manifest.layers,
     mapId,
   );
-  const prefab = tryParseUnityPrefab(requireProvidedEntry(providedEntries, rootPath));
+  const prefab = tryParseUnityPrefab(
+    requireProvidedEntry(providedEntries, rootPath),
+  );
 
   return {
     map: {
@@ -139,7 +141,9 @@ function tryParseUnityPrefab(prefabData: Uint8Array) {
   }
 }
 
-function buildManifestLayerTileRefLookup(layer: UnityBundleManifestLayer | undefined) {
+function buildManifestLayerTileRefLookup(
+  layer: UnityBundleManifestLayer | undefined,
+) {
   if (!layer) {
     return [];
   }
