@@ -235,7 +235,9 @@ async function resolveUnityPrefabTileAssets(
 
     const tileAssetPath = resourcePathByGuid.get(tileAssetGuid);
     if (!tileAssetPath) {
-      throw new Error(`Missing Unity Tile asset metadata for GUID ${tileAssetGuid}.`);
+      throw new Error(
+        `Missing Unity Tile asset metadata for GUID ${tileAssetGuid}.`,
+      );
     }
 
     const tileAssetData = requireProvidedEntry(providedEntries, tileAssetPath);
@@ -317,7 +319,10 @@ async function importUnityMapEntries(
   const prefab = tryParseUnityPrefab(prefabData);
 
   if (!prefab) {
-    const tilesets = await importManifestSourceTilesets(providedEntries, manifest);
+    const tilesets = await importManifestSourceTilesets(
+      providedEntries,
+      manifest,
+    );
     const layers = buildUnityImportLayersFromManifest(manifest.layers, mapId);
 
     return {
@@ -342,11 +347,12 @@ async function importUnityMapEntries(
     };
   }
 
-  const { tilesets, tileRefByTileAssetGuid } = await resolveUnityPrefabTileAssets(
-    providedEntries,
-    prefab,
-    manifest.map.tileSize,
-  );
+  const { tilesets, tileRefByTileAssetGuid } =
+    await resolveUnityPrefabTileAssets(
+      providedEntries,
+      prefab,
+      manifest.map.tileSize,
+    );
 
   const layers = buildUnityImportLayersFromPrefab(
     prefab,
@@ -460,15 +466,15 @@ function buildUnityImportLayersFromPrefab(
   tileRefByTileAssetGuid: ReadonlyMap<string, TileRef>,
 ) {
   return prefab.layers.map((layer, index) => ({
-    id: (
-      layer.exportId ??
+    id: (layer.exportId ??
       getManifestLayerForPrefabLayer(layer, manifestLayers, index)?.exportId ??
-      `unity-layer-${index}`
-    ) as TileLayer["id"],
+      `unity-layer-${index}`) as TileLayer["id"],
     mapId,
     name: layer.name,
     visible: layer.visible,
-    locked: getManifestLayerForPrefabLayer(layer, manifestLayers, index)?.locked ?? false,
+    locked:
+      getManifestLayerForPrefabLayer(layer, manifestLayers, index)?.locked ??
+      false,
     type: "tile" as const,
     tiles: buildPrefabLayerTiles(layer, tileRefByTileAssetGuid),
   }));

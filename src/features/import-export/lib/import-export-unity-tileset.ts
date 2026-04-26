@@ -13,7 +13,9 @@ export async function exportUnityTilesetBundle(
 ): Promise<ImportExportArchiveEntry[]> {
   const assetRecord = await getAsset(tileset.assetId);
   if (!assetRecord) {
-    throw new Error(`Missing image asset for Unity tileset export: ${tileset.name}.`);
+    throw new Error(
+      `Missing image asset for Unity tileset export: ${tileset.name}.`,
+    );
   }
 
   const usedPaths = new Set<string>();

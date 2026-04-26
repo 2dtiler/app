@@ -369,8 +369,7 @@ export function useImportExportActions({
     useUnityMapImport(Boolean(state.project), handleImportedMapResolved);
   const {
     handleImportUnityTileset,
-    unityMissingResourcesDialogProps:
-      unityTilesetMissingResourcesDialogProps,
+    unityMissingResourcesDialogProps: unityTilesetMissingResourcesDialogProps,
   } = useUnityTilesetImport(
     Boolean(state.project),
     handleImportedTilesetsResolved,

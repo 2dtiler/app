@@ -65,7 +65,9 @@ export async function prepareUnityTilesetImport(
 ): Promise<UnityTilesetImportPreparationResult> {
   const normalizedRootPath = normalizeBundlePath(rootPath);
   if (normalizedRootPath.toLowerCase().endsWith(".meta")) {
-    throw new Error("Select the Unity texture image file, not the .meta sidecar.");
+    throw new Error(
+      "Select the Unity texture image file, not the .meta sidecar.",
+    );
   }
 
   const providedEntries = buildEntryMap(entries);
@@ -101,8 +103,9 @@ export async function prepareUnityTilesetImport(
       {
         id: generateTilesetId(),
         name:
-          stripExtension(normalizedRootPath.split("/").pop() ?? normalizedRootPath) ||
-          "Unity Tileset",
+          stripExtension(
+            normalizedRootPath.split("/").pop() ?? normalizedRootPath,
+          ) || "Unity Tileset",
         groupId: IMPORT_TILESET_GROUP_ID as Tileset["groupId"],
         tileSize,
         assetId: importedAsset.assetId,
