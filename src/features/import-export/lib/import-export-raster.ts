@@ -5,7 +5,10 @@ import {
 import { drawMapObjects } from "@/features/map-editor/components/MapCanvas/draw-map-objects";
 import { getAsset, saveAsset } from "@/services/db";
 import { generateAssetId } from "@/utils/ids";
-import { getMapCellOrigin, getMapPixelSize } from "@/features/map-editor/lib/map-geometry";
+import {
+  getMapCellOrigin,
+  getMapPixelSize,
+} from "@/features/map-editor/lib/map-geometry";
 import { pickSingleFile } from "@/features/import-export/lib/import-export-action-utils";
 import type {
   AssetId,
