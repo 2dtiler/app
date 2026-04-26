@@ -7,56 +7,82 @@ import {
 } from "@/components/ui/Dialog";
 import type { KeyboardShortcutsDialogProps } from "@/features/app-shell";
 
-const shortcuts = [
-  {
-    category: "General",
-    items: [
-      { keys: "Ctrl+S", description: "Save project" },
-      { keys: "Ctrl+Z", description: "Undo" },
-      { keys: "Ctrl+Shift+Z", description: "Redo" },
-      { keys: "Ctrl+Y", description: "Redo (alt)" },
-      { keys: "Delete / Backspace", description: "Delete selection" },
-    ],
-  },
-  {
-    category: "Tools",
-    items: [
-      { keys: "S", description: "Select tool" },
-      { keys: "B", description: "Paint tool" },
-      { keys: "E", description: "Erase tool" },
-      { keys: "G", description: "Fill tool" },
-    ],
-  },
-  {
-    category: "Map Editing",
-    items: [
-      { keys: "H", description: "Flip hovered tile horizontally" },
-      { keys: "V", description: "Flip hovered tile vertically" },
-    ],
-  },
-  {
-    category: "Brush Size",
-    items: [
-      { keys: "1", description: "1×1 brush" },
-      { keys: "2", description: "2×2 brush" },
-      { keys: "3", description: "3×3 brush" },
-      { keys: "4", description: "4×4 brush" },
-      { keys: "5", description: "5×5 brush" },
-    ],
-  },
-  {
-    category: "Viewport",
-    items: [
-      { keys: "+ / =", description: "Zoom in (map)" },
-      { keys: "-", description: "Zoom out (map)" },
-    ],
-  },
-];
+function getPrimaryModifierLabel() {
+  if (typeof navigator === "undefined") {
+    return "Ctrl";
+  }
+
+  const platformDescriptor = `${navigator.platform} ${navigator.userAgent}`;
+  return /Mac|iPhone|iPad|iPod/i.test(platformDescriptor) ? "Cmd" : "Ctrl";
+}
+
+function getShortcutGroups(primaryModifierLabel: string) {
+  return [
+    {
+      category: "General",
+      items: [
+        { keys: `${primaryModifierLabel}+S`, description: "Save project" },
+        { keys: `${primaryModifierLabel}+Z`, description: "Undo" },
+        {
+          keys: `${primaryModifierLabel}+Shift+Z`,
+          description: "Redo",
+        },
+        { keys: `${primaryModifierLabel}+Y`, description: "Redo (alt)" },
+        { keys: "Delete / Backspace", description: "Delete selection" },
+      ],
+    },
+    {
+      category: "Export",
+      items: [
+        { keys: `${primaryModifierLabel}+Shift+E`, description: "Export map" },
+        {
+          keys: `${primaryModifierLabel}+Shift+B`,
+          description: "Export tileset",
+        },
+      ],
+    },
+    {
+      category: "Tools",
+      items: [
+        { keys: "S", description: "Select tool" },
+        { keys: "B", description: "Paint tool" },
+        { keys: "E", description: "Erase tool" },
+        { keys: "G", description: "Fill tool" },
+      ],
+    },
+    {
+      category: "Map Editing",
+      items: [
+        { keys: "H", description: "Flip hovered tile horizontally" },
+        { keys: "V", description: "Flip hovered tile vertically" },
+      ],
+    },
+    {
+      category: "Brush Size",
+      items: [
+        { keys: "1", description: "1×1 brush" },
+        { keys: "2", description: "2×2 brush" },
+        { keys: "3", description: "3×3 brush" },
+        { keys: "4", description: "4×4 brush" },
+        { keys: "5", description: "5×5 brush" },
+      ],
+    },
+    {
+      category: "Viewport",
+      items: [
+        { keys: "+ / =", description: "Zoom in (map)" },
+        { keys: "-", description: "Zoom out (map)" },
+      ],
+    },
+  ];
+}
 
 export function KeyboardShortcutsDialog({
   open,
   onOpenChange,
 }: KeyboardShortcutsDialogProps) {
+  const shortcuts = getShortcutGroups(getPrimaryModifierLabel());
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-100">

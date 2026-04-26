@@ -1,4 +1,4 @@
-import { ChevronDown, Download } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -19,14 +19,14 @@ import type { QuickExportButtonGroupProps } from "@/types";
 
 function getTooltipLabel(props: QuickExportButtonGroupProps) {
   if (props.state.disabled) {
-    return props.state.disabledReason ?? "Quick export is unavailable.";
+    return props.state.disabledReason ?? "Export is unavailable.";
   }
 
   if (props.state.selectedOptionLabel) {
-    return `Quick export using ${props.state.selectedOptionLabel}`;
+    return `Export using ${props.state.selectedOptionLabel}`;
   }
 
-  return "Choose an export format, then quick export this asset.";
+  return "Choose an export format, then export this asset.";
 }
 
 export function QuickExportButtonGroup(props: QuickExportButtonGroupProps) {
@@ -39,13 +39,13 @@ export function QuickExportButtonGroup(props: QuickExportButtonGroupProps) {
               id={props.buttonId}
               name={props.buttonName}
               type="button"
+              variant="secondary"
               size="xs"
               className="rounded-md"
               disabled={props.state.disabled || props.state.isExporting}
               onClick={props.state.onQuickExport}
             >
-              <Download className="size-3" />
-              {props.state.isExporting ? "Exporting..." : "Quick Export"}
+              {props.state.isExporting ? "Exporting..." : "Export"}
             </Button>
           </div>
         </TooltipTrigger>
@@ -62,10 +62,10 @@ export function QuickExportButtonGroup(props: QuickExportButtonGroupProps) {
                   name={props.dropdownButtonName}
                   type="button"
                   size="icon-xs"
-                  variant="outline"
-                  className="rounded-md border-border-visible"
+                  variant="secondary"
+                  className="rounded-md"
                   disabled={props.state.disabled}
-                  aria-label={`Choose quick export format for ${props.state.assetType}`}
+                  aria-label={`Choose export format for ${props.state.assetType}`}
                 >
                   <ChevronDown className="size-3" />
                 </Button>
@@ -75,7 +75,7 @@ export function QuickExportButtonGroup(props: QuickExportButtonGroupProps) {
           <TooltipContent>
             {props.state.selectedOptionLabel
               ? `Current format: ${props.state.selectedOptionLabel}`
-              : "Choose a quick export format"}
+              : "Choose an export format"}
           </TooltipContent>
         </Tooltip>
 

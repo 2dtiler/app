@@ -1,4 +1,5 @@
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/ContextMenu";
+import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 import { MapCanvas } from "@/features/map-editor/components/MapCanvas";
 import { MapCanvasContextMenuContent } from "./MapCanvasContextMenuContent";
 import type { MapPanelWorkspaceProps } from "@/features/map-editor/types/map-panel";
@@ -57,68 +58,80 @@ export function MapPanelWorkspace({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div
-          ref={containerRef}
-          className="min-h-0 flex-1 overflow-auto"
-          onContextMenu={handleMapContextMenu}
-          onMouseMove={handleMapMouseMove}
-          onMouseLeave={clearHoverTile}
-        >
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={containerRef}
+            className="h-full min-h-0 overflow-auto"
+            onContextMenu={handleMapContextMenu}
+            onMouseMove={handleMapMouseMove}
+            onMouseLeave={clearHoverTile}
+          >
+            {activeMap && flatMap ? (
+              <MapCanvas
+                map={flatMap as TileMapData}
+                layers={flatLayers}
+                tilesets={[
+                  ...project.tilesets,
+                  ...(project.overrideTilesets ?? []),
+                ]}
+                zoom={mapZoom}
+                activeLayerId={state.activeLayerId}
+                currentTool={state.currentTool}
+                fillMode={state.fillMode}
+                activeFillTerrain={state.activeFillTerrain}
+                canPreviewFill={!activeLayerEffectivelyLocked}
+                brushSize={state.brushSize}
+                selectedTileSize={state.tileSize}
+                selectedTile={state.selectedTile}
+                onResizeMap={onResizeMap}
+                onPaintTile={onPaintTile}
+                onPaintEnd={onPaintEnd}
+                paintBuffer={paintBuffer}
+                paintBufferVersion={paintBufferVersion}
+                imperativeRef={mapCanvasRef}
+                mapSelection={state.mapSelection}
+                onSelectionChange={onSelectionChange}
+                onMoveTiles={onMoveTiles}
+                imageLayers={flatImageLayers}
+                onMoveImageLayer={onMoveImageLayer}
+                onResizeImageLayer={onResizeImageLayer}
+                objectLayers={flatObjectLayers}
+                objects={flatObjects}
+                activeObjectId={state.activeObjectId}
+                pendingObjectType={state.pendingObjectType}
+                onCreateObject={onCreateObject}
+                onCancelPendingObject={onCancelPendingObject}
+                onMoveObject={onMoveObject}
+                onResizeObject={onResizeObject}
+                onUpdatePolygonPoints={onUpdatePolygonPoints}
+                onSelectObject={(id) => onSelectObject(id as ObjectId | null)}
+                editingTextObject={textObjectEditing.editing}
+                onEditingTextChange={textObjectEditing.updateText}
+                onCommitTextEditing={textObjectEditing.commitEditing}
+                onCancelTextEditing={textObjectEditing.cancelEditing}
+                onDoubleClickObject={(id) =>
+                  onOpenObjectProperties(id as ObjectId)
+                }
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                {groupMaps.length === 0
+                  ? "Click '+ Add Map' to create a map"
+                  : "Select a map tab"}
+              </div>
+            )}
+          </div>
           {activeMap && flatMap ? (
-            <MapCanvas
-              map={flatMap as TileMapData}
-              layers={flatLayers}
-              tilesets={[
-                ...project.tilesets,
-                ...(project.overrideTilesets ?? []),
-              ]}
-              zoom={mapZoom}
-              activeLayerId={state.activeLayerId}
-              currentTool={state.currentTool}
-              fillMode={state.fillMode}
-              activeFillTerrain={state.activeFillTerrain}
-              canPreviewFill={!activeLayerEffectivelyLocked}
-              brushSize={state.brushSize}
-              selectedTileSize={state.tileSize}
-              selectedTile={state.selectedTile}
-              onResizeMap={onResizeMap}
-              onPaintTile={onPaintTile}
-              onPaintEnd={onPaintEnd}
-              paintBuffer={paintBuffer}
-              paintBufferVersion={paintBufferVersion}
-              imperativeRef={mapCanvasRef}
-              mapSelection={state.mapSelection}
-              onSelectionChange={onSelectionChange}
-              onMoveTiles={onMoveTiles}
-              imageLayers={flatImageLayers}
-              onMoveImageLayer={onMoveImageLayer}
-              onResizeImageLayer={onResizeImageLayer}
-              objectLayers={flatObjectLayers}
-              objects={flatObjects}
-              activeObjectId={state.activeObjectId}
-              pendingObjectType={state.pendingObjectType}
-              onCreateObject={onCreateObject}
-              onCancelPendingObject={onCancelPendingObject}
-              onMoveObject={onMoveObject}
-              onResizeObject={onResizeObject}
-              onUpdatePolygonPoints={onUpdatePolygonPoints}
-              onSelectObject={(id) => onSelectObject(id as ObjectId | null)}
-              editingTextObject={textObjectEditing.editing}
-              onEditingTextChange={textObjectEditing.updateText}
-              onCommitTextEditing={textObjectEditing.commitEditing}
-              onCancelTextEditing={textObjectEditing.cancelEditing}
-              onDoubleClickObject={(id) =>
-                onOpenObjectProperties(id as ObjectId)
-              }
-              quickExportControl={quickExportControl}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-              {groupMaps.length === 0
-                ? "Click '+ Add Map' to create a map"
-                : "Select a map tab"}
+            <div className="absolute bottom-3 right-3 z-20">
+              <QuickExportButtonGroup
+                buttonId="map-quick-export-button"
+                buttonName="map-quick-export-button"
+                dropdownButtonId="map-quick-export-dropdown"
+                dropdownButtonName="map-quick-export-dropdown"
+                state={quickExportControl}
+              />
             </div>
-          )}
+          ) : null}
         </div>
       </ContextMenuTrigger>
       <MapCanvasContextMenuContent

@@ -308,6 +308,30 @@ export function AppShell({
     return () => window.removeEventListener("project-save-end", handleSaveEnd);
   }, []);
 
+  useEffect(() => {
+    function handleMapQuickExport() {
+      mapQuickExport.onQuickExport();
+    }
+
+    function handleTilesetQuickExport() {
+      tilesetQuickExport.onQuickExport();
+    }
+
+    window.addEventListener("quick-export-map", handleMapQuickExport);
+    window.addEventListener(
+      "quick-export-tileset",
+      handleTilesetQuickExport,
+    );
+
+    return () => {
+      window.removeEventListener("quick-export-map", handleMapQuickExport);
+      window.removeEventListener(
+        "quick-export-tileset",
+        handleTilesetQuickExport,
+      );
+    };
+  }, [mapQuickExport.onQuickExport, tilesetQuickExport.onQuickExport]);
+
   return (
     <div className="flex h-full flex-col">
       <Toolbar

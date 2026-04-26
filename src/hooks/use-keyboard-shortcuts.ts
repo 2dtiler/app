@@ -10,6 +10,8 @@
  *   Ctrl+Z / Cmd+Z — Undo
  *   Ctrl+Shift+Z / Cmd+Shift+Z — Redo
  *   Ctrl+S / Cmd+S — Manual save
+ *   Ctrl+Shift+E / Cmd+Shift+E — Export active map
+ *   Ctrl+Shift+B / Cmd+Shift+B — Export active tileset
  *   Delete / Backspace — Delete current selection
  *   H — Flip hovered tile horizontally
  *   V — Flip hovered tile vertically
@@ -79,6 +81,18 @@ export function useKeyboardShortcuts() {
           markEditorSaved();
           void saveProject({ ...project, updatedAt: Date.now() });
         }
+        return;
+      }
+
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("quick-export-map"));
+        return;
+      }
+
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("quick-export-tileset"));
         return;
       }
 
