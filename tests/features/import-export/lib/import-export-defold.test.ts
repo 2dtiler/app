@@ -1,6 +1,4 @@
 import { assert, test } from "vitest";
-import { isDefoldMapOption } from "@/features/import-export/lib/defold-map-action-utils";
-import { isDefoldTilesetOption } from "@/features/import-export/lib/defold-tileset-action-utils";
 import {
   exportDefoldTilesourceBundle,
   exportDefoldMapBundle,
@@ -399,11 +397,4 @@ test("exportDefoldTilesourceBundle emits tilesource and image resources", async 
       );
     },
   );
-});
-
-test("Defold option predicates match only the Defold options", () => {
-  assert.strictEqual(isDefoldMapOption("map-defold"), true);
-  assert.strictEqual(isDefoldMapOption("map-godot"), false);
-  assert.strictEqual(isDefoldTilesetOption("tileset-defold"), true);
-  assert.strictEqual(isDefoldTilesetOption("tileset-tiled"), false);
 });

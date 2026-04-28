@@ -9,53 +9,8 @@ import {
   encodeUnityTextFile,
 } from "@/features/import-export/lib/unity-bundle-utils";
 import { prepareUnityMapImport } from "@/features/import-export/lib/unity-map-import";
-import { prepareUnityTilesetImport } from "@/features/import-export/lib/unity-tileset-import";
 import { db } from "@/services/db";
 import type { UnityBundleManifest } from "@/types";
-
-function buildUnitySpriteSheetMeta(guid: string, tileSize: number) {
-  return [
-    "fileFormatVersion: 2",
-    `guid: ${guid}`,
-    "TextureImporter:",
-    "  internalIDToNameTable: []",
-    "  externalObjects: {}",
-    "  serializedVersion: 13",
-    "  mipmaps:",
-    "    enableMipMap: 0",
-    "  textureSettings:",
-    "    serializedVersion: 2",
-    "    filterMode: 0",
-    "    aniso: 1",
-    "    mipBias: 0",
-    "    wrapU: 1",
-    "    wrapV: 1",
-    "    wrapW: 1",
-    "  spriteMode: 2",
-    "  spritePixelsToUnits: 100",
-    "  userData: ",
-    "  spriteSheet:",
-    "    serializedVersion: 2",
-    "    sprites:",
-    "    - serializedVersion: 2",
-    "      name: tile_0_0",
-    "      rect:",
-    "        serializedVersion: 2",
-    "        x: 0",
-    "        y: 0",
-    `        width: ${tileSize}`,
-    `        height: ${tileSize}`,
-    "    - serializedVersion: 2",
-    "      name: tile_1_0",
-    "      rect:",
-    "        serializedVersion: 2",
-    `        x: ${tileSize}`,
-    "        y: 0",
-    `        width: ${tileSize}`,
-    `        height: ${tileSize}`,
-    "",
-  ].join("\n");
-}
 
 function buildUnityPrefabBundleFixture(tileAssetGuid: string) {
   return encodeUnityTextFile(`%YAML 1.1
@@ -226,35 +181,6 @@ async function withStubbedUnityImportEnvironment(
     db.assets.put = originalPut;
   }
 }
-
-test("prepareUnityTilesetImport infers tile size from Unity sprite slicing metadata", async () => {
-  await withStubbedUnityImportEnvironment(
-    async () => {
-      const result = await prepareUnityTilesetImport("tiles/terrain.png", [
-        {
-          path: "tiles/terrain.png",
-          data: new Uint8Array([1, 2, 3]),
-        },
-        {
-          path: "tiles/terrain.png.meta",
-          data: encodeUnityTextFile(
-            buildUnitySpriteSheetMeta("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 16),
-          ),
-        },
-      ]);
-
-      assert.strictEqual(result.status, "ready");
-      if (result.status !== "ready") {
-        return;
-      }
-
-      assert.strictEqual(result.result[0]?.tileSize, 16);
-      assert.strictEqual(result.result[0]?.imageWidth, 32);
-      assert.strictEqual(result.result[0]?.imageHeight, 32);
-    },
-    { width: 32, height: 32 },
-  );
-});
 
 test("prepareUnityMapImport prefers prefab and texture metadata over manifest map metadata", async () => {
   await withStubbedUnityImportEnvironment(

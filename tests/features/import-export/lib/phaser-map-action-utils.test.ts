@@ -49,7 +49,6 @@ import {
   isPhaserMapOption,
   normalizePhaserMapBundleEntries,
 } from "@/features/import-export/lib/phaser-map-action-utils";
-import { PHASER_MAP_IMPORT_CONFIG } from "@/features/import-export/hooks/use-tiled-map-import";
 
 beforeEach(() => {
   buildDownloadFilenameMock.mockReset();
@@ -206,13 +205,6 @@ test("DEFAULT_PHASER_MAP_EXPORT_OPTIONS force Phaser-safe Tiled JSON defaults", 
     tilesetMode: "inline",
     renderOrder: "right-down",
   });
-});
-
-test("PHASER_MAP_IMPORT_CONFIG only accepts JSON-style tilemaps", () => {
-  expect(PHASER_MAP_IMPORT_CONFIG.detectFormat("level.json")).toBe("json");
-  expect(PHASER_MAP_IMPORT_CONFIG.detectFormat("level.tmj")).toBe("json");
-  expect(PHASER_MAP_IMPORT_CONFIG.detectFormat("level.tmx")).toBeNull();
-  expect(PHASER_MAP_IMPORT_CONFIG.detectFormat("level.lua")).toBeNull();
 });
 
 test("isPhaserMapOption matches only the Phaser map option", () => {

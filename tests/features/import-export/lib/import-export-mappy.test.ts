@@ -4,7 +4,6 @@ import {
   exportMappyMap,
   importMappyMap,
 } from "@/features/import-export/lib/import-export-mappy";
-import { isMappyMapOption } from "@/features/import-export/lib/mappy-map-action-utils";
 import {
   generateAssetId,
   generateLayerId,
@@ -621,9 +620,4 @@ test("exportMappyMap round-trips static tile placements through importMappyMap",
       db.assets.put = originalPut;
     }
   });
-});
-
-test("Mappy option predicate matches only the Mappy map option", () => {
-  assert.strictEqual(isMappyMapOption("map-mappy-fmp"), true);
-  assert.strictEqual(isMappyMapOption("map-tide"), false);
 });

@@ -1,11 +1,10 @@
-Tests should be more src -> test file specific
+Autotile
 
 Support Tiled Project Import/Export
 Godot project Import/Export
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
 
-Autotile
 Manage Tilesets
 Manage Maps
 World View
@@ -23,7 +22,6 @@ Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
 Exploration:
   Defold
-  SpriteFusion (Autotile rules)
   Ogmo Editor
   Universal lpc spritesheet generator
   LDTK

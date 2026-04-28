@@ -1,6 +1,5 @@
 import { assert, test } from "vitest";
 import { parseHTML } from "linkedom";
-import { isTideMapOption } from "@/features/import-export/lib/tide-map-action-utils";
 import {
   exportTideMapBundle,
   prepareTideMapImport,
@@ -146,7 +145,10 @@ test("prepareTideMapImport imports a linked image-backed tIDE map", async () => 
 
       assert.strictEqual(result.result.map.name, "level");
       assert.strictEqual(result.result.map.tileSize, 16);
-      assert.strictEqual(result.result.map.properties?.difficulty?.value, "hard");
+      assert.strictEqual(
+        result.result.map.properties?.difficulty?.value,
+        "hard",
+      );
       assert.strictEqual(result.result.tilesets[0]?.imageWidth, 32);
       assert.strictEqual(result.result.layers[0]?.tiles["0,0"]?.sx, 0);
       assert.strictEqual(result.result.layers[0]?.tiles["1,1"]?.sx, 16);
@@ -242,9 +244,4 @@ test("exportTideMapBundle emits a tIDE map and linked image resources", async ()
       );
     },
   );
-});
-
-test("tIDE option predicate matches only the unified tIDE map option", () => {
-  assert.strictEqual(isTideMapOption("map-tide"), true);
-  assert.strictEqual(isTideMapOption("map-defold"), false);
 });
