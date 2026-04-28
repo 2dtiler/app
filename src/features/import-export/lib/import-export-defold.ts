@@ -531,7 +531,7 @@ function buildDefoldCollectionText(name: string, tilemapPath: string) {
   ];
 
   const dataLines = embeddedComponentLines.map(
-    (line) => `"${line.replace(/\\/g, "\\\\").replace(/\"/g, '\\\"')}\\n"`,
+    (line) => `"${line.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}\\n"`,
   );
 
   return encodeDefoldText([

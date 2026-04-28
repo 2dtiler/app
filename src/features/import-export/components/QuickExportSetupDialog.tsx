@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -204,32 +204,6 @@ export function QuickExportSetupDialog({
   const [defoldMapExportOptions, setDefoldMapExportOptions] = useState(
     createInitialDefoldMapExportOptions(initialFormatExportOptions),
   );
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSelectedOptionId(initialOptionId ?? optionSummaries[0]?.id ?? null);
-    setRasterExportOptions(
-      createInitialRasterExportOptions(initialFormatExportOptions),
-    );
-    setTiledMapExportOptions(
-      createInitialTiledMapExportOptions(initialFormatExportOptions),
-    );
-    setTiledTilesetExportOptions(
-      createInitialTiledTilesetExportOptions(initialFormatExportOptions),
-    );
-    setGodotMapExportOptions(
-      createInitialGodotMapExportOptions(initialFormatExportOptions),
-    );
-    setGameMakerMapExportOptions(
-      createInitialGameMakerMapExportOptions(initialFormatExportOptions),
-    );
-    setDefoldMapExportOptions(
-      createInitialDefoldMapExportOptions(initialFormatExportOptions),
-    );
-  }, [initialFormatExportOptions, initialOptionId, open, optionSummaries]);
 
   const selectedOption = useMemo(
     () =>

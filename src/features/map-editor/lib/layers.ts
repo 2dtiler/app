@@ -344,7 +344,12 @@ export function findParentGroupId(
   if (layerOrder.some((id) => (id as string) === itemIdStr)) return null;
 
   // Search through groups
-  for (const group of groups) {
+  for (const entryId of layerOrder) {
+    const group = groups.find((candidate) => candidate.id === entryId);
+    if (!group) {
+      continue;
+    }
+
     if (group.childOrder.some((id) => (id as string) === itemIdStr))
       return group.id;
     // For deeply nested groups, recurse

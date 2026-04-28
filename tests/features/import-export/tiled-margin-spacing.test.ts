@@ -2,19 +2,39 @@ import { assert, test } from "vitest";
 import { unzipSync } from "fflate";
 import { parseHTML } from "linkedom";
 import {
+  exportTiledMapJsBundle,
   exportTiledMapJsonBundle,
+  exportTiledMapLuaBundle,
   exportTiledMapBundle,
 } from "@/features/import-export/lib/import-export-tiled";
+import {
+  convertJsonLikeToTiledLua,
+  convertTiledLuaToJsonLike,
+  encodeTiledLuaDocument,
+  parseTiledLuaDocument,
+} from "@/features/import-export/lib/tiled-lua";
 import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-import";
+import { getTextObjectSettings } from "@/features/map-editor/lib/text-objects";
 import { db } from "@/services/db";
 import { exportSelectedTiledTilesets } from "@/features/import-export/lib/tiled-tileset-action-utils";
 import {
   generateAssetId,
+  generateLayerGroupId,
   generateLayerId,
   generateMapId,
+  generateObjectId,
   generateTilesetId,
 } from "@/utils/ids";
-import type { Project, TileLayer, TileMapData, Tileset } from "@/types";
+import type {
+  ImageLayer,
+  LayerGroup,
+  MapObject,
+  ObjectLayer,
+  Project,
+  TileLayer,
+  TileMapData,
+  Tileset,
+} from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
 
@@ -120,6 +140,395 @@ function createTestProject(tileset: Tileset): Project {
     overrideTilesets: [],
   };
 }
+
+function createComplexTiledFixture() {
+  const tileset: Tileset = {
+    ...createTestTileset(),
+    name: "terrain/set",
+    imageWidth: 32,
+    imageHeight: 32,
+  };
+
+  const mapId = generateMapId();
+  const groupId = generateLayerGroupId();
+  const backgroundLayerId = generateLayerId();
+  const detailLayerId = generateLayerId();
+  const imageLayerId = generateLayerId();
+  const objectLayerId = generateLayerId();
+  const spawnId = generateObjectId();
+  const labelId = generateObjectId();
+  const boundsId = generateObjectId();
+  const markerId = generateObjectId();
+
+  const backgroundLayer = {
+    id: backgroundLayerId,
+    mapId,
+    name: "Ground",
+    type: "tile",
+    visible: true,
+    locked: false,
+    tiles: {
+      "0,0": {
+        tilesetId: tileset.id,
+        sx: 0,
+        sy: 0,
+        sw: 16,
+        sh: 16,
+        rotation: 0,
+        flipX: false,
+        flipY: false,
+      },
+      "1,0": {
+        tilesetId: tileset.id,
+        sx: 16,
+        sy: 0,
+        sw: 16,
+        sh: 16,
+        rotation: 90,
+        flipX: false,
+        flipY: false,
+      },
+      "0,1": {
+        tilesetId: tileset.id,
+        sx: 0,
+        sy: 16,
+        sw: 16,
+        sh: 16,
+        rotation: 0,
+        flipX: true,
+        flipY: false,
+      },
+      "1,1": {
+        tilesetId: tileset.id,
+        sx: 16,
+        sy: 16,
+        sw: 16,
+        sh: 16,
+        rotation: 180,
+        flipX: false,
+        flipY: false,
+      },
+    },
+  } as TileLayer;
+
+  const detailLayer = {
+    id: detailLayerId,
+    mapId,
+    name: "Detail",
+    type: "tile",
+    visible: false,
+    locked: true,
+    tiles: {
+      "1,0": {
+        tilesetId: tileset.id,
+        sx: 16,
+        sy: 16,
+        sw: 16,
+        sh: 16,
+        rotation: 270,
+        flipX: false,
+        flipY: false,
+      },
+    },
+  } as TileLayer;
+
+  const imageLayer = {
+    id: imageLayerId,
+    mapId,
+    name: "Backdrop",
+    type: "image",
+    visible: false,
+    locked: true,
+    assetId: generateAssetId(),
+    x: 8,
+    y: -4,
+    width: 48,
+    height: 24,
+    rotation: 90,
+    flipX: true,
+    flipY: false,
+    opacity: 45,
+  } as ImageLayer;
+
+  const objectLayer = {
+    id: objectLayerId,
+    mapId,
+    name: "Objects",
+    type: "object",
+    visible: true,
+    locked: false,
+    objectOrder: [spawnId, labelId, boundsId, markerId],
+  } as ObjectLayer;
+
+  const spawnObject = {
+    id: spawnId,
+    layerId: objectLayerId,
+    name: "Spawn",
+    type: "rectangle",
+    x: 4,
+    y: 8,
+    width: 16,
+    height: 16,
+    rotation: 15,
+    points: [],
+    visible: true,
+    locked: false,
+    properties: {
+      role: {
+        value: "spawn",
+        type: "string",
+      },
+    },
+  } as MapObject;
+
+  const labelObject = {
+    id: labelId,
+    layerId: objectLayerId,
+    name: "Label",
+    type: "text",
+    x: 20,
+    y: 18,
+    width: 96,
+    height: 32,
+    rotation: 45,
+    points: [],
+    visible: false,
+    locked: true,
+    properties: {
+      Text: {
+        value: "Hello\nWorld",
+        type: "string",
+      },
+      Size: {
+        value: "20",
+        type: "int",
+      },
+      Rotation: {
+        value: "45",
+        type: "float",
+      },
+      Font: {
+        value: "Space Mono",
+        type: "string",
+      },
+      "Word wrap": {
+        value: "false",
+        type: "bool",
+      },
+      Color: {
+        value: "#ff00ff",
+        type: "color",
+      },
+      target: {
+        value: spawnId,
+        type: "object",
+      },
+      note: {
+        value: "keep me",
+        type: "string",
+      },
+    },
+  } as MapObject;
+
+  const boundsObject = {
+    id: boundsId,
+    layerId: objectLayerId,
+    name: "Bounds",
+    type: "polygon",
+    x: 32,
+    y: 24,
+    width: 0,
+    height: 0,
+    rotation: 0,
+    points: [
+      { x: 0, y: 0 },
+      { x: 8, y: 0 },
+      { x: 8, y: 12 },
+    ],
+    visible: true,
+    locked: false,
+    properties: {},
+  } as MapObject;
+
+  const markerObject = {
+    id: markerId,
+    layerId: objectLayerId,
+    name: "Marker",
+    type: "point",
+    x: 12,
+    y: 30,
+    width: 0,
+    height: 0,
+    rotation: 0,
+    points: [],
+    visible: true,
+    locked: false,
+    properties: {},
+  } as MapObject;
+
+  const layerGroup = {
+    id: groupId,
+    mapId,
+    name: "Decor",
+    visible: false,
+    locked: true,
+    expanded: false,
+    childOrder: [detailLayerId, imageLayerId, objectLayerId],
+  } as LayerGroup;
+
+  const map = {
+    id: mapId,
+    name: "Fancy: Terrain",
+    groupId: "group" as TileMapData["groupId"],
+    orientation: "orthogonal",
+    widthInTiles: 2,
+    heightInTiles: 2,
+    tileSize: 16,
+    layerOrder: [backgroundLayerId, groupId],
+    properties: {
+      theme: {
+        value: "forest",
+        type: "string",
+      },
+    },
+    createdAt: Date.now(),
+  } as TileMapData;
+
+  return {
+    map,
+    tileset,
+    layers: [backgroundLayer, detailLayer],
+    imageLayers: [imageLayer],
+    layerGroups: [layerGroup],
+    objectLayers: [objectLayer],
+    objects: [spawnObject, labelObject, boundsObject, markerObject],
+  };
+}
+
+function getReadyImportResult(
+  preparation: Awaited<ReturnType<typeof prepareTiledMapImport>>,
+) {
+  assert.strictEqual(preparation.status, "ready");
+  if (preparation.status !== "ready") {
+    throw new Error(
+      `Expected a ready import result, got ${preparation.status}.`,
+    );
+  }
+  return preparation.result;
+}
+
+function assertComplexImportResult(
+  preparation: Awaited<ReturnType<typeof prepareTiledMapImport>>,
+  expectedMapName = "Fancy: Terrain",
+) {
+  const result = getReadyImportResult(preparation);
+  assert.strictEqual(result.map.name, expectedMapName);
+  assert.strictEqual(result.map.properties?.theme?.value, "forest");
+  assert.deepEqual(result.map.layerOrder, [
+    result.layers[0]?.id,
+    result.layerGroups[0]?.id,
+  ]);
+
+  assert.strictEqual(result.tilesets.length, 1);
+  assert.strictEqual(result.tilesets[0]?.name, "terrain/set");
+  assert.strictEqual(result.tilesets[0]?.imageWidth, 32);
+  assert.strictEqual(result.tilesets[0]?.imageHeight, 32);
+
+  const groundLayer = result.layers.find((layer) => layer.name === "Ground");
+  const detailLayer = result.layers.find((layer) => layer.name === "Detail");
+  assert.ok(groundLayer);
+  assert.ok(detailLayer);
+  assert.strictEqual(groundLayer?.tiles["1,0"]?.rotation, 90);
+  assert.strictEqual(groundLayer?.tiles["0,1"]?.flipX, true);
+  assert.strictEqual(groundLayer?.tiles["1,1"]?.rotation, 180);
+  assert.strictEqual(detailLayer?.visible, false);
+  assert.strictEqual(detailLayer?.locked, true);
+  assert.strictEqual(detailLayer?.tiles["1,0"]?.rotation, 270);
+
+  assert.strictEqual(result.layerGroups.length, 1);
+  assert.strictEqual(result.layerGroups[0]?.name, "Decor");
+  assert.strictEqual(result.layerGroups[0]?.visible, false);
+  assert.strictEqual(result.layerGroups[0]?.locked, true);
+  assert.strictEqual(result.layerGroups[0]?.expanded, false);
+  assert.strictEqual(result.layerGroups[0]?.childOrder.length, 3);
+
+  assert.strictEqual(result.imageLayers.length, 1);
+  assert.strictEqual(result.imageLayers[0]?.name, "Backdrop");
+  assert.strictEqual(result.imageLayers[0]?.width, 48);
+  assert.strictEqual(result.imageLayers[0]?.height, 24);
+  assert.strictEqual(result.imageLayers[0]?.rotation, 90);
+  assert.strictEqual(result.imageLayers[0]?.flipX, true);
+  assert.strictEqual(result.imageLayers[0]?.flipY, false);
+  assert.strictEqual(result.imageLayers[0]?.opacity, 45);
+  assert.strictEqual(result.imageLayers[0]?.locked, true);
+
+  assert.strictEqual(result.objectLayers.length, 1);
+  assert.strictEqual(result.objectLayers[0]?.name, "Objects");
+
+  const importedSpawn = result.objects.find(
+    (object) => object.name === "Spawn",
+  );
+  const importedLabel = result.objects.find(
+    (object) => object.name === "Label",
+  );
+  const importedBounds = result.objects.find(
+    (object) => object.name === "Bounds",
+  );
+  const importedMarker = result.objects.find(
+    (object) => object.name === "Marker",
+  );
+  assert.ok(importedSpawn);
+  assert.ok(importedLabel);
+  assert.ok(importedBounds);
+  assert.ok(importedMarker);
+  assert.strictEqual(importedSpawn?.rotation, 15);
+  assert.strictEqual(importedSpawn?.properties?.role?.value, "spawn");
+  assert.strictEqual(importedBounds?.type, "polygon");
+  assert.deepEqual(importedBounds?.points, [
+    { x: 0, y: 0 },
+    { x: 8, y: 0 },
+    { x: 8, y: 12 },
+  ]);
+  assert.strictEqual(importedMarker?.type, "point");
+  assert.strictEqual(importedLabel?.visible, false);
+  assert.strictEqual(importedLabel?.locked, true);
+  assert.strictEqual(importedLabel?.properties?.note?.value, "keep me");
+  assert.strictEqual(importedLabel?.properties?.target?.type, "object");
+  assert.strictEqual(
+    importedLabel?.properties?.target?.value,
+    importedSpawn?.id,
+  );
+
+  const importedTextSettings = getTextObjectSettings(importedLabel!);
+  assert.strictEqual(importedTextSettings.text, "Hello\nWorld");
+  assert.strictEqual(importedTextSettings.size, 20);
+  assert.strictEqual(importedTextSettings.rotation, 45);
+  assert.strictEqual(importedTextSettings.font, "Space Mono");
+  assert.strictEqual(importedTextSettings.wordWrap, false);
+  assert.strictEqual(importedTextSettings.color, "#ff00ff");
+}
+
+function getRootEntry(
+  entries: readonly { path: string; data: Uint8Array }[],
+  extension: string,
+) {
+  const entry = entries.find((candidate) => candidate.path.endsWith(extension));
+  assert.ok(entry);
+  return entry!;
+}
+
+const COMPLEX_TILED_OPTIONS = {
+  encoding: "base64",
+  compression: "zlib",
+  compressionLevel: 6,
+  tilesetMode: "external",
+  renderOrder: "right-down",
+} as const;
+
+const PNG_ASSET_RECORD = {
+  data: new Uint8Array([1, 2, 3, 4]).buffer,
+  mimeType: "image/png",
+};
 
 async function withStubbedAssetLookup(
   run: () => Promise<void>,
@@ -432,4 +841,264 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
       mimeType: "image/png",
     },
   );
+});
+
+test("exportTiledMapBundle round-trips grouped layers, images, and objects through TMX", async () => {
+  const fixture = createComplexTiledFixture();
+
+  await withStubbedAssetLookup(async () => {
+    const entries = await exportTiledMapBundle(
+      fixture.map,
+      fixture.layers,
+      [fixture.tileset],
+      fixture.imageLayers,
+      fixture.layerGroups,
+      fixture.objectLayers,
+      fixture.objects,
+      COMPLEX_TILED_OPTIONS,
+    );
+
+    const mapEntry = getRootEntry(entries, ".tmx");
+    const mapText = decodeText(mapEntry.data);
+    assert.match(mapText, /<group /);
+    assert.match(mapText, /<imagelayer /);
+    assert.match(mapText, /<objectgroup /);
+    assert.match(mapText, /compression="zlib"/);
+
+    await withStubbedImageImportEnvironment(
+      async () => {
+        const imported = await prepareTiledMapImport(
+          mapEntry.path,
+          entries,
+          "xml",
+        );
+        assertComplexImportResult(imported);
+      },
+      { width: 32, height: 32 },
+    );
+  }, PNG_ASSET_RECORD);
+});
+
+test("exportTiledMapJsonBundle round-trips grouped layers and object references through TMJ", async () => {
+  const fixture = createComplexTiledFixture();
+
+  await withStubbedAssetLookup(async () => {
+    const entries = await exportTiledMapJsonBundle(
+      fixture.map,
+      fixture.layers,
+      [fixture.tileset],
+      fixture.imageLayers,
+      fixture.layerGroups,
+      fixture.objectLayers,
+      fixture.objects,
+      COMPLEX_TILED_OPTIONS,
+    );
+
+    const mapEntry = getRootEntry(entries, ".tmj");
+    const mapDocument = JSON.parse(decodeText(mapEntry.data)) as {
+      layers?: Array<{ type?: string }>;
+      tilesets?: Array<{ source?: string }>;
+    };
+    assert.strictEqual(mapDocument.layers?.[1]?.type, "group");
+    assert.ok(mapDocument.tilesets?.[0]?.source?.endsWith(".tsj"));
+
+    await withStubbedImageImportEnvironment(
+      async () => {
+        const imported = await prepareTiledMapImport(
+          mapEntry.path,
+          entries,
+          "json",
+        );
+        assertComplexImportResult(imported);
+      },
+      { width: 32, height: 32 },
+    );
+  }, PNG_ASSET_RECORD);
+});
+
+test("exportTiledMapJsBundle round-trips wrapped Tiled JavaScript maps", async () => {
+  const fixture = createComplexTiledFixture();
+
+  await withStubbedAssetLookup(async () => {
+    const entries = await exportTiledMapJsBundle(
+      fixture.map,
+      fixture.layers,
+      [fixture.tileset],
+      fixture.imageLayers,
+      fixture.layerGroups,
+      fixture.objectLayers,
+      fixture.objects,
+      COMPLEX_TILED_OPTIONS,
+    );
+
+    const mapEntry = getRootEntry(entries, ".js");
+    const mapText = decodeText(mapEntry.data);
+    assert.match(mapText, /TileMaps\[name\] = data/);
+    assert.match(mapText, /module\.exports = data/);
+
+    await withStubbedImageImportEnvironment(
+      async () => {
+        const imported = await prepareTiledMapImport(
+          mapEntry.path,
+          entries,
+          "js",
+        );
+        assertComplexImportResult(imported);
+      },
+      { width: 32, height: 32 },
+    );
+  }, PNG_ASSET_RECORD);
+});
+
+test("exportTiledMapLuaBundle round-trips external TSX tilesets through the Lua import path", async () => {
+  const fixture = createComplexTiledFixture();
+
+  await withStubbedAssetLookup(async () => {
+    const entries = await exportTiledMapLuaBundle(
+      fixture.map,
+      fixture.layers,
+      [fixture.tileset],
+      fixture.imageLayers,
+      fixture.layerGroups,
+      fixture.objectLayers,
+      fixture.objects,
+      COMPLEX_TILED_OPTIONS,
+    );
+
+    const mapEntry = getRootEntry(entries, ".lua");
+    const mapDocument = parseTiledLuaDocument<{
+      layers?: Array<{ type?: string }>;
+      tilesets?: Array<{ filename?: string }>;
+    }>(mapEntry.data, "Tiled Lua map");
+    assert.strictEqual(mapDocument.layers?.[1]?.type, "group");
+    assert.ok(mapDocument.tilesets?.[0]?.filename?.endsWith(".tsx"));
+
+    await withStubbedImageImportEnvironment(
+      async () => {
+        const imported = await prepareTiledMapImport(
+          mapEntry.path,
+          entries,
+          "lua",
+        );
+        assertComplexImportResult(imported, "Fancy- Terrain");
+      },
+      { width: 32, height: 32 },
+    );
+  }, PNG_ASSET_RECORD);
+});
+
+for (const format of ["json", "js", "lua"] as const) {
+  test(`prepareTiledMapImport reports missing linked resources for ${format.toUpperCase()} bundles`, async () => {
+    const fixture = createComplexTiledFixture();
+
+    await withStubbedAssetLookup(async () => {
+      const entries =
+        format === "json"
+          ? await exportTiledMapJsonBundle(
+              fixture.map,
+              fixture.layers,
+              [fixture.tileset],
+              fixture.imageLayers,
+              fixture.layerGroups,
+              fixture.objectLayers,
+              fixture.objects,
+              COMPLEX_TILED_OPTIONS,
+            )
+          : format === "js"
+            ? await exportTiledMapJsBundle(
+                fixture.map,
+                fixture.layers,
+                [fixture.tileset],
+                fixture.imageLayers,
+                fixture.layerGroups,
+                fixture.objectLayers,
+                fixture.objects,
+                COMPLEX_TILED_OPTIONS,
+              )
+            : await exportTiledMapLuaBundle(
+                fixture.map,
+                fixture.layers,
+                [fixture.tileset],
+                fixture.imageLayers,
+                fixture.layerGroups,
+                fixture.objectLayers,
+                fixture.objects,
+                COMPLEX_TILED_OPTIONS,
+              );
+
+      const rootEntry = getRootEntry(
+        entries,
+        format === "json" ? ".tmj" : format === "js" ? ".js" : ".lua",
+      );
+      const imported = await prepareTiledMapImport(
+        rootEntry.path,
+        [rootEntry],
+        format,
+      );
+      assert.strictEqual(imported.status, "missing-resources");
+      if (imported.status !== "missing-resources") {
+        return;
+      }
+
+      const missingPaths = imported.missingResources.map(
+        (resource) => resource.path,
+      );
+      assert.ok(missingPaths.some((path) => path.endsWith(".png")));
+      assert.ok(
+        missingPaths.some((path) =>
+          path.endsWith(format === "lua" ? ".tsx" : ".tsj"),
+        ),
+      );
+    }, PNG_ASSET_RECORD);
+  });
+}
+
+test("Tiled Lua helpers round-trip escaped values and reject unsupported documents", () => {
+  const encoded = encodeTiledLuaDocument({
+    plain: 1,
+    list: [true, null, 3.5],
+    nested: { child: "ok" },
+    "two words": 'line 1\n"line 2"',
+  });
+
+  const encodedText = decodeText(encoded);
+  assert.match(encodedText, /\["two words"\] = "line 1\\n\\"line 2\\""/);
+
+  const parsed = parseTiledLuaDocument<Record<string, unknown>>(
+    encoded,
+    "fixture",
+  );
+  assert.deepEqual(parsed, {
+    plain: 1,
+    list: [true, null, 3.5],
+    nested: { child: "ok" },
+    "two words": 'line 1\n"line 2"',
+  });
+
+  assert.deepEqual(
+    convertJsonLikeToTiledLua({ sample: [1, 2, 3], omit: undefined }),
+    {
+      arrayValues: [],
+      objectValues: {
+        sample: {
+          arrayValues: [1, 2, 3],
+          objectValues: {},
+        },
+      },
+    },
+  );
+
+  assert.throws(
+    () =>
+      convertTiledLuaToJsonLike({
+        objectValues: { named: 1 },
+        arrayValues: [2],
+      }),
+    /Mixed keyed and array Lua tables are not supported/,
+  );
+  assert.throws(
+    () => convertJsonLikeToTiledLua(new Date()),
+    /Unsupported value/,
+  );
+  assert.throws(() => encodeTiledLuaDocument("oops"), /top-level table/);
 });

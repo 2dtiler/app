@@ -1,11 +1,14 @@
-Add unit tests and add to CI/CD
+Tests should be more src -> test file specific
 
 Support Tiled Project Import/Export
 Godot project Import/Export
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
 
-Keyboard shortcuts not working?
+Autotile
+Manage Tilesets
+Manage Maps
+World View
 
 AI Asset Generation:
   AI Generation not working currently
@@ -47,10 +50,6 @@ Image Editor Crop should change the dimensions of the image
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
 
-Manage Tilesets
-Manage Maps
-World View
-Animations
 Royalty free packs
 Terrain Brush
 Add tutorial video

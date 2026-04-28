@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   lazy,
@@ -308,15 +309,15 @@ export function AppShell({
     return () => window.removeEventListener("project-save-end", handleSaveEnd);
   }, []);
 
+  const handleMapQuickExport = useEffectEvent(() => {
+    mapQuickExport.onQuickExport();
+  });
+
+  const handleTilesetQuickExport = useEffectEvent(() => {
+    tilesetQuickExport.onQuickExport();
+  });
+
   useEffect(() => {
-    function handleMapQuickExport() {
-      mapQuickExport.onQuickExport();
-    }
-
-    function handleTilesetQuickExport() {
-      tilesetQuickExport.onQuickExport();
-    }
-
     window.addEventListener("quick-export-map", handleMapQuickExport);
     window.addEventListener("quick-export-tileset", handleTilesetQuickExport);
 
@@ -327,7 +328,7 @@ export function AppShell({
         handleTilesetQuickExport,
       );
     };
-  }, [mapQuickExport.onQuickExport, tilesetQuickExport.onQuickExport]);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">

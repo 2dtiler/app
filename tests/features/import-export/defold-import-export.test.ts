@@ -202,8 +202,8 @@ test("prepareDefoldMapImport requests the linked tilemap from a collection", asy
           "embedded_instances {",
           '  id: "go"',
           '  data: "components {\\n"',
-          '  "  id: \\\"tilemap\\\"\\n"',
-          '  "  component: \\\"/maps/level.tilemap\\\"\\n"',
+          '  "  id: \\"tilemap\\"\\n"',
+          '  "  component: \\"/maps/level.tilemap\\"\\n"',
           '  "}\\n"',
           "}",
         ].join("\n"),
@@ -289,7 +289,7 @@ test("exportDefoldMapBundle emits linked Defold resources for collection export"
         new TextDecoder().decode(
           entries.find((entry) => entry.path === "level.collection")?.data,
         ),
-        /component: \\\"\/level\.tilemap\\\"/,
+        /component: \\"\/level\.tilemap\\"/,
       );
     },
   );
