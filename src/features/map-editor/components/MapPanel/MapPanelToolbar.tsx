@@ -12,6 +12,7 @@ import {
   Scissors,
   Settings,
   Undo2,
+  WandSparkles,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -31,11 +32,12 @@ import {
 import { BRUSH_SIZES } from "@/types";
 import type { MapPanelToolbarProps } from "@/features/map-editor/types/map-panel";
 
-const brushTools = ["paint"] as const;
+const brushTools = ["paint", "autotile"] as const;
 const eraseTools = ["erase"] as const;
 const toolIcons = {
   select: BoxSelect,
   paint: Paintbrush,
+  autotile: WandSparkles,
   erase: Eraser,
   fill: PaintBucket,
 } as const;
@@ -90,7 +92,9 @@ export function MapPanelToolbar({
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                {tool.charAt(0).toUpperCase() + tool.slice(1)} Tool
+                {tool === "autotile"
+                  ? "Autotile Tool (A)"
+                  : `${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent>

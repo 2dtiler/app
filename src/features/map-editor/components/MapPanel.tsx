@@ -632,7 +632,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
   }
 
   function handleSelectBrushTool(
-    tool: "paint" | "erase",
+    tool: "paint" | "autotile" | "erase",
     size: EditorState["brushSize"],
   ) {
     setState((draft) => {

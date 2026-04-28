@@ -1,4 +1,5 @@
 export * from "./components";
+export * from "./map/autotile";
 export * from "./map/schema";
 export * from "./map/map-geometry";
 export * from "../features/import-export/types";

@@ -6,7 +6,11 @@ import type {
   Tileset,
   TilesetId,
 } from "@/types";
-import { DEFAULT_HEX_STAGGER_AXIS, DEFAULT_HEX_STAGGER_INDEX } from "@/types";
+import {
+  AUTOTILE_CONFIG_VERSION,
+  DEFAULT_HEX_STAGGER_AXIS,
+  DEFAULT_HEX_STAGGER_INDEX,
+} from "@/types";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
 const IMAGE_LAYER_ROTATIONS = new Set([0, 90, 180, 270]);
@@ -25,6 +29,17 @@ export function normalizeTileset(
   if (!tileset.tileSize) {
     tileset.tileSize = fallbackTileSize;
   }
+
+  if (tileset.autotile) {
+    tileset.autotile.version = AUTOTILE_CONFIG_VERSION;
+    if (!Array.isArray(tileset.autotile.terrains)) {
+      tileset.autotile.terrains = [];
+    }
+    if (!Array.isArray(tileset.autotile.rules)) {
+      tileset.autotile.rules = [];
+    }
+  }
+
   return tileset;
 }
 

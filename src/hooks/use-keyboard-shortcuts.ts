@@ -144,6 +144,12 @@ export function useKeyboardShortcuts() {
             draft.currentTool = "paint";
           });
           break;
+        case "a":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "autotile";
+          });
+          break;
         case "e":
           e.preventDefault();
           store.setState((draft) => {

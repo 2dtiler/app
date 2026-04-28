@@ -1,6 +1,7 @@
 import { afterEach, assert, beforeEach, test, vi } from "vitest";
 import { unzipSync } from "fflate";
 import type {
+  AutotileConfig,
   ImageLayer,
   LayerGroup,
   MapObject,
@@ -453,6 +454,55 @@ test("exportMap and importMap keep only referenced tilesets and local object lay
 });
 
 test("exportTileset and importTileset round-trip a single tileset asset", async () => {
+  const autotile = {
+    version: 1,
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land",
+        paletteTile: {
+          sx: 0,
+          sy: 0,
+          sw: 16,
+          sh: 16,
+        },
+      },
+      {
+        id: "terrain-water",
+        name: "Water",
+        paletteTile: {
+          sx: 16,
+          sy: 0,
+          sw: 16,
+          sh: 16,
+        },
+      },
+    ],
+    rules: [
+      {
+        id: "rule-land-water-edge",
+        name: "Land with water above",
+        centerTerrainId: "terrain-land",
+        neighbors: {
+          northWest: { kind: "any" },
+          north: { kind: "terrain", terrainId: "terrain-water" },
+          northEast: { kind: "any" },
+          west: { kind: "any" },
+          east: { kind: "any" },
+          southWest: { kind: "any" },
+          south: { kind: "filled" },
+          southEast: { kind: "any" },
+        },
+        output: {
+          sx: 32,
+          sy: 0,
+          sw: 16,
+          sh: 16,
+        },
+      },
+    ],
+  } as AutotileConfig;
+
   const tileset = {
     id: "tileset-1" as Tileset["id"],
     name: "Tileset",
@@ -461,6 +511,7 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
     assetId: "asset-tileset" as Tileset["assetId"],
     imageWidth: 16,
     imageHeight: 16,
+    autotile,
     createdAt: 1,
   } as Tileset;
   getAssetMock.mockResolvedValue({
@@ -474,6 +525,7 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
   const imported = await importTileset(packed, 24);
 
   assert.strictEqual(imported.tileSize, 24);
+  assert.deepEqual(imported.autotile, autotile);
   assert.strictEqual(saveAssetMock.mock.calls.length, 1);
 });
 

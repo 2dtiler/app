@@ -6,7 +6,15 @@ import {
   type DragEvent,
   useSyncExternalStore,
 } from "react";
-import { Plus, Save, ZoomIn, ZoomOut, Trash2, X } from "lucide-react";
+import {
+  Plus,
+  Save,
+  WandSparkles,
+  ZoomIn,
+  ZoomOut,
+  Trash2,
+  X,
+} from "lucide-react";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -38,6 +46,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
+import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
@@ -101,6 +110,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
   } | null>(null);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [autotileDialogOpen, setAutotileDialogOpen] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<TilesetId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isDropTargetActive, setIsDropTargetActive] = useState(false);
@@ -372,6 +382,9 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         assetId: newAssetId,
         imageWidth: source.imageWidth,
         imageHeight: source.imageHeight,
+        autotile: source.autotile
+          ? (JSON.parse(JSON.stringify(source.autotile)) as Tileset["autotile"])
+          : undefined,
         createdAt: Date.now(),
       };
       draft.project.tilesets.push(tileset);
@@ -397,6 +410,23 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
 
   function handleZoom(direction: 1 | -1) {
     zoomStore.setTilesetZoom(tilesetZoom + direction * 0.5);
+  }
+
+  function handleSaveAutotile(autotile: Tileset["autotile"]) {
+    if (!activeTileset) {
+      return;
+    }
+
+    setState((draft) => {
+      const tileset = draft.project?.tilesets.find(
+        (candidate) => candidate.id === activeTileset.id,
+      );
+      if (!tileset) {
+        return;
+      }
+
+      tileset.autotile = autotile;
+    });
   }
 
   return (
@@ -468,6 +498,23 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
               </Button>
             </TooltipTrigger>
             <TooltipContent>Zoom In</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={activeTileset?.autotile ? "outline" : "ghost"}
+                size="xs"
+                className="h-6 px-2"
+                disabled={!activeTileset}
+                onMouseDown={() => setAutotileDialogOpen(true)}
+              >
+                <WandSparkles className="h-3.5 w-3.5" />
+                Autotile
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Define autotile rules for this tileset
+            </TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -694,6 +741,16 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onNameChange={setNewGroupName}
         onCreate={handleCreateGroup}
       />
+
+      {activeTileset && (
+        <AutotileDialog
+          key={`${activeTileset.id}-${autotileDialogOpen ? "open" : "closed"}`}
+          open={autotileDialogOpen}
+          onOpenChange={setAutotileDialogOpen}
+          onSave={handleSaveAutotile}
+          tileset={activeTileset}
+        />
+      )}
 
       {/* Delete confirmation */}
       <AlertDialog
