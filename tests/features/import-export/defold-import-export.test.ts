@@ -1,21 +1,20 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { isDefoldMapOption } from "../src/features/import-export/lib/defold-map-action-utils";
-import { isDefoldTilesetOption } from "../src/features/import-export/lib/defold-tileset-action-utils";
+import { assert, test } from "vitest";
+import { isDefoldMapOption } from "@/features/import-export/lib/defold-map-action-utils";
+import { isDefoldTilesetOption } from "@/features/import-export/lib/defold-tileset-action-utils";
 import {
   exportDefoldTilesourceBundle,
   exportDefoldMapBundle,
   prepareDefoldMapImport,
   prepareDefoldTilesetImport,
-} from "../src/features/import-export/lib/import-export-defold";
-import { db } from "../src/services/db";
+} from "@/features/import-export/lib/import-export-defold";
+import { db } from "@/services/db";
 import {
   generateAssetId,
   generateLayerId,
   generateMapId,
   generateTilesetId,
-} from "../src/utils/ids";
-import type { TileLayer, TileMapData, Tileset } from "../src/types";
+} from "@/utils/ids";
+import type { TileLayer, TileMapData, Tileset } from "@/types";
 
 function encodeText(value: string) {
   return new TextEncoder().encode(`${value}\n`);
@@ -98,14 +97,14 @@ test("prepareDefoldTilesetImport imports a linked image-backed tilesource", asyn
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result[0]?.tileSize, 16);
-      assert.equal(result.result[0]?.imageWidth, 32);
-      assert.equal(result.result[0]?.imageHeight, 32);
+      assert.strictEqual(result.result[0]?.tileSize, 16);
+      assert.strictEqual(result.result[0]?.imageWidth, 32);
+      assert.strictEqual(result.result[0]?.imageHeight, 32);
     },
     { width: 32, height: 32 },
   );
@@ -127,13 +126,13 @@ test("prepareDefoldTilesetImport reports a missing linked image", async () => {
     },
   ]);
 
-  assert.equal(result.status, "missing-resources");
+  assert.strictEqual(result.status, "missing-resources");
   if (result.status !== "missing-resources") {
     return;
   }
 
-  assert.equal(result.missingResources[0]?.kind, "image");
-  assert.equal(result.missingResources[0]?.path, "images/terrain.png");
+  assert.strictEqual(result.missingResources[0]?.kind, "image");
+  assert.strictEqual(result.missingResources[0]?.path, "images/terrain.png");
 });
 
 test("prepareDefoldMapImport imports a standalone tilemap bundle", async () => {
@@ -178,16 +177,16 @@ test("prepareDefoldMapImport imports a standalone tilemap bundle", async () => {
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result.map.name, "level");
-      assert.equal(result.result.layers.length, 1);
-      assert.equal(result.result.map.widthInTiles, 2);
-      assert.equal(result.result.map.heightInTiles, 3);
-      assert.equal(result.result.layers[0]?.tiles["1,2"]?.flipX, true);
+      assert.strictEqual(result.result.map.name, "level");
+      assert.strictEqual(result.result.layers.length, 1);
+      assert.strictEqual(result.result.map.widthInTiles, 2);
+      assert.strictEqual(result.result.map.heightInTiles, 3);
+      assert.strictEqual(result.result.layers[0]?.tiles["1,2"]?.flipX, true);
     },
     { width: 32, height: 32 },
   );
@@ -212,13 +211,13 @@ test("prepareDefoldMapImport requests the linked tilemap from a collection", asy
     },
   ]);
 
-  assert.equal(result.status, "missing-resources");
+  assert.strictEqual(result.status, "missing-resources");
   if (result.status !== "missing-resources") {
     return;
   }
 
-  assert.equal(result.missingResources[0]?.kind, "tilemap");
-  assert.equal(result.missingResources[0]?.path, "maps/level.tilemap");
+  assert.strictEqual(result.missingResources[0]?.kind, "tilemap");
+  assert.strictEqual(result.missingResources[0]?.path, "maps/level.tilemap");
 });
 
 test("exportDefoldMapBundle emits linked Defold resources for collection export", async () => {
@@ -403,8 +402,8 @@ test("exportDefoldTilesourceBundle emits tilesource and image resources", async 
 });
 
 test("Defold option predicates match only the Defold options", () => {
-  assert.equal(isDefoldMapOption("map-defold"), true);
-  assert.equal(isDefoldMapOption("map-godot"), false);
-  assert.equal(isDefoldTilesetOption("tileset-defold"), true);
-  assert.equal(isDefoldTilesetOption("tileset-tiled"), false);
+  assert.strictEqual(isDefoldMapOption("map-defold"), true);
+  assert.strictEqual(isDefoldMapOption("map-godot"), false);
+  assert.strictEqual(isDefoldTilesetOption("tileset-defold"), true);
+  assert.strictEqual(isDefoldTilesetOption("tileset-tiled"), false);
 });

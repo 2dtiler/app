@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { exportGameMakerMapBundle } from "../src/features/import-export/lib/import-export-gamemaker";
-import { prepareGameMakerMapImport } from "../src/features/import-export/lib/gamemaker-map-import";
+import { assert, test } from "vitest";
+import { exportGameMakerMapBundle } from "@/features/import-export/lib/import-export-gamemaker";
+import { prepareGameMakerMapImport } from "@/features/import-export/lib/gamemaker-map-import";
 import {
   GAMEMAKER_INSTANCE_CREATION_CODE_PATH_PROPERTY_KEY,
   GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY,
@@ -12,8 +11,8 @@ import {
   GAMEMAKER_ROOM_CREATION_CODE_PATH_PROPERTY_KEY,
   GAMEMAKER_ROOM_PERSISTENT_PROPERTY_KEY,
   GAMEMAKER_ROOM_SPEED_PROPERTY_KEY,
-} from "../src/features/import-export/lib/gamemaker-property-keys";
-import { db } from "../src/services/db";
+} from "@/features/import-export/lib/gamemaker-property-keys";
+import { db } from "@/services/db";
 import type {
   ImageLayer,
   MapObject,
@@ -22,7 +21,7 @@ import type {
   TileLayer,
   TileMapData,
   Tileset,
-} from "../src/types";
+} from "@/types";
 
 function encodeJson(value: unknown) {
   return new TextEncoder().encode(JSON.stringify(value, null, 2));
@@ -198,15 +197,15 @@ test("prepareGameMakerMapImport resolves sprite-backed YY tilesets, backgrounds,
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result.map.name, "forest");
-      assert.equal(result.result.map.tileSize, 16);
-      assert.equal(result.result.map.widthInTiles, 4);
-      assert.equal(result.result.map.heightInTiles, 2);
+      assert.strictEqual(result.result.map.name, "forest");
+      assert.strictEqual(result.result.map.tileSize, 16);
+      assert.strictEqual(result.result.map.widthInTiles, 4);
+      assert.strictEqual(result.result.map.heightInTiles, 2);
       assert.deepEqual(result.result.map.properties, {
         [GAMEMAKER_ROOM_CAPTION_PROPERTY_KEY]: {
           type: "string",
@@ -226,14 +225,14 @@ test("prepareGameMakerMapImport resolves sprite-backed YY tilesets, backgrounds,
         },
       });
 
-      assert.equal(result.result.tilesets.length, 1);
-      assert.equal(result.result.tilesets[0]?.name, "terrain");
-      assert.equal(result.result.imageLayers.length, 1);
-      assert.equal(result.result.imageLayers[0]?.name, "Backdrop");
-      assert.equal(result.result.imageLayers[0]?.x, 4);
-      assert.equal(result.result.imageLayers[0]?.y, 8);
-      assert.equal(result.result.objectLayers.length, 1);
-      assert.equal(result.result.objects.length, 1);
+      assert.strictEqual(result.result.tilesets.length, 1);
+      assert.strictEqual(result.result.tilesets[0]?.name, "terrain");
+      assert.strictEqual(result.result.imageLayers.length, 1);
+      assert.strictEqual(result.result.imageLayers[0]?.name, "Backdrop");
+      assert.strictEqual(result.result.imageLayers[0]?.x, 4);
+      assert.strictEqual(result.result.imageLayers[0]?.y, 8);
+      assert.strictEqual(result.result.objectLayers.length, 1);
+      assert.strictEqual(result.result.objects.length, 1);
       assert.deepEqual(result.result.objects[0]?.properties, {
         [GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY]: {
           type: "string",
@@ -413,16 +412,16 @@ test("exportGameMakerMapBundle encodes background, tile, instance, and room meta
     const roomEntry = entries.find((entry) => entry.path === "forest.yy");
     assert.ok(roomEntry);
     const room = JSON.parse(new TextDecoder().decode(roomEntry?.data));
-    assert.equal(room.caption, "Forest Room");
-    assert.equal(room.roomSpeed, 30);
-    assert.equal(room.roomCreationCodeFile, "rooms/forest/create.gml");
-    assert.equal(room.roomSettings.persistent, true);
-    assert.equal(room.layers.length, 3);
-    assert.equal(room.layers[0].resourceType, "GMRBackgroundLayer");
-    assert.equal(room.layers[1].resourceType, "GMRTileLayer");
-    assert.equal(room.layers[2].resourceType, "GMRInstanceLayer");
-    assert.equal(room.layers[2].instances[0].objectId.name, "obj_tree");
-    assert.equal(
+    assert.strictEqual(room.caption, "Forest Room");
+    assert.strictEqual(room.roomSpeed, 30);
+    assert.strictEqual(room.roomCreationCodeFile, "rooms/forest/create.gml");
+    assert.strictEqual(room.roomSettings.persistent, true);
+    assert.strictEqual(room.layers.length, 3);
+    assert.strictEqual(room.layers[0].resourceType, "GMRBackgroundLayer");
+    assert.strictEqual(room.layers[1].resourceType, "GMRTileLayer");
+    assert.strictEqual(room.layers[2].resourceType, "GMRInstanceLayer");
+    assert.strictEqual(room.layers[2].instances[0].objectId.name, "obj_tree");
+    assert.strictEqual(
       room.layers[2].instances[0].creationCodeFile,
       "objects/obj_tree/create.gml",
     );
@@ -434,8 +433,8 @@ test("exportGameMakerMapBundle encodes background, tile, instance, and room meta
     const tilesetResource = JSON.parse(
       new TextDecoder().decode(tilesetEntry?.data),
     );
-    assert.equal(tilesetResource.resourceType, "GMTileSet");
-    assert.equal(tilesetResource.spriteId.name, "terrain");
+    assert.strictEqual(tilesetResource.resourceType, "GMTileSet");
+    assert.strictEqual(tilesetResource.spriteId.name, "terrain");
   } finally {
     db.assets.get = originalGet;
   }

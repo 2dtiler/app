@@ -1,21 +1,20 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { assert, test } from "vitest";
 import { unzipSync } from "fflate";
 import { parseHTML } from "linkedom";
 import {
   exportTiledMapJsonBundle,
   exportTiledMapBundle,
-} from "../src/features/import-export/lib/import-export-tiled";
-import { prepareTiledMapImport } from "../src/features/import-export/lib/tiled-map-import";
-import { db } from "../src/services/db";
-import { exportSelectedTiledTilesets } from "../src/features/import-export/lib/tiled-tileset-action-utils";
+} from "@/features/import-export/lib/import-export-tiled";
+import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-import";
+import { db } from "@/services/db";
+import { exportSelectedTiledTilesets } from "@/features/import-export/lib/tiled-tileset-action-utils";
 import {
   generateAssetId,
   generateLayerId,
   generateMapId,
   generateTilesetId,
-} from "../src/utils/ids";
-import type { Project, TileLayer, TileMapData, Tileset } from "../src/types";
+} from "@/utils/ids";
+import type { Project, TileLayer, TileMapData, Tileset } from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
 
@@ -243,14 +242,14 @@ test("prepareTiledMapImport normalizes external TSX tilesets with margin and spa
         "xml",
       );
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result.tilesets.length, 1);
-      assert.equal(result.result.tilesets[0]?.imageWidth, 32);
-      assert.equal(result.result.tilesets[0]?.imageHeight, 16);
+      assert.strictEqual(result.result.tilesets.length, 1);
+      assert.strictEqual(result.result.tilesets[0]?.imageWidth, 32);
+      assert.strictEqual(result.result.tilesets[0]?.imageHeight, 16);
 
       const layer = result.result.layers[0];
       assert.ok(layer);
@@ -311,8 +310,8 @@ test("exportTiledMapBundle emits zero margin and spacing for inline TMX tilesets
       );
       const tilesetElement = document.querySelector("map > tileset");
       assert.ok(tilesetElement);
-      assert.equal(tilesetElement?.getAttribute("margin"), "0");
-      assert.equal(tilesetElement?.getAttribute("spacing"), "0");
+      assert.strictEqual(tilesetElement?.getAttribute("margin"), "0");
+      assert.strictEqual(tilesetElement?.getAttribute("spacing"), "0");
     },
     {
       data: new Uint8Array([1, 2, 3]).buffer,
@@ -351,8 +350,8 @@ test("exportTiledMapJsonBundle emits zero margin and spacing for external TSJ ti
         margin?: number;
         spacing?: number;
       };
-      assert.equal(tilesetDocument.margin, 0);
-      assert.equal(tilesetDocument.spacing, 0);
+      assert.strictEqual(tilesetDocument.margin, 0);
+      assert.strictEqual(tilesetDocument.spacing, 0);
     },
     {
       data: new Uint8Array([1, 2, 3]).buffer,
@@ -384,7 +383,7 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
           },
         );
 
-        assert.equal(didExport, true);
+        assert.strictEqual(didExport, true);
         assert.ok(archive);
 
         const files = unzipSync(archive);
@@ -400,8 +399,8 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
           );
           const tilesetElement = document.querySelector("tileset");
           assert.ok(tilesetElement);
-          assert.equal(tilesetElement?.getAttribute("margin"), "0");
-          assert.equal(tilesetElement?.getAttribute("spacing"), "0");
+          assert.strictEqual(tilesetElement?.getAttribute("margin"), "0");
+          assert.strictEqual(tilesetElement?.getAttribute("spacing"), "0");
           continue;
         }
 
@@ -414,8 +413,8 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
             margin?: number;
             spacing?: number;
           };
-          assert.equal(document.margin, 0);
-          assert.equal(document.spacing, 0);
+          assert.strictEqual(document.margin, 0);
+          assert.strictEqual(document.spacing, 0);
           continue;
         }
 

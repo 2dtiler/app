@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { assert, test } from "vitest";
 import {
   buildUnityBundleManifestPath,
   buildUnityGenericMetaFile,
@@ -8,11 +7,11 @@ import {
   buildUnityTilesetTextureMetaFile,
   encodeUnityBundleManifest,
   encodeUnityTextFile,
-} from "../src/features/import-export/lib/unity-bundle-utils";
-import { prepareUnityMapImport } from "../src/features/import-export/lib/unity-map-import";
-import { prepareUnityTilesetImport } from "../src/features/import-export/lib/unity-tileset-import";
-import { db } from "../src/services/db";
-import type { UnityBundleManifest } from "../src/types";
+} from "@/features/import-export/lib/unity-bundle-utils";
+import { prepareUnityMapImport } from "@/features/import-export/lib/unity-map-import";
+import { prepareUnityTilesetImport } from "@/features/import-export/lib/unity-tileset-import";
+import { db } from "@/services/db";
+import type { UnityBundleManifest } from "@/types";
 
 function buildUnitySpriteSheetMeta(guid: string, tileSize: number) {
   return [
@@ -244,14 +243,14 @@ test("prepareUnityTilesetImport infers tile size from Unity sprite slicing metad
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result[0]?.tileSize, 16);
-      assert.equal(result.result[0]?.imageWidth, 32);
-      assert.equal(result.result[0]?.imageHeight, 32);
+      assert.strictEqual(result.result[0]?.tileSize, 16);
+      assert.strictEqual(result.result[0]?.imageWidth, 32);
+      assert.strictEqual(result.result[0]?.imageHeight, 32);
     },
     { width: 32, height: 32 },
   );
@@ -317,17 +316,17 @@ test("prepareUnityMapImport prefers prefab and texture metadata over manifest ma
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result.map.name, "Forest");
-      assert.equal(result.result.map.widthInTiles, 4);
-      assert.equal(result.result.map.heightInTiles, 3);
-      assert.equal(result.result.map.tileSize, 32);
-      assert.equal(result.result.layers[0]?.name, "Ground");
-      assert.equal(result.result.layers[0]?.locked, true);
+      assert.strictEqual(result.result.map.name, "Forest");
+      assert.strictEqual(result.result.map.widthInTiles, 4);
+      assert.strictEqual(result.result.map.heightInTiles, 3);
+      assert.strictEqual(result.result.map.tileSize, 32);
+      assert.strictEqual(result.result.layers[0]?.name, "Ground");
+      assert.strictEqual(result.result.layers[0]?.locked, true);
       assert.deepEqual(result.result.layers[0]?.tiles["1,1"], {
         tilesetId: result.result.tilesets[0]?.id,
         sx: 0,

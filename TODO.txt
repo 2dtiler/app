@@ -1,10 +1,10 @@
-Allow quick export bottom right
-  Currently quick export options are showing at the bottom
 Add unit tests and add to CI/CD
 
 Support Tiled Project Import/Export
 Godot project Import/Export
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
+More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
+
 Keyboard shortcuts not working?
 
 AI Asset Generation:
@@ -18,9 +18,6 @@ AI Asset Generation:
 
 Custom Animations i.e. water moving
 Ad Marketplace for selling/buying tilesets etc.
-
-More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
-
 Exploration:
   Defold
   SpriteFusion (Autotile rules)

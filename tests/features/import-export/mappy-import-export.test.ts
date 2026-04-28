@@ -1,18 +1,17 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { db } from "../src/services/db";
+import { assert, test } from "vitest";
+import { db } from "@/services/db";
 import {
   exportMappyMap,
   importMappyMap,
-} from "../src/features/import-export/lib/import-export-mappy";
-import { isMappyMapOption } from "../src/features/import-export/lib/mappy-map-action-utils";
+} from "@/features/import-export/lib/import-export-mappy";
+import { isMappyMapOption } from "@/features/import-export/lib/mappy-map-action-utils";
 import {
   generateAssetId,
   generateLayerId,
   generateMapId,
   generateTilesetId,
-} from "../src/utils/ids";
-import type { TileLayer, TileMapData, Tileset } from "../src/types";
+} from "@/utils/ids";
+import type { TileLayer, TileMapData, Tileset } from "@/types";
 
 const BLOCK_STRUCTURE_SIZE = 32;
 
@@ -91,8 +90,8 @@ class MockCanvasRenderingContext2D {
     dw: number,
     dh: number,
   ) {
-    assert.equal(sw, dw);
-    assert.equal(sh, dh);
+    assert.strictEqual(sw, dw);
+    assert.strictEqual(sh, dh);
     for (let y = 0; y < sh; y += 1) {
       for (let x = 0; x < sw; x += 1) {
         const sourceOffset = ((sy + y) * image.naturalWidth + (sx + x)) * 4;
@@ -357,10 +356,10 @@ test("importMappyMap imports static BODY and LYR layers", async () => {
     try {
       const result = await importMappyMap("level.fmp", buildFixtureFmp());
 
-      assert.equal(result.map.name, "level");
-      assert.equal(result.map.widthInTiles, 2);
-      assert.equal(result.layers.length, 2);
-      assert.equal(result.tilesets.length, 1);
+      assert.strictEqual(result.map.name, "level");
+      assert.strictEqual(result.map.widthInTiles, 2);
+      assert.strictEqual(result.layers.length, 2);
+      assert.strictEqual(result.tilesets.length, 1);
       assert.deepEqual(Object.keys(result.layers[0]?.tiles ?? {}).sort(), [
         "0,0",
         "0,1",
@@ -369,9 +368,9 @@ test("importMappyMap imports static BODY and LYR layers", async () => {
       assert.deepEqual(Object.keys(result.layers[1]?.tiles ?? {}).sort(), [
         "1,0",
       ]);
-      assert.equal(result.layers[0]?.tiles["0,0"]?.sx, 0);
-      assert.equal(result.layers[0]?.tiles["0,1"]?.sx, 16);
-      assert.equal(result.layers[1]?.tiles["1,0"]?.sx, 16);
+      assert.strictEqual(result.layers[0]?.tiles["0,0"]?.sx, 0);
+      assert.strictEqual(result.layers[0]?.tiles["0,1"]?.sx, 16);
+      assert.strictEqual(result.layers[1]?.tiles["1,0"]?.sx, 16);
     } finally {
       db.assets.put = originalPut;
     }
@@ -483,8 +482,8 @@ test("exportMappyMap emits the expected Mappy chunk surface", async () => {
         [],
       );
 
-      assert.equal(String.fromCharCode(...bytes.slice(0, 4)), "FORM");
-      assert.equal(String.fromCharCode(...bytes.slice(8, 12)), "FMAP");
+      assert.strictEqual(String.fromCharCode(...bytes.slice(0, 4)), "FORM");
+      assert.strictEqual(String.fromCharCode(...bytes.slice(8, 12)), "FMAP");
       assert.deepEqual(parseChunkIds(bytes), [
         "MPHD",
         "CMAP",
@@ -607,7 +606,7 @@ test("exportMappyMap round-trips static tile placements through importMappyMap",
       );
       const imported = await importMappyMap("roundtrip.fmp", exported);
 
-      assert.equal(imported.layers.length, 2);
+      assert.strictEqual(imported.layers.length, 2);
       assert.deepEqual(Object.keys(imported.layers[0]?.tiles ?? {}).sort(), [
         "0,0",
         "1,1",
@@ -615,8 +614,8 @@ test("exportMappyMap round-trips static tile placements through importMappyMap",
       assert.deepEqual(Object.keys(imported.layers[1]?.tiles ?? {}).sort(), [
         "1,0",
       ]);
-      assert.equal(imported.layers[0]?.tiles["1,1"]?.sx, 16);
-      assert.equal(imported.map.tileSize, 16);
+      assert.strictEqual(imported.layers[0]?.tiles["1,1"]?.sx, 16);
+      assert.strictEqual(imported.map.tileSize, 16);
     } finally {
       db.assets.get = originalGet;
       db.assets.put = originalPut;
@@ -625,6 +624,6 @@ test("exportMappyMap round-trips static tile placements through importMappyMap",
 });
 
 test("Mappy option predicate matches only the Mappy map option", () => {
-  assert.equal(isMappyMapOption("map-mappy-fmp"), true);
-  assert.equal(isMappyMapOption("map-tide"), false);
+  assert.strictEqual(isMappyMapOption("map-mappy-fmp"), true);
+  assert.strictEqual(isMappyMapOption("map-tide"), false);
 });

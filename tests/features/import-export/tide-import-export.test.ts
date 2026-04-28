@@ -1,19 +1,18 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { assert, test } from "vitest";
 import { parseHTML } from "linkedom";
-import { isTideMapOption } from "../src/features/import-export/lib/tide-map-action-utils";
+import { isTideMapOption } from "@/features/import-export/lib/tide-map-action-utils";
 import {
   exportTideMapBundle,
   prepareTideMapImport,
-} from "../src/features/import-export/lib/import-export-tide";
-import { db } from "../src/services/db";
+} from "@/features/import-export/lib/import-export-tide";
+import { db } from "@/services/db";
 import {
   generateAssetId,
   generateLayerId,
   generateMapId,
   generateTilesetId,
-} from "../src/utils/ids";
-import type { TileLayer, TileMapData, Tileset } from "../src/types";
+} from "@/utils/ids";
+import type { TileLayer, TileMapData, Tileset } from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
 
@@ -140,17 +139,17 @@ test("prepareTideMapImport imports a linked image-backed tIDE map", async () => 
         },
       ]);
 
-      assert.equal(result.status, "ready");
+      assert.strictEqual(result.status, "ready");
       if (result.status !== "ready") {
         return;
       }
 
-      assert.equal(result.result.map.name, "level");
-      assert.equal(result.result.map.tileSize, 16);
-      assert.equal(result.result.map.properties?.difficulty?.value, "hard");
-      assert.equal(result.result.tilesets[0]?.imageWidth, 32);
-      assert.equal(result.result.layers[0]?.tiles["0,0"]?.sx, 0);
-      assert.equal(result.result.layers[0]?.tiles["1,1"]?.sx, 16);
+      assert.strictEqual(result.result.map.name, "level");
+      assert.strictEqual(result.result.map.tileSize, 16);
+      assert.strictEqual(result.result.map.properties?.difficulty?.value, "hard");
+      assert.strictEqual(result.result.tilesets[0]?.imageWidth, 32);
+      assert.strictEqual(result.result.layers[0]?.tiles["0,0"]?.sx, 0);
+      assert.strictEqual(result.result.layers[0]?.tiles["1,1"]?.sx, 16);
     },
     { width: 32, height: 32 },
   );
@@ -164,13 +163,13 @@ test("prepareTideMapImport reports a missing linked image", async () => {
     },
   ]);
 
-  assert.equal(result.status, "missing-resources");
+  assert.strictEqual(result.status, "missing-resources");
   if (result.status !== "missing-resources") {
     return;
   }
 
-  assert.equal(result.missingResources[0]?.kind, "image");
-  assert.equal(result.missingResources[0]?.path, "images/terrain.png");
+  assert.strictEqual(result.missingResources[0]?.kind, "image");
+  assert.strictEqual(result.missingResources[0]?.path, "images/terrain.png");
 });
 
 test("exportTideMapBundle emits a tIDE map and linked image resources", async () => {
@@ -246,6 +245,6 @@ test("exportTideMapBundle emits a tIDE map and linked image resources", async ()
 });
 
 test("tIDE option predicate matches only the unified tIDE map option", () => {
-  assert.equal(isTideMapOption("map-tide"), true);
-  assert.equal(isTideMapOption("map-defold"), false);
+  assert.strictEqual(isTideMapOption("map-tide"), true);
+  assert.strictEqual(isTideMapOption("map-defold"), false);
 });

@@ -318,10 +318,7 @@ export function AppShell({
     }
 
     window.addEventListener("quick-export-map", handleMapQuickExport);
-    window.addEventListener(
-      "quick-export-tileset",
-      handleTilesetQuickExport,
-    );
+    window.addEventListener("quick-export-tileset", handleTilesetQuickExport);
 
     return () => {
       window.removeEventListener("quick-export-map", handleMapQuickExport);

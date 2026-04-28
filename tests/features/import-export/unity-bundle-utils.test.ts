@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { assert, test } from "vitest";
 import {
   buildUnityLayerExportName,
   buildUnityTileAssetFile,
@@ -8,12 +7,12 @@ import {
   parseUnityMetaGuid,
   parseUnityTextureMetaTileSize,
   parseUnityTileAssetTextureGuid,
-} from "../src/features/import-export/lib/unity-bundle-utils";
+} from "@/features/import-export/lib/unity-bundle-utils";
 
 test("Unity layer export names round-trip stable ids", () => {
   const encoded = buildUnityLayerExportName("Ground", "layer-123");
 
-  assert.equal(encoded, "Ground [2DTILER:layer-123]");
+  assert.strictEqual(encoded, "Ground [2DTILER:layer-123]");
   assert.deepEqual(parseUnityLayerExportName(encoded), {
     name: "Ground",
     exportId: "layer-123",
@@ -33,12 +32,12 @@ test("Unity meta and tile asset helpers parse exported GUID chain", () => {
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   );
 
-  assert.equal(
+  assert.strictEqual(
     parseUnityMetaGuid(textureMeta),
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   );
-  assert.equal(parseUnityTextureMetaTileSize(textureMeta), 32);
-  assert.equal(
+  assert.strictEqual(parseUnityTextureMetaTileSize(textureMeta), 32);
+  assert.strictEqual(
     parseUnityTileAssetTextureGuid(tileAsset),
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   );
@@ -75,5 +74,5 @@ TextureImporter:
         height: 16
 `;
 
-  assert.equal(parseUnityTextureMetaTileSize(textureMeta), 16);
+  assert.strictEqual(parseUnityTextureMetaTileSize(textureMeta), 16);
 });

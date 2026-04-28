@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -108,6 +110,30 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  test: {
+    environment: "node",
+    fileParallelism: false,
+    include: ["tests/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      include: [
+        "src/features/import-export/lib/import-export-defold.ts",
+        "src/features/import-export/lib/import-export-mappy.ts",
+        "src/features/import-export/lib/import-export-tide.ts",
+        "src/features/import-export/lib/tiled-xml-utils.ts",
+        "src/features/import-export/lib/tiled-tileset-action-utils.ts",
+        "src/features/import-export/lib/unity-bundle-utils.ts",
+        "src/features/import-export/lib/unity-prefab-parser.ts",
+        "src/features/map-editor/lib/map-resize.ts",
+      ],
+      reporter: ["text", "html", "json-summary"],
+      thresholds: {
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
     },
   },
 });

@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { applyMapResizeToProject } from "../src/features/map-editor/lib/map-resize";
+import { assert, test } from "vitest";
+import { applyMapResizeToProject } from "@/features/map-editor/lib/map-resize";
 import type {
   ImageLayer,
   LayerId,
@@ -13,7 +12,7 @@ import type {
   ProjectId,
   TileLayer,
   TileRef,
-} from "../src/types";
+} from "@/types";
 
 function asProjectId(value: string) {
   return value as ProjectId;
@@ -182,9 +181,9 @@ test("applyMapResizeToProject grows from the top-left and shifts map content", (
     originOffsetYInTiles: 1,
   });
 
-  assert.equal(changed, true);
-  assert.equal(project.maps[0]?.widthInTiles, 6);
-  assert.equal(project.maps[0]?.heightInTiles, 4);
+  assert.strictEqual(changed, true);
+  assert.strictEqual(project.maps[0]?.widthInTiles, 6);
+  assert.strictEqual(project.maps[0]?.heightInTiles, 4);
   assert.deepEqual(Object.keys(project.layers[0]?.tiles ?? {}).sort(), [
     "2,1",
     "4,2",
@@ -195,8 +194,8 @@ test("applyMapResizeToProject grows from the top-left and shifts map content", (
     x: 42,
     y: 36,
   });
-  assert.equal(project.objects[0]?.x, 64);
-  assert.equal(project.objects[0]?.y, 64);
+  assert.strictEqual(project.objects[0]?.x, 64);
+  assert.strictEqual(project.objects[0]?.y, 64);
   assert.deepEqual(project.objects[0]?.points, [
     { x: 0, y: 0 },
     { x: 8, y: 0 },
@@ -219,10 +218,10 @@ test("applyMapResizeToProject shrinks from the top-left and crops shifted tiles"
     "1,0",
     "2,1",
   ]);
-  assert.equal(project.imageLayers[0]?.x, -6);
-  assert.equal(project.imageLayers[0]?.y, 4);
-  assert.equal(project.objects[0]?.x, 16);
-  assert.equal(project.objects[0]?.y, 32);
+  assert.strictEqual(project.imageLayers[0]?.x, -6);
+  assert.strictEqual(project.imageLayers[0]?.y, 4);
+  assert.strictEqual(project.objects[0]?.x, 16);
+  assert.strictEqual(project.objects[0]?.y, 32);
 });
 
 test("applyMapResizeToProject leaves unrelated map content untouched", () => {
@@ -237,7 +236,7 @@ test("applyMapResizeToProject leaves unrelated map content untouched", () => {
 
   const otherMap = project.maps.find((map) => map.id === otherMapId);
   const otherLayer = project.layers.find((layer) => layer.mapId === otherMapId);
-  assert.equal(otherMap?.widthInTiles, 2);
-  assert.equal(otherMap?.heightInTiles, 2);
+  assert.strictEqual(otherMap?.widthInTiles, 2);
+  assert.strictEqual(otherMap?.heightInTiles, 2);
   assert.deepEqual(Object.keys(otherLayer?.tiles ?? {}), ["0,0"]);
 });
