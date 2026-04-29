@@ -18,7 +18,7 @@ import type {
 export interface AutotileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (autotile: AutotileConfig | undefined) => void;
+  onSave: (autotile: AutotileConfig) => void;
   tileset: Tileset;
 }
 

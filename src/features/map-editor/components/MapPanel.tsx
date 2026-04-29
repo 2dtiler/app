@@ -632,12 +632,30 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
   }
 
   function handleSelectBrushTool(
-    tool: "paint" | "autotile" | "erase",
+    tool: "paint" | "erase",
     size: EditorState["brushSize"],
   ) {
     setState((draft) => {
       draft.currentTool = tool;
       draft.brushSize = size;
+    });
+  }
+
+  function handleSelectAutotileTool(
+    terrainId: NonNullable<EditorState["selectedAutotileTerrain"]>["terrainId"],
+    size: EditorState["brushSize"],
+  ) {
+    setState((draft) => {
+      if (!draft.activeTilesetId) {
+        return;
+      }
+
+      draft.currentTool = "autotile";
+      draft.brushSize = size;
+      draft.selectedAutotileTerrain = {
+        tilesetId: draft.activeTilesetId,
+        terrainId,
+      };
     });
   }
 
@@ -680,6 +698,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onCut={() => handleCutSelection(false)}
         onOpenMapOptions={() => setMapOptionsOpen(true)}
         onOrientSelection={handleOrientSelection}
+        onSelectAutotileTool={handleSelectAutotileTool}
         onSelectBrushTool={handleSelectBrushTool}
         onSelectFillMode={handleSelectFillMode}
         onSelectTool={handleSelectTool}

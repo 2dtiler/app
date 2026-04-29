@@ -54,7 +54,11 @@ export interface MapPanelToolbarProps {
   onOpenMapOptions: () => void;
   onOrientSelection: (action: OrientAction) => void;
   onSelectBrushTool: (
-    tool: Extract<EditorTool, "paint" | "autotile" | "erase">,
+    tool: Extract<EditorTool, "paint" | "erase">,
+    size: EditorState["brushSize"],
+  ) => void;
+  onSelectAutotileTool: (
+    terrainId: NonNullable<EditorState["selectedAutotileTerrain"]>["terrainId"],
     size: EditorState["brushSize"],
   ) => void;
   onSelectFillMode: (mode: FillMode) => void;

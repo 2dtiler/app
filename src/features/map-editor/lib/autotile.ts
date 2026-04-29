@@ -75,11 +75,33 @@ function createTileRef(
   };
 }
 
-function getTerrainById(
-  autotile: AutotileConfig,
+export function getAutotileTerrainById(
+  autotile: AutotileConfig | null | undefined,
   terrainId: AutotileTerrainId,
 ): AutotileTerrain | null {
+  if (!autotile) {
+    return null;
+  }
+
   return autotile.terrains.find((terrain) => terrain.id === terrainId) ?? null;
+}
+
+export function getPaintableAutotileTerrainById(
+  autotile: AutotileConfig | null | undefined,
+  terrainId: AutotileTerrainId,
+): AutotileTerrain | null {
+  const terrain = getAutotileTerrainById(autotile, terrainId);
+  return terrain?.paletteTile ? terrain : null;
+}
+
+export function getPaintableAutotileTerrains(
+  autotile: AutotileConfig | null | undefined,
+): AutotileTerrain[] {
+  if (!autotile) {
+    return [];
+  }
+
+  return autotile.terrains.filter((terrain) => !!terrain.paletteTile);
 }
 
 function matchesNeighbor(
@@ -209,7 +231,7 @@ export function resolveAutotileWrites({
     let nextRef: TileRef | null = null;
 
     if (typeof state === "string") {
-      const terrain = getTerrainById(autotile, state);
+      const terrain = getAutotileTerrainById(autotile, state);
       if (!terrain) {
         continue;
       }

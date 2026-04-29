@@ -12,7 +12,7 @@ import {
 } from "@/features/map-editor/lib/terrain";
 import {
   classifyAutotileTile as classifyAutotileTileConfig,
-  findAutotileTerrainByPaletteTile as findAutotileTerrainByPaletteTileConfig,
+  getPaintableAutotileTerrainById,
   resolveAutotileWrites as resolveAutotileWriteSet,
 } from "@/features/map-editor/lib/autotile";
 import {
@@ -60,9 +60,10 @@ export function useMapPanelCanvasActions({
       const selectedStamp = state.selectedTile
         ? createTileStamp(state.selectedTile, state.tileSize)
         : null;
-      const selectedTileset = state.selectedTile
+      const selectedAutotileTileset = state.selectedAutotileTerrain
         ? (project?.tilesets.find(
-            (tileset) => tileset.id === state.selectedTile?.tilesetId,
+            (tileset) =>
+              tileset.id === state.selectedAutotileTerrain?.tilesetId,
           ) ?? null)
         : null;
 
@@ -106,12 +107,15 @@ export function useMapPanelCanvasActions({
       };
 
       if (state.currentTool === "autotile") {
-        const autotile = selectedTileset?.autotile;
-        const selectedTerrain = state.selectedTile
-          ? findAutotileTerrainByPaletteTileConfig(autotile, state.selectedTile)
+        const autotile = selectedAutotileTileset?.autotile;
+        const selectedTerrain = state.selectedAutotileTerrain
+          ? getPaintableAutotileTerrainById(
+              autotile,
+              state.selectedAutotileTerrain.terrainId,
+            )
           : null;
 
-        if (!selectedTileset || !autotile || !selectedTerrain) {
+        if (!selectedAutotileTileset || !autotile || !selectedTerrain) {
           return;
         }
 
@@ -145,7 +149,7 @@ export function useMapPanelCanvasActions({
           baseTiles: buildEffectiveTiles(),
           mapWidth: activeMap.widthInTiles,
           mapHeight: activeMap.heightInTiles,
-          tilesetId: selectedTileset.id,
+          tilesetId: selectedAutotileTileset.id,
           writes,
         });
 
@@ -398,6 +402,7 @@ export function useMapPanelCanvasActions({
       state.brushSize,
       state.currentTool,
       state.fillMode,
+      state.selectedAutotileTerrain,
       state.selectedTile,
       state.tileSize,
     ],

@@ -36,7 +36,7 @@ test("preset definitions expose the required visual slots for setup", () => {
     "innerCornerSouthWest",
     "innerCornerSouthEast",
   ]);
-  assert.deepEqual(preset.optionalSlots, ["solid"]);
+  assert.deepEqual(preset.optionalSlots, []);
 });
 
 test("compiled preset rules keep more specific corner tiles ahead of edges", () => {

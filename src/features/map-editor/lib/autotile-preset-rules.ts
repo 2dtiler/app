@@ -13,9 +13,8 @@ import type {
 } from "@/features/map-editor/types/autotile-builder";
 import { generateAutotileRuleId } from "@/utils/ids";
 
-const OPTIONAL_PATTERN_SLOTS = [
-  "solid",
-] as const satisfies readonly AutotilePatternSlotId[];
+const OPTIONAL_PATTERN_SLOTS =
+  [] as const satisfies readonly AutotilePatternSlotId[];
 
 const PATTERN_SLOT_DEFINITIONS = [
   {

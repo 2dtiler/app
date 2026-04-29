@@ -47,6 +47,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
 import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
+import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
@@ -92,6 +93,7 @@ function syncActiveTilesetState(
     draft.project?.tileSize ?? draft.tileSize,
   );
   draft.selectedTile = null;
+  draft.selectedAutotileTerrain = null;
 }
 
 export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
@@ -311,6 +313,9 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         if (draft.selectedTile?.tilesetId === deleteTarget.id) {
           draft.selectedTile = null;
         }
+        if (draft.selectedAutotileTerrain?.tilesetId === deleteTarget.id) {
+          draft.selectedAutotileTerrain = null;
+        }
       });
     } else {
       // Clean up assets for all tilesets in the group
@@ -412,7 +417,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
     zoomStore.setTilesetZoom(tilesetZoom + direction * 0.5);
   }
 
-  function handleSaveAutotile(autotile: Tileset["autotile"]) {
+  function handleSaveAutotile(autotile: NonNullable<Tileset["autotile"]>) {
     if (!activeTileset) {
       return;
     }
@@ -426,6 +431,15 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
       }
 
       tileset.autotile = autotile;
+      if (
+        draft.selectedAutotileTerrain?.tilesetId === activeTileset.id &&
+        !getPaintableAutotileTerrainById(
+          autotile,
+          draft.selectedAutotileTerrain.terrainId,
+        )
+      ) {
+        draft.selectedAutotileTerrain = null;
+      }
     });
   }
 

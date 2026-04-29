@@ -10,7 +10,7 @@ import type {
   MapStaggerAxis,
   MapStaggerIndex,
 } from "./map-geometry";
-import type { AutotileConfig } from "./autotile";
+import type { AutotileConfig, AutotileTerrainId } from "./autotile";
 
 // ---------------------------------------------------------------------------
 // Identifiers
@@ -340,6 +340,11 @@ export interface SelectedTile {
   sh: number;
 }
 
+export interface SelectedAutotileTerrain {
+  tilesetId: TilesetId;
+  terrainId: AutotileTerrainId;
+}
+
 /**
  * A grid-snapped rectangular selection on the map canvas.
  * Coordinates are in tile units.
@@ -375,6 +380,7 @@ export interface EditorState {
   brushSize: BrushSize;
   tileSize: TileSize;
   selectedTile: SelectedTile | null;
+  selectedAutotileTerrain: SelectedAutotileTerrain | null;
 
   /** Which fill sub-mode is active: plain fill or terrain fill */
   fillMode: FillMode;
@@ -398,6 +404,7 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   brushSize: "1x1",
   tileSize: 32,
   selectedTile: null,
+  selectedAutotileTerrain: null,
   fillMode: "fill",
   activeFillTerrain: null,
   mapSelection: null,

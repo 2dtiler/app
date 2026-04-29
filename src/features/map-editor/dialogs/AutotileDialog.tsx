@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
-import { Plus, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import {
   AUTOTILE_CONFIG_VERSION,
   type AutotileConfig,
   type AutotilePatternSlotId,
-  type AutotilePresetId,
   type AutotileTerrain,
   type AutotileTileRegion,
 } from "@/types";
@@ -19,11 +18,22 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { Switch } from "@/components/ui/Switch";
-import { AutotilePatternTileCard } from "@/features/map-editor/components/autotile/AutotilePatternTileCard";
+import { AutotilePatternGroupCard } from "@/features/map-editor/components/autotile/AutotilePatternGroupCard";
+import { AutotileTerrainSidebar } from "@/features/map-editor/components/autotile/AutotileTerrainSidebar";
+import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
 import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
+import { useAssetImage } from "@/features/map-editor/hooks/use-asset-image";
 import {
-  AUTOTILE_PATTERN_SLOTS,
+  assignTileToSelectionTarget,
+  cloneAutotileConfig,
+  countConfiguredAssignments,
+  getAutotileActiveSlotIds,
+  getAutotileAssignmentGroups,
+  getSelectionInstructions,
+  getTargetTile,
+  hasPatternAssignments,
+} from "@/features/map-editor/lib/autotile-dialog";
+import {
   AUTOTILE_PRESET_DEFINITIONS,
   buildPresetAutotileRules,
   getAutotilePresetDefinition,
@@ -34,122 +44,20 @@ import type {
 } from "@/features/map-editor/types/dialogs";
 import { generateAutotileTerrainId } from "@/utils/ids";
 
-const DEFAULT_PRESET_ID: AutotilePresetId = "edges-corners";
-
 const SETUP_STEPS = [
   {
-    title: "1. Pick the tile you paint with",
-    body: "Each terrain starts with one paint tile. This is the tile you select when using the autotile brush.",
+    title: "1. Create or select a rule",
+    body: "Use the left sidebar to switch between terrain rules for this tileset, or create a new one when you need another material.",
   },
   {
-    title: "2. Choose how detailed it should be",
-    body: "Start with edges only, then add outside or inside corners if the terrain needs smoother transitions.",
+    title: "2. Pick the paint tile",
+    body: "Each rule starts with one main paint tile. This is the tile you select when using the autotile brush.",
   },
   {
-    title: "3. Fill the visual pattern cards",
-    body: "Each card shows the situation on the map. Click the matching tile in the tileset picker to assign it.",
+    title: "3. Fill the pattern blocks",
+    body: "Click a block and then the tileset picker, or pick a tileset tile first and then click the block you want to fill.",
   },
 ] as const;
-
-function createEmptyAutotileConfig(): AutotileConfig {
-  return {
-    version: AUTOTILE_CONFIG_VERSION,
-    preset: DEFAULT_PRESET_ID,
-    terrains: [],
-    rules: [],
-  };
-}
-
-function normalizeTerrain(terrain: AutotileTerrain): AutotileTerrain {
-  return {
-    ...terrain,
-    patternTiles: terrain.patternTiles ?? {},
-  };
-}
-
-function cloneAutotileConfig(
-  autotile: AutotileConfig | null | undefined,
-): AutotileConfig {
-  if (!autotile) {
-    return createEmptyAutotileConfig();
-  }
-
-  const cloned = JSON.parse(JSON.stringify(autotile)) as AutotileConfig;
-
-  return {
-    version: cloned.version,
-    preset: cloned.preset ?? DEFAULT_PRESET_ID,
-    terrains: cloned.terrains.map(normalizeTerrain),
-    rules: cloned.rules ?? [],
-  };
-}
-
-function formatTileLabel(
-  region: AutotileTileRegion | null,
-  tileSize: number,
-): string {
-  if (!region) {
-    return "No tile assigned";
-  }
-
-  return `Tile ${Math.round(region.sx / tileSize)},${Math.round(region.sy / tileSize)}`;
-}
-
-function getTargetTile(
-  autotile: AutotileConfig,
-  target: AutotileSelectionTarget | null,
-): AutotileTileRegion | null {
-  if (!target) {
-    return null;
-  }
-
-  const terrain = autotile.terrains.find(
-    (candidate) => candidate.id === target.terrainId,
-  );
-
-  if (!terrain) {
-    return null;
-  }
-
-  if (target.type === "terrain") {
-    return terrain.paletteTile;
-  }
-
-  return terrain.patternTiles?.[target.slotId] ?? null;
-}
-
-function countRequiredAssignments(
-  terrain: AutotileTerrain,
-  requiredSlots: AutotilePatternSlotId[],
-): number {
-  return requiredSlots.reduce((count, slotId) => {
-    return terrain.patternTiles?.[slotId] ? count + 1 : count;
-  }, 0);
-}
-
-function getSelectionInstructions(
-  draft: AutotileConfig,
-  target: AutotileSelectionTarget | null,
-): string {
-  if (!target) {
-    return "Select a paint tile or pattern card, then click a tile in the picker.";
-  }
-
-  const terrain = draft.terrains.find(
-    (candidate) => candidate.id === target.terrainId,
-  );
-  const terrainName = terrain?.name || "This terrain";
-
-  if (target.type === "terrain") {
-    return `Click a tile to use as the paint tile for ${terrainName}.`;
-  }
-
-  return `Click a tile to use for ${terrainName} -> ${AUTOTILE_PATTERN_SLOTS[target.slotId].label}.`;
-}
-
-function hasPatternAssignments(terrain: AutotileTerrain): boolean {
-  return Object.values(terrain.patternTiles ?? {}).some(Boolean);
-}
 
 export function AutotileDialog({
   open,
@@ -157,40 +65,44 @@ export function AutotileDialog({
   onSave,
   tileset,
 }: AutotileDialogProps) {
-  const [enabled, setEnabled] = useState(() => Boolean(tileset.autotile));
   const [draft, setDraft] = useState<AutotileConfig>(() =>
     cloneAutotileConfig(tileset.autotile),
   );
+  const [activeTerrainId, setActiveTerrainId] = useState<
+    AutotileTerrain["id"] | null
+  >(() => cloneAutotileConfig(tileset.autotile).terrains[0]?.id ?? null);
   const [zoom, setZoom] = useState(1);
   const [selectionTarget, setSelectionTarget] =
     useState<AutotileSelectionTarget | null>(null);
   const [lastCanvasTile, setLastCanvasTile] =
     useState<AutotileTileRegion | null>(null);
+  const tilesetImage = useAssetImage(tileset.assetId);
 
   const presetDefinition = useMemo(
     () => getAutotilePresetDefinition(draft.preset),
     [draft.preset],
   );
 
-  const requiredPatternDefinitions = useMemo(
-    () =>
-      presetDefinition.requiredSlots.map(
-        (slotId) => AUTOTILE_PATTERN_SLOTS[slotId],
-      ),
-    [presetDefinition.requiredSlots],
+  const activePatternSlotIds = useMemo(
+    () => getAutotileActiveSlotIds(draft.preset),
+    [draft.preset],
   );
 
-  const optionalPatternDefinitions = useMemo(
-    () =>
-      presetDefinition.optionalSlots.map(
-        (slotId) => AUTOTILE_PATTERN_SLOTS[slotId],
-      ),
-    [presetDefinition.optionalSlots],
+  const visiblePatternGroups = useMemo(
+    () => getAutotileAssignmentGroups(draft.preset),
+    [draft.preset],
   );
 
   const highlightedTile = useMemo(
     () => getTargetTile(draft, selectionTarget) ?? lastCanvasTile,
     [draft, lastCanvasTile, selectionTarget],
+  );
+
+  const activeTerrain = useMemo(
+    () =>
+      draft.terrains.find((candidate) => candidate.id === activeTerrainId) ??
+      null,
+    [activeTerrainId, draft.terrains],
   );
 
   const totalRequiredAssignments = useMemo(
@@ -203,10 +115,21 @@ export function AutotileDialog({
       draft.terrains.reduce(
         (count, terrain) =>
           count +
-          countRequiredAssignments(terrain, presetDefinition.requiredSlots),
+          countConfiguredAssignments(terrain, presetDefinition.requiredSlots),
         0,
       ),
     [draft.terrains, presetDefinition.requiredSlots],
+  );
+
+  const activeRequiredAssignments = useMemo(
+    () =>
+      activeTerrain
+        ? countConfiguredAssignments(
+            activeTerrain,
+            presetDefinition.requiredSlots,
+          )
+        : 0,
+    [activeTerrain, presetDefinition.requiredSlots],
   );
 
   const hasLegacyRules = useMemo(
@@ -214,6 +137,27 @@ export function AutotileDialog({
       draft.rules.length > 0 &&
       draft.terrains.every((terrain) => !hasPatternAssignments(terrain)),
     [draft.rules.length, draft.terrains],
+  );
+
+  const handleSelectTarget = useCallback(
+    (target: AutotileSelectionTarget) => {
+      setActiveTerrainId(target.terrainId);
+      setSelectionTarget(target);
+
+      if (!lastCanvasTile) {
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        terrains: assignTileToSelectionTarget(
+          current.terrains,
+          target,
+          lastCanvasTile,
+        ),
+      }));
+    },
+    [lastCanvasTile],
   );
 
   const handleCanvasTileSelect = useCallback(
@@ -226,26 +170,11 @@ export function AutotileDialog({
 
       setDraft((current) => ({
         ...current,
-        terrains: current.terrains.map((terrain) => {
-          if (terrain.id !== selectionTarget.terrainId) {
-            return terrain;
-          }
-
-          if (selectionTarget.type === "terrain") {
-            return {
-              ...terrain,
-              paletteTile: tile,
-            };
-          }
-
-          return {
-            ...terrain,
-            patternTiles: {
-              ...(terrain.patternTiles ?? {}),
-              [selectionTarget.slotId]: tile,
-            },
-          };
-        }),
+        terrains: assignTileToSelectionTarget(
+          current.terrains,
+          selectionTarget,
+          tile,
+        ),
       }));
     },
     [selectionTarget],
@@ -266,25 +195,38 @@ export function AutotileDialog({
         },
       ],
     }));
+    setActiveTerrainId(terrainId);
     setSelectionTarget({ type: "terrain", terrainId });
   }, []);
 
   const handleRemoveTerrain = useCallback(
     (terrainId: AutotileTerrain["id"]) => {
+      const remainingTerrains = draft.terrains.filter(
+        (terrain) => terrain.id !== terrainId,
+      );
+
       setDraft((current) => ({
         ...current,
         terrains: current.terrains.filter(
           (terrain) => terrain.id !== terrainId,
         ),
       }));
+
+      if (
+        activeTerrainId === terrainId ||
+        !remainingTerrains.some((terrain) => terrain.id === activeTerrainId)
+      ) {
+        setActiveTerrainId(remainingTerrains[0]?.id ?? null);
+      }
+
       setSelectionTarget((current) =>
         current?.terrainId === terrainId ? null : current,
       );
     },
-    [],
+    [activeTerrainId, draft.terrains],
   );
 
-  const handlePresetChange = useCallback((preset: AutotilePresetId) => {
+  const handlePresetChange = useCallback((preset: AutotileConfig["preset"]) => {
     setDraft((current) => ({
       ...current,
       preset,
@@ -292,13 +234,88 @@ export function AutotileDialog({
     setSelectionTarget(null);
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!enabled) {
-      onSave(undefined);
-      onOpenChange(false);
+  const handleSelectRule = useCallback((terrainId: AutotileTerrain["id"]) => {
+    setActiveTerrainId(terrainId);
+    setSelectionTarget(null);
+  }, []);
+
+  const handleTerrainNameChange = useCallback(
+    (value: string) => {
+      if (!activeTerrainId) {
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        terrains: current.terrains.map((candidate) =>
+          candidate.id === activeTerrainId
+            ? {
+                ...candidate,
+                name: value,
+              }
+            : candidate,
+        ),
+      }));
+    },
+    [activeTerrainId],
+  );
+
+  const handleClearPaintTile = useCallback(() => {
+    if (!activeTerrainId) {
       return;
     }
 
+    setDraft((current) => ({
+      ...current,
+      terrains: assignTileToSelectionTarget(
+        current.terrains,
+        {
+          type: "terrain",
+          terrainId: activeTerrainId,
+        },
+        null,
+      ),
+    }));
+  }, [activeTerrainId]);
+
+  const handleSelectPatternSlot = useCallback(
+    (slotId: AutotilePatternSlotId) => {
+      if (!activeTerrainId) {
+        return;
+      }
+
+      handleSelectTarget({
+        type: "pattern",
+        terrainId: activeTerrainId,
+        slotId,
+      });
+    },
+    [activeTerrainId, handleSelectTarget],
+  );
+
+  const handleClearPatternSlot = useCallback(
+    (slotId: AutotilePatternSlotId) => {
+      if (!activeTerrainId) {
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        terrains: assignTileToSelectionTarget(
+          current.terrains,
+          {
+            type: "pattern",
+            terrainId: activeTerrainId,
+            slotId,
+          },
+          null,
+        ),
+      }));
+    },
+    [activeTerrainId],
+  );
+
+  const handleSave = useCallback(() => {
     const compiledRules = buildPresetAutotileRules({
       preset: draft.preset,
       terrains: draft.terrains,
@@ -310,7 +327,7 @@ export function AutotileDialog({
       rules: compiledRules,
     });
     onOpenChange(false);
-  }, [draft, enabled, onOpenChange, onSave]);
+  }, [draft, onOpenChange, onSave]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -318,502 +335,342 @@ export function AutotileDialog({
         <DialogHeader>
           <DialogTitle>Autotile Setup</DialogTitle>
           <DialogDescription>
-            Build autotiles visually. Choose the tile you paint with, pick how
-            much detail you want, then assign tiles for the edge and corner
-            situations shown below.
+            Build autotiles visually. Create a rule, choose its paint tile, then
+            assign the edge and corner blocks that should appear around that
+            terrain.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
-          <div className="space-y-1">
-            <Label htmlFor="autotile-enabled">
-              Enable autotile for this tileset
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Turn this off to remove the tileset-specific autotile setup.
-            </p>
-          </div>
-          <Switch
-            id="autotile-enabled"
-            name="autotile-enabled"
-            checked={enabled}
-            onCheckedChange={setEnabled}
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] overflow-hidden">
+          <AutotileTerrainSidebar
+            terrains={draft.terrains}
+            activeTerrainId={activeTerrainId}
+            configuredSlotIds={presetDefinition.requiredSlots}
+            onCreateRule={handleAddTerrain}
+            onDeleteRule={handleRemoveTerrain}
+            onSelectRule={handleSelectRule}
           />
-        </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.2fr)] overflow-hidden">
-          <div className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-medium">Tileset Picker</h3>
-                <p className="text-xs text-muted-foreground">
-                  {getSelectionInstructions(draft, selectionTarget)}
-                </p>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onMouseDown={() =>
-                    setZoom((current) => Math.max(0.5, current - 0.5))
-                  }
-                >
-                  <ZoomOut />
-                </Button>
-                <span className="w-10 text-center text-[11px] text-muted-foreground">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onMouseDown={() => setZoom((current) => current + 0.5)}
-                >
-                  <ZoomIn />
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-border overflow-hidden min-h-0 flex-1">
-              <TilesetCanvas
-                assetId={tileset.assetId}
-                tileSize={tileset.tileSize}
-                zoom={zoom}
-                onZoomChange={setZoom}
-                selectedTile={highlightedTile}
-                onTileSelect={handleCanvasTileSelect}
-                selectionMode="single"
-                className="h-full min-h-0"
-              />
-            </div>
-
-            <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-              {selectionTarget?.type === "terrain" &&
-                "You are assigning the tile used when painting this terrain."}
-              {selectionTarget?.type === "pattern" &&
-                "You are assigning the visual tile shown on the selected pattern card."}
-              {!selectionTarget &&
-                "Choose a paint tile or a pattern card on the right, then click the matching tile here."}
-            </div>
-
-            <div className="rounded-xl border border-border bg-muted/20 p-3">
-              <div className="flex items-center justify-between gap-3">
+          <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.2fr)] overflow-hidden">
+            <div className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Setup Coverage
-                  </h4>
+                  <h3 className="text-sm font-medium">Tileset Picker</h3>
                   <p className="text-xs text-muted-foreground">
-                    {assignedRequiredAssignments} of {totalRequiredAssignments}{" "}
-                    required pattern tiles assigned.
+                    {getSelectionInstructions(
+                      draft,
+                      selectionTarget,
+                      Boolean(lastCanvasTile),
+                    )}
                   </p>
                 </div>
-                <span className="rounded-full border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                  {draft.terrains.length} terrain
-                  {draft.terrains.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
-                <div
-                  className="h-full rounded-full bg-foreground transition-[width]"
-                  style={{
-                    width:
-                      totalRequiredAssignments === 0
-                        ? "0%"
-                        : `${(assignedRequiredAssignments / totalRequiredAssignments) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="min-h-0 overflow-y-auto pr-1">
-            <div className="flex flex-col gap-4">
-              {hasLegacyRules && (
-                <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-                  <h3 className="text-sm font-medium text-foreground">
-                    Existing rule setup detected
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    This tileset already has a rule-based autotile setup. Saving
-                    here converts it into the new visual builder and rewrites
-                    the underlying generated rules.
-                  </p>
-                </section>
-              )}
-
-              <section className="rounded-xl border border-border p-3">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">How To Use It</h3>
-                  <p className="text-xs text-muted-foreground">
-                    The cards below describe the situations your terrain can run
-                    into on the map. Match each card to the tile that should be
-                    shown in that situation.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-3">
-                  {SETUP_STEPS.map((step) => (
-                    <div
-                      key={step.title}
-                      className="rounded-xl border border-border bg-muted/20 p-3"
-                    >
-                      <h4 className="text-xs font-medium text-foreground">
-                        {step.title}
-                      </h4>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {step.body}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-xl border border-border p-3">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Detail Level</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Start simple and only choose the pattern situations you want
-                    this tileset to support.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-3">
-                  {AUTOTILE_PRESET_DEFINITIONS.map((preset) => {
-                    const checked = draft.preset === preset.id;
-                    const inputId = `autotile-preset-${preset.id}`;
-
-                    return (
-                      <label
-                        key={preset.id}
-                        htmlFor={inputId}
-                        className={`flex cursor-pointer flex-col rounded-xl border p-3 transition-colors ${
-                          checked
-                            ? "border-foreground bg-secondary"
-                            : "border-border bg-background hover:border-border-visible hover:bg-muted/20"
-                        }`}
-                      >
-                        <input
-                          id={inputId}
-                          name="autotile-preset"
-                          type="radio"
-                          className="sr-only"
-                          checked={checked}
-                          onChange={() => handlePresetChange(preset.id)}
-                        />
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="text-xs font-medium text-foreground">
-                            {preset.label}
-                          </h4>
-                          <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
-                            {preset.requiredSlots.length} required
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {preset.description}
-                        </p>
-                      </label>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="rounded-xl border border-border p-3">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-medium">Terrain Types</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Create one terrain card for each paintable material in
-                      this tileset, such as grass, water, or stone.
-                    </p>
-                  </div>
+                <div className="flex items-center gap-1">
                   <Button
                     type="button"
-                    variant="outline"
-                    size="xs"
-                    onMouseDown={handleAddTerrain}
+                    variant="ghost"
+                    size="icon-xs"
+                    onMouseDown={() =>
+                      setZoom((current) => Math.max(0.5, current - 0.5))
+                    }
                   >
-                    <Plus />
-                    Add Terrain
+                    <ZoomOut />
+                  </Button>
+                  <span className="w-10 text-center text-[11px] text-muted-foreground">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onMouseDown={() => setZoom((current) => current + 0.5)}
+                  >
+                    <ZoomIn />
                   </Button>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-4">
-                  {draft.terrains.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-border px-3 py-5 text-xs text-muted-foreground">
-                      Add a terrain to start. Then pick the tile you want to
-                      paint with and assign the pattern cards that matter for
-                      that terrain.
-                    </div>
-                  )}
+              <div className="rounded-lg border border-border overflow-hidden min-h-0 flex-1">
+                <TilesetCanvas
+                  assetId={tileset.assetId}
+                  tileSize={tileset.tileSize}
+                  zoom={zoom}
+                  onZoomChange={setZoom}
+                  selectedTile={highlightedTile}
+                  onTileSelect={handleCanvasTileSelect}
+                  selectionMode="single"
+                  className="h-full min-h-0"
+                />
+              </div>
 
-                  {draft.terrains.map((terrain, index) => {
-                    const assignedRequired = countRequiredAssignments(
-                      terrain,
-                      presetDefinition.requiredSlots,
-                    );
+              <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                {selectionTarget?.type === "terrain" &&
+                  "You are assigning the paint tile for the selected rule."}
+                {selectionTarget?.type === "pattern" &&
+                  "You are assigning the pattern block that is currently highlighted on the right."}
+                {!selectionTarget &&
+                  "Pick a tile here, then click the paint tile or a pattern block on the right to assign it."}
+              </div>
 
-                    return (
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground">
+                      Setup Coverage
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      {assignedRequiredAssignments} of{" "}
+                      {totalRequiredAssignments} required pattern blocks
+                      assigned.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                    {draft.terrains.length} rule
+                    {draft.terrains.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
+                  <div
+                    className="h-full rounded-full bg-foreground transition-[width]"
+                    style={{
+                      width:
+                        totalRequiredAssignments === 0
+                          ? "0%"
+                          : `${(assignedRequiredAssignments / totalRequiredAssignments) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto pr-1">
+              <div className="flex flex-col gap-4">
+                {hasLegacyRules && (
+                  <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                    <h3 className="text-sm font-medium text-foreground">
+                      Existing rule setup detected
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      This tileset already has a rule-based autotile setup.
+                      Saving here converts it into the new visual builder and
+                      rewrites the generated rules stored on the tileset.
+                    </p>
+                  </section>
+                )}
+
+                <section className="rounded-xl border border-border p-3">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium">How To Use It</h3>
+                    <p className="text-xs text-muted-foreground">
+                      The right side keeps the current editor flow, but now you
+                      edit one rule at a time from the sidebar.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {SETUP_STEPS.map((step) => (
                       <div
-                        key={terrain.id}
+                        key={step.title}
                         className="rounded-xl border border-border bg-muted/20 p-3"
                       >
-                        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <h4 className="text-sm font-medium text-foreground">
-                              Terrain {index + 1}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {assignedRequired} of{" "}
-                              {presetDefinition.requiredSlots.length} required
-                              pattern tiles assigned for this terrain.
-                            </p>
-                          </div>
+                        <h4 className="text-xs font-medium text-foreground">
+                          {step.title}
+                        </h4>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {step.body}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
 
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-destructive"
-                            aria-label={`Remove terrain ${terrain.name}`}
-                            onMouseDown={() => handleRemoveTerrain(terrain.id)}
+                <section className="rounded-xl border border-border p-3">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium">Detail Level</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Start simple and only choose the pattern situations you
+                      want this tileset to support.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {AUTOTILE_PRESET_DEFINITIONS.map((preset) => {
+                      const checked = draft.preset === preset.id;
+                      const inputId = `autotile-preset-${preset.id}`;
+
+                      return (
+                        <label
+                          key={preset.id}
+                          htmlFor={inputId}
+                          className={`flex cursor-pointer flex-col rounded-xl border p-3 transition-colors ${
+                            checked
+                              ? "border-foreground bg-secondary"
+                              : "border-border bg-background hover:border-border-visible hover:bg-muted/20"
+                          }`}
+                        >
+                          <input
+                            id={inputId}
+                            name="autotile-preset"
+                            type="radio"
+                            className="sr-only"
+                            checked={checked}
+                            onChange={() => handlePresetChange(preset.id)}
+                          />
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-medium text-foreground">
+                              {preset.label}
+                            </h4>
+                            <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
+                              {preset.requiredSlots.length} required
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {preset.description}
+                          </p>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section
+                  role="region"
+                  aria-label="Rule editor"
+                  className="rounded-xl border border-border p-3"
+                >
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium">Rule Editor</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {activeTerrain
+                        ? `${activeRequiredAssignments} of ${presetDefinition.requiredSlots.length} required blocks configured for this rule.`
+                        : "Select a rule in the sidebar to start editing it."}
+                    </p>
+                  </div>
+
+                  {!activeTerrain ? (
+                    <div className="rounded-lg border border-dashed border-border px-3 py-5 text-xs text-muted-foreground">
+                      Create a rule on the left, then assign a paint tile and
+                      the edge blocks this terrain should use.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,16rem)]">
+                        <div className="space-y-1">
+                          <Label
+                            htmlFor={`autotile-terrain-name-${activeTerrain.id}`}
                           >
-                            <Trash2 />
-                          </Button>
+                            Terrain Name
+                          </Label>
+                          <Input
+                            id={`autotile-terrain-name-${activeTerrain.id}`}
+                            name={`autotile-terrain-name-${activeTerrain.id}`}
+                            className="h-8 text-xs"
+                            value={activeTerrain.name}
+                            onChange={(event) =>
+                              handleTerrainNameChange(event.target.value)
+                            }
+                          />
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                          <div className="space-y-1">
-                            <Label
-                              htmlFor={`autotile-terrain-name-${terrain.id}`}
-                            >
-                              Terrain Name
-                            </Label>
-                            <Input
-                              id={`autotile-terrain-name-${terrain.id}`}
-                              name={`autotile-terrain-name-${terrain.id}`}
-                              className="h-8 text-xs"
-                              value={terrain.name}
-                              onChange={(event) =>
-                                setDraft((current) => ({
-                                  ...current,
-                                  terrains: current.terrains.map((candidate) =>
-                                    candidate.id === terrain.id
-                                      ? {
-                                          ...candidate,
-                                          name: event.target.value,
-                                        }
-                                      : candidate,
-                                  ),
-                                }))
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label
-                              htmlFor={`autotile-terrain-paint-${terrain.id}`}
-                            >
-                              Paint Tile
-                            </Label>
-                            <div className="flex items-center gap-2">
-                              {terrain.paletteTile && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="xs"
-                                  onMouseDown={() =>
-                                    setDraft((current) => ({
-                                      ...current,
-                                      terrains: current.terrains.map(
-                                        (candidate) =>
-                                          candidate.id === terrain.id
-                                            ? {
-                                                ...candidate,
-                                                paletteTile: null,
-                                              }
-                                            : candidate,
-                                      ),
-                                    }))
-                                  }
-                                >
-                                  Clear
-                                </Button>
-                              )}
-                              <Button
+                        <div className="space-y-1">
+                          <Label
+                            htmlFor={`autotile-terrain-paint-${activeTerrain.id}`}
+                          >
+                            Paint Tile
+                          </Label>
+                          <div className="rounded-xl border border-border bg-muted/20 p-3">
+                            <div className="flex items-center gap-3">
+                              <button
                                 type="button"
-                                id={`autotile-terrain-paint-${terrain.id}`}
-                                name={`autotile-terrain-paint-${terrain.id}`}
-                                variant={
+                                id={`autotile-terrain-paint-${activeTerrain.id}`}
+                                name={`autotile-terrain-paint-${activeTerrain.id}`}
+                                aria-label={`Assign paint tile for ${activeTerrain.name}`}
+                                aria-pressed={
                                   selectionTarget?.type === "terrain" &&
-                                  selectionTarget.terrainId === terrain.id
-                                    ? "default"
-                                    : "outline"
+                                  selectionTarget.terrainId === activeTerrain.id
                                 }
-                                size="xs"
+                                className={`rounded-xl p-1 transition-colors ${
+                                  selectionTarget?.type === "terrain" &&
+                                  selectionTarget.terrainId === activeTerrain.id
+                                    ? "bg-secondary"
+                                    : "bg-transparent hover:bg-muted/20"
+                                }`}
                                 onMouseDown={() =>
-                                  setSelectionTarget({
+                                  handleSelectTarget({
                                     type: "terrain",
-                                    terrainId: terrain.id,
+                                    terrainId: activeTerrain.id,
                                   })
                                 }
                               >
-                                {terrain.paletteTile
-                                  ? "Change Tile"
-                                  : "Pick Tile"}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                          <p>
-                            {formatTileLabel(
-                              terrain.paletteTile,
-                              tileset.tileSize,
-                            )}
-                          </p>
-                          <p className="mt-1">
-                            This is the tile you will select when painting with
-                            the autotile brush.
-                          </p>
-                        </div>
-
-                        <div className="mt-4 space-y-4">
-                          <div>
-                            <div className="mb-2">
-                              <h5 className="text-xs font-medium text-foreground">
-                                Required Pattern Tiles
-                              </h5>
-                              <p className="text-xs text-muted-foreground">
-                                Fill these first so the terrain can react to the
-                                most common map situations.
-                              </p>
-                            </div>
-                            <div className="grid gap-3 xl:grid-cols-2">
-                              {requiredPatternDefinitions.map((definition) => (
-                                <AutotilePatternTileCard
-                                  key={`${terrain.id}-${definition.id}`}
-                                  buttonId={`autotile-pattern-${terrain.id}-${definition.id}`}
-                                  buttonName={`autotile-pattern-${terrain.id}-${definition.id}`}
-                                  definition={definition}
-                                  isRequired
-                                  isSelected={
-                                    selectionTarget?.type === "pattern" &&
-                                    selectionTarget.terrainId === terrain.id &&
-                                    selectionTarget.slotId === definition.id
-                                  }
-                                  tile={
-                                    terrain.patternTiles?.[definition.id] ??
-                                    null
-                                  }
-                                  tileLabel={formatTileLabel(
-                                    terrain.patternTiles?.[definition.id] ??
-                                      null,
-                                    tileset.tileSize,
-                                  )}
-                                  onClear={() =>
-                                    setDraft((current) => ({
-                                      ...current,
-                                      terrains: current.terrains.map(
-                                        (candidate) =>
-                                          candidate.id === terrain.id
-                                            ? {
-                                                ...candidate,
-                                                patternTiles: {
-                                                  ...(candidate.patternTiles ??
-                                                    {}),
-                                                  [definition.id]: null,
-                                                },
-                                              }
-                                            : candidate,
-                                      ),
-                                    }))
-                                  }
-                                  onPick={() =>
-                                    setSelectionTarget({
-                                      type: "pattern",
-                                      terrainId: terrain.id,
-                                      slotId: definition.id,
-                                    })
-                                  }
+                                <AutotileTilePreview
+                                  image={tilesetImage}
+                                  region={activeTerrain.paletteTile}
+                                  size={72}
+                                  emptyLabel="Pick Tile"
                                 />
-                              ))}
+                              </button>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs text-muted-foreground">
+                                  This is the tile you will select when painting
+                                  with the autotile brush.
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant={
+                                      selectionTarget?.type === "terrain" &&
+                                      selectionTarget.terrainId ===
+                                        activeTerrain.id
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    size="xs"
+                                    onMouseDown={() =>
+                                      handleSelectTarget({
+                                        type: "terrain",
+                                        terrainId: activeTerrain.id,
+                                      })
+                                    }
+                                  >
+                                    {activeTerrain.paletteTile
+                                      ? "Change Tile"
+                                      : "Pick Tile"}
+                                  </Button>
+                                  {activeTerrain.paletteTile && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      onMouseDown={handleClearPaintTile}
+                                    >
+                                      Clear
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-
-                          {optionalPatternDefinitions.length > 0 && (
-                            <div>
-                              <div className="mb-2">
-                                <h5 className="text-xs font-medium text-foreground">
-                                  Optional Pattern Tiles
-                                </h5>
-                                <p className="text-xs text-muted-foreground">
-                                  These refine the look further, but empty slots
-                                  will fall back to the paint tile.
-                                </p>
-                              </div>
-                              <div className="grid gap-3 xl:grid-cols-2">
-                                {optionalPatternDefinitions.map(
-                                  (definition) => (
-                                    <AutotilePatternTileCard
-                                      key={`${terrain.id}-${definition.id}`}
-                                      buttonId={`autotile-pattern-${terrain.id}-${definition.id}`}
-                                      buttonName={`autotile-pattern-${terrain.id}-${definition.id}`}
-                                      definition={definition}
-                                      isRequired={false}
-                                      isSelected={
-                                        selectionTarget?.type === "pattern" &&
-                                        selectionTarget.terrainId ===
-                                          terrain.id &&
-                                        selectionTarget.slotId === definition.id
-                                      }
-                                      tile={
-                                        terrain.patternTiles?.[definition.id] ??
-                                        null
-                                      }
-                                      tileLabel={formatTileLabel(
-                                        terrain.patternTiles?.[definition.id] ??
-                                          null,
-                                        tileset.tileSize,
-                                      )}
-                                      onClear={() =>
-                                        setDraft((current) => ({
-                                          ...current,
-                                          terrains: current.terrains.map(
-                                            (candidate) =>
-                                              candidate.id === terrain.id
-                                                ? {
-                                                    ...candidate,
-                                                    patternTiles: {
-                                                      ...(candidate.patternTiles ??
-                                                        {}),
-                                                      [definition.id]: null,
-                                                    },
-                                                  }
-                                                : candidate,
-                                          ),
-                                        }))
-                                      }
-                                      onPick={() =>
-                                        setSelectionTarget({
-                                          type: "pattern",
-                                          terrainId: terrain.id,
-                                          slotId: definition.id,
-                                        })
-                                      }
-                                    />
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
+
+                      <div className="space-y-4">
+                        {visiblePatternGroups.map((group) => (
+                          <AutotilePatternGroupCard
+                            key={`${activeTerrain.id}-${group.id}`}
+                            group={group}
+                            terrain={activeTerrain}
+                            tilesetImage={tilesetImage}
+                            activeSlotIds={activePatternSlotIds}
+                            selectionTarget={selectionTarget}
+                            onSelectSlot={handleSelectPatternSlot}
+                            onClearSlot={handleClearPatternSlot}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
             </div>
           </div>
         </div>
