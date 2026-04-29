@@ -156,7 +156,8 @@ export function MapPanelToolbar({
           ) : (
             autotileRules.map((terrain, index) => {
               const isSelectedTerrain =
-                state.selectedAutotileTerrain?.tilesetId === activeTileset?.id &&
+                state.selectedAutotileTerrain?.tilesetId ===
+                  activeTileset?.id &&
                 state.selectedAutotileTerrain?.terrainId === terrain.id;
 
               return (
@@ -169,7 +170,9 @@ export function MapPanelToolbar({
                     {BRUSH_SIZES.map((size) => (
                       <DropdownMenuItem
                         key={size}
-                        onMouseDown={() => onSelectAutotileTool(terrain.id, size)}
+                        onMouseDown={() =>
+                          onSelectAutotileTool(terrain.id, size)
+                        }
                       >
                         {size}
                         {state.currentTool === "autotile" &&
