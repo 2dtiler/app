@@ -1,4 +1,9 @@
 import type { ReactNode } from "react";
+import type {
+  AutotileConfig,
+  AutotilePatternSlotId,
+  AutotileTerrainId,
+} from "@/types/map/autotile";
 import type { NewMapType } from "@/types/map/map-geometry";
 import type {
   MapObject,
@@ -7,7 +12,23 @@ import type {
   PropertyValue,
   TerrainTile,
   TileMapData,
+  Tileset,
 } from "@/types/map/schema";
+
+export interface AutotileDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (autotile: AutotileConfig) => void;
+  tileset: Tileset;
+}
+
+export type AutotileSelectionTarget =
+  | { type: "terrain"; terrainId: AutotileTerrainId }
+  | {
+      type: "pattern";
+      terrainId: AutotileTerrainId;
+      slotId: AutotilePatternSlotId;
+    };
 
 export interface FillTerrainDialogProps {
   open: boolean;

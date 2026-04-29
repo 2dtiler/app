@@ -12,6 +12,7 @@ import {
   Scissors,
   Settings,
   Undo2,
+  WandSparkles,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -20,7 +21,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import {
@@ -28,6 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
+import { getPaintableAutotileTerrains } from "@/features/map-editor/lib/autotile";
 import { BRUSH_SIZES } from "@/types";
 import type { MapPanelToolbarProps } from "@/features/map-editor/types/map-panel";
 
@@ -36,6 +42,7 @@ const eraseTools = ["erase"] as const;
 const toolIcons = {
   select: BoxSelect,
   paint: Paintbrush,
+  autotile: WandSparkles,
   erase: Eraser,
   fill: PaintBucket,
 } as const;
@@ -49,12 +56,18 @@ export function MapPanelToolbar({
   onCut,
   onOpenMapOptions,
   onOrientSelection,
+  onSelectAutotileTool,
   onSelectBrushTool,
   onSelectFillMode,
   onSelectTool,
   onZoom,
   state,
 }: MapPanelToolbarProps) {
+  const activeTileset = state.project?.tilesets.find(
+    (tileset) => tileset.id === state.activeTilesetId,
+  );
+  const autotileRules = getPaintableAutotileTerrains(activeTileset?.autotile);
+
   return (
     <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card px-1 py-0.5">
       <Tooltip>
@@ -63,6 +76,7 @@ export function MapPanelToolbar({
             variant={state.currentTool === "select" ? "default" : "ghost"}
             size="icon"
             className="h-6 w-6"
+            aria-label="Select tool"
             onMouseDown={() => onSelectTool("select")}
           >
             <BoxSelect className="h-3.5 w-3.5" />
@@ -84,13 +98,14 @@ export function MapPanelToolbar({
                     variant={isActive ? "default" : "ghost"}
                     size="icon"
                     className="h-6 w-6"
+                    aria-label={`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool options`}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                {tool.charAt(0).toUpperCase() + tool.slice(1)} Tool
+                {`${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent>
@@ -115,15 +130,80 @@ export function MapPanelToolbar({
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <Button
+                variant={state.currentTool === "autotile" ? "default" : "ghost"}
+                size="icon"
+                className="h-6 w-6"
+                aria-label="Autotile tool options"
+              >
+                <WandSparkles className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Autotile Tool (A)</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent>
+          {autotileRules.length === 0 ? (
+            <>
+              <DropdownMenuLabel>
+                {activeTileset ? "No autotile rules" : "No active tileset"}
+              </DropdownMenuLabel>
+              <DropdownMenuItem disabled>
+                {activeTileset
+                  ? "Configure a paint tile in the autotile editor first."
+                  : "Select a tileset to choose autotile rules."}
+              </DropdownMenuItem>
+            </>
+          ) : (
+            autotileRules.map((terrain, index) => {
+              const isSelectedTerrain =
+                state.selectedAutotileTerrain?.tilesetId ===
+                  activeTileset?.id &&
+                state.selectedAutotileTerrain?.terrainId === terrain.id;
+
+              return (
+                <DropdownMenuSub key={terrain.id}>
+                  <DropdownMenuSubTrigger>
+                    {terrain.name || `Rule ${index + 1}`}
+                    {isSelectedTerrain && " ✓"}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {BRUSH_SIZES.map((size) => (
+                      <DropdownMenuItem
+                        key={size}
+                        onMouseDown={() =>
+                          onSelectAutotileTool(terrain.id, size)
+                        }
+                      >
+                        {size}
+                        {state.currentTool === "autotile" &&
+                          isSelectedTerrain &&
+                          state.brushSize === size &&
+                          " ✓"}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            })
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
                 variant={state.currentTool === "fill" ? "default" : "ghost"}
                 size="icon"
                 className="h-6 w-6"
+                aria-label="Fill tool options"
               >
                 <PaintBucket className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent>Fill Tool</TooltipContent>
+          <TooltipContent>Fill Tool (G)</TooltipContent>
         </Tooltip>
         <DropdownMenuContent>
           <DropdownMenuItem onMouseDown={() => onSelectFillMode("fill")}>
@@ -152,6 +232,7 @@ export function MapPanelToolbar({
                     variant={isActive ? "default" : "ghost"}
                     size="icon"
                     className="h-6 w-6"
+                    aria-label={`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool options`}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </Button>
@@ -186,6 +267,7 @@ export function MapPanelToolbar({
             variant="ghost"
             size="icon"
             className="h-6 w-6"
+            aria-label="Cut selection"
             disabled={!canCutToolbar}
             onMouseDown={() => {
               void onCut();
@@ -205,6 +287,7 @@ export function MapPanelToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
+                aria-label="Orientation actions"
                 disabled={!canOrientToolbar}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -255,12 +338,13 @@ export function MapPanelToolbar({
               variant="ghost"
               size="icon"
               className="h-6 w-6"
+              aria-label="Zoom out"
               onMouseDown={() => onZoom(-1)}
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Zoom Out</TooltipContent>
+          <TooltipContent>Zoom Out (-)</TooltipContent>
         </Tooltip>
         <span className="w-8 text-center text-[10px] text-muted-foreground">
           {Math.round(mapZoom * 100)}%
@@ -271,12 +355,13 @@ export function MapPanelToolbar({
               variant="ghost"
               size="icon"
               className="h-6 w-6"
+              aria-label="Zoom in"
               onMouseDown={() => onZoom(1)}
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Zoom In</TooltipContent>
+          <TooltipContent>Zoom In (+)</TooltipContent>
         </Tooltip>
       </div>
 
@@ -288,6 +373,7 @@ export function MapPanelToolbar({
             variant="ghost"
             size="icon"
             className="h-6 w-6"
+            aria-label="Undo"
             disabled={!controls.canBack()}
             onMouseDown={() => controls.back()}
           >
@@ -302,6 +388,7 @@ export function MapPanelToolbar({
             variant="ghost"
             size="icon"
             className="h-6 w-6"
+            aria-label="Redo"
             disabled={!controls.canForward()}
             onMouseDown={() => controls.forward()}
           >
@@ -320,6 +407,7 @@ export function MapPanelToolbar({
               variant="ghost"
               size="icon"
               className="h-6 w-6"
+              aria-label="Map options"
               onMouseDown={onOpenMapOptions}
             >
               <Settings className="h-3.5 w-3.5" />

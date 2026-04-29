@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { getAsset } from "@/services/db";
 import {
   getUniqueArchivePath,
@@ -33,6 +33,7 @@ import type {
   TiledTilesetFormat,
   Tileset,
   TilesetId,
+  ExportSaveStrategy,
 } from "@/types";
 
 function requireTiledTilesetExportOptions(
@@ -58,6 +59,8 @@ function buildTiledJsonTilesetDocument(
     tileheight: tileset.tileSize,
     tilecount: getTileCount(tileset),
     columns: getTileColumns(tileset),
+    margin: 0,
+    spacing: 0,
     image: imagePath,
     imagewidth: tileset.imageWidth,
     imageheight: tileset.imageHeight,
@@ -112,6 +115,8 @@ async function exportTiledTilesetBundle(
   tilesetElement.setAttribute("tileheight", String(tileset.tileSize));
   tilesetElement.setAttribute("tilecount", String(getTileCount(tileset)));
   tilesetElement.setAttribute("columns", String(getTileColumns(tileset)));
+  tilesetElement.setAttribute("margin", "0");
+  tilesetElement.setAttribute("spacing", "0");
 
   const imageElement = document.createElement("image");
   imageElement.setAttribute("source", imagePath);
@@ -151,6 +156,7 @@ export async function exportSelectedTiledTilesets(
   selectedIds: string[],
   optionId: ImportExportOptionId,
   formatExportOptions?: ImportExportFormatExportOptions,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -161,6 +167,7 @@ export async function exportSelectedTiledTilesets(
   }
 
   const format = requireTiledTilesetExportOptions(formatExportOptions).format;
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
   const selectedIdSet = new Set(selectedIds as TilesetId[]);
   const selectedTilesets = project.tilesets.filter((tileset) =>
     selectedIdSet.has(tileset.id),
@@ -172,7 +179,7 @@ export async function exportSelectedTiledTilesets(
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportTiledTilesetBundle(tileset, format);
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(
         tileset.name,
@@ -206,7 +213,7 @@ export async function exportSelectedTiledTilesets(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} tiled tilesets`, ".zip"),
   );

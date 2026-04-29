@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { getUniqueArchivePath } from "@/features/import-export/lib/import-export-action-utils";
 import { exportUnityTilesetBundle } from "@/features/import-export/lib/import-export-unity-tileset";
 import type {
@@ -11,6 +11,7 @@ import type {
   ImportExportOptionId,
   Project,
   TilesetId,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isUnityTilesetOption(optionId: ImportExportOptionId) {
@@ -21,6 +22,7 @@ export async function exportSelectedUnityTilesets(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -37,11 +39,12 @@ export async function exportSelectedUnityTilesets(
   if (selectedTilesets.length === 0) {
     return false;
   }
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportUnityTilesetBundle(tileset);
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(tileset.name, ".unity-tileset.zip"),
     );
@@ -72,7 +75,7 @@ export async function exportSelectedUnityTilesets(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} unity tilesets`, ".zip"),
   );

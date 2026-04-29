@@ -11,6 +11,11 @@ import {
   pickWeightedTile,
 } from "@/features/map-editor/lib/terrain";
 import {
+  classifyAutotileTile as classifyAutotileTileConfig,
+  getPaintableAutotileTerrainById,
+  resolveAutotileWrites as resolveAutotileWriteSet,
+} from "@/features/map-editor/lib/autotile";
+import {
   clampTextObjectBounds,
   getDefaultTextObjectProperties,
 } from "@/features/map-editor/lib/text-objects";
@@ -55,6 +60,103 @@ export function useMapPanelCanvasActions({
       const selectedStamp = state.selectedTile
         ? createTileStamp(state.selectedTile, state.tileSize)
         : null;
+      const selectedAutotileTileset = state.selectedAutotileTerrain
+        ? (project?.tilesets.find(
+            (tileset) =>
+              tileset.id === state.selectedAutotileTerrain?.tilesetId,
+          ) ?? null)
+        : null;
+
+      const buildEffectiveTiles = () => {
+        const effectiveTiles = { ...activeLayer.tiles };
+        for (const [key, ref] of paintBuffer.entries()) {
+          if (ref === null) {
+            delete effectiveTiles[key];
+          } else {
+            effectiveTiles[key] = ref;
+          }
+        }
+
+        return effectiveTiles;
+      };
+
+      const applyResolvedWrites = (resolved: Map<string, TileRef | null>) => {
+        for (const [key, ref] of resolved.entries()) {
+          const [tx, ty] = key.split(",").map(Number);
+          const committedRef = activeLayer.tiles[key] ?? null;
+
+          if (ref === null) {
+            if (committedRef === null) {
+              paintBuffer.delete(key);
+            } else {
+              paintBuffer.set(key, null);
+            }
+            mapCanvasRef.current?.eraseBufferTile(tx, ty);
+            continue;
+          }
+
+          if (areTileRefsEqual(committedRef, ref)) {
+            paintBuffer.delete(key);
+            mapCanvasRef.current?.eraseBufferTile(tx, ty);
+            continue;
+          }
+
+          paintBuffer.set(key, ref);
+          mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+        }
+      };
+
+      if (state.currentTool === "autotile") {
+        const autotile = selectedAutotileTileset?.autotile;
+        const selectedTerrain = state.selectedAutotileTerrain
+          ? getPaintableAutotileTerrainById(
+              autotile,
+              state.selectedAutotileTerrain.terrainId,
+            )
+          : null;
+
+        if (!selectedAutotileTileset || !autotile || !selectedTerrain) {
+          return;
+        }
+
+        const brushNum = parseInt(state.brushSize);
+        const writes = [] as Parameters<
+          typeof resolveAutotileWriteSet
+        >[0]["writes"];
+
+        for (let dy = 0; dy < brushNum; dy++) {
+          for (let dx = 0; dx < brushNum; dx++) {
+            const tx = gx + dx;
+            const ty = gy + dy;
+            if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles) {
+              continue;
+            }
+
+            writes.push({
+              x: tx,
+              y: ty,
+              terrainId: selectedTerrain.id,
+            });
+          }
+        }
+
+        if (writes.length === 0) {
+          return;
+        }
+
+        const resolved = resolveAutotileWriteSet({
+          autotile,
+          baseTiles: buildEffectiveTiles(),
+          mapWidth: activeMap.widthInTiles,
+          mapHeight: activeMap.heightInTiles,
+          tilesetId: selectedAutotileTileset.id,
+          writes,
+        });
+
+        applyResolvedWrites(resolved);
+
+        return;
+      }
 
       if (state.currentTool === "paint") {
         if (!selectedStamp) return;
@@ -97,6 +199,22 @@ export function useMapPanelCanvasActions({
 
       if (state.currentTool === "erase") {
         const brushNum = parseInt(state.brushSize);
+        const effectiveTiles = buildEffectiveTiles();
+        const directEraseTargets = [] as {
+          committedRef: TileRef | null;
+          key: string;
+          x: number;
+          y: number;
+        }[];
+        const directEraseKeys = new Set<string>();
+        const autotileEraseConfigs = new Map<
+          Parameters<typeof resolveAutotileWriteSet>[0]["tilesetId"],
+          Parameters<typeof resolveAutotileWriteSet>[0]["autotile"]
+        >();
+        const autotileEraseWrites = new Map<
+          Parameters<typeof resolveAutotileWriteSet>[0]["tilesetId"],
+          Parameters<typeof resolveAutotileWriteSet>[0]["writes"]
+        >();
 
         for (let dy = 0; dy < brushNum; dy++) {
           for (let dx = 0; dx < brushNum; dx++) {
@@ -119,14 +237,93 @@ export function useMapPanelCanvasActions({
               continue;
             }
 
-            if (committedRef === null) {
-              paintBuffer.delete(key);
-            } else {
-              paintBuffer.set(key, null);
+            const autotileTileset = effectiveRef
+              ? (project?.tilesets.find(
+                  (tileset) =>
+                    tileset.id === effectiveRef.tilesetId && !!tileset.autotile,
+                ) ?? null)
+              : null;
+            const autotileTerrainId =
+              autotileTileset && autotileTileset.autotile
+                ? classifyAutotileTileConfig(
+                    autotileTileset.autotile,
+                    autotileTileset.id,
+                    effectiveRef,
+                  )
+                : null;
+
+            if (autotileTileset?.autotile && autotileTerrainId) {
+              const writes = autotileEraseWrites.get(autotileTileset.id);
+              if (writes) {
+                writes.push({ x: tx, y: ty, terrainId: null });
+              } else {
+                autotileEraseWrites.set(autotileTileset.id, [
+                  { x: tx, y: ty, terrainId: null },
+                ]);
+                autotileEraseConfigs.set(
+                  autotileTileset.id,
+                  autotileTileset.autotile,
+                );
+              }
+
+              continue;
             }
 
-            mapCanvasRef.current?.eraseBufferTile(tx, ty);
+            directEraseKeys.add(key);
+            directEraseTargets.push({
+              committedRef,
+              key,
+              x: tx,
+              y: ty,
+            });
           }
+        }
+
+        for (const [tilesetId, writes] of autotileEraseWrites.entries()) {
+          const autotile = autotileEraseConfigs.get(tilesetId);
+          if (!autotile) {
+            continue;
+          }
+
+          const baseTiles = { ...effectiveTiles };
+
+          for (const key of directEraseKeys) {
+            delete baseTiles[key];
+          }
+
+          for (const [
+            otherTilesetId,
+            otherWrites,
+          ] of autotileEraseWrites.entries()) {
+            if (otherTilesetId === tilesetId) {
+              continue;
+            }
+
+            for (const write of otherWrites) {
+              delete baseTiles[`${write.x},${write.y}`];
+            }
+          }
+
+          const resolved = resolveAutotileWriteSet({
+            autotile,
+            baseTiles,
+            mapWidth: activeMap.widthInTiles,
+            mapHeight: activeMap.heightInTiles,
+            tilesetId,
+            writes,
+          });
+
+          applyResolvedWrites(resolved);
+        }
+
+        for (const { committedRef, key, x, y } of directEraseTargets) {
+          if (committedRef === null) {
+            paintBuffer.delete(key);
+          } else {
+            paintBuffer.set(key, null);
+          }
+
+          mapCanvasRef.current?.eraseBufferTile(x, y);
         }
 
         return;
@@ -197,6 +394,7 @@ export function useMapPanelCanvasActions({
       layerGroups,
       mapCanvasRef,
       paintBuffer,
+      project?.tilesets,
       project?.layers,
       setState,
       state.activeFillTerrain,
@@ -204,6 +402,7 @@ export function useMapPanelCanvasActions({
       state.brushSize,
       state.currentTool,
       state.fillMode,
+      state.selectedAutotileTerrain,
       state.selectedTile,
       state.tileSize,
     ],

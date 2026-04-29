@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import type {
   AssetId,
+  AutotileRuleId,
+  AutotileTerrainId,
   LayerGroupId,
   LayerId,
   MapGroupId,
@@ -22,3 +24,5 @@ export const generateLayerGroupId = () => uuidv4() as LayerGroupId;
 export const generateAssetId = () => uuidv4() as AssetId;
 export const generateTerrainId = () => uuidv4() as TerrainId;
 export const generateObjectId = () => uuidv4() as ObjectId;
+export const generateAutotileTerrainId = () => uuidv4() as AutotileTerrainId;
+export const generateAutotileRuleId = () => uuidv4() as AutotileRuleId;

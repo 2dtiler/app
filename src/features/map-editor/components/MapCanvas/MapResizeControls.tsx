@@ -5,9 +5,31 @@ const MAP_RESIZE_GUTTER = 14;
 const MAP_RESIZE_RAIL_SIZE = 10;
 const MAP_RESIZE_BADGE_OFFSET = 6;
 
+function getRailBackground(active: boolean, hovered: boolean): string {
+  if (active) {
+    return "rgba(251, 146, 60, 0.45)";
+  }
+  if (hovered) {
+    return "rgba(251, 146, 60, 0.24)";
+  }
+  return "rgba(148, 163, 184, 0.28)";
+}
+
+function getRailBorder(hovered: boolean): string {
+  return hovered
+    ? "1px solid rgba(251, 146, 60, 0.35)"
+    : "1px solid rgba(255, 255, 255, 0.18)";
+}
+
+function getRailShadow(hovered: boolean, size = 10): string {
+  return hovered ? `0 0 ${size}px rgba(251, 146, 60, 0.18)` : "none";
+}
+
 export function MapResizeControls({
   canvasW,
   canvasH,
+  canvasX,
+  canvasY,
   previewWidth,
   previewHeight,
   activeHandle,
@@ -18,10 +40,16 @@ export function MapResizeControls({
   onBeginMapResize,
 }: MapResizeControlsProps) {
   const sizeLabel = `${previewWidth} × ${previewHeight}`;
+  const leftGripActive = activeHandle === "w" || activeHandle === "nw";
+  const topGripActive = activeHandle === "n" || activeHandle === "nw";
   const rightGripActive = activeHandle === "e" || activeHandle === "se";
   const bottomGripActive = activeHandle === "s" || activeHandle === "se";
+  const leftGripHovered = hoveredHandle === "w" || hoveredHandle === "nw";
+  const topGripHovered = hoveredHandle === "n" || hoveredHandle === "nw";
   const rightGripHovered = hoveredHandle === "e" || hoveredHandle === "se";
   const bottomGripHovered = hoveredHandle === "s" || hoveredHandle === "se";
+  const topLeftGripActive = activeHandle === "nw";
+  const topLeftGripHovered = hoveredHandle === "nw";
   const cornerGripActive = activeHandle === "se";
   const cornerGripHovered = hoveredHandle === "se";
 
@@ -31,8 +59,116 @@ export function MapResizeControls({
         aria-hidden="true"
         style={{
           position: "absolute",
+          top: canvasY,
+          left: 0,
+          width: MAP_RESIZE_GUTTER,
+          height: canvasH,
+          cursor: RESIZE_CURSORS.w,
+          touchAction: "none",
+        }}
+        onContextMenu={(event) => event.preventDefault()}
+        onPointerEnter={() => onHoverHandleChange("w")}
+        onPointerLeave={() => {
+          if (!isResizing) {
+            onHoverHandleChange(null);
+          }
+        }}
+        onPointerDown={(event) => onBeginMapResize("w", event)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            bottom: 4,
+            left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            width: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background: getRailBackground(leftGripActive, leftGripHovered),
+            border: getRailBorder(leftGripHovered),
+            boxShadow: getRailShadow(leftGripHovered),
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
           top: 0,
-          left: canvasW,
+          left: canvasX,
+          width: canvasW,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.n,
+          touchAction: "none",
+        }}
+        onContextMenu={(event) => event.preventDefault()}
+        onPointerEnter={() => onHoverHandleChange("n")}
+        onPointerLeave={() => {
+          if (!isResizing) {
+            onHoverHandleChange(null);
+          }
+        }}
+        onPointerDown={(event) => onBeginMapResize("n", event)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 4,
+            right: 4,
+            top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
+            height: MAP_RESIZE_RAIL_SIZE,
+            borderRadius: 999,
+            background: getRailBackground(topGripActive, topGripHovered),
+            border: getRailBorder(topGripHovered),
+            boxShadow: getRailShadow(topGripHovered),
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: MAP_RESIZE_GUTTER,
+          height: MAP_RESIZE_GUTTER,
+          cursor: RESIZE_CURSORS.nw,
+          touchAction: "none",
+        }}
+        onContextMenu={(event) => event.preventDefault()}
+        onPointerEnter={() => onHoverHandleChange("nw")}
+        onPointerLeave={() => {
+          if (!isResizing) {
+            onHoverHandleChange(null);
+          }
+        }}
+        onPointerDown={(event) => onBeginMapResize("nw", event)}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 2,
+            borderRadius: 4,
+            background: getRailBackground(
+              topLeftGripActive,
+              topLeftGripHovered,
+            ),
+            border: getRailBorder(topLeftGripHovered),
+            boxShadow: getRailShadow(topLeftGripHovered, 12),
+            transition:
+              "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: canvasY,
+          left: canvasX + canvasW,
           width: MAP_RESIZE_GUTTER,
           height: canvasH,
           cursor: RESIZE_CURSORS.e,
@@ -55,17 +191,9 @@ export function MapResizeControls({
             left: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
             width: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
-            background: rightGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : rightGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: rightGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: rightGripHovered
-              ? "0 0 10px rgba(251, 146, 60, 0.18)"
-              : "none",
+            background: getRailBackground(rightGripActive, rightGripHovered),
+            border: getRailBorder(rightGripHovered),
+            boxShadow: getRailShadow(rightGripHovered),
             transition:
               "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
@@ -75,8 +203,8 @@ export function MapResizeControls({
         aria-hidden="true"
         style={{
           position: "absolute",
-          top: canvasH,
-          left: 0,
+          top: canvasY + canvasH,
+          left: canvasX,
           width: canvasW,
           height: MAP_RESIZE_GUTTER,
           cursor: RESIZE_CURSORS.s,
@@ -99,17 +227,9 @@ export function MapResizeControls({
             top: (MAP_RESIZE_GUTTER - MAP_RESIZE_RAIL_SIZE) / 2,
             height: MAP_RESIZE_RAIL_SIZE,
             borderRadius: 999,
-            background: bottomGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : bottomGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: bottomGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: bottomGripHovered
-              ? "0 0 10px rgba(251, 146, 60, 0.18)"
-              : "none",
+            background: getRailBackground(bottomGripActive, bottomGripHovered),
+            border: getRailBorder(bottomGripHovered),
+            boxShadow: getRailShadow(bottomGripHovered),
             transition:
               "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
@@ -119,8 +239,8 @@ export function MapResizeControls({
         aria-hidden="true"
         style={{
           position: "absolute",
-          top: canvasH,
-          left: canvasW,
+          top: canvasY + canvasH,
+          left: canvasX + canvasW,
           width: MAP_RESIZE_GUTTER,
           height: MAP_RESIZE_GUTTER,
           cursor: RESIZE_CURSORS.se,
@@ -140,17 +260,9 @@ export function MapResizeControls({
             position: "absolute",
             inset: 2,
             borderRadius: 4,
-            background: cornerGripActive
-              ? "rgba(251, 146, 60, 0.45)"
-              : cornerGripHovered
-                ? "rgba(251, 146, 60, 0.24)"
-                : "rgba(148, 163, 184, 0.28)",
-            border: cornerGripHovered
-              ? "1px solid rgba(251, 146, 60, 0.35)"
-              : "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: cornerGripHovered
-              ? "0 0 12px rgba(251, 146, 60, 0.2)"
-              : "none",
+            background: getRailBackground(cornerGripActive, cornerGripHovered),
+            border: getRailBorder(cornerGripHovered),
+            boxShadow: getRailShadow(cornerGripHovered, 12),
             transition:
               "background 120ms ease, border-color 120ms ease, box-shadow 120ms ease",
           }}
@@ -161,8 +273,11 @@ export function MapResizeControls({
           aria-live="polite"
           style={{
             position: "absolute",
-            top: Math.max(0, canvasH - MAP_RESIZE_GUTTER - 24),
-            left: Math.max(0, canvasW - 70 - MAP_RESIZE_BADGE_OFFSET),
+            top: Math.max(canvasY, canvasY + canvasH - MAP_RESIZE_GUTTER - 24),
+            left: Math.max(
+              canvasX,
+              canvasX + canvasW - 70 - MAP_RESIZE_BADGE_OFFSET,
+            ),
             minWidth: 70,
             padding: "2px 6px",
             borderRadius: 999,

@@ -19,52 +19,28 @@ import {
   renderMapToCanvas,
   renderTilesetToCanvas,
 } from "@/features/import-export/lib/import-export-raster";
-import { saveBlobFile, saveByteArrayFile } from "@/services/file-system";
+import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   buildMapExportGroups,
   buildTilesetExportGroups,
   getMapExportData,
   getUniqueArchivePath,
-  isRasterExportOptions,
   pickSingleFile,
 } from "@/features/import-export/lib/import-export-action-utils";
-import {
-  exportSelectedTiledMaps,
-  isTiledMapImportOption,
-  isTiledMapExportOption,
-} from "@/features/import-export/lib/tiled-map-action-utils";
-import {
-  exportSelectedPhaserMaps,
-  isPhaserMapOption,
-} from "@/features/import-export/lib/phaser-map-action-utils";
-import {
-  exportSelectedTiledTilesets,
-  isTiledTilesetExportOption,
-  isTiledTilesetImportOption,
-} from "@/features/import-export/lib/tiled-tileset-action-utils";
-import {
-  exportSelectedGodotMaps,
-  isGodotMapOption,
-} from "@/features/import-export/lib/godot-map-action-utils";
-import {
-  exportSelectedGodotTilesets,
-  isGodotTilesetOption,
-} from "@/features/import-export/lib/godot-tileset-action-utils";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
-import {
-  exportSelectedUnityMaps,
-  isUnityMapOption,
-} from "@/features/import-export/lib/unity-map-action-utils";
-import {
-  exportSelectedUnityTilesets,
-  isUnityTilesetOption,
-} from "@/features/import-export/lib/unity-tileset-action-utils";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
+import { useDefoldMapImport } from "@/features/import-export/hooks/use-defold-map-import";
+import { useDefoldTilesetImport } from "@/features/import-export/hooks/use-defold-tileset-import";
+import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
+import { useImportExportDispatch } from "@/features/import-export/hooks/use-import-export-dispatch";
+import { useMappyMapImport } from "@/features/import-export/hooks/use-mappy-map-import";
 import {
   PHASER_MAP_IMPORT_CONFIG,
   useTiledMapImport,
 } from "@/features/import-export/hooks/use-tiled-map-import";
+import { useTideMapImport } from "@/features/import-export/hooks/use-tide-map-import";
 import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
@@ -74,12 +50,11 @@ import { openProjectInEditor } from "@/features/project-management/lib/project-s
 import { saveProject } from "@/services/db";
 import type {
   EditorState,
+  ExportSaveStrategy,
   ImageLayer,
   ImportExportArchiveEntry,
   ImportExportDialogMode,
-  ImportExportFormatExportOptions,
   ImportExportOptionAction,
-  ImportExportOptionId,
   ImportExportRasterExportOptions,
   MapId,
   MapGroupId,
@@ -89,7 +64,7 @@ import type {
   TilesetGroupId,
   TilesetId,
 } from "@/types";
-import type { EditorTravels } from "@/store/types";
+import type { EditorTravels } from "@/types/store";
 
 interface UseImportExportActionsParams {
   state: EditorState;
@@ -142,8 +117,9 @@ export function useImportExportActions({
   }, [setImportExportDialogMode, setImportExportDialogOpen]);
 
   const handleExportNativeMaps = useCallback(
-    async (selectedMapIds: string[]) => {
+    async (selectedMapIds: string[], saveStrategy?: ExportSaveStrategy) => {
       if (!state.project || selectedMapIds.length === 0) return false;
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
@@ -164,7 +140,10 @@ export function useImportExportActions({
           mapExportData.objectLayers,
           state.project.objects ?? [],
         );
-        return saveByteArrayFile(data, buildDownloadFilename(map.name, ".2dm"));
+        return resolvedSaveStrategy.saveByteArray(
+          data,
+          buildDownloadFilename(map.name, ".2dm"),
+        );
       }
 
       const groupNames = new Map(
@@ -197,7 +176,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -209,6 +188,7 @@ export function useImportExportActions({
     async (
       selectedMapIds: string[],
       rasterExportOptions?: ImportExportRasterExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (
         !state.project ||
@@ -217,6 +197,7 @@ export function useImportExportActions({
       ) {
         return false;
       }
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedMapIds as MapId[]);
       const selectedMaps = state.project.maps.filter((map) =>
@@ -242,7 +223,7 @@ export function useImportExportActions({
           mapExportData.objects,
         );
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        return saveBlobFile(
+        return resolvedSaveStrategy.saveBlob(
           blob,
           buildDownloadFilename(
             map.name,
@@ -284,7 +265,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} maps`, ".zip"),
       );
@@ -334,6 +315,16 @@ export function useImportExportActions({
         console.warn("[Import Godot Scene] Warnings:", imported.warnings);
       }
     });
+  const { handleImportGameMakerMap, gameMakerMissingResourcesDialogProps } =
+    useGameMakerMapImport(Boolean(state.project), handleImportedMapResolved);
+  const { handleImportMappyMap } = useMappyMapImport(
+    Boolean(state.project),
+    handleImportedMapResolved,
+  );
+  const { handleImportDefoldMap, defoldMissingResourcesDialogProps } =
+    useDefoldMapImport(Boolean(state.project), handleImportedMapResolved);
+  const { handleImportTideMap, tideMissingResourcesDialogProps } =
+    useTideMapImport(Boolean(state.project), handleImportedMapResolved);
   const handleImportedTilesetsResolved = useCallback(
     (importedTilesets: Tileset[]) => {
       if (!state.project || importedTilesets.length === 0) return;
@@ -386,6 +377,13 @@ export function useImportExportActions({
     handleImportUnityTileset,
     unityMissingResourcesDialogProps: unityTilesetMissingResourcesDialogProps,
   } = useUnityTilesetImport(
+    Boolean(state.project),
+    handleImportedTilesetsResolved,
+  );
+  const {
+    handleImportDefoldTileset,
+    defoldMissingResourcesDialogProps: defoldTilesetMissingResourcesDialogProps,
+  } = useDefoldTilesetImport(
     Boolean(state.project),
     handleImportedTilesetsResolved,
   );
@@ -481,8 +479,9 @@ export function useImportExportActions({
   }, [setState, state.activeMapGroupId, state.project, state.tileSize]);
 
   const handleExportNativeTilesets = useCallback(
-    async (selectedTilesetIds: string[]) => {
+    async (selectedTilesetIds: string[], saveStrategy?: ExportSaveStrategy) => {
       if (!state.project || selectedTilesetIds.length === 0) return false;
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
@@ -493,7 +492,7 @@ export function useImportExportActions({
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];
         const data = await exportTileset(tileset);
-        return saveByteArrayFile(
+        return resolvedSaveStrategy.saveByteArray(
           data,
           buildDownloadFilename(tileset.name, ".2dt"),
         );
@@ -519,7 +518,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -531,6 +530,7 @@ export function useImportExportActions({
     async (
       selectedTilesetIds: string[],
       rasterExportOptions?: ImportExportRasterExportOptions,
+      saveStrategy?: ExportSaveStrategy,
     ) => {
       if (
         !state.project ||
@@ -539,6 +539,7 @@ export function useImportExportActions({
       ) {
         return false;
       }
+      const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
       const selectedIdSet = new Set(selectedTilesetIds as TilesetId[]);
       const selectedTilesets = state.project.tilesets.filter((tileset) =>
@@ -550,7 +551,7 @@ export function useImportExportActions({
         const tileset = selectedTilesets[0];
         const canvas = await renderTilesetToCanvas(tileset);
         const blob = await encodeCanvasAsRaster(canvas, rasterExportOptions);
-        return saveBlobFile(
+        return resolvedSaveStrategy.saveBlob(
           blob,
           buildDownloadFilename(
             tileset.name,
@@ -583,7 +584,7 @@ export function useImportExportActions({
       }
 
       const archive = createZipArchive(entries);
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         archive,
         buildDownloadFilename(`${state.project.name} tilesets`, ".zip"),
       );
@@ -672,159 +673,34 @@ export function useImportExportActions({
     }
   }, [setState, state.activeTilesetGroupId, state.project]);
 
-  const handleMapActionSelect = useCallback(
-    async (optionId: ImportExportOptionId) => {
-      if (optionId === "map-image") {
-        return handleImportRasterMap();
-      }
-
-      if (isTiledMapImportOption(optionId)) {
-        return handleImportTiledMap();
-      }
-
-      if (isPhaserMapOption(optionId)) {
-        return handleImportPhaserMap();
-      }
-
-      if (isGodotMapOption(optionId)) {
-        return handleImportGodotMap();
-      }
-
-      if (isUnityMapOption(optionId)) {
-        return handleImportUnityMap();
-      }
-
-      return handleImportNativeMap();
-    },
-    [
-      handleImportPhaserMap,
-      handleImportGodotMap,
-      handleImportNativeMap,
-      handleImportRasterMap,
-      handleImportTiledMap,
-      handleImportUnityMap,
-    ],
-  );
-
-  const handleTilesetActionSelect = useCallback(
-    async (optionId: ImportExportOptionId) => {
-      if (optionId === "tileset-image") {
-        return handleImportRasterTileset();
-      }
-
-      if (isTiledTilesetImportOption(optionId)) {
-        return handleImportTiledTileset();
-      }
-
-      if (isGodotTilesetOption(optionId)) {
-        return handleImportGodotTileset();
-      }
-
-      if (isUnityTilesetOption(optionId)) {
-        return handleImportUnityTileset();
-      }
-
-      return handleImportNativeTileset();
-    },
-    [
-      handleImportGodotTileset,
-      handleImportNativeTileset,
-      handleImportRasterTileset,
-      handleImportTiledTileset,
-      handleImportUnityTileset,
-    ],
-  );
-
-  const handleMapExportSubmit = useCallback(
-    async (
-      selectedIds: string[],
-      optionId: ImportExportOptionId,
-      formatExportOptions?: ImportExportFormatExportOptions,
-    ) => {
-      if (optionId === "map-image") {
-        return handleExportRasterMaps(
-          selectedIds,
-          isRasterExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isTiledMapExportOption(optionId)) {
-        return exportSelectedTiledMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isPhaserMapOption(optionId)) {
-        return exportSelectedPhaserMaps(state.project, selectedIds, optionId);
-      }
-
-      if (isGodotMapOption(optionId)) {
-        return exportSelectedGodotMaps(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isUnityMapOption(optionId)) {
-        return exportSelectedUnityMaps(state.project, selectedIds, optionId);
-      }
-
-      return handleExportNativeMaps(selectedIds);
-    },
-    [handleExportNativeMaps, handleExportRasterMaps, state.project],
-  );
-
-  const handleTilesetExportSubmit = useCallback(
-    async (
-      selectedIds: string[],
-      optionId: ImportExportOptionId,
-      formatExportOptions?: ImportExportFormatExportOptions,
-    ) => {
-      if (optionId === "tileset-image") {
-        return handleExportRasterTilesets(
-          selectedIds,
-          isRasterExportOptions(formatExportOptions)
-            ? formatExportOptions
-            : undefined,
-        );
-      }
-
-      if (isGodotTilesetOption(optionId)) {
-        return exportSelectedGodotTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-        );
-      }
-
-      if (isTiledTilesetExportOption(optionId)) {
-        return exportSelectedTiledTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-          formatExportOptions,
-        );
-      }
-
-      if (isUnityTilesetOption(optionId)) {
-        return exportSelectedUnityTilesets(
-          state.project,
-          selectedIds,
-          optionId,
-        );
-      }
-
-      return handleExportNativeTilesets(selectedIds);
-    },
-    [handleExportNativeTilesets, handleExportRasterTilesets, state.project],
-  );
+  const {
+    handleMapActionSelect,
+    handleTilesetActionSelect,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
+  } = useImportExportDispatch({
+    project: state.project,
+    handleExportNativeMaps,
+    handleExportNativeTilesets,
+    handleExportRasterMaps,
+    handleExportRasterTilesets,
+    handleImportDefoldMap,
+    handleImportDefoldTileset,
+    handleImportGameMakerMap,
+    handleImportGodotMap,
+    handleImportGodotTileset,
+    handleImportMappyMap,
+    handleImportNativeMap,
+    handleImportNativeTileset,
+    handleImportPhaserMap,
+    handleImportRasterMap,
+    handleImportRasterTileset,
+    handleImportTideMap,
+    handleImportTiledMap,
+    handleImportTiledTileset,
+    handleImportUnityMap,
+    handleImportUnityTileset,
+  });
 
   const mergedTiledMissingResourcesDialogProps =
     phaserMapMissingResourcesDialogProps.open
@@ -842,6 +718,11 @@ export function useImportExportActions({
     unityTilesetMissingResourcesDialogProps.open
       ? unityTilesetMissingResourcesDialogProps
       : unityMissingResourcesDialogProps;
+
+  const mergedDefoldMissingResourcesDialogProps =
+    defoldTilesetMissingResourcesDialogProps.open
+      ? defoldTilesetMissingResourcesDialogProps
+      : defoldMissingResourcesDialogProps;
 
   const mapExportGroups = useMemo(
     () =>
@@ -967,10 +848,15 @@ export function useImportExportActions({
   return {
     handleOpenImportDialog,
     handleOpenExportDialog,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
     projectAction,
     mapAction,
     tilesetAction,
+    defoldMissingResourcesDialogProps: mergedDefoldMissingResourcesDialogProps,
+    gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
+    tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,
   };

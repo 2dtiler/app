@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { exportTiledMapJsonBundle } from "@/features/import-export/lib/import-export-tiled";
 import {
   getMapExportData,
@@ -15,6 +15,7 @@ import type {
   MapId,
   Project,
   TiledMapExportOptions,
+  ExportSaveStrategy,
 } from "@/types";
 
 export const DEFAULT_PHASER_MAP_EXPORT_OPTIONS = {
@@ -51,6 +52,7 @@ export async function exportSelectedPhaserMaps(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -70,6 +72,7 @@ export async function exportSelectedPhaserMaps(
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
   ];
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedMaps.length === 1) {
     const map = selectedMaps[0];
@@ -87,7 +90,7 @@ export async function exportSelectedPhaserMaps(
       ),
     );
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, ".json.zip"),
     );
@@ -130,7 +133,7 @@ export async function exportSelectedPhaserMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} phaser maps`, ".zip"),
   );

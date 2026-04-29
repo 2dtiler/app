@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   exportTiledMapCsvBundle,
   exportTiledMapJsBundle,
@@ -25,6 +25,7 @@ import type {
   TiledMapExportFormat,
   TiledMapExportOptions,
   TiledXmlExportOptions,
+  ExportSaveStrategy,
 } from "@/types";
 
 type TiledMapBundleExporter = (
@@ -142,6 +143,7 @@ export async function exportSelectedTiledMaps(
   selectedIds: string[],
   optionId: ImportExportOptionId,
   formatExportOptions?: ImportExportFormatExportOptions,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -161,6 +163,7 @@ export async function exportSelectedTiledMaps(
       archiveBaseName: string;
       exportBundle: TiledMapBundleExporter;
     };
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
   const selectedIdSet = new Set(selectedIds as MapId[]);
   const selectedMaps = project.maps.filter((map) => selectedIdSet.has(map.id));
   if (selectedMaps.length === 0) {
@@ -185,7 +188,7 @@ export async function exportSelectedTiledMaps(
       mapExportData.objects,
       formatExportOptions,
     );
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, archiveExtension),
     );
@@ -226,7 +229,7 @@ export async function exportSelectedTiledMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} ${archiveBaseName}`, ".zip"),
   );

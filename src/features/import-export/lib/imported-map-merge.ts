@@ -5,7 +5,7 @@ import {
   remapObjectPropertyValues,
   remapTileEntries,
 } from "@/features/project-management/lib/project-import";
-import type { EditorTravels } from "@/store/types";
+import type { EditorTravels } from "@/types/store";
 import type {
   GodotMapImportResult,
   ImageLayer,

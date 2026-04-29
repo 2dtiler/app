@@ -4,13 +4,18 @@
  * Shortcuts:
  *   S — Select tool
  *   B — Paint tool
+ *   A — Autotile tool
  *   E — Erase tool
  *   G — Fill tool
  *   1–5 — Brush sizes 1×1 through 5×5
  *   Ctrl+Z / Cmd+Z — Undo
  *   Ctrl+Shift+Z / Cmd+Shift+Z — Redo
  *   Ctrl+S / Cmd+S — Manual save
+ *   Ctrl+Shift+E / Cmd+Shift+E — Export active map
+ *   Ctrl+Shift+B / Cmd+Shift+B — Export active tileset
  *   Delete / Backspace — Delete current selection
+ *   H — Flip hovered tile horizontally
+ *   V — Flip hovered tile vertically
  *   + / = — Zoom in (map)
  *   - — Zoom out (map)
  */
@@ -80,6 +85,18 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("quick-export-map"));
+        return;
+      }
+
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("quick-export-tileset"));
+        return;
+      }
+
       // Find and Replace
       if (isCtrlOrCmd && e.key === "h") {
         e.preventDefault();
@@ -128,6 +145,12 @@ export function useKeyboardShortcuts() {
             draft.currentTool = "paint";
           });
           break;
+        case "a":
+          e.preventDefault();
+          store.setState((draft) => {
+            draft.currentTool = "autotile";
+          });
+          break;
         case "e":
           e.preventDefault();
           store.setState((draft) => {
@@ -139,6 +162,14 @@ export function useKeyboardShortcuts() {
           store.setState((draft) => {
             draft.currentTool = "fill";
           });
+          break;
+        case "h":
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("tile-flip-h"));
+          break;
+        case "v":
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("tile-flip-v"));
           break;
         case "=":
         case "+":

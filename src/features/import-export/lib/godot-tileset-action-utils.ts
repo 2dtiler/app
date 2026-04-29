@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { getUniqueArchivePath } from "@/features/import-export/lib/import-export-action-utils";
 import { exportGodotTilesetBundle } from "@/features/import-export/lib/import-export-godot-tileset";
 import type {
@@ -11,6 +11,7 @@ import type {
   ImportExportOptionId,
   Project,
   TilesetId,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isGodotTilesetOption(optionId: ImportExportOptionId) {
@@ -21,6 +22,7 @@ export async function exportSelectedGodotTilesets(
   project: Project | null,
   selectedIds: string[],
   optionId: ImportExportOptionId,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -37,19 +39,20 @@ export async function exportSelectedGodotTilesets(
   if (selectedTilesets.length === 0) {
     return false;
   }
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedTilesets.length === 1) {
     const tileset = selectedTilesets[0];
     const entries = await exportGodotTilesetBundle(tileset);
 
     if (entries.length === 1 && entries[0].path.endsWith(".tres")) {
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         entries[0].data,
         buildDownloadFilename(tileset.name, ".tres"),
       );
     }
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(tileset.name, ".tres.zip"),
     );
@@ -80,7 +83,7 @@ export async function exportSelectedGodotTilesets(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} godot tilesets`, ".zip"),
   );

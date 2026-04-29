@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { parseUnityPrefabTilemap } from "../src/features/import-export/lib/unity-prefab-parser";
+import { assert, test } from "vitest";
+import { parseUnityPrefabTilemap } from "@/features/import-export/lib/unity-prefab-parser";
 
 const UNITY_PREFAB_FIXTURE = `%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
@@ -224,8 +223,8 @@ Transform:
 test("parseUnityPrefabTilemap reads actual layer order and tile transforms", () => {
   const parsed = parseUnityPrefabTilemap(UNITY_PREFAB_FIXTURE);
 
-  assert.equal(parsed.widthInTiles, 4);
-  assert.equal(parsed.heightInTiles, 3);
+  assert.strictEqual(parsed.widthInTiles, 4);
+  assert.strictEqual(parsed.heightInTiles, 3);
   assert.deepEqual(
     parsed.layers.map((layer) => [layer.name, layer.exportId, layer.visible]),
     [
@@ -234,7 +233,7 @@ test("parseUnityPrefabTilemap reads actual layer order and tile transforms", () 
     ],
   );
 
-  assert.equal(
+  assert.strictEqual(
     parsed.layers[0].tileAssetGuids[1],
     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   );

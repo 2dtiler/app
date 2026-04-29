@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   lazy,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useImportExportActions } from "@/features/import-export/hooks/use-import-export-actions";
+import { useQuickExportController } from "@/features/import-export/hooks/use-quick-export-controller";
 import { Toolbar } from "@/layouts/Toolbar";
 import { TilesetPanel } from "@/features/map-editor/components/TilesetPanel";
 import { MapPanel } from "@/features/map-editor/components/MapPanel";
@@ -64,6 +66,13 @@ const ImportExportDialog = lazy(() =>
     }),
   ),
 );
+const QuickExportSetupDialog = lazy(() =>
+  import("@/features/import-export/components/QuickExportSetupDialog").then(
+    (module) => ({
+      default: module.QuickExportSetupDialog,
+    }),
+  ),
+);
 const TiledMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/TiledMissingResourcesDialog").then(
     (module) => ({
@@ -71,10 +80,31 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const TideMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/TideMissingResourcesDialog").then(
+    (module) => ({
+      default: module.TideMissingResourcesDialog,
+    }),
+  ),
+);
+const DefoldMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/DefoldMissingResourcesDialog").then(
+    (module) => ({
+      default: module.DefoldMissingResourcesDialog,
+    }),
+  ),
+);
 const GodotMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/GodotMissingResourcesDialog").then(
     (module) => ({
       default: module.GodotMissingResourcesDialog,
+    }),
+  ),
+);
+const GameMakerMissingResourcesDialog = lazy(() =>
+  import("@/features/import-export/components/GameMakerMissingResourcesDialog").then(
+    (module) => ({
+      default: module.GameMakerMissingResourcesDialog,
     }),
   ),
 );
@@ -195,10 +225,15 @@ export function AppShell({
   const {
     handleOpenImportDialog,
     handleOpenExportDialog,
+    handleMapExportSubmit,
+    handleTilesetExportSubmit,
     projectAction,
     mapAction,
     tilesetAction,
+    defoldMissingResourcesDialogProps,
+    gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps,
+    tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
     unityMissingResourcesDialogProps,
   } = useImportExportActions({
@@ -209,6 +244,14 @@ export function AppShell({
     setImportExportDialogMode,
     setImportExportDialogOpen,
   });
+  const { mapQuickExport, quickExportSetupDialogProps, tilesetQuickExport } =
+    useQuickExportController({
+      activeMapId: state.activeMapId,
+      activeTilesetId: state.activeTilesetId,
+      project: state.project,
+      handleMapExportSubmit,
+      handleTilesetExportSubmit,
+    });
 
   const activeWorkspaceSummary =
     activeLayerKind === "object"
@@ -266,6 +309,27 @@ export function AppShell({
     return () => window.removeEventListener("project-save-end", handleSaveEnd);
   }, []);
 
+  const handleMapQuickExport = useEffectEvent(() => {
+    mapQuickExport.onQuickExport();
+  });
+
+  const handleTilesetQuickExport = useEffectEvent(() => {
+    tilesetQuickExport.onQuickExport();
+  });
+
+  useEffect(() => {
+    window.addEventListener("quick-export-map", handleMapQuickExport);
+    window.addEventListener("quick-export-tileset", handleTilesetQuickExport);
+
+    return () => {
+      window.removeEventListener("quick-export-map", handleMapQuickExport);
+      window.removeEventListener(
+        "quick-export-tileset",
+        handleTilesetQuickExport,
+      );
+    };
+  }, []);
+
   return (
     <div className="flex h-full flex-col">
       <Toolbar
@@ -292,8 +356,10 @@ export function AppShell({
           {isCompactLayout ? (
             <>
               <CompactEditorShell
-                tilesetPanel={<TilesetPanel />}
-                mapPanel={<MapPanel />}
+                tilesetPanel={
+                  <TilesetPanel quickExportControl={tilesetQuickExport} />
+                }
+                mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
                 workspaceSummary={activeWorkspaceSummary}
                 workspaceButtonLabel={workspaceButtonLabel}
                 workspaceOpen={workspaceDrawerOpen}
@@ -313,8 +379,10 @@ export function AppShell({
             </>
           ) : (
             <DesktopEditorLayout
-              tilesetPanel={<TilesetPanel />}
-              mapPanel={<MapPanel />}
+              tilesetPanel={
+                <TilesetPanel quickExportControl={tilesetQuickExport} />
+              }
+              mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
               layersPanel={<LayersPanel />}
               detailsPanel={detailsPanel}
               showDetailsPanel={showDetailsPanel}
@@ -380,6 +448,11 @@ export function AppShell({
           />
         </Suspense>
       )}
+      {quickExportSetupDialogProps.open && (
+        <Suspense>
+          <QuickExportSetupDialog {...quickExportSetupDialogProps} />
+        </Suspense>
+      )}
       {tiledMissingResourcesDialogProps.open && (
         <Suspense>
           <TiledMissingResourcesDialog
@@ -396,6 +469,36 @@ export function AppShell({
           />
         </Suspense>
       )}
+      {tideMissingResourcesDialogProps.open && (
+        <Suspense>
+          <TideMissingResourcesDialog
+            open={tideMissingResourcesDialogProps.open}
+            onOpenChange={tideMissingResourcesDialogProps.onOpenChange}
+            resources={tideMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              tideMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={tideMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={tideMissingResourcesDialogProps.onSelectFile}
+            onImport={tideMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {defoldMissingResourcesDialogProps.open && (
+        <Suspense>
+          <DefoldMissingResourcesDialog
+            open={defoldMissingResourcesDialogProps.open}
+            onOpenChange={defoldMissingResourcesDialogProps.onOpenChange}
+            resources={defoldMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              defoldMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={defoldMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={defoldMissingResourcesDialogProps.onSelectFile}
+            onImport={defoldMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
       {godotMissingResourcesDialogProps.open && (
         <Suspense>
           <GodotMissingResourcesDialog
@@ -408,6 +511,21 @@ export function AppShell({
             isSubmitting={godotMissingResourcesDialogProps.isSubmitting}
             onSelectFile={godotMissingResourcesDialogProps.onSelectFile}
             onImport={godotMissingResourcesDialogProps.onImport}
+          />
+        </Suspense>
+      )}
+      {gameMakerMissingResourcesDialogProps.open && (
+        <Suspense>
+          <GameMakerMissingResourcesDialog
+            open={gameMakerMissingResourcesDialogProps.open}
+            onOpenChange={gameMakerMissingResourcesDialogProps.onOpenChange}
+            resources={gameMakerMissingResourcesDialogProps.resources}
+            selectedFileNames={
+              gameMakerMissingResourcesDialogProps.selectedFileNames
+            }
+            isSubmitting={gameMakerMissingResourcesDialogProps.isSubmitting}
+            onSelectFile={gameMakerMissingResourcesDialogProps.onSelectFile}
+            onImport={gameMakerMissingResourcesDialogProps.onImport}
           />
         </Suspense>
       )}

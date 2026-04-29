@@ -305,6 +305,7 @@ export function useSceneInteraction({
       const isBlockedDrawPreview =
         isNonTileLayerActive &&
         (currentTool === "paint" ||
+          currentTool === "autotile" ||
           currentTool === "erase" ||
           currentTool === "fill");
       const selectedStamp =

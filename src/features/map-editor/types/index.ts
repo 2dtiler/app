@@ -1,4 +1,5 @@
 export * from "./dialogs";
+export * from "./autotile-dialog";
 export * from "./editor-layout";
 export * from "./editor-helpers";
 export * from "./editor-ui";

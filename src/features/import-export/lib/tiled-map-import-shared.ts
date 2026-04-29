@@ -352,7 +352,11 @@ export function decodeJsonLayerData(
   throw new Error("Tiled JSON tile layer is missing data.");
 }
 
-async function loadImageDimensions(data: Uint8Array, mimeType: string) {
+async function withLoadedImage<T>(
+  data: Uint8Array,
+  mimeType: string,
+  run: (image: HTMLImageElement) => Promise<T>,
+) {
   const blob = new Blob([data.slice().buffer as ArrayBuffer], {
     type: mimeType,
   });
@@ -362,13 +366,65 @@ async function loadImageDimensions(data: Uint8Array, mimeType: string) {
     const image = new Image();
     image.src = url;
     await image.decode();
-    return {
-      width: image.naturalWidth,
-      height: image.naturalHeight,
-    };
+    return run(image);
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+async function loadImageDimensions(data: Uint8Array, mimeType: string) {
+  return withLoadedImage(data, mimeType, async (image) => ({
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+  }));
+}
+
+async function saveImportedImageAsset(
+  data: Uint8Array,
+  mimeType: string,
+  width: number,
+  height: number,
+) {
+  const assetId = generateAssetId();
+  await saveAsset(assetId, data.slice().buffer as ArrayBuffer, mimeType);
+  return {
+    assetId,
+    mimeType,
+    width,
+    height,
+  };
+}
+
+async function encodeCanvasAsPngBytes(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
+
+  if (!blob) {
+    throw new Error("Failed to encode normalized Tiled tileset image.");
+  }
+
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function getTiledTilesetGridCount(
+  imageSize: number,
+  tileSize: number,
+  margin: number,
+  spacing: number,
+  axis: "width" | "height",
+) {
+  const availableSize = imageSize - margin * 2 + spacing;
+  const cellSize = tileSize + spacing;
+  const count = Math.floor(availableSize / cellSize);
+
+  if (count <= 0) {
+    throw new Error(
+      `Invalid Tiled tileset ${axis}: image size ${imageSize} does not fit tile size ${tileSize} with margin ${margin} and spacing ${spacing}.`,
+    );
+  }
+
+  return count;
 }
 
 export function buildEntryMap(entries: readonly ImportExportArchiveEntry[]) {
@@ -416,15 +472,91 @@ export function addMissingResource(
 
 export async function importImageAsset(path: string, data: Uint8Array) {
   const mimeType = getMimeTypeFromPath(path);
-  const assetId = generateAssetId();
-  await saveAsset(assetId, data.slice().buffer as ArrayBuffer, mimeType);
   const dimensions = await loadImageDimensions(data, mimeType);
-  return {
-    assetId,
+  return saveImportedImageAsset(
+    data,
     mimeType,
-    width: dimensions.width,
-    height: dimensions.height,
-  };
+    dimensions.width,
+    dimensions.height,
+  );
+}
+
+export async function importTiledTilesetImageAsset(
+  path: string,
+  data: Uint8Array,
+  tileset: {
+    tileWidth: number;
+    tileHeight: number;
+    margin: number;
+    spacing: number;
+    imageWidth?: number;
+    imageHeight?: number;
+  },
+) {
+  if (tileset.margin === 0 && tileset.spacing === 0) {
+    return importImageAsset(path, data);
+  }
+
+  const mimeType = getMimeTypeFromPath(path);
+
+  return withLoadedImage(data, mimeType, async (image) => {
+    const sourceWidth = tileset.imageWidth ?? image.naturalWidth;
+    const sourceHeight = tileset.imageHeight ?? image.naturalHeight;
+    const columns = getTiledTilesetGridCount(
+      sourceWidth,
+      tileset.tileWidth,
+      tileset.margin,
+      tileset.spacing,
+      "width",
+    );
+    const rows = getTiledTilesetGridCount(
+      sourceHeight,
+      tileset.tileHeight,
+      tileset.margin,
+      tileset.spacing,
+      "height",
+    );
+
+    const canvas = document.createElement("canvas");
+    canvas.width = columns * tileset.tileWidth;
+    canvas.height = rows * tileset.tileHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error(
+        "Unable to create a 2D canvas context for Tiled tileset normalization.",
+      );
+    }
+
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
+        const sourceX =
+          tileset.margin + columnIndex * (tileset.tileWidth + tileset.spacing);
+        const sourceY =
+          tileset.margin + rowIndex * (tileset.tileHeight + tileset.spacing);
+
+        context.drawImage(
+          image,
+          sourceX,
+          sourceY,
+          tileset.tileWidth,
+          tileset.tileHeight,
+          columnIndex * tileset.tileWidth,
+          rowIndex * tileset.tileHeight,
+          tileset.tileWidth,
+          tileset.tileHeight,
+        );
+      }
+    }
+
+    const normalizedData = await encodeCanvasAsPngBytes(canvas);
+    return saveImportedImageAsset(
+      normalizedData,
+      "image/png",
+      canvas.width,
+      canvas.height,
+    );
+  });
 }
 
 export function findTilesetByGid(

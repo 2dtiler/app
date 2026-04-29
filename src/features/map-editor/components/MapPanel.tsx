@@ -29,9 +29,13 @@ import {
   getAllLayerIds,
   isLayerEffectivelyLocked,
 } from "@/features/map-editor/lib/layers";
+import { applyMapResizeToProject } from "@/features/map-editor/lib/map-resize";
 import { getGeometryForNewMapType } from "@/features/map-editor/lib/map-geometry";
 import { zoomStore } from "@/store/zoom-store";
-import type { MapCanvasImperativeHandle } from "@/features/map-editor/types/map-canvas";
+import type {
+  MapCanvasImperativeHandle,
+  MapResizeRequest,
+} from "@/features/map-editor/types/map-canvas";
 import {
   DEFAULT_NEW_MAP_TYPE,
   type EditorState,
@@ -50,6 +54,7 @@ import {
   type TileLayer,
   type TileMapData,
   type TileRef,
+  type QuickExportSurfaceProps,
 } from "@/types";
 
 function clampMapDimension(value: number, fallback: number): number {
@@ -66,7 +71,7 @@ function getAdjacentItemId<T extends { id: string }>(
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
-export function MapPanel() {
+export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
   "use no memo";
 
   const { state, setState, controls } = useEditorStore();
@@ -582,6 +587,7 @@ export function MapPanel() {
     width: number,
     height: number,
     properties?: Record<string, PropertyValue>,
+    resizeRequest?: MapResizeRequest,
   ) {
     if (!activeMap) return;
 
@@ -595,22 +601,19 @@ export function MapPanel() {
       );
       if (!map) return;
 
-      map.widthInTiles = nextWidth;
-      map.heightInTiles = nextHeight;
-      if (properties) {
-        map.properties = properties;
-      }
-
-      for (const layer of draft.project.layers) {
-        if (layer.mapId !== map.id) continue;
-        for (const key of Object.keys(layer.tiles)) {
-          const [x, y] = key.split(",").map(Number);
-          if (x >= nextWidth || y >= nextHeight) {
-            delete layer.tiles[key];
-          }
-        }
-      }
+      applyMapResizeToProject(draft.project, {
+        mapId: map.id,
+        width: nextWidth,
+        height: nextHeight,
+        properties,
+        originOffsetXInTiles: resizeRequest?.originOffsetXInTiles,
+        originOffsetYInTiles: resizeRequest?.originOffsetYInTiles,
+      });
     });
+  }
+
+  function handleResizeMap(request: MapResizeRequest) {
+    handleSaveMapOptions(request.width, request.height, undefined, request);
   }
 
   function handleUpdateMapOptions(
@@ -635,6 +638,24 @@ export function MapPanel() {
     setState((draft) => {
       draft.currentTool = tool;
       draft.brushSize = size;
+    });
+  }
+
+  function handleSelectAutotileTool(
+    terrainId: NonNullable<EditorState["selectedAutotileTerrain"]>["terrainId"],
+    size: EditorState["brushSize"],
+  ) {
+    setState((draft) => {
+      if (!draft.activeTilesetId) {
+        return;
+      }
+
+      draft.currentTool = "autotile";
+      draft.brushSize = size;
+      draft.selectedAutotileTerrain = {
+        tilesetId: draft.activeTilesetId,
+        terrainId,
+      };
     });
   }
 
@@ -677,6 +698,7 @@ export function MapPanel() {
         onCut={() => handleCutSelection(false)}
         onOpenMapOptions={() => setMapOptionsOpen(true)}
         onOrientSelection={handleOrientSelection}
+        onSelectAutotileTool={handleSelectAutotileTool}
         onSelectBrushTool={handleSelectBrushTool}
         onSelectFillMode={handleSelectFillMode}
         onSelectTool={handleSelectTool}
@@ -741,7 +763,7 @@ export function MapPanel() {
         onPaintTile={handlePaintTile}
         onPasteSelection={handlePasteSelection}
         onResizeImageLayer={handleResizeImageLayer}
-        onResizeMap={handleSaveMapOptions}
+        onResizeMap={handleResizeMap}
         onResizeObject={handleResizeObject}
         onSelectObject={(objectId) => {
           setState((draft) => {
@@ -753,6 +775,7 @@ export function MapPanel() {
         paintBuffer={paintBuffer}
         paintBufferVersion={paintBufferVersion}
         project={currentProject}
+        quickExportControl={quickExportControl}
         state={state}
         textObjectEditing={textObjectEditing}
       />

@@ -3,7 +3,7 @@ import {
   createZipArchive,
   sanitizeDownloadSegment,
 } from "@/utils/format";
-import { saveByteArrayFile } from "@/services/file-system";
+import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -16,6 +16,7 @@ import type {
   ImportExportOptionId,
   MapId,
   Project,
+  ExportSaveStrategy,
 } from "@/types";
 
 export function isGodotMapOption(optionId: ImportExportOptionId) {
@@ -27,6 +28,7 @@ export async function exportSelectedGodotMaps(
   selectedIds: string[],
   optionId: ImportExportOptionId,
   formatExportOptions?: ImportExportFormatExportOptions,
+  saveStrategy?: ExportSaveStrategy,
 ) {
   if (!project) {
     return false;
@@ -41,6 +43,7 @@ export async function exportSelectedGodotMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   const allTilesets = [
     ...project.tilesets,
@@ -64,13 +67,13 @@ export async function exportSelectedGodotMaps(
     );
 
     if (entries.length === 1 && entries[0].path.endsWith(".tscn")) {
-      return saveByteArrayFile(
+      return resolvedSaveStrategy.saveByteArray(
         entries[0].data,
         buildDownloadFilename(map.name, ".tscn"),
       );
     }
 
-    return saveByteArrayFile(
+    return resolvedSaveStrategy.saveByteArray(
       createZipArchive(entries),
       buildDownloadFilename(map.name, ".tscn.zip"),
     );
@@ -113,7 +116,7 @@ export async function exportSelectedGodotMaps(
     }
   }
 
-  return saveByteArrayFile(
+  return resolvedSaveStrategy.saveByteArray(
     createZipArchive(archiveEntries),
     buildDownloadFilename(`${project.name} godot maps`, ".zip"),
   );

@@ -5,7 +5,7 @@ import {
   addMissingResource,
   buildEntryMap,
   getProvidedEntry,
-  importImageAsset,
+  importTiledTilesetImageAsset,
   requireProvidedEntry,
 } from "@/features/import-export/lib/tiled-map-import-shared";
 import {
@@ -330,10 +330,6 @@ async function importTiledTilesetDefinition(
     throw new Error("Only square Tiled tilesets are supported.");
   }
 
-  if (definition.margin !== 0 || definition.spacing !== 0) {
-    throw new Error("Tiled tilesets with margin or spacing are not supported.");
-  }
-
   if (!definition.imageSource) {
     throw new Error("Only image-based Tiled tilesets are supported.");
   }
@@ -342,9 +338,17 @@ async function importTiledTilesetDefinition(
     definition.path,
     definition.imageSource,
   );
-  const importedImage = await importImageAsset(
+  const importedImage = await importTiledTilesetImageAsset(
     resolvedImagePath,
     requireProvidedEntry(providedEntries, resolvedImagePath),
+    {
+      tileWidth: definition.tileWidth,
+      tileHeight: definition.tileHeight,
+      margin: definition.margin,
+      spacing: definition.spacing,
+      imageWidth: definition.imageWidth,
+      imageHeight: definition.imageHeight,
+    },
   );
 
   return {
@@ -353,8 +357,8 @@ async function importTiledTilesetDefinition(
     groupId: "tmx-import" as Tileset["groupId"],
     tileSize: definition.tileWidth as TileSize,
     assetId: importedImage.assetId,
-    imageWidth: definition.imageWidth ?? importedImage.width,
-    imageHeight: definition.imageHeight ?? importedImage.height,
+    imageWidth: importedImage.width,
+    imageHeight: importedImage.height,
     createdAt: Date.now(),
   };
 }

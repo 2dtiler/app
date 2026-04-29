@@ -1,5 +1,8 @@
 import type {
   NativeSaveFilePickerOptions,
+  NativeSaveFileHandle,
+  SaveBlobFileOptions,
+  SaveBlobFileResult,
   NativeSaveWindow,
 } from "@/features/import-export/types";
 
@@ -89,7 +92,44 @@ function isUserCanceledSave(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-async function saveBlobWithPicker(blob: Blob, filename: string): Promise<void> {
+async function ensureWritePermission(
+  fileHandle: NativeSaveFileHandle,
+): Promise<boolean> {
+  const descriptor = { mode: "readwrite" as const };
+
+  if (fileHandle.queryPermission) {
+    const currentState = await fileHandle.queryPermission(descriptor);
+    if (currentState === "granted") {
+      return true;
+    }
+  }
+
+  if (fileHandle.requestPermission) {
+    const requestedState = await fileHandle.requestPermission(descriptor);
+    return requestedState === "granted";
+  }
+
+  return true;
+}
+
+async function writeBlobToHandle(
+  blob: Blob,
+  fileHandle: NativeSaveFileHandle,
+): Promise<void> {
+  const hasPermission = await ensureWritePermission(fileHandle);
+  if (!hasPermission) {
+    throw new DOMException("The user denied write permission.", "AbortError");
+  }
+
+  const writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+async function pickSaveFileHandle(
+  filename: string,
+  mimeType: string,
+): Promise<NativeSaveFileHandle> {
   if (typeof window === "undefined") {
     throw new Error("Native save picker is unavailable.");
   }
@@ -100,25 +140,62 @@ async function saveBlobWithPicker(blob: Blob, filename: string): Promise<void> {
     throw new Error("Native save picker is unavailable.");
   }
 
-  const handle = await showSaveFilePicker(
-    getSavePickerOptions(filename, blob.type || DEFAULT_DOWNLOAD_MIME_TYPE),
+  return showSaveFilePicker(
+    getSavePickerOptions(filename, mimeType || DEFAULT_DOWNLOAD_MIME_TYPE),
   );
-  const writable = await handle.createWritable();
-  await writable.write(blob);
-  await writable.close();
 }
 
-export async function saveBlobFile(
+export async function saveBlobFileWithResult(
   blob: Blob,
   filename: string,
-): Promise<boolean> {
-  if (canUseNativeSavePicker()) {
+  options: SaveBlobFileOptions = {},
+): Promise<SaveBlobFileResult> {
+  if (options.fileHandle) {
     try {
-      await saveBlobWithPicker(blob, filename);
-      return true;
+      await writeBlobToHandle(blob, options.fileHandle);
+      return {
+        status: "saved",
+        filename,
+        fileHandle: options.fileHandle,
+        reusedExistingHandle: true,
+      };
     } catch (error) {
       if (isUserCanceledSave(error)) {
-        return false;
+        return {
+          status: "cancelled",
+          filename,
+          fileHandle: options.fileHandle,
+          reusedExistingHandle: true,
+        };
+      }
+
+      console.error(
+        "[Save File] Existing file handle save failed; trying picker or download fallback.",
+        error,
+      );
+    }
+  }
+
+  if (canUseNativeSavePicker()) {
+    try {
+      const fileHandle = await pickSaveFileHandle(
+        filename,
+        blob.type || DEFAULT_DOWNLOAD_MIME_TYPE,
+      );
+      await writeBlobToHandle(blob, fileHandle);
+      return {
+        status: "saved",
+        filename,
+        fileHandle,
+        reusedExistingHandle: false,
+      };
+    } catch (error) {
+      if (isUserCanceledSave(error)) {
+        return {
+          status: "cancelled",
+          filename,
+          reusedExistingHandle: false,
+        };
       }
 
       console.error(
@@ -129,7 +206,31 @@ export async function saveBlobFile(
   }
 
   downloadBlobFallback(blob, filename);
-  return true;
+  return {
+    status: "downloaded",
+    filename,
+    reusedExistingHandle: false,
+  };
+}
+
+export async function saveBlobFile(
+  blob: Blob,
+  filename: string,
+): Promise<boolean> {
+  const result = await saveBlobFileWithResult(blob, filename);
+  return result.status !== "cancelled";
+}
+
+export async function saveByteArrayFileWithResult(
+  data: Uint8Array,
+  filename: string,
+  mimeType = DEFAULT_DOWNLOAD_MIME_TYPE,
+  options: SaveBlobFileOptions = {},
+): Promise<SaveBlobFileResult> {
+  const blob = new Blob([data.slice().buffer as ArrayBuffer], {
+    type: mimeType,
+  });
+  return saveBlobFileWithResult(blob, filename, options);
 }
 
 export async function saveByteArrayFile(
@@ -137,8 +238,6 @@ export async function saveByteArrayFile(
   filename: string,
   mimeType = DEFAULT_DOWNLOAD_MIME_TYPE,
 ): Promise<boolean> {
-  const blob = new Blob([data.slice().buffer as ArrayBuffer], {
-    type: mimeType,
-  });
-  return saveBlobFile(blob, filename);
+  const result = await saveByteArrayFileWithResult(data, filename, mimeType);
+  return result.status !== "cancelled";
 }
