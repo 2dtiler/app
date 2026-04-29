@@ -504,7 +504,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
               <Button
                 variant={activeTileset?.autotile ? "outline" : "ghost"}
                 size="xs"
-                className="h-6 px-2"
+                className="h-6 px-2.5"
                 disabled={!activeTileset}
                 onMouseDown={() => setAutotileDialogOpen(true)}
               >
@@ -512,9 +512,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
                 Autotile
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              Define autotile rules for this tileset
-            </TooltipContent>
+            <TooltipContent>Autotile</TooltipContent>
           </Tooltip>
         </div>
       </div>

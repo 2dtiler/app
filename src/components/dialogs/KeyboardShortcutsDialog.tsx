@@ -46,6 +46,7 @@ function getShortcutGroups(primaryModifierLabel: string) {
       items: [
         { keys: "S", description: "Select tool" },
         { keys: "B", description: "Paint tool" },
+        { keys: "A", description: "Autotile tool" },
         { keys: "E", description: "Erase tool" },
         { keys: "G", description: "Fill tool" },
       ],

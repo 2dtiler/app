@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type {
   AutotileConfig,
-  AutotileRuleId,
+  AutotilePatternSlotId,
   AutotileTerrainId,
 } from "@/types/map/autotile";
 import type { NewMapType } from "@/types/map/map-geometry";
@@ -24,7 +24,11 @@ export interface AutotileDialogProps {
 
 export type AutotileSelectionTarget =
   | { type: "terrain"; terrainId: AutotileTerrainId }
-  | { type: "rule"; ruleId: AutotileRuleId };
+  | {
+      type: "pattern";
+      terrainId: AutotileTerrainId;
+      slotId: AutotilePatternSlotId;
+    };
 
 export interface FillTerrainDialogProps {
   open: boolean;

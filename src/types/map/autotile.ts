@@ -31,6 +31,29 @@ export interface AutotileTileRegion {
   sh: number;
 }
 
+export type AutotilePresetId = "edges-only" | "edges-corners" | "full-corners";
+
+export type AutotilePatternSlotId =
+  | "edgeNorth"
+  | "edgeEast"
+  | "edgeSouth"
+  | "edgeWest"
+  | "outerCornerNorthWest"
+  | "outerCornerNorthEast"
+  | "outerCornerSouthWest"
+  | "outerCornerSouthEast"
+  | "innerCornerNorthWest"
+  | "innerCornerNorthEast"
+  | "innerCornerSouthWest"
+  | "innerCornerSouthEast"
+  | "solid";
+
+export type AutotilePatternRelation = "same" | "different" | "ignore";
+
+export type AutotilePatternTiles = Partial<
+  Record<AutotilePatternSlotId, AutotileTileRegion | null>
+>;
+
 export type AutotileNeighborMatcher =
   | { kind: "any" }
   | { kind: "empty" }
@@ -42,6 +65,7 @@ export interface AutotileTerrain {
   id: AutotileTerrainId;
   name: string;
   paletteTile: AutotileTileRegion | null;
+  patternTiles?: AutotilePatternTiles;
 }
 
 export interface AutotileRule {
@@ -54,6 +78,7 @@ export interface AutotileRule {
 
 export interface AutotileConfig {
   version: AutotileConfigVersion;
+  preset?: AutotilePresetId;
   terrains: AutotileTerrain[];
   rules: AutotileRule[];
 }

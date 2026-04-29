@@ -127,7 +127,7 @@ export function MapPanelToolbar({
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent>Fill Tool</TooltipContent>
+          <TooltipContent>Fill Tool (G)</TooltipContent>
         </Tooltip>
         <DropdownMenuContent>
           <DropdownMenuItem onMouseDown={() => onSelectFillMode("fill")}>
@@ -264,7 +264,7 @@ export function MapPanelToolbar({
               <ZoomOut className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Zoom Out</TooltipContent>
+          <TooltipContent>Zoom Out (-)</TooltipContent>
         </Tooltip>
         <span className="w-8 text-center text-[10px] text-muted-foreground">
           {Math.round(mapZoom * 100)}%
@@ -280,7 +280,7 @@ export function MapPanelToolbar({
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Zoom In</TooltipContent>
+          <TooltipContent>Zoom In (+)</TooltipContent>
         </Tooltip>
       </div>
 

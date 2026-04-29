@@ -4,6 +4,7 @@
  * Shortcuts:
  *   S — Select tool
  *   B — Paint tool
+ *   A — Autotile tool
  *   E — Erase tool
  *   G — Fill tool
  *   1–5 — Brush sizes 1×1 through 5×5

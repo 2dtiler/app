@@ -1,10 +1,11 @@
-> Autotile
-> Support Tiled Project Import/Export
+Autotile is too complicated, simplify it
 
+Support Tiled Project Import/Export
 Godot project Import/Export
 Add Tileset/Add Map buttons or dragging and dropping should support all formats
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
 
+Image/Sprite Export Gif Format not working
 Manage Tilesets
 Manage Maps
 World View
