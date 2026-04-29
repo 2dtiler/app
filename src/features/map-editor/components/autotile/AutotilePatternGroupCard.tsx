@@ -21,17 +21,16 @@ export function AutotilePatternGroupCard({
   tilesetImage,
   activeSlotIds,
   selectionTarget,
+  paintTile,
   onSelectSlot,
   onClearSlot,
+  onSelectPaintTile,
+  onClearPaintTile,
 }: AutotilePatternGroupCardProps) {
   const activeSlotIdSet = new Set(activeSlotIds);
 
   return (
-    <section
-      role="region"
-      aria-label={group.title}
-      className="rounded-xl border border-border bg-background/70 p-3"
-    >
+    <section role="region" aria-label={group.title}>
       <div className="mb-3 space-y-1">
         <h5 className="text-xs font-medium text-foreground">{group.title}</h5>
         <p className="text-xs text-muted-foreground">{group.description}</p>
@@ -42,19 +41,59 @@ export function AutotilePatternGroupCard({
           const row = Math.floor(index / 3);
           const column = index % 3;
           const cell = getGroupCell(row, column, group.cells);
+          const isPaintTileCell =
+            group.id === "edges-outside" && row === 1 && column === 1;
 
-          if (row === 1 && column === 1) {
+          if (isPaintTileCell) {
+            const isSelected =
+              selectionTarget?.type === "terrain" &&
+              selectionTarget.terrainId === terrain.id;
+
             return (
-              <div
-                key={`${group.id}-center`}
-                className="flex min-h-[6.5rem] flex-col items-center justify-center rounded-xl border border-foreground bg-foreground/95 px-2 text-center"
-              >
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-background">
-                  Paint
-                </span>
-                <span className="mt-2 text-[11px] text-background/80">
-                  Selected terrain tile
-                </span>
+              <div key={`${group.id}-center`} className="relative">
+                {paintTile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="absolute right-1 top-1 z-10 h-5 w-5 rounded-full bg-background/90 text-muted-foreground shadow-sm hover:bg-background"
+                    aria-label={`Clear paint tile for ${terrain.name}`}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onClearPaintTile();
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+
+                <button
+                  type="button"
+                  id={`autotile-pattern-group-${terrain.id}-paint`}
+                  name={`autotile-pattern-group-${terrain.id}-paint`}
+                  aria-label={`Assign paint tile for ${terrain.name}`}
+                  aria-pressed={isSelected}
+                  title="Paint Tile"
+                  className={cn(
+                    "flex min-h-26 w-full flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors",
+                    isSelected
+                      ? "border-foreground bg-secondary"
+                      : "border-border bg-background hover:border-border-visible hover:bg-muted/20",
+                  )}
+                  onMouseDown={onSelectPaintTile}
+                >
+                  <AutotileTilePreview
+                    image={tilesetImage}
+                    region={paintTile}
+                    size={60}
+                    emptyLabel="Paint"
+                    className="h-15 w-15"
+                  />
+                  <span className="mt-2 text-[11px] font-medium leading-tight text-foreground">
+                    Paint Tile
+                  </span>
+                </button>
               </div>
             );
           }
@@ -64,7 +103,7 @@ export function AutotilePatternGroupCard({
               <div
                 key={`${group.id}-${row}-${column}`}
                 aria-hidden="true"
-                className="min-h-[6.5rem] rounded-xl border border-dashed border-border bg-muted/10"
+                className="min-h-26 rounded-xl border border-dashed border-border bg-muted/10"
               />
             );
           }
@@ -81,7 +120,7 @@ export function AutotilePatternGroupCard({
             return (
               <div
                 key={`${group.id}-${cell.slotId}`}
-                className="flex min-h-[6.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/10 px-2 text-center opacity-45"
+                className="flex min-h-26 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/10 px-2 text-center opacity-45"
               >
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {definition.shortLabel}
@@ -120,7 +159,7 @@ export function AutotilePatternGroupCard({
                 aria-pressed={isSelected}
                 title={definition.label}
                 className={cn(
-                  "flex min-h-[6.5rem] w-full flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors",
+                  "flex min-h-26 w-full flex-col items-center justify-center rounded-xl border p-2 text-center transition-colors",
                   isSelected
                     ? "border-foreground bg-secondary"
                     : "border-border bg-background hover:border-border-visible hover:bg-muted/20",

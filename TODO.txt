@@ -1,4 +1,4 @@
-Autotile is too complicated, simplify it
+More advanced autotile
 Custom Animations i.e. water moving
 
 Support Tiled Project Import/Export

@@ -31,22 +31,13 @@ export interface AutotileTileRegion {
   sh: number;
 }
 
-export type AutotilePresetId = "edges-only" | "edges-corners" | "full-corners";
+export type AutotilePresetId =
+  | "edges-only"
+  | "edges-corners"
+  | "full-corners"
+  | "blob-47";
 
-export type AutotilePatternSlotId =
-  | "edgeNorth"
-  | "edgeEast"
-  | "edgeSouth"
-  | "edgeWest"
-  | "outerCornerNorthWest"
-  | "outerCornerNorthEast"
-  | "outerCornerSouthWest"
-  | "outerCornerSouthEast"
-  | "innerCornerNorthWest"
-  | "innerCornerNorthEast"
-  | "innerCornerSouthWest"
-  | "innerCornerSouthEast"
-  | "solid";
+export type AutotilePatternSlotId = string;
 
 export type AutotilePatternRelation = "same" | "different" | "ignore";
 

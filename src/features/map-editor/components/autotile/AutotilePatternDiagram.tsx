@@ -1,4 +1,5 @@
 import type { AutotilePatternDiagramProps } from "@/features/map-editor/types/autotile-builder";
+import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
 import type {
   AutotileNeighborPosition,
   AutotilePatternRelation,
@@ -41,14 +42,46 @@ function getCellClassName(relation: AutotilePatternRelation): string {
 
 export function AutotilePatternDiagram({
   definition,
+  centerCell,
 }: AutotilePatternDiagramProps) {
   return (
-    <div
-      aria-hidden="true"
-      className="grid w-full max-w-[9.5rem] grid-cols-3 gap-1"
-    >
+    <div aria-hidden="true" className="grid w-full max-w-38 grid-cols-3 gap-1">
       {GRID_ORDER.map((cell) => {
         if (cell === "center") {
+          if (centerCell) {
+            const {
+              emptyLabel = "Paint",
+              image,
+              isSelected,
+              region,
+              className,
+              ...buttonProps
+            } = centerCell;
+
+            return (
+              <button
+                key={cell}
+                type="button"
+                className={cn(
+                  "flex aspect-square items-center justify-center rounded-md border p-1 transition-colors",
+                  isSelected
+                    ? "border-foreground bg-secondary"
+                    : "border-foreground bg-foreground text-background hover:border-border-visible hover:bg-muted/20",
+                  className,
+                )}
+                {...buttonProps}
+              >
+                <AutotileTilePreview
+                  image={image}
+                  region={region}
+                  size={34}
+                  emptyLabel={emptyLabel}
+                  className="h-8 w-8"
+                />
+              </button>
+            );
+          }
+
           return (
             <div
               key={cell}

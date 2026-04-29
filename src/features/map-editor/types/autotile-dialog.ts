@@ -34,8 +34,11 @@ export interface AutotilePatternGroupCardProps {
   tilesetImage: HTMLImageElement | null;
   activeSlotIds: readonly AutotilePatternSlotId[];
   selectionTarget: AutotileSelectionTarget | null;
+  paintTile: AutotileTileRegion | null;
   onSelectSlot: (slotId: AutotilePatternSlotId) => void;
   onClearSlot: (slotId: AutotilePatternSlotId) => void;
+  onSelectPaintTile: () => void;
+  onClearPaintTile: () => void;
 }
 
 export interface AutotileTerrainSidebarProps {
