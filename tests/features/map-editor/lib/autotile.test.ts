@@ -4,6 +4,7 @@ import {
   findAutotileTerrainByPaletteTile,
   resolveAutotileWrites,
 } from "@/features/map-editor/lib/autotile";
+import { buildPresetAutotileRules } from "@/features/map-editor/lib/autotile-preset-rules";
 import type { AutotileConfig, TileRef, TilesetId } from "@/types";
 
 const TILESET_ID = "tileset-1" as TilesetId;
@@ -151,4 +152,55 @@ test("erasing an autotile terrain clears the cell and retile neighbors", () => {
 
   assert.strictEqual(resolved.get("1,0"), null);
   assert.deepEqual(resolved.get("1,1"), createTileRef(0, 0));
+});
+
+test("blob rules resolve isolated and fully surrounded terrain states", () => {
+  const terrains = [
+    {
+      id: "terrain-land",
+      name: "Land",
+      paletteTile: { sx: 0, sy: 0, sw: 16, sh: 16 },
+      patternTiles: {
+        "blob-00": { sx: 16, sy: 0, sw: 16, sh: 16 },
+        "blob-ff": { sx: 32, sy: 0, sw: 16, sh: 16 },
+      },
+    },
+  ] as AutotileConfig["terrains"];
+
+  const autotile: AutotileConfig = {
+    version: 1,
+    preset: "blob-47",
+    terrains,
+    rules: buildPresetAutotileRules({ preset: "blob-47", terrains }),
+  };
+
+  const isolated = resolveAutotileWrites({
+    autotile,
+    baseTiles: {},
+    mapWidth: 3,
+    mapHeight: 3,
+    tilesetId: TILESET_ID,
+    writes: [{ x: 1, y: 1, terrainId: "terrain-land" }],
+  });
+  const surrounded = resolveAutotileWrites({
+    autotile,
+    baseTiles: {
+      "0,0": createTileRef(0, 0),
+      "1,0": createTileRef(0, 0),
+      "2,0": createTileRef(0, 0),
+      "0,1": createTileRef(0, 0),
+      "1,1": createTileRef(0, 0),
+      "2,1": createTileRef(0, 0),
+      "0,2": createTileRef(0, 0),
+      "1,2": createTileRef(0, 0),
+      "2,2": createTileRef(0, 0),
+    },
+    mapWidth: 3,
+    mapHeight: 3,
+    tilesetId: TILESET_ID,
+    writes: [{ x: 1, y: 1, terrainId: "terrain-land" }],
+  });
+
+  assert.deepEqual(isolated.get("1,1"), createTileRef(16, 0));
+  assert.deepEqual(surrounded.get("1,1"), createTileRef(32, 0));
 });

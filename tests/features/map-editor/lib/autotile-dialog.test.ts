@@ -31,6 +31,8 @@ test("getAutotileAssignmentGroups only shows inside corners for full corners", (
     "edgeSouth",
     "edgeWest",
   ]);
+  assert.deepEqual(getAutotileAssignmentGroups("blob-47"), []);
+  assert.strictEqual(getAutotileActiveSlotIds("blob-47").length, 47);
 });
 
 test("assignTileToSelectionTarget updates terrain coverage counts", () => {
@@ -80,7 +82,7 @@ test("getSelectionInstructions requires selecting a target before the tileset", 
 
   assert.strictEqual(
     getSelectionInstructions(draft, null),
-    "Select the center paint tile or a pattern block on the right, then click a tile in the picker.",
+    "Select the center paint tile or a pattern tile on the right, then click a tile in the picker.",
   );
   assert.strictEqual(
     getSelectionInstructions(draft, {

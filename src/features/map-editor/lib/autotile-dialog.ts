@@ -154,7 +154,16 @@ export function getAutotileActiveSlotIds(
 export function getAutotileAssignmentGroups(
   presetId: AutotileConfig["preset"],
 ): AutotileAssignmentGroupDefinition[] {
-  const activeSlotIds = new Set(getAutotileActiveSlotIds(presetId));
+  const preset = getAutotilePresetDefinition(presetId);
+
+  if (preset.editorLayout === "cards") {
+    return [];
+  }
+
+  const activeSlotIds = new Set([
+    ...preset.requiredSlots,
+    ...preset.optionalSlots,
+  ]);
   const groups = [EDGE_OUTSIDE_GROUP];
 
   if (INSIDE_CORNER_SLOT_IDS.some((slotId) => activeSlotIds.has(slotId))) {
@@ -169,7 +178,7 @@ export function getSelectionInstructions(
   target: AutotileSelectionTarget | null,
 ): string {
   if (!target) {
-    return "Select the center paint tile or a pattern block on the right, then click a tile in the picker.";
+    return "Select the center paint tile or a pattern tile on the right, then click a tile in the picker.";
   }
 
   const terrain = draft.terrains.find(

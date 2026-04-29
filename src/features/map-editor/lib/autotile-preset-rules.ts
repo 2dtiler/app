@@ -2,12 +2,14 @@ import {
   AUTOTILE_NEIGHBOR_POSITIONS,
   type AutotileConfig,
   type AutotileNeighborMatcher,
+  type AutotileNeighborPosition,
   type AutotilePatternRelation,
   type AutotilePatternSlotId,
   type AutotileRule,
   type AutotileTerrain,
 } from "@/types";
 import type {
+  AutotilePatternCardGroupDefinition,
   AutotilePatternSlotDefinition,
   AutotilePresetDefinition,
 } from "@/features/map-editor/types/autotile-builder";
@@ -15,6 +17,136 @@ import { generateAutotileRuleId } from "@/utils/ids";
 
 const OPTIONAL_PATTERN_SLOTS =
   [] as const satisfies readonly AutotilePatternSlotId[];
+
+const BLOB_VERTICAL_RUN_MASK = 1 | 16;
+const BLOB_HORIZONTAL_RUN_MASK = 4 | 64;
+
+const BLOB_PATTERN_CARD_GROUP_META = [
+  {
+    id: "isolated",
+    title: "Isolated",
+    description: "Single-tile islands with no matching neighbors.",
+  },
+  {
+    id: "end-caps",
+    title: "End Caps",
+    description: "One-sided extensions that taper into open space.",
+  },
+  {
+    id: "straight-runs",
+    title: "Straight Runs",
+    description: "Two-sided bridges that continue straight through the tile.",
+  },
+  {
+    id: "filled-turns",
+    title: "Filled Turns",
+    description: "Two-sided turns where the shared corner stays filled.",
+  },
+  {
+    id: "turn-cut-ins",
+    title: "Turn Cut-Ins",
+    description: "Two-sided turns where the shared inside corner opens up.",
+  },
+  {
+    id: "tee-open-north",
+    title: "T-Junctions Open North",
+    description: "Three-sided junctions that open toward the top edge.",
+  },
+  {
+    id: "tee-open-east",
+    title: "T-Junctions Open East",
+    description: "Three-sided junctions that open toward the right edge.",
+  },
+  {
+    id: "tee-open-south",
+    title: "T-Junctions Open South",
+    description: "Three-sided junctions that open toward the bottom edge.",
+  },
+  {
+    id: "tee-open-west",
+    title: "T-Junctions Open West",
+    description: "Three-sided junctions that open toward the left edge.",
+  },
+  {
+    id: "solid-core",
+    title: "Solid Core",
+    description: "Fully surrounded tiles with all four corners filled.",
+  },
+  {
+    id: "single-cut-in",
+    title: "Single Cut-In",
+    description: "Fully surrounded tiles with one inside corner opening.",
+  },
+  {
+    id: "double-cut-ins",
+    title: "Double Cut-Ins",
+    description: "Fully surrounded tiles with two inside corners opening.",
+  },
+  {
+    id: "triple-cut-ins",
+    title: "Triple Cut-Ins",
+    description: "Fully surrounded tiles with three inside corners opening.",
+  },
+  {
+    id: "cross-cut-in",
+    title: "Cross Cut-In",
+    description: "Fully surrounded tiles with all four inside corners open.",
+  },
+] as const;
+
+const BLOB_CARDINAL_NEIGHBORS = [
+  { position: "north", label: "North", bit: 1 },
+  { position: "east", label: "East", bit: 4 },
+  { position: "south", label: "South", bit: 16 },
+  { position: "west", label: "West", bit: 64 },
+] as const satisfies readonly {
+  position: Extract<
+    AutotileNeighborPosition,
+    "north" | "east" | "south" | "west"
+  >;
+  label: string;
+  bit: number;
+}[];
+
+const BLOB_DIAGONAL_NEIGHBORS = [
+  {
+    position: "northEast",
+    label: "Top Right",
+    bit: 2,
+    vertical: "north",
+    horizontal: "east",
+  },
+  {
+    position: "southEast",
+    label: "Bottom Right",
+    bit: 8,
+    vertical: "south",
+    horizontal: "east",
+  },
+  {
+    position: "southWest",
+    label: "Bottom Left",
+    bit: 32,
+    vertical: "south",
+    horizontal: "west",
+  },
+  {
+    position: "northWest",
+    label: "Top Left",
+    bit: 128,
+    vertical: "north",
+    horizontal: "west",
+  },
+] as const satisfies readonly {
+  position: Extract<
+    AutotileNeighborPosition,
+    "northEast" | "southEast" | "southWest" | "northWest"
+  >;
+  label: string;
+  bit: number;
+  vertical: Extract<AutotileNeighborPosition, "north" | "south">;
+  horizontal: Extract<AutotileNeighborPosition, "east" | "west">;
+}[];
 
 const PATTERN_SLOT_DEFINITIONS = [
   {
@@ -249,8 +381,119 @@ const PATTERN_SLOT_DEFINITIONS = [
   },
 ] as const satisfies readonly AutotilePatternSlotDefinition[];
 
+function formatBlobMask(mask: number): string {
+  return mask.toString(16).toUpperCase().padStart(2, "0");
+}
+
+function createBlobPatternId(mask: number): AutotilePatternSlotId {
+  return `blob-${formatBlobMask(mask).toLowerCase()}`;
+}
+
+function createBlobPatternDefinition(
+  mask: number,
+  priority: number,
+): AutotilePatternSlotDefinition {
+  const neighbors = Object.fromEntries(
+    AUTOTILE_NEIGHBOR_POSITIONS.map((position) => [
+      position,
+      "different" as AutotilePatternRelation,
+    ]),
+  ) as Record<AutotileNeighborPosition, AutotilePatternRelation>;
+
+  for (const neighbor of BLOB_CARDINAL_NEIGHBORS) {
+    neighbors[neighbor.position] = mask & neighbor.bit ? "same" : "different";
+  }
+
+  for (const neighbor of BLOB_DIAGONAL_NEIGHBORS) {
+    const verticalMatches = neighbors[neighbor.vertical] === "same";
+    const horizontalMatches = neighbors[neighbor.horizontal] === "same";
+
+    if (verticalMatches && horizontalMatches) {
+      neighbors[neighbor.position] = mask & neighbor.bit ? "same" : "different";
+      continue;
+    }
+
+    neighbors[neighbor.position] = "ignore";
+  }
+
+  return {
+    id: createBlobPatternId(mask),
+    label: `Blob 0x${formatBlobMask(mask)}`,
+    shortLabel: `0x${formatBlobMask(mask)}`,
+    description: "",
+    priority,
+    neighbors,
+  };
+}
+
+function createBlobPatternDefinitions(): AutotilePatternSlotDefinition[] {
+  const definitions: Array<{
+    mask: number;
+    definition: AutotilePatternSlotDefinition;
+  }> = [];
+
+  for (let cardinalMask = 0; cardinalMask < 16; cardinalMask++) {
+    const cardinalBits = {
+      north: Boolean(cardinalMask & 1),
+      east: Boolean(cardinalMask & 2),
+      south: Boolean(cardinalMask & 4),
+      west: Boolean(cardinalMask & 8),
+    } as const;
+
+    const gatedDiagonals = BLOB_DIAGONAL_NEIGHBORS.filter(
+      (neighbor) =>
+        cardinalBits[neighbor.vertical] && cardinalBits[neighbor.horizontal],
+    );
+    const diagonalVariants = 1 << gatedDiagonals.length;
+
+    for (
+      let diagonalMask = 0;
+      diagonalMask < diagonalVariants;
+      diagonalMask++
+    ) {
+      let mask = 0;
+
+      for (const neighbor of BLOB_CARDINAL_NEIGHBORS) {
+        if (cardinalBits[neighbor.position]) {
+          mask |= neighbor.bit;
+        }
+      }
+
+      gatedDiagonals.forEach((neighbor, index) => {
+        if (diagonalMask & (1 << index)) {
+          mask |= neighbor.bit;
+        }
+      });
+
+      definitions.push({
+        mask,
+        definition: createBlobPatternDefinition(mask, 0),
+      });
+    }
+  }
+
+  return definitions
+    .sort((left, right) => left.mask - right.mask)
+    .map(({ definition }, index) => ({
+      ...definition,
+      priority: 100 + index,
+    }));
+}
+
+const BLOB_PATTERN_DEFINITIONS = createBlobPatternDefinitions();
+
+const BLOB_PATTERN_CARD_GROUPS = BLOB_PATTERN_CARD_GROUP_META.map((group) => ({
+  ...group,
+  slotIds: BLOB_PATTERN_DEFINITIONS.filter((definition) => {
+    const mask = parseBlobMask(definition.id);
+    return mask !== null && getBlobPatternCardGroupId(mask) === group.id;
+  }).map((definition) => definition.id),
+})) satisfies readonly AutotilePatternCardGroupDefinition[];
+
 export const AUTOTILE_PATTERN_SLOTS = Object.fromEntries(
-  PATTERN_SLOT_DEFINITIONS.map((definition) => [definition.id, definition]),
+  [...PATTERN_SLOT_DEFINITIONS, ...BLOB_PATTERN_DEFINITIONS].map(
+    (definition) => [definition.id, definition],
+  ),
 ) as Record<AutotilePatternSlotId, AutotilePatternSlotDefinition>;
 
 export const AUTOTILE_PRESET_DEFINITIONS = [
@@ -259,6 +502,7 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     label: "Edges Only",
     description:
       "Pick the four boundary tiles. Good for simple cliffs, walls, and shorelines.",
+    editorLayout: "grid",
     requiredSlots: ["edgeNorth", "edgeEast", "edgeSouth", "edgeWest"],
     optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
   },
@@ -267,6 +511,7 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     label: "Edges + Outside Corners",
     description:
       "Adds separate corner tiles when two open sides meet, while keeping setup light.",
+    editorLayout: "grid",
     requiredSlots: [
       "edgeNorth",
       "edgeEast",
@@ -284,6 +529,7 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     label: "Full Corners",
     description:
       "Adds inside corners for cut-ins and more detailed transitions.",
+    editorLayout: "grid",
     requiredSlots: [
       "edgeNorth",
       "edgeEast",
@@ -298,6 +544,15 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
       "innerCornerSouthWest",
       "innerCornerSouthEast",
     ],
+    optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
+  },
+  {
+    id: "blob-47",
+    label: "47-Tile Blob",
+    description:
+      "Assign the full 8-neighbor blob set for polished RPG-style terrain transitions.",
+    editorLayout: "cards",
+    requiredSlots: BLOB_PATTERN_DEFINITIONS.map((definition) => definition.id),
     optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
   },
 ] as const satisfies readonly AutotilePresetDefinition[];
@@ -353,6 +608,84 @@ function getPresetSlots(
     .sort((left, right) => left.priority - right.priority);
 }
 
+function parseBlobMask(slotId: AutotilePatternSlotId): number | null {
+  if (!slotId.startsWith("blob-")) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(slotId.slice(5), 16);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function countBlobCardinalMatches(mask: number): number {
+  return BLOB_CARDINAL_NEIGHBORS.reduce((count, neighbor) => {
+    return count + (mask & neighbor.bit ? 1 : 0);
+  }, 0);
+}
+
+function countBlobDiagonalMatches(mask: number): number {
+  return BLOB_DIAGONAL_NEIGHBORS.reduce((count, neighbor) => {
+    return count + (mask & neighbor.bit ? 1 : 0);
+  }, 0);
+}
+
+function getBlobOpenSideGroupId(mask: number): string {
+  if (!(mask & 1)) {
+    return "tee-open-north";
+  }
+  if (!(mask & 4)) {
+    return "tee-open-east";
+  }
+  if (!(mask & 16)) {
+    return "tee-open-south";
+  }
+
+  return "tee-open-west";
+}
+
+function getBlobPatternCardGroupId(mask: number): string {
+  const cardinalCount = countBlobCardinalMatches(mask);
+
+  switch (cardinalCount) {
+    case 0:
+      return "isolated";
+    case 1:
+      return "end-caps";
+    case 2: {
+      const isStraight =
+        mask === BLOB_VERTICAL_RUN_MASK || mask === BLOB_HORIZONTAL_RUN_MASK;
+
+      if (isStraight) {
+        return "straight-runs";
+      }
+
+      return countBlobDiagonalMatches(mask) === 0
+        ? "turn-cut-ins"
+        : "filled-turns";
+    }
+    case 3:
+      return getBlobOpenSideGroupId(mask);
+    case 4: {
+      const missingDiagonalCount = 4 - countBlobDiagonalMatches(mask);
+
+      switch (missingDiagonalCount) {
+        case 0:
+          return "solid-core";
+        case 1:
+          return "single-cut-in";
+        case 2:
+          return "double-cut-ins";
+        case 3:
+          return "triple-cut-ins";
+        default:
+          return "cross-cut-in";
+      }
+    }
+    default:
+      return "isolated";
+  }
+}
+
 function buildRuleName(
   terrain: AutotileTerrain,
   slot: AutotilePatternSlotDefinition,
@@ -396,4 +729,25 @@ export function getAutotilePresetSlots(
   presetId: AutotileConfig["preset"],
 ): AutotilePatternSlotDefinition[] {
   return getPresetSlots(presetId);
+}
+
+export function getAutotilePresetCardGroups(
+  presetId: AutotileConfig["preset"],
+): AutotilePatternCardGroupDefinition[] {
+  const preset = getPresetDefinition(presetId);
+
+  if (preset.id === "blob-47") {
+    return [...BLOB_PATTERN_CARD_GROUPS];
+  }
+
+  const slotIds = [...preset.requiredSlots, ...preset.optionalSlots];
+
+  return [
+    {
+      id: "patterns",
+      title: "Patterns",
+      description: "Assign pattern tiles for this preset.",
+      slotIds,
+    },
+  ];
 }

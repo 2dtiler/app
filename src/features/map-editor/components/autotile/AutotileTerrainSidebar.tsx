@@ -22,7 +22,7 @@ export function AutotileTerrainSidebar({
         <div>
           <h3 className="text-sm font-medium text-foreground">Rules</h3>
           <p className="text-xs text-muted-foreground">
-            Select a terrain rule to edit its paint tile and pattern blocks.
+            Select a terrain rule to edit its paint tile and pattern tiles.
           </p>
         </div>
         <Button
@@ -38,8 +38,8 @@ export function AutotileTerrainSidebar({
 
       {terrains.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-3 py-5 text-xs text-muted-foreground">
-          No rules yet. Create one to start assigning a paint tile and edge
-          rules.
+          No rules yet. Create one to start assigning a paint tile and pattern
+          tiles.
         </div>
       ) : (
         <div

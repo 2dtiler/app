@@ -4,13 +4,12 @@ import type { AutotilePatternTileCardProps } from "@/features/map-editor/types/a
 
 export function AutotilePatternTileCard({
   buttonId,
-  buttonName,
   definition,
+  image,
   isRequired,
   isSelected,
   onClear,
   tile,
-  tileLabel,
   onPick,
 }: AutotilePatternTileCardProps) {
   return (
@@ -25,54 +24,36 @@ export function AutotilePatternTileCard({
               {isRequired ? "Required" : "Optional"}
             </span>
           </div>
-          <p className="max-w-sm text-xs text-muted-foreground">
-            {definition.description}
-          </p>
         </div>
 
-        <AutotilePatternDiagram definition={definition} />
-      </div>
+        <div className="flex items-start gap-2">
+          <AutotilePatternDiagram
+            definition={definition}
+            centerCell={{
+              id: buttonId,
+              image,
+              region: tile,
+              isSelected,
+              emptyLabel: definition.shortLabel,
+              "aria-label": `Assign ${definition.label}`,
+              "aria-pressed": isSelected,
+              title: definition.label,
+              onMouseDown: onPick,
+            }}
+          />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-        <div className="space-y-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            Assigned Tile
-          </p>
-          <p className="text-xs text-foreground">{tileLabel}</p>
-          {tile ? (
-            <p className="text-[11px] text-muted-foreground">
-              This slot has a tile assigned.
-            </p>
-          ) : (
-            <p className="text-[11px] text-muted-foreground">
-              {isRequired
-                ? "This pattern should be assigned for a complete setup."
-                : "Optional. Leave it empty to fall back to the paint tile."}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {tile && onClear && (
+          {tile && onClear ? (
             <Button
               type="button"
               variant="ghost"
               size="xs"
+              className="shrink-0"
+              aria-label={`Clear ${definition.label}`}
               onMouseDown={onClear}
             >
               Clear
             </Button>
-          )}
-          <Button
-            type="button"
-            id={buttonId}
-            name={buttonName}
-            variant={isSelected ? "default" : "outline"}
-            size="xs"
-            onMouseDown={onPick}
-          >
-            {tile ? "Change Tile" : "Pick Tile"}
-          </Button>
+          ) : null}
         </div>
       </div>
     </div>

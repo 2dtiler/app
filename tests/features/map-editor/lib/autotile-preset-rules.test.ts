@@ -3,6 +3,7 @@ import { resolveAutotileWrites } from "@/features/map-editor/lib/autotile";
 import {
   AUTOTILE_PATTERN_SLOTS,
   buildPresetAutotileRules,
+  getAutotilePresetCardGroups,
   getAutotilePresetDefinition,
 } from "@/features/map-editor/lib/autotile-preset-rules";
 import type { AutotileConfig, TilesetId } from "@/types";
@@ -37,6 +38,56 @@ test("preset definitions expose the required visual slots for setup", () => {
     "innerCornerSouthEast",
   ]);
   assert.deepEqual(preset.optionalSlots, []);
+});
+
+test("blob preset exposes the 47 valid gated 8-neighbor masks", () => {
+  const preset = getAutotilePresetDefinition("blob-47");
+
+  assert.strictEqual(preset.requiredSlots.length, 47);
+  assert.ok(preset.requiredSlots.includes("blob-00"));
+  assert.ok(preset.requiredSlots.includes("blob-ff"));
+  assert.strictEqual(
+    AUTOTILE_PATTERN_SLOTS["blob-00"]?.neighbors.northEast,
+    "ignore",
+  );
+  assert.strictEqual(
+    AUTOTILE_PATTERN_SLOTS["blob-ff"]?.neighbors.northEast,
+    "same",
+  );
+});
+
+test("blob preset groups patterns into small shape-based sections", () => {
+  const groups = getAutotilePresetCardGroups("blob-47");
+
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    [
+      "isolated",
+      "end-caps",
+      "straight-runs",
+      "filled-turns",
+      "turn-cut-ins",
+      "tee-open-north",
+      "tee-open-east",
+      "tee-open-south",
+      "tee-open-west",
+      "solid-core",
+      "single-cut-in",
+      "double-cut-ins",
+      "triple-cut-ins",
+      "cross-cut-in",
+    ],
+  );
+  assert.strictEqual(
+    groups.reduce((total, group) => total + group.slotIds.length, 0),
+    47,
+  );
+  assert.strictEqual(
+    Math.max(...groups.map((group) => group.slotIds.length)),
+    6,
+  );
+  assert.deepEqual(groups[0]?.slotIds, ["blob-00"]);
+  assert.deepEqual(groups[9]?.slotIds, ["blob-ff"]);
 });
 
 test("compiled preset rules keep more specific corner tiles ahead of edges", () => {
@@ -102,4 +153,31 @@ test("compiled preset rules plug into resolveAutotileWrites", () => {
     AUTOTILE_PATTERN_SLOTS.outerCornerNorthWest.description,
     "Use this when the top and left sides both open away from the terrain.",
   );
+});
+
+test("blob preset compiles isolated and fully-surrounded rules", () => {
+  const rules = buildPresetAutotileRules({
+    preset: "blob-47",
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land",
+        paletteTile: { sx: 0, sy: 0, sw: 16, sh: 16 },
+        patternTiles: {
+          "blob-00": { sx: 16, sy: 0, sw: 16, sh: 16 },
+          "blob-ff": { sx: 32, sy: 0, sw: 16, sh: 16 },
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    rules.map((rule) => rule.name),
+    ["Land Blob 0x00", "Land Blob 0xFF"],
+  );
+  assert.deepEqual(rules[0]?.neighbors.northWest, { kind: "any" });
+  assert.deepEqual(rules[1]?.neighbors.northWest, {
+    kind: "terrain",
+    terrainId: "terrain-land",
+  });
 });

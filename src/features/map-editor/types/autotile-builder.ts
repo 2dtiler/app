@@ -5,6 +5,7 @@ import type {
   AutotilePatternSlotId,
   AutotilePresetId,
 } from "@/types";
+import type { ButtonHTMLAttributes } from "react";
 
 export interface AutotilePatternSlotDefinition {
   id: AutotilePatternSlotId;
@@ -19,22 +20,35 @@ export interface AutotilePresetDefinition {
   id: AutotilePresetId;
   label: string;
   description: string;
+  editorLayout: "grid" | "cards";
   requiredSlots: AutotilePatternSlotId[];
   optionalSlots: AutotilePatternSlotId[];
 }
 
+export interface AutotilePatternCardGroupDefinition {
+  id: string;
+  title: string;
+  description: string;
+  slotIds: readonly AutotilePatternSlotId[];
+}
+
 export interface AutotilePatternDiagramProps {
   definition: AutotilePatternSlotDefinition;
+  centerCell?: ButtonHTMLAttributes<HTMLButtonElement> & {
+    emptyLabel?: string;
+    image: HTMLImageElement | null;
+    isSelected: boolean;
+    region: AutotileTileRegion | null;
+  };
 }
 
 export interface AutotilePatternTileCardProps {
   buttonId: string;
-  buttonName: string;
   definition: AutotilePatternSlotDefinition;
+  image: HTMLImageElement | null;
   isRequired: boolean;
   isSelected: boolean;
   onClear?: () => void;
   tile: AutotileTileRegion | null;
-  tileLabel: string;
   onPick: () => void;
 }

@@ -1,3 +1,4 @@
+More advanced autotile
 Custom Animations i.e. water moving
 
 Support Tiled Project Import/Export
