@@ -5,6 +5,7 @@ import {
   countConfiguredAssignments,
   getAutotileActiveSlotIds,
   getAutotileAssignmentGroups,
+  getSelectionInstructions,
 } from "@/features/map-editor/lib/autotile-dialog";
 
 test("cloneAutotileConfig creates a default draft when no config exists", () => {
@@ -60,4 +61,32 @@ test("assignTileToSelectionTarget updates terrain coverage counts", () => {
     sw: 16,
     sh: 16,
   });
+});
+
+test("getSelectionInstructions requires selecting a target before the tileset", () => {
+  const draft = cloneAutotileConfig({
+    version: 1,
+    preset: "edges-corners",
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land to Water",
+        paletteTile: null,
+        patternTiles: {},
+      },
+    ],
+    rules: [],
+  });
+
+  assert.strictEqual(
+    getSelectionInstructions(draft, null),
+    "Select the center paint tile or a pattern block on the right, then click a tile in the picker.",
+  );
+  assert.strictEqual(
+    getSelectionInstructions(draft, {
+      type: "terrain",
+      terrainId: "terrain-land",
+    }),
+    "Click a tile to use as the paint tile for Land to Water.",
+  );
 });

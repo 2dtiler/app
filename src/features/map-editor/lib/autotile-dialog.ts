@@ -26,7 +26,7 @@ const EDGE_OUTSIDE_GROUP: AutotileAssignmentGroupDefinition = {
   id: "edges-outside",
   title: "Edges + Outside Corners",
   description:
-    "Assign the edge and outside-corner tiles in one place. Click a block and then the tileset picker, or pick a tileset tile first and then click a block.",
+    "Assign the center paint tile first, then fill the surrounding edge and outside-corner tiles.",
   cells: [
     { slotId: "outerCornerNorthWest", row: 0, column: 0 },
     { slotId: "edgeNorth", row: 0, column: 1 },
@@ -167,12 +167,9 @@ export function getAutotileAssignmentGroups(
 export function getSelectionInstructions(
   draft: AutotileConfig,
   target: AutotileSelectionTarget | null,
-  hasLastPickedTile: boolean,
 ): string {
   if (!target) {
-    return hasLastPickedTile
-      ? "Tile selected. Click a paint tile or pattern block to assign it."
-      : "Click a paint tile or pattern block, then click a tile in the picker.";
+    return "Select the center paint tile or a pattern block on the right, then click a tile in the picker.";
   }
 
   const terrain = draft.terrains.find(
