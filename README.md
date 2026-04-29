@@ -1,59 +1,104 @@
 # 2dtiler
 
-2dtiler is a free, open source 2D level, tileset, and pixel workflow editor built for game developers who are tired of jumping between a dozen separate tools.
+2dtiler is a free, open source 2D level, tileset, pixel asset, palette, and export workflow editor for game developers who are tired of jumping between a dozen separate tools.
 
-It is designed to replace large parts of the day-to-day workflow usually split across map editors, tileset tools, palette utilities, lightweight image editors, export helpers, and asset generation tools. Instead of stitching together 10+ apps for one project, you can keep the work in one place.
+It is designed to replace large parts of the day-to-day workflow usually split across map editors, tileset tools, palette utilities, lightweight image editors, export helpers, and asset generation tools. Instead of stitching together 10+ apps for one project, you can keep the work in one local browser workspace.
 
 ## Why 2dtiler
 
 - Free to use
 - MIT licensed
 - Runs locally in the browser
-- Covers maps, tilesets, image editing, palettes, and export workflows in one app
-- Built for fast iteration with keyboard shortcuts, layered editing, and asset import/export
+- Covers maps, tilesets, image editing, palettes, AI-assisted asset generation, and export workflows in one app
+- Built for fast iteration with keyboard shortcuts, layered editing, terrain-aware painting, autosave, and project import/export
 
 2dtiler is a practical replacement for many common 2D production workflows people currently handle with tools like Tiled, Ogmo, Aseprite palette utilities, lightweight raster editors, standalone export tools, and other specialist pixel-art utilities.
 
-## Features
+## Standout features
 
 ### Map and tileset workflow
 
 - Create and edit tile maps with layered content
-- Work with tilesets and reusable tile assets
-- Paint, erase, fill, and terrain-fill maps
-- Use image layers and object rendering inside the editor
+- Paint, erase, fill, select, and autotile maps from the toolbar
+- Use brush sizes from `1x1` through `5x5` for paint, erase, and autotile work
+- Organize maps with tile layers, image layers, object layers, and layer groups
+- Place object metadata such as rectangles, points, ellipses, polygons, and text objects
+- Use image layers for backgrounds, large art elements, or non-grid artwork
 - Resize maps and work with multiple asset types in one project
 
-### Import and export
+### Autotile and terrain tools
 
-- Export full projects as `.2dp`
-- Export single maps as `.2dm`
-- Export single tilesets as `.2dt`
-- Import and export Phaser-ready map bundles as `.json` archives with linked tileset images
-- Import and export raster images including PNG, JPG, WEBP, BMP, and GIF
-- Export with format-specific options like transparency and quality where supported
-- Phaser tilesets continue to use the existing image-based tileset workflow instead of a separate Phaser tileset format
+- Configure autotile terrain rules on tilesets
+- Use standard, diagonal, and sparse autotile preset workflows
+- Paint terrain from the Autotile tool so neighboring tiles update together
+- Use terrain fill when a region should be filled from reusable weighted tile sets
+- Preserve native autotile metadata through 2D Tiler project and tileset files
 
-### Image and palette tools
+### Image editor and palette tools
 
-- Built-in image editor for tile and image asset workflows
+- Built-in image editor for tile, sprite, and lightweight raster asset workflows
+- Pixel tools for pencil, eraser, paint bucket, line, rectangle, contour, selection, crop, move, and blur work
+- Brush sizes from `1` through `16` pixels for drawing tools
+- Full RGBA color support
 - Palette parsing and conversion utilities
-- Support for GIMP `.gpl` palettes
-- Support for ASE palette files used in Aseprite workflows
-
-### Editor experience
-
-- Keyboard shortcuts for tools, brush sizes, zoom, undo/redo, save, find/replace, and clipboard actions
-- Auto-save and manual save flows
-- Progressive web app setup with service worker updates
-- Runs as a local web app during development and can be deployed as a static frontend
+- Palette import support for GIMP `.gpl`, Adobe ASE, Aseprite palette data, JASC `.pal`, Paint.NET `.txt`, and plain `.hex` lists
 
 ### AI-assisted asset generation
 
-- Built-in AI asset generation UI for tilesets, sprites, backgrounds, icons, UI assets, and VFX
-- Supports multiple generation providers and prompt-driven asset configuration
+- Built-in AI asset generation UI for tilesets, sprite sheets, backgrounds, item icons, UI elements, and VFX
+- Provider-backed generation support for OpenAI, Google Gemini, xAI, and Together AI model families
+- Asset-specific prompt controls for tile terrain, sprite roles, animation states, backgrounds, icons, UI elements, and VFX
+- Style and palette controls for pixel art, vector, hand-painted, cel-shaded, watercolor, vibrant, pastel, muted, monochrome, neon, and earth-tone directions
+- Reference-image input on models that support image-to-image workflows
 
-## Free and Open Source
+### Import and export
+
+| Asset type | Supported workflows                                                                                                                                                                                                                                                                                   |
+| :--------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project    | Native 2D Tiler project import/export as `.2dp`                                                                                                                                                                                                                                                       |
+| Map        | Native `.2dm`, raster image import/export, Phaser-ready `.json` bundles, Tiled map import/export, Godot 4 `.tscn` import/export, Unity Tilemap prefab bundle import/export, GameMaker room import/export, Defold tilemap or collection import/export, tIDE map import/export, Mappy FMP import/export |
+| Tileset    | Native `.2dt`, raster image import/export, Tiled tileset import/export, Defold tile source import/export, Godot 4 tileset export, Unity sprite sheet bundle import/export                                                                                                                             |
+
+Raster image workflows support PNG, JPG, WebP, BMP, and GIF where the selected import or export path allows it.
+
+Tiled project container import/export is planned, but current Tiled support focuses on map and tileset files.
+
+### Editor experience
+
+- Autosave and manual save flows
+- Undo and redo history for editor changes
+- Quick export shortcuts for the active map and active tileset
+- Find and replace for tile editing workflows
+- Copy, cut, paste, delete, flip, zoom, and brush-size shortcuts
+- Progressive web app setup with service worker updates
+- Dark and light theme support
+
+## Keyboard shortcuts
+
+| Shortcut                                  | Action                          |
+| :---------------------------------------- | :------------------------------ |
+| `S`                                       | Select tool                     |
+| `B`                                       | Paint tool                      |
+| `A`                                       | Autotile tool                   |
+| `E`                                       | Erase tool                      |
+| `G`                                       | Fill tool                       |
+| `1` through `5`                           | Brush sizes `1x1` through `5x5` |
+| `Ctrl+Z` / `Cmd+Z`                        | Undo                            |
+| `Ctrl+Shift+Z` / `Cmd+Shift+Z` / `Ctrl+Y` | Redo                            |
+| `Ctrl+S` / `Cmd+S`                        | Manual save                     |
+| `Ctrl+Shift+E` / `Cmd+Shift+E`            | Quick export active map         |
+| `Ctrl+Shift+B` / `Cmd+Shift+B`            | Quick export active tileset     |
+| `Ctrl+H` / `Cmd+H`                        | Open find and replace           |
+| `Ctrl+C` / `Cmd+C`                        | Copy tile selection             |
+| `Ctrl+X` / `Cmd+X`                        | Cut tile selection              |
+| `Ctrl+V` / `Cmd+V`                        | Paste tile selection            |
+| `Delete` / `Backspace`                    | Delete current selection        |
+| `H`                                       | Flip hovered tile horizontally  |
+| `V`                                       | Flip hovered tile vertically    |
+| `+` / `=`                                 | Zoom in on the map              |
+| `-`                                       | Zoom out on the map             |
+
+## Free and open source
 
 2dtiler is completely free and released under the MIT License. You can use it, modify it, and contribute improvements without paying for the editor itself.
 
@@ -94,6 +139,12 @@ bun run build
 bun run lint
 ```
 
+### Run tests with coverage
+
+```bash
+bun run test
+```
+
 ### Preview the production build
 
 ```bash
@@ -117,13 +168,15 @@ bun run build
 
 If you are proposing a bigger feature, keep the pull request focused and explain the workflow problem it solves.
 
-## Tech Stack
+## Tech stack
 
 - React
 - TypeScript
 - Vite
 - Bun for local workflow commands
+- Zustand, travels, and IndexedDB-backed local persistence
+- Astro and Tailwind on the public website
 
 ## Status
 
-2dtiler is actively evolving. The repository includes ongoing work around import/export, AI asset tooling, tileset management, map management, and broader editor workflows.
+2dtiler is actively evolving. The repository includes ongoing work around import/export compatibility, AI asset tooling, tileset management, map management, terrain workflows, image editing, and broader editor workflows.
