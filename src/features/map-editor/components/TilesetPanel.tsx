@@ -946,7 +946,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
 
       {activeTileset && animationDialogOpen ? (
         <AnimationDialog
-          key={`${activeTileset.id}-${editingAnimation?.id ?? "new"}-${animationDialogOpen ? "open" : "closed"}`}
+          key={`${activeTileset.id}-${editingAnimation?.id ?? "new"}-open`}
           animation={editingAnimation}
           open={animationDialogOpen}
           onOpenChange={setAnimationDialogOpen}
