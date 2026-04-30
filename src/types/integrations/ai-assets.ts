@@ -78,3 +78,11 @@ export type ImageState =
   | { status: "loading" }
   | { status: "done"; url: string }
   | { status: "error"; message: string };
+
+export interface ImageUploadProps {
+  id: string;
+  name: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
+  label: string;
+}

@@ -404,8 +404,6 @@ export function Generator() {
       return;
     }
 
-    console.log("[AiAssets] Prompt:", finalPrompt);
-
     setIsGenerating(true);
     setImages(
       Array.from({ length: count }, () => ({ status: "loading" as const })),

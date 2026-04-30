@@ -100,7 +100,7 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    sourcemap: process.env.VITE_ENABLE_SOURCE_MAPS === "true",
     rollupOptions: {
       output: {
         manualChunks: getManualChunk,

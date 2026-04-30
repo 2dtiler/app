@@ -51,9 +51,9 @@ import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autot
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
-import { saveAsset, getAsset, deleteAsset, saveProject } from "@/services/db";
+import { saveAsset, getAsset, deleteAsset } from "@/services/db";
 import { getTilesetTileSize } from "@/features/project-management/lib/project";
-import { markEditorSaved } from "@/store/editor-store";
+import { saveProjectAndNotify } from "@/features/project-management/lib/project-save";
 import {
   generateTilesetId,
   generateTilesetGroupId,
@@ -123,18 +123,19 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
     zoomStore.setActiveTileset(projectId ? state.activeTilesetId : null);
   }, [projectId, state.activeTilesetId]);
 
-  if (!project) return null;
-
-  const activeGroup = project.tilesetGroups.find(
+  const activeGroup = project?.tilesetGroups.find(
     (g) => g.id === state.activeTilesetGroupId,
   );
-  const groupTilesets = project.tilesets.filter(
-    (t) => t.groupId === state.activeTilesetGroupId,
-  );
-  const activeTileset = project.tilesets.find(
+  const groupTilesets =
+    project?.tilesets.filter((t) => t.groupId === state.activeTilesetGroupId) ??
+    [];
+  const activeTileset = project?.tilesets.find(
     (t) => t.id === state.activeTilesetId,
   );
-  const activeTileSize = getTilesetTileSize(activeTileset, project.tileSize);
+  const activeTileSize = getTilesetTileSize(
+    activeTileset,
+    project?.tileSize ?? state.tileSize,
+  );
 
   // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
 
@@ -148,7 +149,6 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         }
       : null;
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const handleTileSelect = useCallback(
     (tile: { sx: number; sy: number; sw: number; sh: number }) => {
       if (!activeTileset) return;
@@ -162,10 +162,11 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
     [activeTileset, setState],
   );
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const handleSetTilesetZoom = useCallback((newZoom: number) => {
     zoomStore.setTilesetZoom(newZoom);
   }, []);
+
+  if (!project) return null;
 
   async function handleAddTileset() {
     fileInputRef.current?.click();
@@ -454,10 +455,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
               size="icon"
               className="h-6 w-6 shrink-0"
               onMouseDown={() => {
-                if (project) {
-                  markEditorSaved();
-                  void saveProject({ ...project, updatedAt: Date.now() });
-                }
+                void saveProjectAndNotify(project);
               }}
             >
               <Save className="h-3.5 w-3.5" />

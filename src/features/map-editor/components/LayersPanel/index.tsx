@@ -1036,6 +1036,8 @@ export function LayersPanel() {
       {/* Hidden file input for image layer */}
       <input
         ref={imageInputRef}
+        id="image-layer-file-input"
+        name="image-layer-file-input"
         type="file"
         accept="image/*"
         className="hidden"
