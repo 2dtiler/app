@@ -13,6 +13,7 @@ import {
   type MapId,
   type ProjectId,
   type TileRef,
+  type TilesetAnimationId,
   type TilesetGroupId,
   type TilesetId,
 } from "@/types";
@@ -26,6 +27,7 @@ const LAYER_ID = "layer-1" as LayerId;
 const ASSET_ID = "asset-1" as AssetId;
 const LAND_TERRAIN_ID = "terrain-land" as AutotileTerrainId;
 const WATER_TERRAIN_ID = "terrain-water" as AutotileTerrainId;
+const ANIMATION_ID = "animation-water" as TilesetAnimationId;
 
 function createTileRef(sx: number, sy: number): TileRef {
   return {
@@ -549,4 +551,207 @@ test("autotile strokes no-op when the selected rule is stale", () => {
   assert.strictEqual(paintBuffer.size, 0);
   assert.deepEqual(drawnTiles, []);
   assert.deepEqual(activeLayer.tiles, {});
+});
+
+test("animation strokes and drag placement write multi-cell animation refs", () => {
+  const activeLayer = {
+    id: LAYER_ID,
+    mapId: MAP_ID,
+    name: "Ground",
+    visible: true,
+    locked: false,
+    tiles: {},
+  };
+  const activeMap = {
+    id: MAP_ID,
+    name: "Map",
+    groupId: MAP_GROUP_ID,
+    orientation: "orthogonal",
+    widthInTiles: 4,
+    heightInTiles: 4,
+    tileSize: 16,
+    layerOrder: [LAYER_ID],
+    createdAt: 0,
+  };
+  const project = {
+    id: PROJECT_ID,
+    name: "Project",
+    createdAt: 0,
+    updatedAt: 0,
+    tileSize: 16,
+    tilesetGroups: [{ id: TILESET_GROUP_ID, name: "Tilesets", order: 0 }],
+    tilesets: [
+      {
+        id: TILESET_ID,
+        name: "Terrain",
+        groupId: TILESET_GROUP_ID,
+        tileSize: 16,
+        assetId: ASSET_ID,
+        imageWidth: 64,
+        imageHeight: 16,
+        animations: {
+          version: 1,
+          animations: [
+            {
+              id: ANIMATION_ID,
+              name: "Waterfall",
+              widthInTiles: 2,
+              heightInTiles: 1,
+              frames: [
+                {
+                  durationMs: 100,
+                  cells: [
+                    { sx: 0, sy: 0, sw: 16, sh: 16 },
+                    { sx: 16, sy: 0, sw: 16, sh: 16 },
+                  ],
+                },
+              ],
+              createdAt: 0,
+              updatedAt: 0,
+            },
+          ],
+        },
+        createdAt: 0,
+      },
+    ],
+    mapGroups: [{ id: MAP_GROUP_ID, name: "Maps", order: 0 }],
+    maps: [activeMap],
+    layers: [activeLayer],
+    imageLayers: [],
+    layerGroups: [],
+    terrains: [],
+    objectLayers: [],
+    objects: [],
+    overrideTilesets: [],
+  };
+  const state: EditorState = {
+    ...DEFAULT_EDITOR_STATE,
+    project,
+    activeMapGroupId: MAP_GROUP_ID,
+    activeMapId: MAP_ID,
+    activeLayerId: LAYER_ID,
+    activeTilesetGroupId: TILESET_GROUP_ID,
+    activeTilesetId: TILESET_ID,
+    currentTool: "animation",
+    tileSize: 16,
+    selectedAnimation: {
+      tilesetId: TILESET_ID,
+      animationId: ANIMATION_ID,
+    },
+  };
+  const paintBuffer = new Map<string, TileRef | null>();
+  const drawnTiles = [] as { ref: TileRef; x: number; y: number }[];
+  const mapCanvasRef = {
+    current: {
+      drawBufferTile: (x: number, y: number, ref: TileRef) => {
+        drawnTiles.push({ x, y, ref });
+      },
+      eraseBufferTile: () => {},
+      clearPaintCanvas: () => {},
+    },
+  };
+  let paintBufferVersion = 0;
+  const setPaintBufferVersion = (
+    value: number | ((currentValue: number) => number),
+  ) => {
+    paintBufferVersion =
+      typeof value === "function" ? value(paintBufferVersion) : value;
+  };
+  const setState = (updater: EditorState | ((draft: EditorState) => void)) => {
+    if (typeof updater === "function") {
+      updater(state);
+      return;
+    }
+
+    Object.assign(state, updater);
+  };
+  const hookResult = (() => {
+    let current: ReturnType<typeof useMapPanelCanvasActions> | null = null;
+
+    return {
+      getCurrent: () => current,
+      setCurrent: (value: ReturnType<typeof useMapPanelCanvasActions>) => {
+        current = value;
+      },
+    };
+  })();
+
+  function HookHarness(params: Parameters<typeof useMapPanelCanvasActions>[0]) {
+    hookResult.setCurrent(useMapPanelCanvasActions(params));
+    return null;
+  }
+
+  renderToStaticMarkup(
+    createElement(HookHarness, {
+      activeImageLayer: null,
+      activeLayer,
+      activeMap,
+      contextMenuTileRef: { current: null },
+      hasContextMenuImageLayer: false,
+      layerGroups: project.layerGroups,
+      mapCanvasRef,
+      paintBuffer,
+      project,
+      setPaintBufferVersion,
+      setState,
+      state,
+      textObjectEditing: {
+        editing: null,
+        startEditing: () => {},
+        updateText: () => {},
+        commitEditing: () => {},
+        cancelEditing: () => {},
+      },
+    }),
+  );
+
+  const actions = hookResult.getCurrent();
+
+  assert.ok(actions);
+  if (!actions) {
+    return;
+  }
+
+  const firstCellRef = {
+    tilesetId: TILESET_ID,
+    sx: 0,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+    animationId: ANIMATION_ID,
+    animationCellIndex: 0,
+  };
+  const secondCellRef = {
+    tilesetId: TILESET_ID,
+    sx: 16,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+    animationId: ANIMATION_ID,
+    animationCellIndex: 1,
+  };
+
+  actions.handlePaintTile(1, 1);
+
+  assert.deepEqual(paintBuffer.get("1,1"), firstCellRef);
+  assert.deepEqual(paintBuffer.get("2,1"), secondCellRef);
+  assert.deepEqual(drawnTiles, [
+    { x: 1, y: 1, ref: firstCellRef },
+    { x: 2, y: 1, ref: secondCellRef },
+  ]);
+
+  actions.handlePaintEnd();
+
+  assert.strictEqual(paintBufferVersion, 1);
+  assert.deepEqual(activeLayer.tiles["1,1"], firstCellRef);
+  assert.deepEqual(activeLayer.tiles["2,1"], secondCellRef);
+
+  actions.handlePlaceAnimation(3, 3, {
+    kind: "tileset-animation",
+    tilesetId: TILESET_ID,
+    animationId: ANIMATION_ID,
+  });
+
+  assert.deepEqual(activeLayer.tiles["3,3"], firstCellRef);
+  assert.strictEqual(activeLayer.tiles["4,3"], undefined);
 });

@@ -10,6 +10,7 @@ import {
   isGodotMapExportOptions,
 } from "@/features/import-export/lib/import-export-action-utils";
 import { exportGodotMapBundle } from "@/features/import-export/lib/import-export-godot";
+import { assertMapsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import type {
   ImportExportArchiveEntry,
   ImportExportFormatExportOptions,
@@ -43,6 +44,7 @@ export async function exportSelectedGodotMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  assertMapsHaveNoAnimations(project, selectedMaps, "Godot");
   const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   const allTilesets = [

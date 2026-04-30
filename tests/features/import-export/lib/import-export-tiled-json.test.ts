@@ -6,6 +6,7 @@ import {
 import {
   COMPLEX_TILED_OPTIONS,
   PNG_ASSET_RECORD,
+  createTestAnimationConfig,
   createComplexTiledFixture,
   createTestMap,
   createTestTileset,
@@ -16,6 +17,7 @@ import {
 
 test("exportTiledMapJsonBundle emits zero margin and spacing for external TSJ tilesets", async () => {
   const tileset = createTestTileset();
+  tileset.animations = createTestAnimationConfig();
   const { map, layer } = createTestMap(tileset);
 
   await withStubbedAssetLookup(
@@ -43,9 +45,26 @@ test("exportTiledMapJsonBundle emits zero margin and spacing for external TSJ ti
       const tilesetDocument = JSON.parse(decodeText(tilesetEntry.data)) as {
         margin?: number;
         spacing?: number;
+        properties?: Array<{ name?: string; value?: string }>;
+        tiles?: Array<{
+          id?: number;
+          animation?: Array<{ tileid?: number; duration?: number }>;
+        }>;
       };
       assert.strictEqual(tilesetDocument.margin, 0);
       assert.strictEqual(tilesetDocument.spacing, 0);
+      assert.ok(
+        tilesetDocument.properties?.some(
+          (property) => property.name === "2dtiler:animations",
+        ),
+      );
+      assert.deepEqual(tilesetDocument.tiles?.[0], {
+        id: 0,
+        animation: [
+          { tileid: 0, duration: 100 },
+          { tileid: 1, duration: 150 },
+        ],
+      });
     },
     {
       data: new Uint8Array([1, 2, 3]).buffer,

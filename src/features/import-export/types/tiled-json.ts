@@ -6,6 +6,17 @@ export interface TiledJsonProperty {
   value?: unknown;
 }
 
+export interface TiledJsonAnimationFrame {
+  tileid?: number;
+  duration?: number;
+}
+
+export interface TiledJsonTile {
+  id?: number;
+  animation?: TiledJsonAnimationFrame[];
+  properties?: TiledJsonProperty[];
+}
+
 export interface TiledJsonPoint {
   x?: number;
   y?: number;
@@ -97,6 +108,7 @@ export interface TiledJsonTileset {
   imagewidth?: number;
   imageheight?: number;
   properties?: TiledJsonProperty[];
+  tiles?: TiledJsonTile[];
 }
 
 export interface TiledJsonMap {

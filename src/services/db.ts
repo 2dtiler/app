@@ -169,6 +169,7 @@ export async function saveProject(
       data: JSON.stringify(project),
       updatedAt: Date.now(),
     });
+    if (!silent) window.dispatchEvent(new CustomEvent("project-save-success"));
   } finally {
     if (!silent) window.dispatchEvent(new CustomEvent("project-save-end"));
   }

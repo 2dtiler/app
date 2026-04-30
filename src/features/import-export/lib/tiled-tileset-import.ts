@@ -15,6 +15,10 @@ import {
   resolveBundlePath,
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import {
+  readJsonTilesetAnimationConfig,
+  readXmlTilesetAnimationConfig,
+} from "@/features/import-export/lib/tiled-animation-conversion";
 import type {
   ImportExportArchiveEntry,
   TiledImportMissingResource,
@@ -351,7 +355,7 @@ async function importTiledTilesetDefinition(
     },
   );
 
-  return {
+  const tileset: Tileset = {
     id: generateTilesetId(),
     name: definition.name ?? stripExtension(resolvedImagePath),
     groupId: "tmx-import" as Tileset["groupId"],
@@ -361,6 +365,32 @@ async function importTiledTilesetDefinition(
     imageHeight: importedImage.height,
     createdAt: Date.now(),
   };
+
+  const definitionFormat =
+    detectTiledTilesetFormatFromPath(definition.path) ?? format;
+  if (definitionFormat === "xml") {
+    const document = parseXmlDocument(
+      decodeText(requireProvidedEntry(providedEntries, definition.path)),
+    );
+    const animations = readXmlTilesetAnimationConfig(
+      document.documentElement,
+      tileset,
+    );
+    if (animations) {
+      tileset.animations = animations;
+    }
+  } else {
+    const jsonTileset = parseTiledJsonLikeTileset(
+      requireProvidedEntry(providedEntries, definition.path),
+      definitionFormat,
+    );
+    const animations = readJsonTilesetAnimationConfig(jsonTileset, tileset);
+    if (animations) {
+      tileset.animations = animations;
+    }
+  }
+
+  return tileset;
 }
 
 export async function prepareTiledTilesetImport(

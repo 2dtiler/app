@@ -28,6 +28,10 @@ import {
   getUniqueArchivePath,
   pickSingleFile,
 } from "@/features/import-export/lib/import-export-action-utils";
+import {
+  assertMapsHaveNoAnimations,
+  assertTilesetsHaveNoAnimations,
+} from "@/features/import-export/lib/animation-export-guards";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
@@ -204,6 +208,7 @@ export function useImportExportActions({
         selectedIdSet.has(map.id),
       );
       if (selectedMaps.length === 0) return false;
+      assertMapsHaveNoAnimations(state.project, selectedMaps, "Raster map");
 
       const allTilesets = [
         ...state.project.tilesets,
@@ -488,6 +493,7 @@ export function useImportExportActions({
         selectedIdSet.has(tileset.id),
       );
       if (selectedTilesets.length === 0) return false;
+      assertTilesetsHaveNoAnimations(selectedTilesets, "Raster tileset");
 
       if (selectedTilesets.length === 1) {
         const tileset = selectedTilesets[0];

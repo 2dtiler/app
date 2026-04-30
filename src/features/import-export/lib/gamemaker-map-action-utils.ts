@@ -5,6 +5,7 @@ import {
 } from "@/utils/format";
 import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { exportGameMakerMapBundle } from "@/features/import-export/lib/import-export-gamemaker";
+import { assertMapsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -46,6 +47,7 @@ export async function exportSelectedGameMakerMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  assertMapsHaveNoAnimations(project, selectedMaps, "GameMaker");
 
   const allTilesets = [
     ...project.tilesets,

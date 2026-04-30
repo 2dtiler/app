@@ -16,6 +16,7 @@ import type {
   TiledJsonObjectLayer,
   TiledJsonProperty,
   TiledJsonTileLayer,
+  TiledJsonTile,
   TiledJsonTileset,
 } from "@/types";
 
@@ -105,6 +106,37 @@ function convertLuaPropertiesToJson(propertiesValue: unknown) {
   }
 
   return entries.length > 0 ? entries : undefined;
+}
+
+function normalizeLuaTiles(tilesValue: unknown): TiledJsonTile[] | undefined {
+  const tiles = asArray(tilesValue).flatMap((tileValue) => {
+    const tile = asObject(tileValue);
+    if (!tile) return [];
+
+    const animation = asArray(tile.animation).flatMap((frameValue) => {
+      const frame = asObject(frameValue);
+      if (!frame) return [];
+
+      return [
+        {
+          tileid: readNumber(frame.tileid),
+          duration: readNumber(frame.duration),
+        },
+      ];
+    });
+
+    return [
+      {
+        id: readNumber(tile.id),
+        ...(animation.length > 0 ? { animation } : {}),
+        ...(convertLuaPropertiesToJson(tile.properties)
+          ? { properties: convertLuaPropertiesToJson(tile.properties) }
+          : {}),
+      },
+    ];
+  });
+
+  return tiles.length > 0 ? tiles : undefined;
 }
 
 function normalizeLuaPoints(pointsValue: unknown) {
@@ -309,6 +341,9 @@ function normalizeLuaTilesetBody(
       : {}),
     ...(convertLuaPropertiesToJson(tileset.properties)
       ? { properties: convertLuaPropertiesToJson(tileset.properties) }
+      : {}),
+    ...(normalizeLuaTiles(tileset.tiles)
+      ? { tiles: normalizeLuaTiles(tileset.tiles) }
       : {}),
   };
 }
@@ -516,6 +551,7 @@ function buildEmbeddedTiledLuaTileset(tileset: TiledJsonTileset) {
     ...(convertJsonPropertiesToLua(tileset.properties)
       ? { properties: convertJsonPropertiesToLua(tileset.properties) }
       : {}),
+    ...(tileset.tiles ? { tiles: tileset.tiles } : {}),
   };
 }
 

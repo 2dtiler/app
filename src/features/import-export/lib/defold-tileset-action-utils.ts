@@ -6,6 +6,7 @@ import {
 import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { getUniqueArchivePath } from "@/features/import-export/lib/import-export-action-utils";
 import { exportDefoldTilesourceBundle } from "@/features/import-export/lib/import-export-defold";
+import { assertTilesetsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import type {
   ImportExportArchiveEntry,
   ImportExportOptionId,
@@ -39,6 +40,7 @@ export async function exportSelectedDefoldTilesets(
   if (selectedTilesets.length === 0) {
     return false;
   }
+  assertTilesetsHaveNoAnimations(selectedTilesets, "Defold tileset");
   const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   if (selectedTilesets.length === 1) {

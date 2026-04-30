@@ -22,12 +22,11 @@ import {
   EditorWorkspaceDrawer,
 } from "@/features/map-editor/components/Layout/EditorLayouts";
 import { useEditorStore } from "@/hooks/use-editor-store";
-import { saveProject } from "@/services/db";
 import { clearTileEditorContext } from "@/features/map-editor/lib/tile-editor-context";
 import type { AppShellProps } from "@/features/app-shell/types";
 import type { EditorWorkspaceTab } from "@/features/map-editor/types/editor-layout";
 import type { ImportExportDialogMode } from "@/features/import-export/types";
-import { markEditorSaved } from "@/store/editor-store";
+import { saveProjectAndNotify } from "@/features/project-management/lib/project-save";
 
 const SettingsDialog = lazy(() =>
   import("@/components/dialogs/SettingsDialog").then((module) => ({
@@ -305,8 +304,9 @@ export function AppShell({
     function handleSaveEnd() {
       toast.success("Project saved");
     }
-    window.addEventListener("project-save-end", handleSaveEnd);
-    return () => window.removeEventListener("project-save-end", handleSaveEnd);
+    window.addEventListener("project-save-success", handleSaveEnd);
+    return () =>
+      window.removeEventListener("project-save-success", handleSaveEnd);
   }, []);
 
   const handleMapQuickExport = useEffectEvent(() => {
@@ -337,8 +337,7 @@ export function AppShell({
         onSaveProject={() => {
           const project = state.project;
           if (project) {
-            markEditorSaved();
-            void saveProject({ ...project, updatedAt: Date.now() });
+            void saveProjectAndNotify(project);
           }
         }}
         onOpenImportDialog={handleOpenImportDialog}

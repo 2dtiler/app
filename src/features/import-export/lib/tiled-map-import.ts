@@ -46,6 +46,7 @@ import {
   importTiledJsonMapEntries,
 } from "@/features/import-export/lib/tiled-map-import-json";
 import { prepareTiledLuaMapImport } from "@/features/import-export/lib/tiled-map-import-lua";
+import { readXmlTilesetAnimationConfig } from "@/features/import-export/lib/tiled-animation-conversion";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,
@@ -276,20 +277,25 @@ async function parseTilesetElement(
     },
   );
 
+  const tileset: Tileset = {
+    id: generateTilesetId(),
+    name:
+      tilesetElement.getAttribute("name") ?? stripExtension(resolvedImagePath),
+    groupId: "tmx-import" as Tileset["groupId"],
+    tileSize: tileWidth as TileSize,
+    assetId: importedImage.assetId,
+    imageWidth: importedImage.width,
+    imageHeight: importedImage.height,
+    createdAt: Date.now(),
+  };
+  const animations = readXmlTilesetAnimationConfig(tilesetElement, tileset);
+  if (animations) {
+    tileset.animations = animations;
+  }
+
   return {
     firstGid,
-    tileset: {
-      id: generateTilesetId(),
-      name:
-        tilesetElement.getAttribute("name") ??
-        stripExtension(resolvedImagePath),
-      groupId: "tmx-import" as Tileset["groupId"],
-      tileSize: tileWidth as TileSize,
-      assetId: importedImage.assetId,
-      imageWidth: importedImage.width,
-      imageHeight: importedImage.height,
-      createdAt: Date.now(),
-    },
+    tileset,
   };
 }
 

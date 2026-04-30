@@ -14,7 +14,6 @@ import {
   loadProjectPrefs,
   loadLastProjectId,
 } from "@/services/db";
-import {} from "@/services/db";
 import {
   hydrateZoomStoreForProject,
   saveCurrentProjectPrefs,
