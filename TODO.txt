@@ -1,3 +1,4 @@
+More advanced autotile
 Custom Animations i.e. water moving
 More advanced autotile: Wang Tile (Look at https://github.com/ruccho/FangAutoTile)
 
