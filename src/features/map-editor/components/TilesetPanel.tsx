@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  Film,
   Plus,
   Save,
   WandSparkles,
@@ -15,8 +16,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { TilesetCanvas } from "./TilesetCanvas";
 import { Button } from "@/components/ui/Button";
+import { Toggle } from "@/components/ui/Toggle";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
   Select,
@@ -47,7 +50,14 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/ContextMenu";
 import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
+import { AnimationDialog } from "@/features/map-editor/dialogs/AnimationDialog";
+import { AnimationsStrip } from "@/features/map-editor/components/animations/AnimationsStrip";
 import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
+import {
+  createEmptyAnimationConfig,
+  getTilesetAnimations,
+  normalizeTilesetAnimationConfig,
+} from "@/features/map-editor/lib/tileset-animations";
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
@@ -68,6 +78,7 @@ import {
   type TilesetId,
   type Tileset,
   type TilesetGroup,
+  type TilesetAnimation,
 } from "@/types";
 import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 
@@ -94,6 +105,7 @@ function syncActiveTilesetState(
   );
   draft.selectedTile = null;
   draft.selectedAutotileTerrain = null;
+  draft.selectedAnimation = null;
 }
 
 export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
@@ -113,6 +125,10 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [autotileDialogOpen, setAutotileDialogOpen] = useState(false);
+  const [animationsVisible, setAnimationsVisible] = useState(false);
+  const [animationDialogOpen, setAnimationDialogOpen] = useState(false);
+  const [editingAnimation, setEditingAnimation] =
+    useState<TilesetAnimation | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<TilesetId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isDropTargetActive, setIsDropTargetActive] = useState(false);
@@ -136,6 +152,11 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
     activeTileset,
     project?.tileSize ?? state.tileSize,
   );
+  const activeAnimations = getTilesetAnimations(activeTileset);
+  const activeAnimationId =
+    activeTileset && state.selectedAnimation?.tilesetId === activeTileset.id
+      ? state.selectedAnimation.animationId
+      : null;
 
   // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
 
@@ -154,7 +175,11 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
       if (!activeTileset) return;
       setState((draft) => {
         draft.selectedTile = { tilesetId: activeTileset.id, ...tile };
-        if (draft.currentTool === "select") {
+        draft.selectedAnimation = null;
+        if (
+          draft.currentTool === "select" ||
+          draft.currentTool === "animation"
+        ) {
           draft.currentTool = "paint";
         }
       });
@@ -317,6 +342,9 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         if (draft.selectedAutotileTerrain?.tilesetId === deleteTarget.id) {
           draft.selectedAutotileTerrain = null;
         }
+        if (draft.selectedAnimation?.tilesetId === deleteTarget.id) {
+          draft.selectedAnimation = null;
+        }
       });
     } else {
       // Clean up assets for all tilesets in the group
@@ -391,6 +419,11 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         autotile: source.autotile
           ? (JSON.parse(JSON.stringify(source.autotile)) as Tileset["autotile"])
           : undefined,
+        animations: source.animations
+          ? (JSON.parse(
+              JSON.stringify(source.animations),
+            ) as Tileset["animations"])
+          : undefined,
         createdAt: Date.now(),
       };
       draft.project.tilesets.push(tileset);
@@ -411,6 +444,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
       }
       draft.tileSize = tileSize;
       draft.selectedTile = null;
+      draft.selectedAnimation = null;
     });
   }
 
@@ -444,6 +478,99 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
     });
   }
 
+  function handleOpenNewAnimation() {
+    setEditingAnimation(null);
+    setAnimationDialogOpen(true);
+  }
+
+  function handleOpenEditAnimation(animation: TilesetAnimation) {
+    setEditingAnimation(animation);
+    setAnimationDialogOpen(true);
+  }
+
+  function handleSaveAnimation(animation: TilesetAnimation) {
+    if (!activeTileset) {
+      return;
+    }
+
+    setState((draft) => {
+      const tileset = draft.project?.tilesets.find(
+        (candidate) => candidate.id === activeTileset.id,
+      );
+      if (!tileset) return;
+
+      const config = normalizeTilesetAnimationConfig(
+        tileset.animations ?? createEmptyAnimationConfig(),
+      );
+      const existingIndex = config.animations.findIndex(
+        (candidate) => candidate.id === animation.id,
+      );
+
+      if (existingIndex >= 0) {
+        config.animations[existingIndex] = animation;
+      } else {
+        config.animations.push(animation);
+      }
+
+      tileset.animations = normalizeTilesetAnimationConfig(config);
+      draft.currentTool = "animation";
+      draft.selectedTile = null;
+      draft.selectedAutotileTerrain = null;
+      draft.selectedAnimation = {
+        tilesetId: tileset.id,
+        animationId: animation.id,
+      };
+    });
+  }
+
+  function handleSelectAnimation(animation: TilesetAnimation) {
+    if (!activeTileset) return;
+
+    setState((draft) => {
+      draft.currentTool = "animation";
+      draft.selectedTile = null;
+      draft.selectedAutotileTerrain = null;
+      draft.selectedAnimation = {
+        tilesetId: activeTileset.id,
+        animationId: animation.id,
+      };
+    });
+  }
+
+  function handleDeleteAnimation(animation: TilesetAnimation) {
+    if (!activeTileset) return;
+
+    setState((draft) => {
+      const tileset = draft.project?.tilesets.find(
+        (candidate) => candidate.id === activeTileset.id,
+      );
+      if (!tileset?.animations) return;
+
+      tileset.animations.animations = tileset.animations.animations.filter(
+        (candidate) => candidate.id !== animation.id,
+      );
+
+      for (const layer of draft.project?.layers ?? []) {
+        for (const ref of Object.values(layer.tiles)) {
+          if (
+            ref.tilesetId === activeTileset.id &&
+            ref.animationId === animation.id
+          ) {
+            delete ref.animationId;
+            delete ref.animationCellIndex;
+          }
+        }
+      }
+
+      if (draft.selectedAnimation?.animationId === animation.id) {
+        draft.selectedAnimation = null;
+        if (draft.currentTool === "animation") {
+          draft.currentTool = "paint";
+        }
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Tileset toolbar */}
@@ -454,6 +581,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
               variant="ghost"
               size="icon"
               className="h-6 w-6 shrink-0"
+              aria-label="Save project"
               onMouseDown={() => {
                 void saveProjectAndNotify(project);
               }}
@@ -488,6 +616,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
+                aria-label="Zoom tileset out"
                 onMouseDown={() => handleZoom(-1)}
               >
                 <ZoomOut className="h-3.5 w-3.5" />
@@ -504,6 +633,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
+                aria-label="Zoom tileset in"
                 onMouseDown={() => handleZoom(1)}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
@@ -518,6 +648,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
                 size="xs"
                 className="h-6 px-2.5"
                 disabled={!activeTileset}
+                aria-label="Open autotile setup"
                 onMouseDown={() => setAutotileDialogOpen(true)}
               >
                 <WandSparkles className="h-3.5 w-3.5" />
@@ -525,6 +656,24 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
               </Button>
             </TooltipTrigger>
             <TooltipContent>Autotile</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 px-2.5 text-[10px]"
+                disabled={!activeTileset}
+                pressed={animationsVisible}
+                aria-label="Toggle animations"
+                onPressedChange={setAnimationsVisible}
+              >
+                <Film className="h-3.5 w-3.5" />
+                Animations
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>Toggle Animations</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -555,6 +704,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 shrink-0 text-destructive"
+                aria-label={`Delete group ${activeGroup.name}`}
                 onMouseDown={() =>
                   setDeleteTarget({
                     type: "group",
@@ -698,21 +848,53 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onDragLeave={handleCanvasDragLeave}
         onDrop={handleCanvasDrop}
       >
-        <TilesetCanvas
-          assetId={activeTileset?.assetId ?? null}
-          tileSize={activeTileSize}
-          zoom={tilesetZoom}
-          onZoomChange={handleSetTilesetZoom}
-          selectedTile={canvasSelectedTile}
-          onTileSelect={handleTileSelect}
-          selectionMode="rectangle"
-          className="flex-1 min-h-0"
-          placeholder={
-            groupTilesets.length === 0
-              ? "Click '+ Add Tileset' to add a tileset"
-              : "Select a tileset tab"
-          }
-        />
+        {animationsVisible && activeTileset ? (
+          <Group orientation="horizontal" id="tileset-animation-layout">
+            <Panel defaultSize="24%" minSize="16%" maxSize="46%">
+              <AnimationsStrip
+                activeAnimationId={activeAnimationId}
+                animations={activeAnimations}
+                onAddAnimation={handleOpenNewAnimation}
+                onDeleteAnimation={handleDeleteAnimation}
+                onEditAnimation={handleOpenEditAnimation}
+                onSelectAnimation={handleSelectAnimation}
+                tileset={activeTileset}
+              />
+            </Panel>
+            <Separator
+              aria-label="Resize animations and tileset panels"
+              className="w-1 cursor-col-resize bg-border transition-colors hover:bg-primary/50"
+            />
+            <Panel defaultSize="76%" minSize="35%">
+              <TilesetCanvas
+                assetId={activeTileset.assetId}
+                tileSize={activeTileSize}
+                zoom={tilesetZoom}
+                onZoomChange={handleSetTilesetZoom}
+                selectedTile={canvasSelectedTile}
+                onTileSelect={handleTileSelect}
+                selectionMode="rectangle"
+                className="h-full min-h-0"
+              />
+            </Panel>
+          </Group>
+        ) : (
+          <TilesetCanvas
+            assetId={activeTileset?.assetId ?? null}
+            tileSize={activeTileSize}
+            zoom={tilesetZoom}
+            onZoomChange={handleSetTilesetZoom}
+            selectedTile={canvasSelectedTile}
+            onTileSelect={handleTileSelect}
+            selectionMode="rectangle"
+            className="flex-1 min-h-0"
+            placeholder={
+              groupTilesets.length === 0
+                ? "Click '+ Add Tileset' to add a tileset"
+                : "Select a tileset tab"
+            }
+          />
+        )}
         <div className="absolute bottom-3 right-3 z-20">
           <QuickExportButtonGroup
             buttonId="tileset-quick-export-button"
@@ -761,6 +943,17 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
           tileset={activeTileset}
         />
       )}
+
+      {activeTileset && animationDialogOpen ? (
+        <AnimationDialog
+          key={`${activeTileset.id}-${editingAnimation?.id ?? "new"}-${animationDialogOpen ? "open" : "closed"}`}
+          animation={editingAnimation}
+          open={animationDialogOpen}
+          onOpenChange={setAnimationDialogOpen}
+          onSave={handleSaveAnimation}
+          tileset={activeTileset}
+        />
+      ) : null}
 
       {/* Delete confirmation */}
       <AlertDialog

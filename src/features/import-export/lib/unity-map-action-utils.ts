@@ -5,6 +5,7 @@ import {
 } from "@/utils/format";
 import { resolveExportSaveStrategy } from "@/features/import-export/lib/export-save-strategy";
 import { exportUnityMapBundle } from "@/features/import-export/lib/import-export-unity";
+import { assertMapsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -40,6 +41,7 @@ export async function exportSelectedUnityMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  assertMapsHaveNoAnimations(project, selectedMaps, "Unity");
   const resolvedSaveStrategy = resolveExportSaveStrategy(saveStrategy);
 
   const allTilesets = [

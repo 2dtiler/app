@@ -25,6 +25,7 @@ import {
   prepareTiledMapBundleData,
   TILED_FORMAT_VERSION,
 } from "@/features/import-export/lib/import-export-tiled-shared";
+import { buildTiledJsonAnimationFields } from "@/features/import-export/lib/tiled-animation-conversion";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,
@@ -341,6 +342,7 @@ export async function buildTiledMapJsonBundleData(
           image: `../${imagePath}`,
           imagewidth: tileset.imageWidth,
           imageheight: tileset.imageHeight,
+          ...buildTiledJsonAnimationFields(tileset),
         }),
       });
       tilesetsJson.push({ firstgid: firstGid, source: tsjPath });
@@ -359,6 +361,7 @@ export async function buildTiledMapJsonBundleData(
       image: imagePath,
       imagewidth: tileset.imageWidth,
       imageheight: tileset.imageHeight,
+      ...buildTiledJsonAnimationFields(tileset),
     });
   }
 

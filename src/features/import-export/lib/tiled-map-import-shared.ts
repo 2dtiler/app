@@ -7,6 +7,7 @@ import {
   getTileColumns,
   normalizeBundlePath,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import { findAnimationCellForLocalTileId } from "@/features/map-editor/lib/tileset-animations";
 import type {
   ImportExportArchiveEntry,
   PropertyValue,
@@ -612,6 +613,11 @@ export function buildTilesFromGids(
       orientation,
     } as TileMapData);
 
+    const animationCell = findAnimationCellForLocalTileId(
+      tilesetEntry.tileset,
+      localId,
+    );
+
     tiles[`${cellX},${cellY}`] = {
       tilesetId: tilesetEntry.tileset.id,
       sx: (localId % columns) * tilesetEntry.tileset.tileSize,
@@ -621,6 +627,7 @@ export function buildTilesFromGids(
       rotation: transforms.rotation as TileRef["rotation"],
       flipX: transforms.flipX,
       flipY: transforms.flipY,
+      ...(animationCell ?? {}),
     };
   });
 

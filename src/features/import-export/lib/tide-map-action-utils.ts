@@ -9,6 +9,7 @@ import {
   getUniqueArchivePath,
 } from "@/features/import-export/lib/import-export-action-utils";
 import { exportTideMapBundle } from "@/features/import-export/lib/import-export-tide";
+import { assertMapsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import type {
   ImportExportArchiveEntry,
   ImportExportOptionId,
@@ -40,6 +41,7 @@ export async function exportSelectedTideMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  assertMapsHaveNoAnimations(project, selectedMaps, "tIDE");
 
   const allTilesets = [
     ...project.tilesets,

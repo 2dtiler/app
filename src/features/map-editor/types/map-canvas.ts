@@ -16,6 +16,7 @@ import type {
   TileMapData,
   TileRef,
 } from "@/types/map/schema";
+import type { TilesetAnimationDragPayload } from "@/features/map-editor/types/animations";
 import type {
   TextObjectEditingState,
   TextObjectMapObject,
@@ -109,6 +110,11 @@ export interface MapCanvasProps {
   selectedTile: EditorState["selectedTile"];
   onResizeMap: (request: MapResizeRequest) => void;
   onPaintTile: (gx: number, gy: number) => void;
+  onPlaceAnimation: (
+    gx: number,
+    gy: number,
+    payload: TilesetAnimationDragPayload,
+  ) => void;
   onPaintEnd: () => void;
   paintBuffer: Map<string, TileRef | null>;
   paintBufferVersion: number;

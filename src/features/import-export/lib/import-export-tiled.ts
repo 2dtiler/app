@@ -26,6 +26,7 @@ import {
   prepareTiledMapBundleData,
   TILED_FORMAT_VERSION,
 } from "@/features/import-export/lib/import-export-tiled-shared";
+import { appendXmlTilesetAnimationData } from "@/features/import-export/lib/tiled-animation-conversion";
 import type {
   ImportExportArchiveEntry,
   ImageLayer,
@@ -499,6 +500,7 @@ export async function exportTiledMapBundle(
       imageElement.setAttribute("width", String(tileset.imageWidth));
       imageElement.setAttribute("height", String(tileset.imageHeight));
       tsxElement.append(imageElement);
+      appendXmlTilesetAnimationData(tsxDocument, tsxElement, tileset);
 
       entries.push({
         path: tsxPath,
@@ -521,6 +523,7 @@ export async function exportTiledMapBundle(
     imageElement.setAttribute("width", String(tileset.imageWidth));
     imageElement.setAttribute("height", String(tileset.imageHeight));
     tilesetElement.append(imageElement);
+    appendXmlTilesetAnimationData(document, tilesetElement, tileset);
     mapElement.append(tilesetElement);
   }
 

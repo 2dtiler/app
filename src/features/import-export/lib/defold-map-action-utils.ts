@@ -10,6 +10,7 @@ import {
   isDefoldMapExportOptions,
 } from "@/features/import-export/lib/import-export-action-utils";
 import { exportDefoldMapBundle } from "@/features/import-export/lib/import-export-defold";
+import { assertMapsHaveNoAnimations } from "@/features/import-export/lib/animation-export-guards";
 import type {
   ImportExportArchiveEntry,
   ImportExportFormatExportOptions,
@@ -43,6 +44,7 @@ export async function exportSelectedDefoldMaps(
   if (selectedMaps.length === 0) {
     return false;
   }
+  assertMapsHaveNoAnimations(project, selectedMaps, "Defold");
 
   const allTilesets = [
     ...project.tilesets,

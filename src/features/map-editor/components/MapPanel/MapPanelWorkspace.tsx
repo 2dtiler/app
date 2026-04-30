@@ -41,6 +41,7 @@ export function MapPanelWorkspace({
   onOrientSelection,
   onPaintEnd,
   onPaintTile,
+  onPlaceAnimation,
   onPasteSelection,
   onResizeImageLayer,
   onResizeMap,
@@ -85,6 +86,7 @@ export function MapPanelWorkspace({
                 selectedTile={state.selectedTile}
                 onResizeMap={onResizeMap}
                 onPaintTile={onPaintTile}
+                onPlaceAnimation={onPlaceAnimation}
                 onPaintEnd={onPaintEnd}
                 paintBuffer={paintBuffer}
                 paintBufferVersion={paintBufferVersion}

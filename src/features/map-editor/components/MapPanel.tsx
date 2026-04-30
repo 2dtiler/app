@@ -201,6 +201,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
     handleMoveTiles,
     handlePaintEnd,
     handlePaintTile,
+    handlePlaceAnimation,
     handleResizeImageLayer,
     handleResizeObject,
     handleSelectionChange,
@@ -761,6 +762,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onOrientSelection={handleOrientSelection}
         onPaintEnd={handlePaintEnd}
         onPaintTile={handlePaintTile}
+        onPlaceAnimation={handlePlaceAnimation}
         onPasteSelection={handlePasteSelection}
         onResizeImageLayer={handleResizeImageLayer}
         onResizeMap={handleResizeMap}
