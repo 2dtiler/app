@@ -512,7 +512,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         config.animations.push(animation);
       }
 
-      tileset.animations = normalizeTilesetAnimationConfig(config);
+      tileset.animations = config;
       draft.currentTool = "animation";
       draft.selectedTile = null;
       draft.selectedAutotileTerrain = null;
@@ -661,9 +661,9 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
             <TooltipTrigger asChild>
               <Toggle
                 type="button"
-                variant="outline"
+                variant={animationsVisible ? "outline" : "default"}
                 size="sm"
-                className="h-6 px-2.5 text-[10px]"
+                className="h-6 min-w-0 shrink-0 gap-1 border border-border-visible bg-transparent px-2.5 font-mono font-normal uppercase tracking-[0.08em] text-[10px] text-muted-foreground transition-colors duration-200 ease-out shadow-none disabled:opacity-40 focus-visible:border-ring focus-visible:ring-0 aria-invalid:ring-0 dark:aria-invalid:ring-0 hover:border-foreground hover:bg-secondary hover:text-foreground data-[state=on]:bg-transparent [&_svg:not([class*='size-'])]:size-3"
                 disabled={!activeTileset}
                 pressed={animationsVisible}
                 aria-label="Toggle animations"

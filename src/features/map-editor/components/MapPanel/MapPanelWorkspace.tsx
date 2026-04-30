@@ -1,6 +1,7 @@
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/ContextMenu";
 import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 import { MapCanvas } from "@/features/map-editor/components/MapCanvas";
+import { resolveAnimationPlacementStamp } from "@/features/map-editor/lib/tileset-animations";
 import { MapCanvasContextMenuContent } from "./MapCanvasContextMenuContent";
 import type { MapPanelWorkspaceProps } from "@/features/map-editor/types/map-panel";
 import type { ObjectId, TileMapData } from "@/types";
@@ -56,6 +57,18 @@ export function MapPanelWorkspace({
   state,
   textObjectEditing,
 }: MapPanelWorkspaceProps) {
+  const canvasTilesets = [
+    ...project.tilesets,
+    ...(project.overrideTilesets ?? []),
+  ];
+  const selectedAnimationStamp = state.selectedAnimation
+    ? resolveAnimationPlacementStamp(
+        canvasTilesets,
+        state.selectedAnimation.tilesetId,
+        state.selectedAnimation.animationId,
+      )
+    : null;
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -71,10 +84,7 @@ export function MapPanelWorkspace({
               <MapCanvas
                 map={flatMap as TileMapData}
                 layers={flatLayers}
-                tilesets={[
-                  ...project.tilesets,
-                  ...(project.overrideTilesets ?? []),
-                ]}
+                tilesets={canvasTilesets}
                 zoom={mapZoom}
                 activeLayerId={state.activeLayerId}
                 currentTool={state.currentTool}
@@ -84,6 +94,7 @@ export function MapPanelWorkspace({
                 brushSize={state.brushSize}
                 selectedTileSize={state.tileSize}
                 selectedTile={state.selectedTile}
+                selectedAnimationStamp={selectedAnimationStamp}
                 onResizeMap={onResizeMap}
                 onPaintTile={onPaintTile}
                 onPlaceAnimation={onPlaceAnimation}

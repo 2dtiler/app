@@ -92,6 +92,7 @@ export function useSceneInteraction({
   mapW,
   mapH,
   selectedTile,
+  selectedAnimationStamp,
 }: UseSceneInteractionParams): UseSceneInteractionReturn {
   const isPaintingRef = useRef(false);
   const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -312,6 +313,8 @@ export function useSceneInteraction({
         currentTool === "paint" && selectedTile
           ? createTileStamp(selectedTile, selectedTileSize)
           : null;
+      const animationPreviewStamp =
+        currentTool === "animation" ? selectedAnimationStamp : null;
       let fillPreviewRegion: [number, number][] = [];
 
       if (currentTool === "fill" && canPreviewFill && activeLayer) {
@@ -350,6 +353,10 @@ export function useSceneInteraction({
       }
 
       const brushNum = parseInt(brushSize);
+
+      if (currentTool === "animation" && !animationPreviewStamp) {
+        return;
+      }
 
       if (isBlockedDrawPreview) {
         const previewWidth =
@@ -402,12 +409,14 @@ export function useSceneInteraction({
         return;
       }
 
-      const previewWidth =
-        selectedStamp && isMultiTileStamp(selectedStamp)
+      const previewWidth = animationPreviewStamp
+        ? animationPreviewStamp.widthInTiles
+        : selectedStamp && isMultiTileStamp(selectedStamp)
           ? selectedStamp.width
           : brushNum;
-      const previewHeight =
-        selectedStamp && isMultiTileStamp(selectedStamp)
+      const previewHeight = animationPreviewStamp
+        ? animationPreviewStamp.heightInTiles
+        : selectedStamp && isMultiTileStamp(selectedStamp)
           ? selectedStamp.height
           : brushNum;
       for (let dy = 0; dy < previewHeight; dy++) {
@@ -492,6 +501,7 @@ export function useSceneInteraction({
       overlayCanvasRef,
       scaledTile,
       selectedTile,
+      selectedAnimationStamp,
       selectedTileSize,
       zoom,
     ],

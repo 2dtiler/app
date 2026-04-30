@@ -15,10 +15,7 @@ import {
   getPaintableAutotileTerrainById,
   resolveAutotileWrites as resolveAutotileWriteSet,
 } from "@/features/map-editor/lib/autotile";
-import {
-  createAnimationPlacementStamp,
-  getTilesetAnimationById,
-} from "@/features/map-editor/lib/tileset-animations";
+import { resolveAnimationPlacementStamp } from "@/features/map-editor/lib/tileset-animations";
 import {
   clampTextObjectBounds,
   getDefaultTextObjectProperties,
@@ -52,19 +49,11 @@ export function useMapPanelCanvasActions({
 }: MapPanelCanvasActionParams): MapPanelCanvasActionResult {
   const getAnimationStamp = useCallback(
     (payload?: TilesetAnimationDragPayload) => {
-      const selectedAnimation = payload ?? state.selectedAnimation;
-      if (!selectedAnimation) return null;
-
-      const tileset = project?.tilesets.find(
-        (candidate) => candidate.id === selectedAnimation.tilesetId,
+      return resolveAnimationPlacementStamp(
+        project?.tilesets,
+        payload?.tilesetId ?? state.selectedAnimation?.tilesetId,
+        payload?.animationId ?? state.selectedAnimation?.animationId,
       );
-      const animation = getTilesetAnimationById(
-        tileset,
-        selectedAnimation.animationId,
-      );
-
-      if (!tileset || !animation) return null;
-      return createAnimationPlacementStamp(tileset, animation);
     },
     [project?.tilesets, state.selectedAnimation],
   );

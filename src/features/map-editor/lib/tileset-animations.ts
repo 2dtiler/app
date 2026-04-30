@@ -187,6 +187,20 @@ export function createAnimationPlacementStamp(
   };
 }
 
+export function resolveAnimationPlacementStamp(
+  tilesets: readonly Tileset[] | null | undefined,
+  tilesetId: TilesetId | null | undefined,
+  animationId: TilesetAnimationId | null | undefined,
+): AnimationPlacementStamp | null {
+  if (!tilesetId || !animationId) return null;
+
+  const tileset = tilesets?.find((candidate) => candidate.id === tilesetId);
+  const animation = getTilesetAnimationById(tileset, animationId);
+
+  if (!tileset || !animation) return null;
+  return createAnimationPlacementStamp(tileset, animation);
+}
+
 export function resolveAnimationFrame(
   animation: TilesetAnimation,
   elapsedMs: number,

@@ -18,6 +18,7 @@ import {
   hasTilesetAnimationDefinitions,
   normalizeTilesetAnimationConfig,
   parseAnimationDragPayload,
+  resolveAnimationPlacementStamp,
   resolveAnimationFrame,
   resolveAnimatedTileRef,
 } from "@/features/map-editor/lib/tileset-animations";
@@ -98,6 +99,39 @@ test("createAnimationPlacementStamp keeps multi-cell animation metadata", () => 
       { dx: 0, dy: 0, animationCellIndex: 0, sx: 0, sy: 0 },
       { dx: 1, dy: 0, animationCellIndex: 1, sx: 16, sy: 0 },
     ],
+  );
+});
+
+test("resolveAnimationPlacementStamp returns the selected animation footprint", () => {
+  const { animation, tileset } = createAnimatedTileset();
+
+  const stamp = resolveAnimationPlacementStamp(
+    [tileset],
+    tileset.id,
+    animation.id,
+  );
+
+  assert.ok(stamp);
+  assert.strictEqual(stamp.widthInTiles, animation.widthInTiles);
+  assert.strictEqual(stamp.heightInTiles, animation.heightInTiles);
+  assert.deepEqual(
+    stamp.cells.map((cell) => ({ dx: cell.dx, dy: cell.dy })),
+    [
+      { dx: 0, dy: 0 },
+      { dx: 1, dy: 0 },
+    ],
+  );
+  assert.strictEqual(
+    resolveAnimationPlacementStamp([tileset], tileset.id, null),
+    null,
+  );
+  assert.strictEqual(
+    resolveAnimationPlacementStamp(
+      [tileset],
+      tileset.id,
+      "missing" as TilesetAnimation["id"],
+    ),
+    null,
   );
 });
 
@@ -191,6 +225,44 @@ test("resolveAnimatedTileRef advances each placed animation cell by elapsed time
     elapsedInFrameMs: 75,
   });
   assert.deepEqual(resolveAnimationFrame({ ...animation, frames: [] }, 50), {
+    frameIndex: 0,
+    elapsedInFrameMs: 0,
+  });
+});
+
+test("resolveAnimationFrame respects each frame duration", () => {
+  const { animation } = createAnimatedTileset();
+  const unevenAnimation = {
+    ...animation,
+    frames: [
+      {
+        ...animation.frames[0]!,
+        durationMs: 80,
+      },
+      {
+        ...animation.frames[1]!,
+        durationMs: 240,
+      },
+    ],
+  } satisfies TilesetAnimation;
+
+  assert.deepEqual(resolveAnimationFrame(unevenAnimation, 79), {
+    frameIndex: 0,
+    elapsedInFrameMs: 79,
+  });
+  assert.deepEqual(resolveAnimationFrame(unevenAnimation, 80), {
+    frameIndex: 1,
+    elapsedInFrameMs: 0,
+  });
+  assert.deepEqual(resolveAnimationFrame(unevenAnimation, 239), {
+    frameIndex: 1,
+    elapsedInFrameMs: 159,
+  });
+  assert.deepEqual(resolveAnimationFrame(unevenAnimation, 319), {
+    frameIndex: 1,
+    elapsedInFrameMs: 239,
+  });
+  assert.deepEqual(resolveAnimationFrame(unevenAnimation, 320), {
     frameIndex: 0,
     elapsedInFrameMs: 0,
   });

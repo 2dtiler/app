@@ -77,6 +77,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     brushSize,
     selectedTileSize,
     selectedTile,
+    selectedAnimationStamp,
     onResizeMap,
     onPaintTile,
     onPlaceAnimation,
@@ -337,6 +338,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onCancelPendingObject,
     onDoubleClickObject,
     selectedTile,
+    selectedAnimationStamp,
     overlayCanvasRef,
     scaledTile,
     mapW,
@@ -388,7 +390,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   );
 
   const scaleImageLayer = useCallback(
-    (imgLayer: ReturnType<typeof getDisplayImageLayer>) => ({
+    (imgLayer: ImageLayer): ImageLayer => ({
       ...imgLayer,
       x: imgLayer.x * zoom,
       y: imgLayer.y * zoom,

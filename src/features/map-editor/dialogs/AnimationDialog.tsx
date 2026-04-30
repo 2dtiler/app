@@ -202,232 +202,251 @@ export function AnimationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(42rem,92vh)] max-w-[min(76rem,96vw)] flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>
-            {animation ? "Edit Animation" : "Create Animation"}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="flex h-[min(42rem,92vh)] sm:max-w-7xl flex-col overflow-hidden">
+        <form
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSave();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {animation ? "Edit Animation" : "Create Animation"}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1.05fr)_minmax(23rem,1fr)]">
-          <section className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-medium">Tileset Picker</h3>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Zoom tileset picker out"
-                  onMouseDown={() =>
-                    setZoom((current) => Math.max(0.5, current - 0.5))
-                  }
-                >
-                  <ZoomOut />
-                </Button>
-                <span className="w-10 text-center text-[11px] text-muted-foreground">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Zoom tileset picker in"
-                  onMouseDown={() => setZoom((current) => current + 0.5)}
-                >
-                  <ZoomIn />
-                </Button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-              <TilesetCanvas
-                assetId={tileset.assetId}
-                tileSize={tileset.tileSize}
-                zoom={zoom}
-                onZoomChange={setZoom}
-                selectedTile={activeCell}
-                onTileSelect={assignTileToActiveCell}
-                selectionMode="single"
-                className="h-full min-h-0"
-              />
-            </div>
-          </section>
-
-          <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-            <div className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="animation-name">Name</Label>
-                <Input
-                  id="animation-name"
-                  name="animation-name"
-                  value={draft.name}
-                  onChange={(event) => {
-                    setDraft((current) => ({
-                      ...current,
-                      name: event.target.value,
-                      updatedAt: Date.now(),
-                    }));
-                    setError(null);
-                  }}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="animation-grid-width">Grid Width</Label>
-                <Input
-                  id="animation-grid-width"
-                  name="animation-grid-width"
-                  type="number"
-                  min={1}
-                  max={MAX_GRID_SIZE}
-                  value={draft.widthInTiles}
-                  onChange={(event) =>
-                    updateGridSize(
-                      Number(event.target.value),
-                      draft.heightInTiles,
-                    )
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="animation-grid-height">Grid Height</Label>
-                <Input
-                  id="animation-grid-height"
-                  name="animation-grid-height"
-                  type="number"
-                  min={1}
-                  max={MAX_GRID_SIZE}
-                  value={draft.heightInTiles}
-                  onChange={(event) =>
-                    updateGridSize(
-                      draft.widthInTiles,
-                      Number(event.target.value),
-                    )
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="animation-frame-count">Frame Count</Label>
-                <Input
-                  id="animation-frame-count"
-                  name="animation-frame-count"
-                  type="number"
-                  min={1}
-                  max={MAX_FRAME_COUNT}
-                  value={draft.frames.length}
-                  onChange={(event) =>
-                    updateFrameCount(Number(event.target.value))
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="animation-frame-duration">Frame Duration</Label>
-                <Input
-                  id="animation-frame-duration"
-                  name="animation-frame-duration"
-                  type="number"
-                  min={1}
-                  max={9999}
-                  value={activeFrame?.durationMs ?? DEFAULT_FRAME_DURATION_MS}
-                  onChange={(event) =>
-                    updateActiveFrameDuration(Number(event.target.value))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border p-3">
-              <div className="mb-3 flex flex-wrap items-center gap-1">
-                {draft.frames.map((frame, frameIndex) => (
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1.05fr)_minmax(23rem,1fr)]">
+            <section className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-medium">Tileset Picker</h3>
+                <div className="flex items-center gap-1">
                   <Button
-                    key={frameIndex}
                     type="button"
-                    variant={
-                      frameIndex === activeFrameIndex ? "default" : "outline"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Zoom tileset picker out"
+                    onClick={() =>
+                      setZoom((current) => Math.max(0.5, current - 0.5))
                     }
-                    size="xs"
-                    aria-label={`Select frame ${frameIndex + 1}`}
-                    onMouseDown={() => setActiveFrameIndex(frameIndex)}
                   >
-                    {frameIndex + 1}
+                    <ZoomOut />
                   </Button>
-                ))}
+                  <span className="w-10 text-center text-[11px] text-muted-foreground">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Zoom tileset picker in"
+                    onClick={() =>
+                      setZoom((current) => Math.min(8, current + 0.5))
+                    }
+                  >
+                    <ZoomIn />
+                  </Button>
+                </div>
               </div>
 
-              <div
-                role="grid"
-                aria-label="Animation frame cells"
-                className="grid gap-2"
-                style={{
-                  gridTemplateColumns: `repeat(${draft.widthInTiles}, minmax(0, 1fr))`,
-                }}
-              >
-                {gridCells.map((cellIndex) => {
-                  const cell = activeFrame?.cells[cellIndex] ?? null;
-                  const isActive = cellIndex === activeCellIndex;
-
-                  return (
-                    <button
-                      key={cellIndex}
-                      type="button"
-                      role="gridcell"
-                      aria-label={`Select animation cell ${cellIndex + 1}`}
-                      aria-selected={isActive}
-                      className={cn(
-                        "flex min-w-0 items-center justify-center rounded-lg border border-border bg-muted/20 p-1 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
-                        isActive && "border-primary bg-primary/10",
-                      )}
-                      onMouseDown={() => setActiveCellIndex(cellIndex)}
-                    >
-                      <AutotileTilePreview
-                        image={image}
-                        region={cell}
-                        size={42}
-                        emptyLabel="Empty"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border p-3">
-              <h3 className="mb-3 text-sm font-medium">Preview</h3>
-              <div className="flex min-h-32 items-center justify-center overflow-hidden rounded-lg bg-muted/20 p-3">
-                <AnimationPreviewCanvas
-                  animation={draft}
-                  animated
-                  cellSize={48}
-                  image={image}
-                  className="max-h-56 max-w-full"
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+                <TilesetCanvas
+                  assetId={tileset.assetId}
+                  tileSize={tileset.tileSize}
+                  selectedTile={activeCell}
+                  zoom={zoom}
+                  onZoomChange={setZoom}
+                  onTileSelect={assignTileToActiveCell}
+                  selectionMode="single"
+                  className="h-full min-h-0"
                 />
               </div>
-            </div>
+            </section>
 
-            {error ? (
-              <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </p>
-            ) : null}
-          </section>
-        </div>
+            <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+              <div className="grid gap-3 rounded-xl border border-border p-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="animation-name">Name</Label>
+                  <Input
+                    id="animation-name"
+                    name="animation-name"
+                    value={draft.name}
+                    onChange={(event) => {
+                      setDraft((current) => ({
+                        ...current,
+                        name: event.target.value,
+                        updatedAt: Date.now(),
+                      }));
+                      setError(null);
+                    }}
+                  />
+                </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onMouseDown={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="button" onMouseDown={handleSave}>
-            Save Animation
-          </Button>
-        </DialogFooter>
+                <div>
+                  <Label htmlFor="animation-grid-width">Grid Width</Label>
+                  <Input
+                    id="animation-grid-width"
+                    name="animation-grid-width"
+                    type="number"
+                    min={1}
+                    max={MAX_GRID_SIZE}
+                    value={draft.widthInTiles}
+                    onChange={(event) =>
+                      updateGridSize(
+                        Number(event.target.value),
+                        draft.heightInTiles,
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="animation-grid-height">Grid Height</Label>
+                  <Input
+                    id="animation-grid-height"
+                    name="animation-grid-height"
+                    type="number"
+                    min={1}
+                    max={MAX_GRID_SIZE}
+                    value={draft.heightInTiles}
+                    onChange={(event) =>
+                      updateGridSize(
+                        draft.widthInTiles,
+                        Number(event.target.value),
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label htmlFor="animation-frame-count">Frame Count</Label>
+                  <Input
+                    id="animation-frame-count"
+                    name="animation-frame-count"
+                    type="number"
+                    min={1}
+                    max={MAX_FRAME_COUNT}
+                    value={draft.frames.length}
+                    onChange={(event) =>
+                      updateFrameCount(Number(event.target.value))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border p-3">
+                <div className="mb-3 flex flex-wrap items-center gap-1">
+                  {draft.frames.map((_, frameIndex) => (
+                    <Button
+                      key={frameIndex}
+                      type="button"
+                      variant={
+                        frameIndex === activeFrameIndex ? "default" : "outline"
+                      }
+                      size="xs"
+                      aria-label={`Select frame ${frameIndex + 1}`}
+                      onClick={() => setActiveFrameIndex(frameIndex)}
+                    >
+                      {frameIndex + 1}
+                    </Button>
+                  ))}
+                </div>
+
+                <div
+                  role="grid"
+                  aria-label="Animation frame cells"
+                  className="grid gap-2"
+                  style={{
+                    gridTemplateColumns: `repeat(${draft.widthInTiles}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {gridCells.map((cellIndex) => {
+                    const cell = activeFrame?.cells[cellIndex] ?? null;
+                    const isActive = cellIndex === activeCellIndex;
+
+                    return (
+                      <button
+                        key={cellIndex}
+                        type="button"
+                        role="gridcell"
+                        aria-label={`Select animation cell ${cellIndex + 1}`}
+                        aria-selected={isActive}
+                        className={cn(
+                          "flex min-w-0 items-center justify-center rounded-lg border border-border bg-muted/20 p-1 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
+                          isActive && "border-primary bg-primary/10",
+                        )}
+                        onClick={() => setActiveCellIndex(cellIndex)}
+                      >
+                        <AutotileTilePreview
+                          image={image}
+                          region={cell}
+                          size={42}
+                          emptyLabel="Empty"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border p-3">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-start">
+                  <div>
+                    <h3 className="mb-3 text-sm font-medium">Preview</h3>
+                    <div className="flex min-h-32 items-center justify-center overflow-hidden rounded-lg bg-muted/20 p-3">
+                      <AnimationPreviewCanvas
+                        animation={draft}
+                        animated
+                        cellSize={48}
+                        image={image}
+                        className="max-h-56 max-w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="animation-frame-duration">
+                      Selected Frame Duration
+                    </Label>
+                    <Input
+                      id="animation-frame-duration"
+                      name="animation-frame-duration"
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={
+                        activeFrame?.durationMs ?? DEFAULT_FRAME_DURATION_MS
+                      }
+                      onChange={(event) =>
+                        updateActiveFrameDuration(Number(event.target.value))
+                      }
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Applies to frame {activeFrameIndex + 1} only.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {error ? (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {error}
+                </p>
+              ) : null}
+            </section>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">Save Animation</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

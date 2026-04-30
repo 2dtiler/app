@@ -16,7 +16,10 @@ import type {
   TileMapData,
   TileRef,
 } from "@/types/map/schema";
-import type { TilesetAnimationDragPayload } from "@/features/map-editor/types/animations";
+import type {
+  AnimationPlacementStamp,
+  TilesetAnimationDragPayload,
+} from "@/features/map-editor/types/animations";
 import type {
   TextObjectEditingState,
   TextObjectMapObject,
@@ -108,6 +111,7 @@ export interface MapCanvasProps {
   brushSize: EditorState["brushSize"];
   selectedTileSize: EditorState["tileSize"];
   selectedTile: EditorState["selectedTile"];
+  selectedAnimationStamp: AnimationPlacementStamp | null;
   onResizeMap: (request: MapResizeRequest) => void;
   onPaintTile: (gx: number, gy: number) => void;
   onPlaceAnimation: (
@@ -417,6 +421,7 @@ export interface UseSceneInteractionParams {
   mapW: number;
   mapH: number;
   selectedTile: TileRef | null;
+  selectedAnimationStamp: AnimationPlacementStamp | null;
 }
 
 export interface UseSceneInteractionReturn {
