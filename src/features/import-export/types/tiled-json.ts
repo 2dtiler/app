@@ -6,6 +6,26 @@ export interface TiledJsonProperty {
   value?: unknown;
 }
 
+export interface TiledJsonWangColor {
+  name?: string;
+  color?: string;
+  tile?: number;
+  probability?: number;
+}
+
+export interface TiledJsonWangTile {
+  tileid?: number;
+  wangid?: number[];
+}
+
+export interface TiledJsonWangSet {
+  name?: string;
+  type?: string;
+  tile?: number;
+  colors?: TiledJsonWangColor[];
+  wangtiles?: TiledJsonWangTile[];
+}
+
 export interface TiledJsonPoint {
   x?: number;
   y?: number;
@@ -97,6 +117,7 @@ export interface TiledJsonTileset {
   imagewidth?: number;
   imageheight?: number;
   properties?: TiledJsonProperty[];
+  wangsets?: TiledJsonWangSet[];
 }
 
 export interface TiledJsonMap {

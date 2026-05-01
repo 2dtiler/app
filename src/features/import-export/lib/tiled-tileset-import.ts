@@ -15,10 +15,15 @@ import {
   resolveBundlePath,
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-wang";
 import type {
   ImportExportArchiveEntry,
   TiledImportMissingResource,
   TiledJsonTileset,
+  TiledJsonWangSet,
   TiledTilesetFormat,
   TiledTilesetImportPreparationResult,
   TileSize,
@@ -35,6 +40,7 @@ interface ParsedTiledTilesetDefinition {
   imageSource?: string;
   imageWidth?: number;
   imageHeight?: number;
+  wangsets?: TiledJsonWangSet[];
 }
 
 function getExternalTilesetKind(
@@ -193,6 +199,7 @@ function loadXmlTilesetDefinition(
     imageHeight: imageElement
       ? Number(imageElement.getAttribute("height") ?? "0") || undefined
       : undefined,
+    wangsets: readTiledXmlWangSets(tilesetElement),
   };
 }
 
@@ -250,6 +257,7 @@ function loadJsonLikeTilesetDefinition(
     imageSource: tileset.image,
     imageWidth: Number(tileset.imagewidth ?? 0) || undefined,
     imageHeight: Number(tileset.imageheight ?? 0) || undefined,
+    wangsets: tileset.wangsets,
   };
 }
 
@@ -351,7 +359,7 @@ async function importTiledTilesetDefinition(
     },
   );
 
-  return {
+  const importedTileset = {
     id: generateTilesetId(),
     name: definition.name ?? stripExtension(resolvedImagePath),
     groupId: "tmx-import" as Tileset["groupId"],
@@ -360,6 +368,13 @@ async function importTiledTilesetDefinition(
     imageWidth: importedImage.width,
     imageHeight: importedImage.height,
     createdAt: Date.now(),
+  };
+
+  return {
+    ...importedTileset,
+    autotile:
+      buildAutotileFromTiledWangSets(importedTileset, definition.wangsets) ??
+      undefined,
   };
 }
 

@@ -29,10 +29,11 @@ It is designed to replace large parts of the day-to-day workflow usually split a
 ### Autotile and terrain tools
 
 - Configure autotile terrain rules on tilesets
-- Use standard, diagonal, and sparse autotile preset workflows
+- Use standard, diagonal, sparse, and 16-slot Wang autotile preset workflows
 - Paint terrain from the Autotile tool so neighboring tiles update together
 - Use terrain fill when a region should be filled from reusable weighted tile sets
 - Preserve native autotile metadata through 2D Tiler project and tileset files
+- Round-trip supported two-color edge Wang metadata through Tiled tileset files
 
 ### Image editor and palette tools
 

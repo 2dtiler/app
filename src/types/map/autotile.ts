@@ -35,7 +35,8 @@ export type AutotilePresetId =
   | "edges-only"
   | "edges-corners"
   | "full-corners"
-  | "blob-47";
+  | "blob-47"
+  | "wang-tiles";
 
 export type AutotilePatternSlotId = string;
 

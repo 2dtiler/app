@@ -3,6 +3,7 @@ import type {
   AutotileTerrain,
   AutotileTileRegion,
 } from "@/types";
+import type { AutotilePatternSlotDefinition } from "@/features/map-editor/types/autotile-builder";
 import type { AutotileSelectionTarget } from "@/features/map-editor/types/dialogs";
 
 export type AutotileAssignmentGroupId = "edges-outside" | "inside-corners";
@@ -26,6 +27,7 @@ export interface AutotileTilePreviewProps {
   size?: number;
   className?: string;
   emptyLabel?: string;
+  ariaLabel?: string;
 }
 
 export interface AutotilePatternGroupCardProps {
@@ -48,4 +50,21 @@ export interface AutotileTerrainSidebarProps {
   onCreateRule: () => void;
   onDeleteRule: (terrainId: AutotileTerrain["id"]) => void;
   onSelectRule: (terrainId: AutotileTerrain["id"]) => void;
+}
+
+export interface AutotileWangPatternDiagramProps {
+  definition: AutotilePatternSlotDefinition;
+  className?: string;
+}
+
+export interface AutotileWangPatternEditorProps {
+  terrain: AutotileTerrain;
+  tilesetImage: HTMLImageElement | null;
+  patternDefinitions: readonly AutotilePatternSlotDefinition[];
+  requiredSlotIds: readonly AutotilePatternSlotId[];
+  selectionTarget: AutotileSelectionTarget | null;
+  onSelectSlot: (slotId: AutotilePatternSlotId) => void;
+  onClearSlot: (slotId: AutotilePatternSlotId) => void;
+  onSelectPaintTile: () => void;
+  onClearPaintTile: () => void;
 }

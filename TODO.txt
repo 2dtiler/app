@@ -1,5 +1,7 @@
-More advanced autotile
-Custom Animations i.e. water moving
+More advanced autotile:
+  Wang Tiles 16 slot - implemented
+  Wang Tiles Named Colors
+  Godot Wang Tiles Support
 
 Support Tiled Project Import/Export
 Godot project Import/Export
@@ -21,6 +23,7 @@ AI Asset Generation:
 
 Ad Marketplace for selling/buying tilesets etc.
 Exploration:
+  Inkarnate
   Defold
   Ogmo Editor
   Universal lpc spritesheet generator

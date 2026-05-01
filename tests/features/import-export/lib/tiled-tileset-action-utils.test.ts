@@ -11,6 +11,7 @@ import {
   createSaveStrategy,
   expectToThrow,
 } from "./action-utils-test-support";
+import type { AutotileConfig } from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
 
@@ -74,6 +75,25 @@ function createTestProject() {
     objects: [],
     overrideTilesets: [],
   };
+}
+
+function createWangAutotileConfig() {
+  return {
+    version: 1,
+    preset: "wang-tiles",
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land",
+        paletteTile: { sx: 16, sy: 0, sw: 16, sh: 16 },
+        patternTiles: {
+          "wang-00": { sx: 0, sy: 0, sw: 16, sh: 16 },
+          "wang-0f": { sx: 16, sy: 0, sw: 16, sh: 16 },
+        },
+      },
+    ],
+    rules: [],
+  } as AutotileConfig;
 }
 
 const { getAssetMock } = vi.hoisted(() => ({
@@ -241,4 +261,49 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
     assert.match(luaText, /margin\s*=\s*0/);
     assert.match(luaText, /spacing\s*=\s*0/);
   }
+});
+
+test("exportSelectedTiledTilesets includes Wang metadata in JSON tilesets", async () => {
+  const project = createTestProject();
+  const tileset = project.tilesets[0]!;
+  tileset.imageWidth = 64;
+  tileset.autotile = createWangAutotileConfig();
+  let archive: Uint8Array | null = null;
+
+  const didExport = await exportSelectedTiledTilesets(
+    project,
+    [tileset.id],
+    "tileset-tiled",
+    { format: "json" },
+    {
+      saveBlob: async () => true,
+      saveByteArray: async (data) => {
+        archive = data;
+        return true;
+      },
+    },
+  );
+
+  assert.strictEqual(didExport, true);
+  assert.ok(archive);
+
+  const files = unzipSync(archive);
+  const jsonEntry = Object.entries(files).find(([path]) =>
+    path.endsWith(".tsj"),
+  );
+  assert.ok(jsonEntry);
+
+  const document = JSON.parse(decodeText(jsonEntry[1])) as {
+    wangsets?: Array<{
+      type?: string;
+      colors?: unknown[];
+      wangtiles?: Array<{ tileid?: number; wangid?: number[] }>;
+    }>;
+  };
+  assert.strictEqual(document.wangsets?.[0]?.type, "edge");
+  assert.strictEqual(document.wangsets?.[0]?.colors?.length, 2);
+  assert.deepEqual(document.wangsets?.[0]?.wangtiles?.[0], {
+    tileid: 0,
+    wangid: [1, 0, 1, 0, 1, 0, 1, 0],
+  });
 });

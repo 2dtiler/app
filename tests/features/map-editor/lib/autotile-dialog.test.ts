@@ -33,6 +33,8 @@ test("getAutotileAssignmentGroups only shows inside corners for full corners", (
   ]);
   assert.deepEqual(getAutotileAssignmentGroups("blob-47"), []);
   assert.strictEqual(getAutotileActiveSlotIds("blob-47").length, 47);
+  assert.deepEqual(getAutotileAssignmentGroups("wang-tiles"), []);
+  assert.strictEqual(getAutotileActiveSlotIds("wang-tiles").length, 16);
 });
 
 test("assignTileToSelectionTarget updates terrain coverage counts", () => {

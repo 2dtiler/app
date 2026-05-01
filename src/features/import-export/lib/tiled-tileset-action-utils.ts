@@ -23,6 +23,10 @@ import {
   getTileColumns,
   getTileCount,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import {
+  appendTiledXmlWangSets,
+  buildTiledJsonWangSets,
+} from "@/features/import-export/lib/tiled-wang";
 import type {
   ImportExportArchiveEntry,
   ImportExportFormatExportOptions,
@@ -50,6 +54,8 @@ function buildTiledJsonTilesetDocument(
   tileset: Tileset,
   imagePath: string,
 ): TiledJsonTileset {
+  const wangsets = buildTiledJsonWangSets(tileset);
+
   return {
     type: "tileset",
     version: TILED_FORMAT_VERSION,
@@ -64,6 +70,7 @@ function buildTiledJsonTilesetDocument(
     image: imagePath,
     imagewidth: tileset.imageWidth,
     imageheight: tileset.imageHeight,
+    ...(wangsets ? { wangsets } : {}),
   };
 }
 
@@ -123,6 +130,7 @@ async function exportTiledTilesetBundle(
   imageElement.setAttribute("width", String(tileset.imageWidth));
   imageElement.setAttribute("height", String(tileset.imageHeight));
   tilesetElement.append(imageElement);
+  appendTiledXmlWangSets(document, tilesetElement, tileset);
 
   entries.push({
     path: createRelativeAssetPath("", tileset.name, ".tsx", usedPaths),

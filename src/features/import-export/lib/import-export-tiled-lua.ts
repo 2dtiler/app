@@ -13,6 +13,7 @@ import {
   decodeText,
   encodeXmlDocument,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import { appendTiledXmlWangSetElements } from "@/features/import-export/lib/tiled-wang";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,
@@ -158,6 +159,7 @@ function convertJsonTilesetEntryToTsx(entry: ImportExportArchiveEntry) {
     }
     tilesetElement.append(imageElement);
   }
+  appendTiledXmlWangSetElements(document, tilesetElement, tileset.wangsets);
 
   return {
     path: replaceJsonExtensionWithTsx(entry.path),

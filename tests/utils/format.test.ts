@@ -456,6 +456,7 @@ test("exportMap and importMap keep only referenced tilesets and local object lay
 test("exportTileset and importTileset round-trip a single tileset asset", async () => {
   const autotile = {
     version: 1,
+    preset: "wang-tiles",
     terrains: [
       {
         id: "terrain-land",
@@ -465,6 +466,20 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
           sy: 0,
           sw: 16,
           sh: 16,
+        },
+        patternTiles: {
+          "wang-00": {
+            sx: 0,
+            sy: 0,
+            sw: 16,
+            sh: 16,
+          },
+          "wang-0f": {
+            sx: 32,
+            sy: 0,
+            sw: 16,
+            sh: 16,
+          },
         },
       },
       {
@@ -509,7 +524,7 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
     groupId: "group-1" as Tileset["groupId"],
     tileSize: 0 as Tileset["tileSize"],
     assetId: "asset-tileset" as Tileset["assetId"],
-    imageWidth: 16,
+    imageWidth: 48,
     imageHeight: 16,
     autotile,
     createdAt: 1,

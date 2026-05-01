@@ -17,6 +17,9 @@ import type {
   TiledJsonProperty,
   TiledJsonTileLayer,
   TiledJsonTileset,
+  TiledJsonWangColor,
+  TiledJsonWangSet,
+  TiledJsonWangTile,
 } from "@/types";
 
 function asObject(value: unknown) {
@@ -271,6 +274,8 @@ function normalizeLuaTilesetBody(
   tileset: Record<string, unknown>,
   includeFirstGid: boolean,
 ): TiledJsonTileset {
+  const wangsets = normalizeLuaWangSets(tileset.wangsets);
+
   return {
     ...(includeFirstGid && readNumber(tileset.firstgid) !== undefined
       ? { firstgid: readNumber(tileset.firstgid) }
@@ -310,7 +315,55 @@ function normalizeLuaTilesetBody(
     ...(convertLuaPropertiesToJson(tileset.properties)
       ? { properties: convertLuaPropertiesToJson(tileset.properties) }
       : {}),
+    ...(wangsets ? { wangsets } : {}),
   };
+}
+
+function normalizeLuaWangColors(colorsValue: unknown): TiledJsonWangColor[] {
+  return asArray(colorsValue).map((colorValue) => {
+    const color = asObject(colorValue) ?? {};
+    return {
+      ...(readString(color.name) ? { name: readString(color.name) } : {}),
+      ...(readString(color.color) ? { color: readString(color.color) } : {}),
+      ...(readNumber(color.tile) !== undefined
+        ? { tile: readNumber(color.tile) }
+        : {}),
+      ...(readNumber(color.probability) !== undefined
+        ? { probability: readNumber(color.probability) }
+        : {}),
+    };
+  });
+}
+
+function normalizeLuaWangTiles(tilesValue: unknown): TiledJsonWangTile[] {
+  return asArray(tilesValue).map((tileValue) => {
+    const tile = asObject(tileValue) ?? {};
+    return {
+      ...(readNumber(tile.tileid) !== undefined
+        ? { tileid: readNumber(tile.tileid) }
+        : {}),
+      wangid: asArray(tile.wangid).map((value) => Number(value) || 0),
+    };
+  });
+}
+
+function normalizeLuaWangSets(
+  wangSetsValue: unknown,
+): TiledJsonWangSet[] | undefined {
+  const wangSets = asArray(wangSetsValue).map((wangSetValue) => {
+    const wangSet = asObject(wangSetValue) ?? {};
+    return {
+      ...(readString(wangSet.name) ? { name: readString(wangSet.name) } : {}),
+      ...(readString(wangSet.type) ? { type: readString(wangSet.type) } : {}),
+      ...(readNumber(wangSet.tile) !== undefined
+        ? { tile: readNumber(wangSet.tile) }
+        : {}),
+      colors: normalizeLuaWangColors(wangSet.colors),
+      wangtiles: normalizeLuaWangTiles(wangSet.wangtiles),
+    };
+  });
+
+  return wangSets.length > 0 ? wangSets : undefined;
 }
 
 function normalizeLuaMapTileset(tilesetValue: unknown): TiledJsonTileset {
@@ -516,6 +569,7 @@ function buildEmbeddedTiledLuaTileset(tileset: TiledJsonTileset) {
     ...(convertJsonPropertiesToLua(tileset.properties)
       ? { properties: convertJsonPropertiesToLua(tileset.properties) }
       : {}),
+    ...(tileset.wangsets ? { wangsets: tileset.wangsets } : {}),
   };
 }
 

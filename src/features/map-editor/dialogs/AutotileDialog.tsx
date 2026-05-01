@@ -28,6 +28,7 @@ import { AutotilePatternGroupCard } from "@/features/map-editor/components/autot
 import { AutotilePatternTileCard } from "@/features/map-editor/components/autotile/AutotilePatternTileCard";
 import { AutotileTerrainSidebar } from "@/features/map-editor/components/autotile/AutotileTerrainSidebar";
 import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
+import { AutotileWangPatternEditor } from "@/features/map-editor/components/autotile/AutotileWangPatternEditor";
 import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { useAssetImage } from "@/features/map-editor/hooks/use-asset-image";
 import {
@@ -377,6 +378,9 @@ export function AutotileDialog({
                 <div className="flex items-center gap-1">
                   <Button
                     type="button"
+                    id="autotile-picker-zoom-out"
+                    name="autotile-picker-zoom-out"
+                    aria-label="Zoom out tileset picker"
                     variant="ghost"
                     size="icon-xs"
                     onMouseDown={() =>
@@ -390,6 +394,9 @@ export function AutotileDialog({
                   </span>
                   <Button
                     type="button"
+                    id="autotile-picker-zoom-in"
+                    name="autotile-picker-zoom-in"
+                    aria-label="Zoom in tileset picker"
                     variant="ghost"
                     size="icon-xs"
                     onMouseDown={() => setZoom((current) => current + 0.5)}
@@ -518,6 +525,7 @@ export function AutotileDialog({
                         {AUTOTILE_PRESET_DEFINITIONS.map((preset) => {
                           const checked = draft.preset === preset.id;
                           const inputId = `autotile-preset-${preset.id}`;
+                          const descriptionId = `${inputId}-description`;
 
                           return (
                             <label
@@ -535,6 +543,7 @@ export function AutotileDialog({
                                 type="radio"
                                 className="sr-only"
                                 checked={checked}
+                                aria-describedby={descriptionId}
                                 onChange={() => handlePresetChange(preset.id)}
                               />
                               <div className="flex items-center justify-between gap-2">
@@ -545,7 +554,10 @@ export function AutotileDialog({
                                   {preset.requiredSlots.length} required
                                 </span>
                               </div>
-                              <p className="mt-2 text-xs text-muted-foreground">
+                              <p
+                                id={descriptionId}
+                                className="mt-2 text-xs text-muted-foreground"
+                              >
                                 {preset.description}
                               </p>
                             </label>
@@ -576,6 +588,23 @@ export function AutotileDialog({
                             />
                           ))}
                         </div>
+                      ) : presetDefinition.editorLayout === "wang" ? (
+                        <AutotileWangPatternEditor
+                          terrain={activeTerrain}
+                          tilesetImage={tilesetImage}
+                          patternDefinitions={activePatternDefinitions}
+                          requiredSlotIds={presetDefinition.requiredSlots}
+                          selectionTarget={selectionTarget}
+                          onSelectSlot={handleSelectPatternSlot}
+                          onClearSlot={handleClearPatternSlot}
+                          onSelectPaintTile={() =>
+                            handleSelectTarget({
+                              type: "terrain",
+                              terrainId: activeTerrain.id,
+                            })
+                          }
+                          onClearPaintTile={handleClearPaintTile}
+                        />
                       ) : (
                         <div className="space-y-4">
                           <section role="region" aria-label="Paint tile">

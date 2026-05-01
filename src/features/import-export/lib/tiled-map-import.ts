@@ -42,6 +42,10 @@ import {
   validateTiledOrientation,
 } from "@/features/import-export/lib/tiled-map-import-shared";
 import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-wang";
+import {
   collectMissingTiledJsonMapResources,
   importTiledJsonMapEntries,
 } from "@/features/import-export/lib/tiled-map-import-json";
@@ -276,19 +280,27 @@ async function parseTilesetElement(
     },
   );
 
+  const importedTileset = {
+    id: generateTilesetId(),
+    name:
+      tilesetElement.getAttribute("name") ?? stripExtension(resolvedImagePath),
+    groupId: "tmx-import" as Tileset["groupId"],
+    tileSize: tileWidth as TileSize,
+    assetId: importedImage.assetId,
+    imageWidth: importedImage.width,
+    imageHeight: importedImage.height,
+    createdAt: Date.now(),
+  };
+
   return {
     firstGid,
     tileset: {
-      id: generateTilesetId(),
-      name:
-        tilesetElement.getAttribute("name") ??
-        stripExtension(resolvedImagePath),
-      groupId: "tmx-import" as Tileset["groupId"],
-      tileSize: tileWidth as TileSize,
-      assetId: importedImage.assetId,
-      imageWidth: importedImage.width,
-      imageHeight: importedImage.height,
-      createdAt: Date.now(),
+      ...importedTileset,
+      autotile:
+        buildAutotileFromTiledWangSets(
+          importedTileset,
+          readTiledXmlWangSets(tilesetElement),
+        ) ?? undefined,
     },
   };
 }

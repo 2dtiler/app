@@ -40,6 +40,10 @@ import {
   validateTiledOrientation,
   EXPANDED_PROPERTY_KEY,
 } from "@/features/import-export/lib/tiled-map-import-shared";
+import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-wang";
 import type {
   ImageLayer,
   LayerGroup,
@@ -358,19 +362,28 @@ async function parseJsonTileset(
       },
     );
 
+    const importedTileset = {
+      id: generateTilesetId(),
+      name:
+        tilesetElement.getAttribute("name") ??
+        stripExtension(resolvedImagePath),
+      groupId: "tmx-import" as Tileset["groupId"],
+      tileSize: tileWidth as TileSize,
+      assetId: importedImage.assetId,
+      imageWidth: importedImage.width,
+      imageHeight: importedImage.height,
+      createdAt: Date.now(),
+    };
+
     return {
       firstGid,
       tileset: {
-        id: generateTilesetId(),
-        name:
-          tilesetElement.getAttribute("name") ??
-          stripExtension(resolvedImagePath),
-        groupId: "tmx-import" as Tileset["groupId"],
-        tileSize: tileWidth as TileSize,
-        assetId: importedImage.assetId,
-        imageWidth: importedImage.width,
-        imageHeight: importedImage.height,
-        createdAt: Date.now(),
+        ...importedTileset,
+        autotile:
+          buildAutotileFromTiledWangSets(
+            importedTileset,
+            readTiledXmlWangSets(tilesetElement),
+          ) ?? undefined,
       },
     };
   }
@@ -410,17 +423,26 @@ async function parseJsonTileset(
     },
   );
 
+  const importedTileset = {
+    id: generateTilesetId(),
+    name: tilesetEntry.name ?? stripExtension(resolvedImagePath),
+    groupId: "tmx-import" as Tileset["groupId"],
+    tileSize: tileWidth as TileSize,
+    assetId: importedImage.assetId,
+    imageWidth: importedImage.width,
+    imageHeight: importedImage.height,
+    createdAt: Date.now(),
+  };
+
   return {
     firstGid,
     tileset: {
-      id: generateTilesetId(),
-      name: tilesetEntry.name ?? stripExtension(resolvedImagePath),
-      groupId: "tmx-import" as Tileset["groupId"],
-      tileSize: tileWidth as TileSize,
-      assetId: importedImage.assetId,
-      imageWidth: importedImage.width,
-      imageHeight: importedImage.height,
-      createdAt: Date.now(),
+      ...importedTileset,
+      autotile:
+        buildAutotileFromTiledWangSets(
+          importedTileset,
+          tilesetEntry.wangsets,
+        ) ?? undefined,
     },
   };
 }

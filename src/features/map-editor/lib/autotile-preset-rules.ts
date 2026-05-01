@@ -148,6 +148,20 @@ const BLOB_DIAGONAL_NEIGHBORS = [
   horizontal: Extract<AutotileNeighborPosition, "east" | "west">;
 }[];
 
+const WANG_EDGE_NEIGHBORS = [
+  { position: "north", label: "Top", bit: 1 },
+  { position: "east", label: "Right", bit: 2 },
+  { position: "south", label: "Bottom", bit: 4 },
+  { position: "west", label: "Left", bit: 8 },
+] as const satisfies readonly {
+  position: Extract<
+    AutotileNeighborPosition,
+    "north" | "east" | "south" | "west"
+  >;
+  label: string;
+  bit: number;
+}[];
+
 const PATTERN_SLOT_DEFINITIONS = [
   {
     id: "innerCornerNorthWest",
@@ -482,6 +496,95 @@ function createBlobPatternDefinitions(): AutotilePatternSlotDefinition[] {
 
 const BLOB_PATTERN_DEFINITIONS = createBlobPatternDefinitions();
 
+function formatWangMask(mask: number): string {
+  return mask.toString(16).toUpperCase().padStart(2, "0");
+}
+
+export function createWangPatternId(mask: number): AutotilePatternSlotId {
+  return `wang-${formatWangMask(mask).toLowerCase()}`;
+}
+
+export function parseWangMask(slotId: AutotilePatternSlotId): number | null {
+  if (!slotId.startsWith("wang-")) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(slotId.slice(5), 16);
+  return Number.isNaN(parsed) || parsed < 0 || parsed > 15 ? null : parsed;
+}
+
+function getWangMatchedEdgeLabels(mask: number): string[] {
+  return WANG_EDGE_NEIGHBORS.filter((edge) => mask & edge.bit).map(
+    (edge) => edge.label,
+  );
+}
+
+function createWangPatternLabel(mask: number): string {
+  const matchedEdges = getWangMatchedEdgeLabels(mask);
+
+  if (matchedEdges.length === 0) {
+    return "All Edges Open";
+  }
+
+  if (matchedEdges.length === WANG_EDGE_NEIGHBORS.length) {
+    return "All Edges Match";
+  }
+
+  return `${matchedEdges.join(" + ")} ${matchedEdges.length === 1 ? "Edge" : "Edges"} Match`;
+}
+
+function createWangPatternDescription(mask: number): string {
+  const matchedEdges = getWangMatchedEdgeLabels(mask);
+
+  if (matchedEdges.length === 0) {
+    return "Use this when no cardinal edge touches the same terrain.";
+  }
+
+  if (matchedEdges.length === WANG_EDGE_NEIGHBORS.length) {
+    return "Use this when all four cardinal edges touch the same terrain.";
+  }
+
+  const openEdges = WANG_EDGE_NEIGHBORS.filter(
+    (edge) => !(mask & edge.bit),
+  ).map((edge) => edge.label.toLowerCase());
+  return `Use this when ${matchedEdges.map((edge) => edge.toLowerCase()).join(", ")} match the same terrain and ${openEdges.join(", ")} open away from it.`;
+}
+
+function createWangPatternDefinition(
+  mask: number,
+  priority: number,
+): AutotilePatternSlotDefinition {
+  const neighbors = Object.fromEntries(
+    AUTOTILE_NEIGHBOR_POSITIONS.map((position) => [
+      position,
+      "ignore" as AutotilePatternRelation,
+    ]),
+  ) as Record<AutotileNeighborPosition, AutotilePatternRelation>;
+
+  for (const edge of WANG_EDGE_NEIGHBORS) {
+    neighbors[edge.position] = mask & edge.bit ? "same" : "different";
+  }
+
+  const label = createWangPatternLabel(mask);
+
+  return {
+    id: createWangPatternId(mask),
+    label,
+    shortLabel: `0x${formatWangMask(mask)}`,
+    description: createWangPatternDescription(mask),
+    priority,
+    neighbors,
+  };
+}
+
+function createWangPatternDefinitions(): AutotilePatternSlotDefinition[] {
+  return Array.from({ length: 16 }, (_, mask) =>
+    createWangPatternDefinition(mask, 200 + mask),
+  );
+}
+
+export const WANG_PATTERN_DEFINITIONS = createWangPatternDefinitions();
+
 const BLOB_PATTERN_CARD_GROUPS = BLOB_PATTERN_CARD_GROUP_META.map((group) => ({
   ...group,
   slotIds: BLOB_PATTERN_DEFINITIONS.filter((definition) => {
@@ -491,9 +594,11 @@ const BLOB_PATTERN_CARD_GROUPS = BLOB_PATTERN_CARD_GROUP_META.map((group) => ({
 })) satisfies readonly AutotilePatternCardGroupDefinition[];
 
 export const AUTOTILE_PATTERN_SLOTS = Object.fromEntries(
-  [...PATTERN_SLOT_DEFINITIONS, ...BLOB_PATTERN_DEFINITIONS].map(
-    (definition) => [definition.id, definition],
-  ),
+  [
+    ...PATTERN_SLOT_DEFINITIONS,
+    ...BLOB_PATTERN_DEFINITIONS,
+    ...WANG_PATTERN_DEFINITIONS,
+  ].map((definition) => [definition.id, definition]),
 ) as Record<AutotilePatternSlotId, AutotilePatternSlotDefinition>;
 
 export const AUTOTILE_PRESET_DEFINITIONS = [
@@ -553,6 +658,15 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
       "Assign the full 8-neighbor blob set for polished RPG-style terrain transitions.",
     editorLayout: "cards",
     requiredSlots: BLOB_PATTERN_DEFINITIONS.map((definition) => definition.id),
+    optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
+  },
+  {
+    id: "wang-tiles",
+    label: "Wang Tiles (16)",
+    description:
+      "Assign the 16 cardinal edge combinations for Wang-style terrain transitions.",
+    editorLayout: "wang",
+    requiredSlots: WANG_PATTERN_DEFINITIONS.map((definition) => definition.id),
     optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
   },
 ] as const satisfies readonly AutotilePresetDefinition[];
@@ -738,6 +852,17 @@ export function getAutotilePresetCardGroups(
 
   if (preset.id === "blob-47") {
     return [...BLOB_PATTERN_CARD_GROUPS];
+  }
+
+  if (preset.id === "wang-tiles") {
+    return [
+      {
+        id: "wang-patterns",
+        title: "Wang Edge Patterns",
+        description: "Assign the 16 top, right, bottom, and left edge states.",
+        slotIds: preset.requiredSlots,
+      },
+    ];
   }
 
   const slotIds = [...preset.requiredSlots, ...preset.optionalSlots];

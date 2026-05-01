@@ -25,6 +25,7 @@ import {
   prepareTiledMapBundleData,
   TILED_FORMAT_VERSION,
 } from "@/features/import-export/lib/import-export-tiled-shared";
+import { buildTiledJsonWangSets } from "@/features/import-export/lib/tiled-wang";
 import type {
   ImageLayer,
   ImportExportArchiveEntry,
@@ -318,6 +319,8 @@ export async function buildTiledMapJsonBundleData(
       continue;
     }
 
+    const wangsets = buildTiledJsonWangSets(tileset);
+
     if (options.tilesetMode === "external") {
       const tsjPath = createRelativeAssetPath(
         "tilesets",
@@ -341,6 +344,7 @@ export async function buildTiledMapJsonBundleData(
           image: `../${imagePath}`,
           imagewidth: tileset.imageWidth,
           imageheight: tileset.imageHeight,
+          ...(wangsets ? { wangsets } : {}),
         }),
       });
       tilesetsJson.push({ firstgid: firstGid, source: tsjPath });
@@ -359,6 +363,7 @@ export async function buildTiledMapJsonBundleData(
       image: imagePath,
       imagewidth: tileset.imageWidth,
       imageheight: tileset.imageHeight,
+      ...(wangsets ? { wangsets } : {}),
     });
   }
 

@@ -20,7 +20,7 @@ export interface AutotilePresetDefinition {
   id: AutotilePresetId;
   label: string;
   description: string;
-  editorLayout: "grid" | "cards";
+  editorLayout: "grid" | "cards" | "wang";
   requiredSlots: AutotilePatternSlotId[];
   optionalSlots: AutotilePatternSlotId[];
 }
