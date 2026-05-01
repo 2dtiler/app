@@ -39,6 +39,9 @@ export function AnimationsStrip({
   const [deleteTarget, setDeleteTarget] = useState<TilesetAnimation | null>(
     null,
   );
+  const [hoveredAnimationId, setHoveredAnimationId] = useState<string | null>(
+    null,
+  );
 
   return (
     <aside
@@ -87,6 +90,7 @@ export function AnimationsStrip({
           <div role="list" className="flex flex-col gap-2">
             {animations.map((animation) => {
               const isActive = animation.id === activeAnimationId;
+              const isHovered = animation.id === hoveredAnimationId;
 
               return (
                 <div
@@ -97,6 +101,12 @@ export function AnimationsStrip({
                     isActive && "border-primary bg-primary/5",
                   )}
                   draggable
+                  onPointerEnter={() => setHoveredAnimationId(animation.id)}
+                  onPointerLeave={() => {
+                    setHoveredAnimationId((currentId) =>
+                      currentId === animation.id ? null : currentId,
+                    );
+                  }}
                   onDragStart={(event) => {
                     const payload = createAnimationDragPayload(
                       tileset.id,
@@ -118,7 +128,7 @@ export function AnimationsStrip({
                   >
                     <AnimationPreviewCanvas
                       animation={animation}
-                      animated={isActive}
+                      animated={isHovered}
                       cellSize={22}
                       image={image}
                       className="h-auto max-h-20 w-full"

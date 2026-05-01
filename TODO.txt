@@ -1,5 +1,4 @@
 More advanced autotile:
-  Wang Tiles 16 slot - implemented
   Wang Tiles Named Colors
   Godot Wang Tiles Support
 

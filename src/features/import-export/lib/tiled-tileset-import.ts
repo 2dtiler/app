@@ -16,14 +16,8 @@ import {
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
 import {
-  buildAutotileFromTiledWangSets,
-  readTiledXmlWangSets,
   readJsonTilesetAnimationConfig,
   readXmlTilesetAnimationConfig,
-} from "@/features/import-export/lib/tiled-animation-conversion";
-import {
-  buildAutotileFromTiledWangSets,
-  readTiledXmlWangSets,
 } from "@/features/import-export/lib/tiled-animation-conversion";
 import {
   buildAutotileFromTiledWangSets,
