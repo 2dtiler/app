@@ -673,8 +673,8 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     id: "wang-named-colors",
     label: "Wang Named Colors",
     description:
-      "Preserve Tiled Wang sets with named edge, corner, and mixed colors.",
-    editorLayout: "wang",
+      "Configure Tiled Wang sets with named edge, corner, and mixed colors.",
+    editorLayout: "wang-named",
     requiredSlots: [],
     optionalSlots: [],
   },

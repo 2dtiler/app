@@ -5,6 +5,7 @@ import {
   type AutotileWangColor,
   type AutotileWangId,
   type AutotileWangSet,
+  type AutotileWangSetId,
   type AutotileWangSetType,
   type AutotileWangTile,
   type AutotileTileRegion,
@@ -78,7 +79,7 @@ export function normalizeTiledWangId(
 }
 
 function createNamedWangSetId(index: number) {
-  return `tiled-wang-set-${index + 1}`;
+  return `tiled-wang-set-${index + 1}` as AutotileWangSetId;
 }
 
 function hasOnlyKnownWangColorIndexes(

@@ -1,11 +1,18 @@
 import {
+  AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE,
+  AUTOTILE_WANG_ID_LENGTH,
+  AUTOTILE_WANG_POSITION_INDEXES,
   AUTOTILE_CONFIG_VERSION,
   type AutotileConfig,
   type AutotilePatternSlotId,
   type AutotilePresetId,
   type AutotileTerrain,
   type AutotileTileRegion,
+  type AutotileWangColor,
+  type AutotileWangId,
   type AutotileWangSet,
+  type AutotileWangSetType,
+  type AutotileWangTile,
 } from "@/types";
 import {
   AUTOTILE_PATTERN_SLOTS,
@@ -13,6 +20,7 @@ import {
 } from "@/features/map-editor/lib/autotile-preset-rules";
 import type { AutotileSelectionTarget } from "@/features/map-editor/types/dialogs";
 import type { AutotileAssignmentGroupDefinition } from "@/features/map-editor/types/autotile-dialog";
+import { generateAutotileWangSetId } from "@/utils/ids";
 
 export const DEFAULT_AUTOTILE_PRESET_ID: AutotilePresetId = "edges-corners";
 
@@ -53,6 +61,8 @@ const INSIDE_CORNER_GROUP: AutotileAssignmentGroupDefinition = {
   ],
 };
 
+const DEFAULT_WANG_COLORS = ["#57a773", "#3a86ff", "#f2c14e", "#ef476f"];
+
 function normalizeTerrain(terrain: AutotileTerrain): AutotileTerrain {
   return {
     ...terrain,
@@ -60,11 +70,102 @@ function normalizeTerrain(terrain: AutotileTerrain): AutotileTerrain {
   };
 }
 
+function createEmptyWangId(): AutotileWangId {
+  return Array.from(
+    { length: AUTOTILE_WANG_ID_LENGTH },
+    () => 0,
+  ) as AutotileWangId;
+}
+
+export function normalizeWangIdForSetType(
+  wangId: readonly number[] | undefined,
+  type: AutotileWangSetType,
+): AutotileWangId {
+  const normalized = createEmptyWangId();
+  const activeIndexes = new Set(
+    AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[type].map(
+      (position) => AUTOTILE_WANG_POSITION_INDEXES[position],
+    ),
+  );
+
+  for (let index = 0; index < AUTOTILE_WANG_ID_LENGTH; index += 1) {
+    const value = Number(wangId?.[index] ?? 0);
+    normalized[index] =
+      activeIndexes.has(index) && Number.isInteger(value) && value >= 0
+        ? value
+        : 0;
+  }
+
+  return normalized;
+}
+
+function normalizeWangColor(color: AutotileWangColor): AutotileWangColor {
+  return {
+    index: color.index,
+    name: color.name,
+    color: color.color,
+    tile: color.tile ?? null,
+    probability:
+      Number.isFinite(color.probability) && color.probability >= 0
+        ? color.probability
+        : 1,
+  };
+}
+
+function normalizeWangTile(
+  tile: AutotileWangTile,
+  type: AutotileWangSetType,
+): AutotileWangTile {
+  return {
+    tile: tile.tile ?? null,
+    wangId: normalizeWangIdForSetType(tile.wangId, type),
+    probability:
+      Number.isFinite(tile.probability) && tile.probability >= 0
+        ? tile.probability
+        : 1,
+  };
+}
+
 function normalizeWangSet(wangSet: AutotileWangSet): AutotileWangSet {
+  const type = wangSet.type ?? "edge";
+
   return {
     ...wangSet,
-    colors: wangSet.colors ?? [],
-    tiles: wangSet.tiles ?? [],
+    type,
+    tile: wangSet.tile ?? null,
+    colors: (wangSet.colors ?? []).map(normalizeWangColor),
+    tiles: (wangSet.tiles ?? []).map((tile) => normalizeWangTile(tile, type)),
+  };
+}
+
+export function createDefaultWangColor(index: number): AutotileWangColor {
+  return {
+    index,
+    name: `Color ${index}`,
+    color: DEFAULT_WANG_COLORS[(index - 1) % DEFAULT_WANG_COLORS.length],
+    tile: null,
+    probability: 1,
+  };
+}
+
+export function createDefaultWangSet(order: number): AutotileWangSet {
+  return {
+    id: generateAutotileWangSetId(),
+    name: `Wang Set ${order}`,
+    type: "edge",
+    tile: null,
+    colors: [createDefaultWangColor(1), createDefaultWangColor(2)],
+    tiles: [],
+  };
+}
+
+export function createDefaultWangTile(
+  type: AutotileWangSetType,
+): AutotileWangTile {
+  return {
+    tile: null,
+    wangId: normalizeWangIdForSetType(undefined, type),
+    probability: 1,
   };
 }
 
@@ -74,6 +175,7 @@ export function createEmptyAutotileConfig(): AutotileConfig {
     preset: DEFAULT_AUTOTILE_PRESET_ID,
     terrains: [],
     rules: [],
+    wangSets: [],
   };
 }
 
@@ -101,30 +203,77 @@ export function cloneAutotileConfig(
 }
 
 export function assignTileToSelectionTarget(
-  terrains: AutotileTerrain[],
+  autotile: AutotileConfig,
   target: AutotileSelectionTarget,
   tile: AutotileTileRegion | null,
-): AutotileTerrain[] {
-  return terrains.map((terrain) => {
-    if (terrain.id !== target.terrainId) {
-      return terrain;
-    }
-
-    if (target.type === "terrain") {
-      return {
-        ...terrain,
-        paletteTile: tile,
-      };
-    }
-
+): AutotileConfig {
+  if (target.type === "terrain" || target.type === "pattern") {
     return {
-      ...terrain,
-      patternTiles: {
-        ...(terrain.patternTiles ?? {}),
-        [target.slotId]: tile,
-      },
+      ...autotile,
+      terrains: autotile.terrains.map((terrain) => {
+        if (terrain.id !== target.terrainId) {
+          return terrain;
+        }
+
+        if (target.type === "terrain") {
+          return {
+            ...terrain,
+            paletteTile: tile,
+          };
+        }
+
+        return {
+          ...terrain,
+          patternTiles: {
+            ...(terrain.patternTiles ?? {}),
+            [target.slotId]: tile,
+          },
+        };
+      }),
     };
-  });
+  }
+
+  return {
+    ...autotile,
+    wangSets: (autotile.wangSets ?? []).map((wangSet) => {
+      if (wangSet.id !== target.wangSetId) {
+        return wangSet;
+      }
+
+      if (target.type === "wangSetTile") {
+        return {
+          ...wangSet,
+          tile,
+        };
+      }
+
+      if (target.type === "wangColorTile") {
+        return {
+          ...wangSet,
+          colors: wangSet.colors.map((color) =>
+            color.index === target.colorIndex
+              ? {
+                  ...color,
+                  tile,
+                }
+              : color,
+          ),
+        };
+      }
+
+      return {
+        ...wangSet,
+        tiles: wangSet.tiles.map((wangTile, tileIndex) =>
+          tileIndex === target.tileIndex
+            ? {
+                ...wangTile,
+                tile,
+              }
+            : wangTile,
+        ),
+      };
+    }),
+  };
 }
 
 export function getTargetTile(
@@ -133,6 +282,33 @@ export function getTargetTile(
 ): AutotileTileRegion | null {
   if (!target) {
     return null;
+  }
+
+  if (
+    target.type === "wangSetTile" ||
+    target.type === "wangColorTile" ||
+    target.type === "wangTile"
+  ) {
+    const wangSet = autotile.wangSets?.find(
+      (candidate) => candidate.id === target.wangSetId,
+    );
+
+    if (!wangSet) {
+      return null;
+    }
+
+    if (target.type === "wangSetTile") {
+      return wangSet.tile;
+    }
+
+    if (target.type === "wangColorTile") {
+      return (
+        wangSet.colors.find((color) => color.index === target.colorIndex)
+          ?.tile ?? null
+      );
+    }
+
+    return wangSet.tiles[target.tileIndex]?.tile ?? null;
   }
 
   const terrain = autotile.terrains.find(
@@ -171,7 +347,11 @@ export function getAutotileAssignmentGroups(
 ): AutotileAssignmentGroupDefinition[] {
   const preset = getAutotilePresetDefinition(presetId);
 
-  if (preset.editorLayout === "cards") {
+  if (
+    preset.editorLayout === "cards" ||
+    preset.editorLayout === "wang" ||
+    preset.editorLayout === "wang-named"
+  ) {
     return [];
   }
 
@@ -193,7 +373,33 @@ export function getSelectionInstructions(
   target: AutotileSelectionTarget | null,
 ): string {
   if (!target) {
-    return "Select the center paint tile or a pattern tile on the right, then click a tile in the picker.";
+    return draft.preset === "wang-named-colors"
+      ? "Select a Wang set tile, color tile, or Wang tile assignment on the right, then click a tile in the picker."
+      : "Select the center paint tile or a pattern tile on the right, then click a tile in the picker.";
+  }
+
+  if (
+    target.type === "wangSetTile" ||
+    target.type === "wangColorTile" ||
+    target.type === "wangTile"
+  ) {
+    const wangSet = draft.wangSets?.find(
+      (candidate) => candidate.id === target.wangSetId,
+    );
+    const wangSetName = wangSet?.name || "this Wang set";
+
+    if (target.type === "wangSetTile") {
+      return `Click a tile to use as the representative tile for ${wangSetName}.`;
+    }
+
+    if (target.type === "wangColorTile") {
+      const colorName =
+        wangSet?.colors.find((color) => color.index === target.colorIndex)
+          ?.name ?? `Color ${target.colorIndex}`;
+      return `Click a tile to use as the palette tile for ${colorName}.`;
+    }
+
+    return `Click a tile to use for Wang tile assignment ${target.tileIndex + 1}.`;
   }
 
   const terrain = draft.terrains.find(

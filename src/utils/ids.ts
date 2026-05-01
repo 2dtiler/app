@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type {
   AssetId,
   AutotileRuleId,
+  AutotileWangSetId,
   AutotileTerrainId,
   LayerGroupId,
   LayerId,
@@ -27,4 +28,5 @@ export const generateTerrainId = () => uuidv4() as TerrainId;
 export const generateObjectId = () => uuidv4() as ObjectId;
 export const generateAutotileTerrainId = () => uuidv4() as AutotileTerrainId;
 export const generateAutotileRuleId = () => uuidv4() as AutotileRuleId;
+export const generateAutotileWangSetId = () => uuidv4() as AutotileWangSetId;
 export const generateTilesetAnimationId = () => uuidv4() as TilesetAnimationId;
