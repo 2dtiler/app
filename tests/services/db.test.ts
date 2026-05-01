@@ -476,8 +476,29 @@ test("project, quick-export, and settings helpers persist normalized records and
     await saveProject(project);
     assert.deepEqual(dispatchedEvents, [
       "project-save-start",
+      "project-save-success",
       "project-save-end",
     ]);
+
+    const successfulProjectPut = db.projects.put;
+    db.projects.put = vi.fn(async () => {
+      throw new Error("quota exceeded");
+    }) as typeof db.projects.put;
+    dispatchedEvents.length = 0;
+    let saveFailure: unknown = null;
+    try {
+      await saveProject(project);
+    } catch (error) {
+      saveFailure = error;
+    }
+    assert.ok(saveFailure instanceof Error);
+    assert.strictEqual(saveFailure.message, "quota exceeded");
+    assert.deepEqual(dispatchedEvents, [
+      "project-save-start",
+      "project-save-end",
+    ]);
+    db.projects.put = successfulProjectPut;
+    dispatchedEvents.length = 0;
 
     tables.projectStore.set("project-2", {
       id: "project-2",

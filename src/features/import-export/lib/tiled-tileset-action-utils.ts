@@ -14,6 +14,10 @@ import {
   encodeJsonDocument,
   TILED_FORMAT_VERSION,
 } from "@/features/import-export/lib/import-export-tiled-shared";
+import {
+  appendXmlTilesetAnimationData,
+  buildTiledJsonAnimationFields,
+} from "@/features/import-export/lib/tiled-animation-conversion";
 import { buildTiledLuaTilesetDocument } from "@/features/import-export/lib/tiled-lua-format";
 import { encodeTiledLuaDocument } from "@/features/import-export/lib/tiled-lua";
 import {
@@ -55,6 +59,7 @@ function buildTiledJsonTilesetDocument(
   imagePath: string,
 ): TiledJsonTileset {
   const wangsets = buildTiledJsonWangSets(tileset);
+  const animationFields = buildTiledJsonAnimationFields(tileset);
 
   return {
     type: "tileset",
@@ -71,6 +76,7 @@ function buildTiledJsonTilesetDocument(
     imagewidth: tileset.imageWidth,
     imageheight: tileset.imageHeight,
     ...(wangsets ? { wangsets } : {}),
+    ...animationFields,
   };
 }
 
@@ -130,6 +136,7 @@ async function exportTiledTilesetBundle(
   imageElement.setAttribute("width", String(tileset.imageWidth));
   imageElement.setAttribute("height", String(tileset.imageHeight));
   tilesetElement.append(imageElement);
+  appendXmlTilesetAnimationData(document, tilesetElement, tileset);
   appendTiledXmlWangSets(document, tilesetElement, tileset);
 
   entries.push({

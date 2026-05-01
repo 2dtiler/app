@@ -15,6 +15,7 @@ import {
   getPaintableAutotileTerrainById,
   resolveAutotileWrites as resolveAutotileWriteSet,
 } from "@/features/map-editor/lib/autotile";
+import { resolveAnimationPlacementStamp } from "@/features/map-editor/lib/tileset-animations";
 import {
   clampTextObjectBounds,
   getDefaultTextObjectProperties,
@@ -24,6 +25,7 @@ import { setTileEditorContext } from "@/features/map-editor/lib/tile-editor-cont
 import { isLayerEffectivelyLocked } from "@/features/map-editor/lib/layers";
 import type { MapCanvasProps } from "@/features/map-editor/types/map-canvas";
 import type { MapObject, ObjectType, TileRef } from "@/types";
+import type { TilesetAnimationDragPayload } from "@/features/map-editor/types/animations";
 import { TEXT_OBJECT_DEFAULTS as textObjectDefaults } from "@/types";
 import type {
   MapPanelCanvasActionParams,
@@ -45,17 +47,33 @@ export function useMapPanelCanvasActions({
   state,
   textObjectEditing,
 }: MapPanelCanvasActionParams): MapPanelCanvasActionResult {
+  const getAnimationStamp = useCallback(
+    (payload?: TilesetAnimationDragPayload) => {
+      return resolveAnimationPlacementStamp(
+        project?.tilesets,
+        payload?.tilesetId ?? state.selectedAnimation?.tilesetId,
+        payload?.animationId ?? state.selectedAnimation?.animationId,
+      );
+    },
+    [project?.tilesets, state.selectedAnimation],
+  );
+
+  const canPlaceOnActiveLayer = useCallback(() => {
+    if (!activeMap || !activeLayer) return false;
+
+    return !isLayerEffectivelyLocked(
+      activeLayer.id,
+      activeMap.layerOrder,
+      project?.layers ?? [],
+      layerGroups,
+    );
+  }, [activeLayer, activeMap, layerGroups, project?.layers]);
+
   const handlePaintTile = useCallback(
     (gx: number, gy: number) => {
       if (!activeMap || !activeLayer) return;
 
-      const effectivelyLocked = isLayerEffectivelyLocked(
-        activeLayer.id,
-        activeMap.layerOrder,
-        project?.layers ?? [],
-        layerGroups,
-      );
-      if (effectivelyLocked) return;
+      if (!canPlaceOnActiveLayer()) return;
 
       const selectedStamp = state.selectedTile
         ? createTileStamp(state.selectedTile, state.tileSize)
@@ -154,6 +172,25 @@ export function useMapPanelCanvasActions({
         });
 
         applyResolvedWrites(resolved);
+
+        return;
+      }
+
+      if (state.currentTool === "animation") {
+        const stamp = getAnimationStamp();
+        if (!stamp) return;
+
+        for (const cell of stamp.cells) {
+          const tx = gx + cell.dx;
+          const ty = gy + cell.dy;
+          if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles) {
+            continue;
+          }
+
+          const ref = { ...cell.ref };
+          paintBuffer.set(`${tx},${ty}`, ref);
+          mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+        }
 
         return;
       }
@@ -391,11 +428,11 @@ export function useMapPanelCanvasActions({
     [
       activeLayer,
       activeMap,
-      layerGroups,
+      canPlaceOnActiveLayer,
+      getAnimationStamp,
       mapCanvasRef,
       paintBuffer,
       project?.tilesets,
-      project?.layers,
       setState,
       state.activeFillTerrain,
       state.activeLayerId,
@@ -405,6 +442,40 @@ export function useMapPanelCanvasActions({
       state.selectedAutotileTerrain,
       state.selectedTile,
       state.tileSize,
+    ],
+  );
+
+  const handlePlaceAnimation = useCallback(
+    (gx: number, gy: number, payload: TilesetAnimationDragPayload) => {
+      if (!activeMap || !activeLayer || !canPlaceOnActiveLayer()) return;
+
+      const stamp = getAnimationStamp(payload);
+      if (!stamp) return;
+
+      setState((draft) => {
+        const layer = draft.project?.layers.find(
+          (candidate) => candidate.id === state.activeLayerId,
+        );
+        if (!layer) return;
+
+        for (const cell of stamp.cells) {
+          const tx = gx + cell.dx;
+          const ty = gy + cell.dy;
+          if (tx >= activeMap.widthInTiles || ty >= activeMap.heightInTiles) {
+            continue;
+          }
+
+          layer.tiles[`${tx},${ty}`] = { ...cell.ref };
+        }
+      });
+    },
+    [
+      activeLayer,
+      activeMap,
+      canPlaceOnActiveLayer,
+      getAnimationStamp,
+      setState,
+      state.activeLayerId,
     ],
   );
 
@@ -722,6 +793,7 @@ export function useMapPanelCanvasActions({
     handleMoveTiles,
     handlePaintEnd,
     handlePaintTile,
+    handlePlaceAnimation,
     handleResizeImageLayer,
     handleResizeObject,
     handleSelectionChange,

@@ -18,6 +18,16 @@ import {
 import {
   buildAutotileFromTiledWangSets,
   readTiledXmlWangSets,
+  readJsonTilesetAnimationConfig,
+  readXmlTilesetAnimationConfig,
+} from "@/features/import-export/lib/tiled-animation-conversion";
+import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-animation-conversion";
+import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
 } from "@/features/import-export/lib/tiled-wang";
 import type {
   ImportExportArchiveEntry,
@@ -359,7 +369,7 @@ async function importTiledTilesetDefinition(
     },
   );
 
-  const importedTileset = {
+  const tileset: Tileset = {
     id: generateTilesetId(),
     name: definition.name ?? stripExtension(resolvedImagePath),
     groupId: "tmx-import" as Tileset["groupId"],
@@ -370,12 +380,36 @@ async function importTiledTilesetDefinition(
     createdAt: Date.now(),
   };
 
-  return {
-    ...importedTileset,
-    autotile:
-      buildAutotileFromTiledWangSets(importedTileset, definition.wangsets) ??
-      undefined,
-  };
+  const autotile = buildAutotileFromTiledWangSets(tileset, definition.wangsets);
+  if (autotile) {
+    tileset.autotile = autotile;
+  }
+
+  const definitionFormat =
+    detectTiledTilesetFormatFromPath(definition.path) ?? format;
+  if (definitionFormat === "xml") {
+    const document = parseXmlDocument(
+      decodeText(requireProvidedEntry(providedEntries, definition.path)),
+    );
+    const animations = readXmlTilesetAnimationConfig(
+      document.documentElement,
+      tileset,
+    );
+    if (animations) {
+      tileset.animations = animations;
+    }
+  } else {
+    const jsonTileset = parseTiledJsonLikeTileset(
+      requireProvidedEntry(providedEntries, definition.path),
+      definitionFormat,
+    );
+    const animations = readJsonTilesetAnimationConfig(jsonTileset, tileset);
+    if (animations) {
+      tileset.animations = animations;
+    }
+  }
+
+  return tileset;
 }
 
 export async function prepareTiledTilesetImport(

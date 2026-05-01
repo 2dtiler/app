@@ -3,16 +3,21 @@ import { exportTiledMapBundle } from "@/features/import-export/lib/import-export
 import {
   COMPLEX_TILED_OPTIONS,
   PNG_ASSET_RECORD,
+  createTestAnimationConfig,
   createComplexTiledFixture,
   createTestMap,
   createTestTileset,
+  createTestWangAutotileConfig,
   decodeText,
   getRootEntry,
   withStubbedAssetLookup,
 } from "./tiled-test-support";
 
-test("exportTiledMapBundle emits zero margin and spacing for inline TMX tilesets", async () => {
+test("exportTiledMapBundle preserves Wang and animation metadata for inline TMX tilesets", async () => {
   const tileset = createTestTileset();
+  tileset.imageWidth = 64;
+  tileset.autotile = createTestWangAutotileConfig();
+  tileset.animations = createTestAnimationConfig();
   const { map, layer } = createTestMap(tileset);
 
   await withStubbedAssetLookup(
@@ -45,6 +50,28 @@ test("exportTiledMapBundle emits zero margin and spacing for inline TMX tilesets
       assert.ok(tilesetElement);
       assert.strictEqual(tilesetElement?.getAttribute("margin"), "0");
       assert.strictEqual(tilesetElement?.getAttribute("spacing"), "0");
+      assert.strictEqual(
+        tilesetElement
+          ?.querySelector('properties > property[name="2dtiler:animations"]')
+          ?.getAttribute("value")
+          ?.includes("Waterfall"),
+        true,
+      );
+      assert.strictEqual(
+        tilesetElement
+          ?.querySelector('tile[id="0"] > animation > frame[tileid="1"]')
+          ?.getAttribute("duration"),
+        "150",
+      );
+      assert.strictEqual(
+        tilesetElement?.querySelector("wangsets > wangset")?.getAttribute("type"),
+        "edge",
+      );
+      assert.strictEqual(
+        tilesetElement?.querySelectorAll("wangsets > wangset > wangcolor")
+          .length,
+        2,
+      );
     },
     {
       data: new Uint8Array([1, 2, 3]).buffer,

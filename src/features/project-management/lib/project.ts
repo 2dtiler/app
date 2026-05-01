@@ -10,6 +10,7 @@ import {
   AUTOTILE_CONFIG_VERSION,
   DEFAULT_HEX_STAGGER_AXIS,
   DEFAULT_HEX_STAGGER_INDEX,
+  TILESET_ANIMATION_CONFIG_VERSION,
 } from "@/types";
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
@@ -38,6 +39,48 @@ export function normalizeTileset(
     if (!Array.isArray(tileset.autotile.rules)) {
       tileset.autotile.rules = [];
     }
+  }
+
+  if (tileset.animations) {
+    tileset.animations.version = TILESET_ANIMATION_CONFIG_VERSION;
+    if (!Array.isArray(tileset.animations.animations)) {
+      tileset.animations.animations = [];
+    }
+    tileset.animations.animations = tileset.animations.animations.map(
+      (animation) => {
+        const widthInTiles = Math.max(
+          1,
+          Math.round(Number(animation.widthInTiles) || 1),
+        );
+        const heightInTiles = Math.max(
+          1,
+          Math.round(Number(animation.heightInTiles) || 1),
+        );
+        const cellCount = widthInTiles * heightInTiles;
+        const frames = Array.isArray(animation.frames) ? animation.frames : [];
+
+        return {
+          ...animation,
+          name: animation.name || "Animation",
+          widthInTiles,
+          heightInTiles,
+          frames: frames.map((frame) => {
+            const cells = Array.isArray(frame.cells) ? frame.cells : [];
+
+            return {
+              durationMs: Math.max(
+                1,
+                Math.round(Number(frame.durationMs) || 120),
+              ),
+              cells: Array.from(
+                { length: cellCount },
+                (_, index) => cells[index] ?? null,
+              ),
+            };
+          }),
+        };
+      },
+    );
   }
 
   return tileset;

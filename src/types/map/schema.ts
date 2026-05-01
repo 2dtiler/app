@@ -10,6 +10,7 @@ import type {
   MapStaggerAxis,
   MapStaggerIndex,
 } from "./map-geometry";
+import type { TilesetAnimationConfig, TilesetAnimationId } from "./animation";
 import type { AutotileConfig, AutotileTerrainId } from "./autotile";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,8 @@ export interface Tileset {
   imageHeight: number;
   /** Optional autotile rules stored per tileset */
   autotile?: AutotileConfig;
+  /** Optional named animation clips stored per tileset */
+  animations?: TilesetAnimationConfig;
   createdAt: number;
 }
 
@@ -182,6 +185,10 @@ export interface TileRef {
   flipX?: boolean;
   /** Flip vertically (after rotation) */
   flipY?: boolean;
+  /** Animation clip to resolve while rendering this placed tile */
+  animationId?: TilesetAnimationId;
+  /** Cell index within a multi-cell animation stamp */
+  animationCellIndex?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -327,7 +334,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export const BRUSH_SIZES = ["1x1", "2x2", "3x3", "4x4", "5x5"] as const;
 export type BrushSize = (typeof BRUSH_SIZES)[number];
 
-export type EditorTool = "select" | "paint" | "autotile" | "erase" | "fill";
+export type EditorTool =
+  | "select"
+  | "paint"
+  | "autotile"
+  | "animation"
+  | "erase"
+  | "fill";
 
 /** Sub-modes for the fill tool */
 export type FillMode = "fill" | "fillTerrain";
@@ -343,6 +356,11 @@ export interface SelectedTile {
 export interface SelectedAutotileTerrain {
   tilesetId: TilesetId;
   terrainId: AutotileTerrainId;
+}
+
+export interface SelectedTilesetAnimation {
+  tilesetId: TilesetId;
+  animationId: TilesetAnimationId;
 }
 
 /**
@@ -381,6 +399,7 @@ export interface EditorState {
   tileSize: TileSize;
   selectedTile: SelectedTile | null;
   selectedAutotileTerrain: SelectedAutotileTerrain | null;
+  selectedAnimation: SelectedTilesetAnimation | null;
 
   /** Which fill sub-mode is active: plain fill or terrain fill */
   fillMode: FillMode;
@@ -405,6 +424,7 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   tileSize: 32,
   selectedTile: null,
   selectedAutotileTerrain: null,
+  selectedAnimation: null,
   fillMode: "fill",
   activeFillTerrain: null,
   mapSelection: null,

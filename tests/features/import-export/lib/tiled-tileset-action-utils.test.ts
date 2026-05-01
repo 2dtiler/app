@@ -7,11 +7,14 @@ import {
   isTiledTilesetImportOption,
 } from "@/features/import-export/lib/tiled-tileset-action-utils";
 import {
+  createTestAnimationConfig,
+  createTestWangAutotileConfig,
+} from "./tiled-test-support";
+import {
   createProjectFixture,
   createSaveStrategy,
   expectToThrow,
 } from "./action-utils-test-support";
-import type { AutotileConfig } from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
 
@@ -75,25 +78,6 @@ function createTestProject() {
     objects: [],
     overrideTilesets: [],
   };
-}
-
-function createWangAutotileConfig() {
-  return {
-    version: 1,
-    preset: "wang-tiles",
-    terrains: [
-      {
-        id: "terrain-land",
-        name: "Land",
-        paletteTile: { sx: 16, sy: 0, sw: 16, sh: 16 },
-        patternTiles: {
-          "wang-00": { sx: 0, sy: 0, sw: 16, sh: 16 },
-          "wang-0f": { sx: 16, sy: 0, sw: 16, sh: 16 },
-        },
-      },
-    ],
-    rules: [],
-  } as AutotileConfig;
 }
 
 const { getAssetMock } = vi.hoisted(() => ({
@@ -263,11 +247,12 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
   }
 });
 
-test("exportSelectedTiledTilesets includes Wang metadata in JSON tilesets", async () => {
+test("exportSelectedTiledTilesets includes Wang and animation metadata in JSON tilesets", async () => {
   const project = createTestProject();
   const tileset = project.tilesets[0]!;
   tileset.imageWidth = 64;
-  tileset.autotile = createWangAutotileConfig();
+  tileset.autotile = createTestWangAutotileConfig();
+  tileset.animations = createTestAnimationConfig();
   let archive: Uint8Array | null = null;
 
   const didExport = await exportSelectedTiledTilesets(
@@ -294,6 +279,11 @@ test("exportSelectedTiledTilesets includes Wang metadata in JSON tilesets", asyn
   assert.ok(jsonEntry);
 
   const document = JSON.parse(decodeText(jsonEntry[1])) as {
+    properties?: Array<{ name?: string; value?: string }>;
+    tiles?: Array<{
+      id?: number;
+      animation?: Array<{ tileid?: number; duration?: number }>;
+    }>;
     wangsets?: Array<{
       type?: string;
       colors?: unknown[];
@@ -305,5 +295,17 @@ test("exportSelectedTiledTilesets includes Wang metadata in JSON tilesets", asyn
   assert.deepEqual(document.wangsets?.[0]?.wangtiles?.[0], {
     tileid: 0,
     wangid: [1, 0, 1, 0, 1, 0, 1, 0],
+  });
+  assert.ok(
+    document.properties?.some(
+      (property) => property.name === "2dtiler:animations",
+    ),
+  );
+  assert.deepEqual(document.tiles?.[0], {
+    id: 0,
+    animation: [
+      { tileid: 0, duration: 100 },
+      { tileid: 1, duration: 150 },
+    ],
   });
 });

@@ -2,6 +2,7 @@ import { assert } from "vitest";
 import { parseHTML } from "linkedom";
 import { getTextObjectSettings } from "@/features/map-editor/lib/text-objects";
 import { db } from "@/services/db";
+import { TILESET_ANIMATION_CONFIG_VERSION } from "@/types/map/animation";
 import {
   generateAssetId,
   generateLayerGroupId,
@@ -11,6 +12,7 @@ import {
   generateTilesetId,
 } from "@/utils/ids";
 import type {
+  AutotileConfig,
   ImageLayer,
   LayerGroup,
   MapObject,
@@ -20,6 +22,8 @@ import type {
   TiledMapImportPreparationResult,
   TileMapData,
   Tileset,
+  TilesetAnimation,
+  TilesetAnimationConfig,
 } from "@/types";
 
 const { window } = parseHTML("<html><body></body></html>");
@@ -66,6 +70,51 @@ export function createTestTileset(): Tileset {
     imageWidth: 32,
     imageHeight: 16,
     createdAt: Date.now(),
+  };
+}
+
+export function createTestAnimationConfig(): TilesetAnimationConfig {
+  const animation = {
+    id: "animation-water" as TilesetAnimation["id"],
+    name: "Waterfall",
+    widthInTiles: 1,
+    heightInTiles: 1,
+    frames: [
+      {
+        durationMs: 100,
+        cells: [{ sx: 0, sy: 0, sw: 16, sh: 16 }],
+      },
+      {
+        durationMs: 150,
+        cells: [{ sx: 16, sy: 0, sw: 16, sh: 16 }],
+      },
+    ],
+    createdAt: 1,
+    updatedAt: 2,
+  } satisfies TilesetAnimation;
+
+  return {
+    version: TILESET_ANIMATION_CONFIG_VERSION,
+    animations: [animation],
+  };
+}
+
+export function createTestWangAutotileConfig(): AutotileConfig {
+  return {
+    version: 1,
+    preset: "wang-tiles",
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land",
+        paletteTile: { sx: 16, sy: 0, sw: 16, sh: 16 },
+        patternTiles: {
+          "wang-00": { sx: 0, sy: 0, sw: 16, sh: 16 },
+          "wang-0f": { sx: 16, sy: 0, sw: 16, sh: 16 },
+        },
+      },
+    ],
+    rules: [],
   };
 }
 

@@ -14,11 +14,20 @@ import type {
   TileMapData,
   Tileset,
 } from "@/types/map/schema";
+import type { TilesetAnimation } from "@/types/map/animation";
 
 export interface AutotileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (autotile: AutotileConfig) => void;
+  tileset: Tileset;
+}
+
+export interface AnimationDialogProps {
+  animation?: TilesetAnimation | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (animation: TilesetAnimation) => void;
   tileset: Tileset;
 }
 

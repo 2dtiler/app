@@ -58,7 +58,7 @@ export default defineConfig({
         display: "standalone",
         icons: [
           {
-            src: "icon.svg",
+            src: "favicon.svg",
             sizes: "any",
             type: "image/svg+xml",
             purpose: "any maskable",
@@ -100,7 +100,7 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    sourcemap: process.env.VITE_ENABLE_SOURCE_MAPS === "true",
     rollupOptions: {
       output: {
         manualChunks: getManualChunk,

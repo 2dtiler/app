@@ -35,6 +35,7 @@ function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [saved, setSaved] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputId = `api-key-${id}`;
 
   useEffect(() => {
     setHasSaved(hasApiKey(id));
@@ -60,7 +61,9 @@ function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   return (
     <div className="space-y-2 rounded-lg border p-3">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
+        <Label htmlFor={inputId} className="text-sm font-medium">
+          {label}
+        </Label>
         <a
           href={url}
           target="_blank"
@@ -79,6 +82,8 @@ function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
       <div className="flex gap-2">
         <div className="relative flex-1">
           <input
+            id={inputId}
+            name={inputId}
             type={visible ? "text" : "password"}
             placeholder={hasSaved ? "Enter new key to replace" : placeholder}
             value={value}
@@ -92,6 +97,9 @@ function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
             type="button"
             onClick={() => setVisible((v) => !v)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label={
+              visible ? `Hide ${label} API key` : `Show ${label} API key`
+            }
             tabIndex={-1}
           >
             {visible ? (
@@ -117,6 +125,7 @@ function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
             className="h-8 px-2 text-muted-foreground hover:text-destructive"
             onClick={handleDelete}
             title="Remove key"
+            aria-label={`Remove ${label} API key`}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -180,9 +189,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <AccordionContent>
               <div className="space-y-3">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Keys are encrypted with AES-GCM and stored locally in your
-                  browser — they are never sent to any server other than the
-                  provider&apos;s own API.
+                  Keys are obfuscated locally in your browser. They are never
+                  sent to any server other than the provider&apos;s own API, but
+                  any script running on this origin can still access them.
                 </p>
                 {API_KEY_PROVIDERS.map((p) => (
                   <ApiKeyRow

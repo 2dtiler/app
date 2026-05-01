@@ -26,6 +26,17 @@ export interface TiledJsonWangSet {
   wangtiles?: TiledJsonWangTile[];
 }
 
+export interface TiledJsonAnimationFrame {
+  tileid?: number;
+  duration?: number;
+}
+
+export interface TiledJsonTile {
+  id?: number;
+  animation?: TiledJsonAnimationFrame[];
+  properties?: TiledJsonProperty[];
+}
+
 export interface TiledJsonPoint {
   x?: number;
   y?: number;
@@ -118,6 +129,7 @@ export interface TiledJsonTileset {
   imageheight?: number;
   properties?: TiledJsonProperty[];
   wangsets?: TiledJsonWangSet[];
+  tiles?: TiledJsonTile[];
 }
 
 export interface TiledJsonMap {

@@ -122,6 +122,7 @@ export interface MapPanelWorkspaceProps {
   onOrientSelection: (action: OrientAction, fromContextMenu?: boolean) => void;
   onPaintEnd: MapCanvasProps["onPaintEnd"];
   onPaintTile: MapCanvasProps["onPaintTile"];
+  onPlaceAnimation: MapCanvasProps["onPlaceAnimation"];
   onPasteSelection: (fromContextMenu?: boolean) => Promise<void>;
   onResizeImageLayer: MapCanvasProps["onResizeImageLayer"];
   onResizeMap: MapCanvasProps["onResizeMap"];
@@ -207,6 +208,7 @@ export interface MapPanelCanvasActionResult {
   handleMoveTiles: MapCanvasProps["onMoveTiles"];
   handlePaintEnd: MapCanvasProps["onPaintEnd"];
   handlePaintTile: MapCanvasProps["onPaintTile"];
+  handlePlaceAnimation: MapCanvasProps["onPlaceAnimation"];
   handleResizeImageLayer: MapCanvasProps["onResizeImageLayer"];
   handleResizeObject: MapCanvasProps["onResizeObject"];
   handleSelectionChange: MapCanvasProps["onSelectionChange"];

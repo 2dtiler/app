@@ -10,6 +10,10 @@ import {
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
 import {
+  readJsonTilesetAnimationConfig,
+  readXmlTilesetAnimationConfig,
+} from "@/features/import-export/lib/tiled-animation-conversion";
+import {
   generateLayerGroupId,
   generateLayerId,
   generateMapId,
@@ -362,7 +366,7 @@ async function parseJsonTileset(
       },
     );
 
-    const importedTileset = {
+    const targetTileset: Tileset = {
       id: generateTilesetId(),
       name:
         tilesetElement.getAttribute("name") ??
@@ -374,17 +378,25 @@ async function parseJsonTileset(
       imageHeight: importedImage.height,
       createdAt: Date.now(),
     };
+    const autotile = buildAutotileFromTiledWangSets(
+      targetTileset,
+      readTiledXmlWangSets(tilesetElement),
+    );
+    if (autotile) {
+      targetTileset.autotile = autotile;
+    }
+
+    const animations = readXmlTilesetAnimationConfig(
+      tilesetElement,
+      targetTileset,
+    );
+    if (animations) {
+      targetTileset.animations = animations;
+    }
 
     return {
       firstGid,
-      tileset: {
-        ...importedTileset,
-        autotile:
-          buildAutotileFromTiledWangSets(
-            importedTileset,
-            readTiledXmlWangSets(tilesetElement),
-          ) ?? undefined,
-      },
+      tileset: targetTileset,
     };
   }
 
@@ -423,7 +435,7 @@ async function parseJsonTileset(
     },
   );
 
-  const importedTileset = {
+  const targetTileset: Tileset = {
     id: generateTilesetId(),
     name: tilesetEntry.name ?? stripExtension(resolvedImagePath),
     groupId: "tmx-import" as Tileset["groupId"],
@@ -433,17 +445,25 @@ async function parseJsonTileset(
     imageHeight: importedImage.height,
     createdAt: Date.now(),
   };
+  const autotile = buildAutotileFromTiledWangSets(
+    targetTileset,
+    tilesetEntry.wangsets,
+  );
+  if (autotile) {
+    targetTileset.autotile = autotile;
+  }
+
+  const animations = readJsonTilesetAnimationConfig(
+    tilesetEntry,
+    targetTileset,
+  );
+  if (animations) {
+    targetTileset.animations = animations;
+  }
 
   return {
     firstGid,
-    tileset: {
-      ...importedTileset,
-      autotile:
-        buildAutotileFromTiledWangSets(
-          importedTileset,
-          tilesetEntry.wangsets,
-        ) ?? undefined,
-    },
+    tileset: targetTileset,
   };
 }
 

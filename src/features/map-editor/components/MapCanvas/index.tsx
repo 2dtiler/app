@@ -11,8 +11,9 @@
  */
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
-import type { TilesetId, ImageLayer, TileLayer, TileRef } from "@/types";
+import type { TilesetId, ImageLayer, TileRef } from "@/types";
 import {
+  getMapCellAtPoint,
   getMapCellBounds,
   getMapCellOrigin,
   getMapCellPolygon,
@@ -21,6 +22,7 @@ import {
 } from "@/features/map-editor/lib/map-geometry";
 import { isTextObject } from "@/features/map-editor/lib/text-objects";
 import type { MapCanvasProps } from "@/features/map-editor/types/map-canvas";
+import type { MapCanvasLayerEntry } from "@/features/map-editor/types/map-canvas-rendering";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
   tilesetImageCache,
@@ -30,8 +32,21 @@ import {
   evictUnusedTilesets,
   getTileImage,
   drawTileWithOrientation,
-  drawImageLayerWithOrientation,
 } from "./texture-cache";
+import {
+  parseAnimationDragPayload,
+  resolveAnimatedTileRef,
+  TILESET_ANIMATION_DRAG_MIME,
+} from "@/features/map-editor/lib/tileset-animations";
+import {
+  renderActiveLayerEntryToCanvas,
+  renderLayerEntriesToCanvas,
+} from "./draw-layer-entries";
+import {
+  drawMapGrid,
+  drawResizeDestinationOverlay,
+  drawTileSelectionOverlay,
+} from "./draw-editor-overlays";
 import {
   getImageLayerHandlePositions,
   getImageLayerPolygon,
@@ -62,8 +77,10 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     brushSize,
     selectedTileSize,
     selectedTile,
+    selectedAnimationStamp,
     onResizeMap,
     onPaintTile,
+    onPlaceAnimation,
     onPaintEnd,
     paintBufferVersion,
     imperativeRef,
@@ -99,6 +116,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imagesReady, setImagesReady] = useState(0);
+  const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
@@ -130,6 +148,27 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const canvasW = Math.ceil(previewPixelSize.width);
   const canvasH = Math.ceil(previewPixelSize.height);
   const usesPolygonCells = isOffsetMap(map);
+  const hasAnimatedTileRefs = useMemo(
+    () =>
+      layers.some((layer) =>
+        Object.values(layer.tiles).some((ref) => Boolean(ref.animationId)),
+      ),
+    [layers],
+  );
+
+  useEffect(() => {
+    if (!hasAnimatedTileRefs) {
+      setAnimationElapsedMs(0);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const intervalId = window.setInterval(() => {
+      setAnimationElapsedMs(performance.now() - startedAt);
+    }, 50);
+
+    return () => window.clearInterval(intervalId);
+  }, [hasAnimatedTileRefs]);
 
   const traceCellPath = useCallback(
     (ctx: CanvasRenderingContext2D, x: number, y: number) => {
@@ -144,9 +183,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     [map, zoom],
   );
 
-  // ---------------------------------------------------------------------------
   // Image loading
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
 
@@ -186,9 +223,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     };
   }, [map.layerOrder, layers, tilesets, selectedTile, imageLayers]);
 
-  // ---------------------------------------------------------------------------
   // Resize canvases when dimensions change
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (mainCanvasRef.current) {
       mainCanvasRef.current.width = canvasW;
@@ -208,7 +243,6 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     }
   }, [canvasW, canvasH]);
 
-  // ---------------------------------------------------------------------------
   // Imperative handle — lets MapPanel draw tiles directly onto the paint canvas
   // with zero React overhead during a brush stroke.
   // ---------------------------------------------------------------------------
@@ -304,6 +338,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onCancelPendingObject,
     onDoubleClickObject,
     selectedTile,
+    selectedAnimationStamp,
     overlayCanvasRef,
     scaledTile,
     mapW,
@@ -311,7 +346,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   });
 
   // Layers in render order (bottom to top)
-  const orderedLayerEntries = useMemo(
+  const orderedLayerEntries = useMemo<MapCanvasLayerEntry[]>(
     () =>
       map.layerOrder
         .map((lid) => {
@@ -355,7 +390,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   );
 
   const scaleImageLayer = useCallback(
-    (imgLayer: ReturnType<typeof getDisplayImageLayer>) => ({
+    (imgLayer: ImageLayer): ImageLayer => ({
       ...imgLayer,
       x: imgLayer.x * zoom,
       y: imgLayer.y * zoom,
@@ -381,59 +416,41 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     const upperEntries =
       activeIdx >= 0 ? orderedLayerEntries.slice(activeIdx + 1) : [];
 
-    function renderLayersToCanvas(
-      entries: typeof orderedLayerEntries,
-      canvasRef: { current: HTMLCanvasElement | null },
-    ) {
-      const offCanvas = canvasRef.current ?? document.createElement("canvas");
-      canvasRef.current = offCanvas;
-      offCanvas.width = canvasW;
-      offCanvas.height = canvasH;
-      const offCtx = offCanvas.getContext("2d");
-      if (!offCtx) return;
-      offCtx.imageSmoothingEnabled = false;
-      offCtx.clearRect(0, 0, canvasW, canvasH);
-      for (const entry of entries) {
-        if (entry.kind === "image") {
-          const imgLayer = entry.layer as ImageLayer;
-          if (!imgLayer.visible) continue;
-          const img = imageLayerImageCache.get(imgLayer.assetId);
-          if (!img) continue;
-          const scaledImageLayer = scaleImageLayer(
-            getDisplayImageLayer(imgLayer),
-          );
-          offCtx.globalAlpha =
-            (0.7 * Math.max(0, Math.min(100, imgLayer.opacity ?? 100))) / 100;
-          drawImageLayerWithOrientation(offCtx, img, scaledImageLayer);
-          offCtx.globalAlpha = 1;
-          continue;
-        }
-        const layer = entry.layer as TileLayer;
-        if (!layer.visible) continue;
-        offCtx.globalAlpha = 0.7;
-        for (const [key, ref] of Object.entries(layer.tiles) as [
-          string,
-          TileRef,
-        ][]) {
-          const img = getTileImage(ref);
-          if (!img) continue;
-          const [gx, gy] = key.split(",").map(Number);
-          const origin = getMapCellOrigin(map, zoom, gx, gy);
-          drawTileWithOrientation(
-            offCtx,
-            img,
-            ref,
-            origin.x,
-            origin.y,
-            scaledTile,
-          );
-        }
-        offCtx.globalAlpha = 1;
-      }
-    }
+    const lowerCanvas =
+      lowerBgCanvasRef.current ?? document.createElement("canvas");
+    lowerBgCanvasRef.current = lowerCanvas;
+    renderLayerEntriesToCanvas({
+      animationElapsedMs,
+      canvas: lowerCanvas,
+      entries: lowerEntries,
+      getDisplayImageLayer,
+      height: canvasH,
+      map,
+      scaleImageLayer,
+      scaledTile,
+      tileAlpha: 0.7,
+      tilesets,
+      width: canvasW,
+      zoom,
+    });
 
-    renderLayersToCanvas(lowerEntries, lowerBgCanvasRef);
-    renderLayersToCanvas(upperEntries, upperBgCanvasRef);
+    const upperCanvas =
+      upperBgCanvasRef.current ?? document.createElement("canvas");
+    upperBgCanvasRef.current = upperCanvas;
+    renderLayerEntriesToCanvas({
+      animationElapsedMs,
+      canvas: upperCanvas,
+      entries: upperEntries,
+      getDisplayImageLayer,
+      height: canvasH,
+      map,
+      scaleImageLayer,
+      scaledTile,
+      tileAlpha: 0.7,
+      tilesets,
+      width: canvasW,
+      zoom,
+    });
   }, [
     orderedLayerEntries,
     activeLayerId,
@@ -442,7 +459,9 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     canvasH,
     imagesReady,
     map,
+    tilesets,
     zoom,
+    animationElapsedMs,
     getDisplayImageLayer,
     scaleImageLayer,
   ]);
@@ -462,7 +481,15 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     if (lowerBgCanvasRef.current) {
       ctx.drawImage(lowerBgCanvasRef.current, 0, 0);
     }
-  }, [canvasW, canvasH, orderedLayerEntries, activeLayerId, imagesReady, zoom]);
+  }, [
+    canvasW,
+    canvasH,
+    orderedLayerEntries,
+    activeLayerId,
+    imagesReady,
+    animationElapsedMs,
+    zoom,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Active layer draw effect (committed content + live brush mutations)
@@ -470,53 +497,20 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   useEffect(() => {
     const canvas = paintCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     const activeEntry = orderedLayerEntries.find(
       (e) => e.layer.id === activeLayerId,
     );
-    if (activeEntry) {
-      if (activeEntry.kind === "image") {
-        const imgLayer = activeEntry.layer as ImageLayer;
-        if (imgLayer.visible) {
-          const img = imageLayerImageCache.get(imgLayer.assetId);
-          if (img) {
-            const scaledImageLayer = scaleImageLayer(
-              getDisplayImageLayer(imgLayer),
-            );
-            ctx.globalAlpha =
-              Math.max(0, Math.min(100, imgLayer.opacity ?? 100)) / 100;
-            drawImageLayerWithOrientation(ctx, img, scaledImageLayer);
-            ctx.globalAlpha = 1;
-          }
-        }
-      } else {
-        const layer = activeEntry.layer as TileLayer;
-        if (layer.visible) {
-          for (const [key, ref] of Object.entries(layer.tiles) as [
-            string,
-            TileRef,
-          ][]) {
-            const img = getTileImage(ref);
-            if (!img) continue;
-            const [gx, gy] = key.split(",").map(Number);
-            const origin = getMapCellOrigin(map, zoom, gx, gy);
-            drawTileWithOrientation(
-              ctx,
-              img,
-              ref,
-              origin.x,
-              origin.y,
-              scaledTile,
-            );
-          }
-        }
-      }
-    }
+    renderActiveLayerEntryToCanvas({
+      animationElapsedMs,
+      canvas,
+      entry: activeEntry,
+      getDisplayImageLayer,
+      map,
+      scaleImageLayer,
+      scaledTile,
+      tilesets,
+      zoom,
+    });
   }, [
     canvasW,
     canvasH,
@@ -526,9 +520,11 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     orderedLayerEntries,
     activeLayerId,
     imagesReady,
+    animationElapsedMs,
     liveImagePos,
     liveImageResize,
     paintBufferVersion,
+    tilesets,
     getDisplayImageLayer,
     scaleImageLayer,
   ]);
@@ -549,119 +545,32 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       ctx.drawImage(upperBgCanvasRef.current, 0, 0);
     }
 
-    // ---- Grid ----
-    ctx.strokeStyle = "rgba(255, 165, 0, 0.15)";
-    ctx.lineWidth = 1;
-    if (usesPolygonCells) {
-      for (let y = 0; y < mapH; y++) {
-        for (let x = 0; x < mapW; x++) {
-          traceCellPath(ctx, x, y);
-          ctx.stroke();
-        }
-      }
-    } else {
-      ctx.beginPath();
-      for (let x = 0; x <= canvasW; x += scaledTile) {
-        ctx.moveTo(x + 0.5, 0);
-        ctx.lineTo(x + 0.5, canvasH);
-      }
-      for (let y = 0; y <= canvasH; y += scaledTile) {
-        ctx.moveTo(0, y + 0.5);
-        ctx.lineTo(canvasW, y + 0.5);
-      }
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(255, 165, 0, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, canvasW - 2, canvasH - 2);
-    }
-
-    // ---- Map resize destination overlay ----
-    if (previewOffsetXInTiles !== 0 || previewOffsetYInTiles !== 0) {
-      const destinationCells = new Set<string>();
-      for (const entry of orderedLayerEntries) {
-        if (entry.kind !== "tile") {
-          continue;
-        }
-        const layer = entry.layer as TileLayer;
-        if (!layer.visible) {
-          continue;
-        }
-        for (const key of Object.keys(layer.tiles)) {
-          const [gx, gy] = key.split(",").map(Number);
-          const destX = gx + previewOffsetXInTiles;
-          const destY = gy + previewOffsetYInTiles;
-          if (
-            destX < 0 ||
-            destY < 0 ||
-            destX >= previewMapW ||
-            destY >= previewMapH
-          ) {
-            continue;
-          }
-          destinationCells.add(`${destX},${destY}`);
-        }
-      }
-
-      ctx.fillStyle = "rgba(251, 146, 60, 0.14)";
-      ctx.strokeStyle = "rgba(251, 146, 60, 0.85)";
-      ctx.lineWidth = 1.5;
-
-      for (const key of destinationCells) {
-        const [tx, ty] = key.split(",").map(Number);
-        if (usesPolygonCells) {
-          traceCellPath(ctx, tx, ty);
-          ctx.fill();
-          traceCellPath(ctx, tx, ty);
-          ctx.stroke();
-          continue;
-        }
-
-        const sx = tx * scaledTile;
-        const sy = ty * scaledTile;
-        ctx.fillRect(sx, sy, scaledTile, scaledTile);
-        ctx.strokeRect(
-          sx + 0.75,
-          sy + 0.75,
-          scaledTile - 1.5,
-          scaledTile - 1.5,
-        );
-      }
-    }
-
-    // ---- Selection overlay ----
-    if (currentTool === "select" && renderedSelection) {
-      if (usesPolygonCells) {
-        for (let dy = 0; dy < renderedSelection.height; dy++) {
-          for (let dx = 0; dx < renderedSelection.width; dx++) {
-            const tx = renderedSelection.x + dx;
-            const ty = renderedSelection.y + dy;
-            traceCellPath(ctx, tx, ty);
-            ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-            ctx.fill();
-            traceCellPath(ctx, tx, ty);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            traceCellPath(ctx, tx, ty);
-            ctx.strokeStyle = "rgba(59, 130, 246, 1)";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-          }
-        }
-      } else {
-        const sx = renderedSelection.x * scaledTile;
-        const sy = renderedSelection.y * scaledTile;
-        const sw = renderedSelection.width * scaledTile;
-        const sh = renderedSelection.height * scaledTile;
-        ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
-        ctx.fillRect(sx, sy, sw, sh);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
-        ctx.strokeStyle = "rgba(59, 130, 246, 1)";
-        ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
-      }
-    }
+    drawMapGrid(ctx, {
+      canvasHeight: canvasH,
+      canvasWidth: canvasW,
+      mapHeight: mapH,
+      mapWidth: mapW,
+      scaledTile,
+      traceCellPath,
+      usesPolygonCells,
+    });
+    drawResizeDestinationOverlay(ctx, {
+      entries: orderedLayerEntries,
+      previewHeight: previewMapH,
+      previewOffsetXInTiles,
+      previewOffsetYInTiles,
+      previewWidth: previewMapW,
+      scaledTile,
+      traceCellPath,
+      usesPolygonCells,
+    });
+    drawTileSelectionOverlay(ctx, {
+      currentTool,
+      renderedSelection,
+      scaledTile,
+      traceCellPath,
+      usesPolygonCells,
+    });
 
     // ---- Image layer selection border + handles ----
     if (currentTool === "select") {
@@ -803,13 +712,25 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     if (currentTool === "select" && moveDestSel && moveTiles.length > 0) {
       ctx.globalAlpha = 0.6;
       for (const { dx: tdx, dy: tdy, ref } of moveTiles) {
-        const img = getTileImage(ref);
+        const resolvedRef = resolveAnimatedTileRef(
+          ref,
+          tilesets,
+          animationElapsedMs,
+        );
+        const img = getTileImage(resolvedRef);
         if (!img) continue;
         const tx = moveDestSel.x + tdx;
         const ty = moveDestSel.y + tdy;
         if (tx >= mapW || ty >= mapH) continue;
         const origin = getMapCellOrigin(map, zoom, tx, ty);
-        drawTileWithOrientation(ctx, img, ref, origin.x, origin.y, scaledTile);
+        drawTileWithOrientation(
+          ctx,
+          img,
+          resolvedRef,
+          origin.x,
+          origin.y,
+          scaledTile,
+        );
       }
       ctx.globalAlpha = 1;
     }
@@ -842,6 +763,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     polygonCursorPos,
     moveDestSel,
     moveTiles,
+    tilesets,
+    animationElapsedMs,
     previewMapW,
     previewMapH,
     previewOffsetXInTiles,
@@ -855,7 +778,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   // Pointer event translation (client → canvas-local coordinates)
   // ---------------------------------------------------------------------------
   const getCanvasCoords = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
+    (e: { clientX: number; clientY: number }) => {
       const canvas = mainCanvasRef.current;
       if (!canvas) return { x: 0, y: 0 };
       const rect = canvas.getBoundingClientRect();
@@ -893,6 +816,31 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       handlePointerUp({ button: e.button });
     },
     [handlePointerUp],
+  );
+
+  const onDragOver = useCallback((e: React.DragEvent<HTMLCanvasElement>) => {
+    if (
+      !Array.from(e.dataTransfer.types).includes(TILESET_ANIMATION_DRAG_MIME)
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent<HTMLCanvasElement>) => {
+      const payload = parseAnimationDragPayload(e.dataTransfer);
+      if (!payload) return;
+
+      e.preventDefault();
+      const position = getMapCellAtPoint(map, zoom, getCanvasCoords(e));
+      if (!position) return;
+
+      onPlaceAnimation(position.x, position.y, payload);
+    },
+    [getCanvasCoords, map, onPlaceAnimation, zoom],
   );
 
   const onPointerLeave = useCallback(
@@ -986,6 +934,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerLeave}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
         />
         <canvas
           ref={paintCanvasRef}

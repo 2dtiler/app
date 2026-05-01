@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
+import type { ImageUploadProps } from "@/types/integrations/ai-assets";
 
 async function resizeImage(
   file: File,
@@ -9,7 +10,9 @@ async function resizeImage(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       let { width, height } = image;
       if (width > maxSize || height > maxSize) {
         if (width > height) {
@@ -28,8 +31,11 @@ async function resizeImage(
       context.drawImage(image, 0, 0, width, height);
       resolve(canvas.toDataURL(file.type));
     };
-    image.onerror = reject;
-    image.src = URL.createObjectURL(file);
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load uploaded image."));
+    };
+    image.src = objectUrl;
   });
 }
 
@@ -39,13 +45,7 @@ export function ImageUpload({
   value,
   onChange,
   label,
-}: {
-  id: string;
-  name: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-  label: string;
-}) {
+}: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 

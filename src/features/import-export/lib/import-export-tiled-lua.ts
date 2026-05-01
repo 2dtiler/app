@@ -161,6 +161,38 @@ function convertJsonTilesetEntryToTsx(entry: ImportExportArchiveEntry) {
   }
   appendTiledXmlWangSetElements(document, tilesetElement, tileset.wangsets);
 
+  if (tileset.properties?.length) {
+    const propertiesElement = document.createElement("properties");
+    for (const property of tileset.properties) {
+      if (!property.name) continue;
+
+      const propertyElement = document.createElement("property");
+      propertyElement.setAttribute("name", property.name);
+      if (property.type && property.type !== "string") {
+        propertyElement.setAttribute("type", property.type);
+      }
+      propertyElement.setAttribute("value", String(property.value ?? ""));
+      propertiesElement.append(propertyElement);
+    }
+    tilesetElement.append(propertiesElement);
+  }
+
+  for (const tile of tileset.tiles ?? []) {
+    if (tile.id === undefined || !tile.animation?.length) continue;
+
+    const tileElement = document.createElement("tile");
+    tileElement.setAttribute("id", String(tile.id));
+    const animationElement = document.createElement("animation");
+    for (const frame of tile.animation) {
+      const frameElement = document.createElement("frame");
+      frameElement.setAttribute("tileid", String(frame.tileid ?? 0));
+      frameElement.setAttribute("duration", String(frame.duration ?? 1));
+      animationElement.append(frameElement);
+    }
+    tileElement.append(animationElement);
+    tilesetElement.append(tileElement);
+  }
+
   return {
     path: replaceJsonExtensionWithTsx(entry.path),
     data: encodeXmlDocument(document),

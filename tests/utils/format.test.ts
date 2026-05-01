@@ -10,6 +10,7 @@ import type {
   TileLayer,
   TileMapData,
   Tileset,
+  TilesetAnimationConfig,
 } from "@/types";
 
 const { getAssetMock, saveAssetMock } = vi.hoisted(() => ({
@@ -517,6 +518,29 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
       },
     ],
   } as AutotileConfig;
+  const animations = {
+    version: 1,
+    animations: [
+      {
+        id: "animation-water" as TilesetAnimationConfig["animations"][number]["id"],
+        name: "Waterfall",
+        widthInTiles: 1,
+        heightInTiles: 1,
+        frames: [
+          {
+            durationMs: 100,
+            cells: [{ sx: 0, sy: 0, sw: 16, sh: 16 }],
+          },
+          {
+            durationMs: 150,
+            cells: [{ sx: 16, sy: 0, sw: 16, sh: 16 }],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ],
+  } as TilesetAnimationConfig;
 
   const tileset = {
     id: "tileset-1" as Tileset["id"],
@@ -527,6 +551,7 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
     imageWidth: 48,
     imageHeight: 16,
     autotile,
+    animations,
     createdAt: 1,
   } as Tileset;
   getAssetMock.mockResolvedValue({
@@ -541,6 +566,7 @@ test("exportTileset and importTileset round-trip a single tileset asset", async 
 
   assert.strictEqual(imported.tileSize, 24);
   assert.deepEqual(imported.autotile, autotile);
+  assert.deepEqual(imported.animations, animations);
   assert.strictEqual(saveAssetMock.mock.calls.length, 1);
 });
 

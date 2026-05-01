@@ -9,7 +9,11 @@ import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-im
 import {
   assertComplexImportResult,
   COMPLEX_TILED_OPTIONS,
+  createTestAnimationConfig,
   createComplexTiledFixture,
+  createTestMap,
+  createTestTileset,
+  createTestWangAutotileConfig,
   encodeText,
   getRootEntry,
   PNG_ASSET_RECORD,
@@ -89,6 +93,90 @@ test("prepareTiledMapImport normalizes external TSX tilesets with margin and spa
     { width: 36, height: 18 },
   );
 });
+
+for (const scenario of [
+  {
+    label: "TMX",
+    format: "xml" as const,
+    extension: ".tmx",
+    buildEntries: exportTiledMapBundle,
+  },
+  {
+    label: "TMJ",
+    format: "json" as const,
+    extension: ".tmj",
+    buildEntries: exportTiledMapJsonBundle,
+  },
+] as const) {
+  test(`prepareTiledMapImport preserves Wang autotile and animations from ${scenario.label} tilesets`, async () => {
+    const tileset = createTestTileset();
+    tileset.imageWidth = 64;
+    tileset.autotile = createTestWangAutotileConfig();
+    tileset.animations = createTestAnimationConfig();
+    const { map, layer } = createTestMap(tileset);
+
+    await withStubbedAssetLookup(async () => {
+      const entries = await scenario.buildEntries(
+        map,
+        [layer],
+        [tileset],
+        [],
+        [],
+        [],
+        [],
+        {
+          encoding: "csv",
+          compression: "none",
+          compressionLevel: 0,
+          tilesetMode: "external",
+          renderOrder: "right-down",
+        },
+      );
+      const rootEntry = getRootEntry(entries, scenario.extension);
+
+      await withStubbedImageImportEnvironment(
+        async () => {
+          const imported = await prepareTiledMapImport(
+            rootEntry.path,
+            entries,
+            scenario.format,
+          );
+
+          assert.strictEqual(imported.status, "ready");
+          if (imported.status !== "ready") {
+            return;
+          }
+
+          const importedTileset = imported.result.tilesets[0];
+          assert.strictEqual(importedTileset?.autotile?.preset, "wang-tiles");
+          assert.deepEqual(
+            importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-0f"],
+            {
+              sx: 16,
+              sy: 0,
+              sw: 16,
+              sh: 16,
+            },
+          );
+          assert.strictEqual(
+            importedTileset?.animations?.animations[0]?.name,
+            "Waterfall",
+          );
+          assert.deepEqual(
+            importedTileset?.animations?.animations[0]?.frames[1]?.cells[0],
+            {
+              sx: 16,
+              sy: 0,
+              sw: 16,
+              sh: 16,
+            },
+          );
+        },
+        { width: 64, height: 16 },
+      );
+    }, PNG_ASSET_RECORD);
+  });
+}
 
 for (const scenario of [
   {

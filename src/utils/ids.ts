@@ -10,6 +10,7 @@ import type {
   ObjectId,
   ProjectId,
   TerrainId,
+  TilesetAnimationId,
   TilesetGroupId,
   TilesetId,
 } from "@/types";
@@ -26,3 +27,4 @@ export const generateTerrainId = () => uuidv4() as TerrainId;
 export const generateObjectId = () => uuidv4() as ObjectId;
 export const generateAutotileTerrainId = () => uuidv4() as AutotileTerrainId;
 export const generateAutotileRuleId = () => uuidv4() as AutotileRuleId;
+export const generateTilesetAnimationId = () => uuidv4() as TilesetAnimationId;
