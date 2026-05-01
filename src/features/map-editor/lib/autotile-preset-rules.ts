@@ -669,6 +669,15 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     requiredSlots: WANG_PATTERN_DEFINITIONS.map((definition) => definition.id),
     optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
   },
+  {
+    id: "wang-named-colors",
+    label: "Wang Named Colors",
+    description:
+      "Preserve Tiled Wang sets with named edge, corner, and mixed colors.",
+    editorLayout: "wang",
+    requiredSlots: [],
+    optionalSlots: [],
+  },
 ] as const satisfies readonly AutotilePresetDefinition[];
 
 const DEFAULT_PRESET_ID =

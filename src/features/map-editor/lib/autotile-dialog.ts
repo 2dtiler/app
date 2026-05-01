@@ -5,6 +5,7 @@ import {
   type AutotilePresetId,
   type AutotileTerrain,
   type AutotileTileRegion,
+  type AutotileWangSet,
 } from "@/types";
 import {
   AUTOTILE_PATTERN_SLOTS,
@@ -59,6 +60,14 @@ function normalizeTerrain(terrain: AutotileTerrain): AutotileTerrain {
   };
 }
 
+function normalizeWangSet(wangSet: AutotileWangSet): AutotileWangSet {
+  return {
+    ...wangSet,
+    colors: wangSet.colors ?? [],
+    tiles: wangSet.tiles ?? [],
+  };
+}
+
 export function createEmptyAutotileConfig(): AutotileConfig {
   return {
     version: AUTOTILE_CONFIG_VERSION,
@@ -77,12 +86,18 @@ export function cloneAutotileConfig(
 
   const cloned = JSON.parse(JSON.stringify(autotile)) as AutotileConfig;
 
-  return {
+  const normalized: AutotileConfig = {
     version: cloned.version,
     preset: cloned.preset ?? DEFAULT_AUTOTILE_PRESET_ID,
     terrains: cloned.terrains.map(normalizeTerrain),
     rules: cloned.rules ?? [],
   };
+
+  if (cloned.wangSets) {
+    normalized.wangSets = cloned.wangSets.map(normalizeWangSet);
+  }
+
+  return normalized;
 }
 
 export function assignTileToSelectionTarget(

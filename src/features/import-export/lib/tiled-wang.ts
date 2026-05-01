@@ -2,6 +2,11 @@ import {
   AUTOTILE_CONFIG_VERSION,
   type AutotileConfig,
   type AutotilePatternTiles,
+  type AutotileWangColor,
+  type AutotileWangId,
+  type AutotileWangSet,
+  type AutotileWangSetType,
+  type AutotileWangTile,
   type AutotileTileRegion,
   type TiledJsonWangColor,
   type TiledJsonWangSet,
@@ -32,10 +37,58 @@ const TILED_WANG_EDGE_INDEXES = {
 const TILED_WANG_CORNER_INDEXES = [1, 3, 5, 7] as const;
 const OPEN_WANG_COLOR = "#000000";
 const TERRAIN_WANG_COLOR = "#ffffff";
+const DEFAULT_NAMED_WANG_COLOR = "#999999";
+
+const TILED_WANG_SET_TYPES = ["edge", "corner", "mixed"] as const;
 
 function readNumber(value: string | null | undefined, fallback: number) {
   const parsed = Number(value ?? fallback);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function readProbability(value: number | null | undefined, fallback = 1) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : fallback;
+}
+
+function normalizeTiledWangSetType(
+  type: string | null | undefined,
+): AutotileWangSetType {
+  return TILED_WANG_SET_TYPES.find((candidate) => candidate === type) ?? "edge";
+}
+
+export function normalizeTiledWangId(
+  wangId: readonly number[] | undefined,
+): AutotileWangId | null {
+  if (!wangId || wangId.length < TILED_WANG_ID_LENGTH) {
+    return null;
+  }
+
+  const normalized = wangId.slice(0, TILED_WANG_ID_LENGTH).map((value) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  });
+
+  if (normalized.some((value) => value === null)) {
+    return null;
+  }
+
+  return normalized as AutotileWangId;
+}
+
+function createNamedWangSetId(index: number) {
+  return `tiled-wang-set-${index + 1}`;
+}
+
+function hasOnlyKnownWangColorIndexes(
+  wangId: AutotileWangId,
+  colors: readonly AutotileWangColor[],
+) {
+  const indexes = new Set(colors.map((color) => color.index));
+  return wangId.every(
+    (colorIndex) => colorIndex === 0 || indexes.has(colorIndex),
+  );
 }
 
 function tileRegionToLocalId(
@@ -186,6 +239,64 @@ function buildTiledWangTiles(
   });
 }
 
+function buildNamedTiledWangColors(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  colors: readonly AutotileWangColor[],
+): TiledJsonWangColor[] {
+  return [...colors]
+    .sort((left, right) => left.index - right.index)
+    .map((color) => ({
+      name: color.name || `Color ${color.index}`,
+      color: color.color || DEFAULT_NAMED_WANG_COLOR,
+      tile: tileRegionToLocalId(tileset, color.tile) ?? -1,
+      probability: readProbability(color.probability),
+    }));
+}
+
+function buildNamedTiledWangTiles(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  tiles: readonly AutotileWangTile[],
+): TiledJsonWangTile[] {
+  return tiles.flatMap((wangTile) => {
+    const tileId = tileRegionToLocalId(tileset, wangTile.tile);
+    if (tileId === null) {
+      return [];
+    }
+
+    return [
+      {
+        tileid: tileId,
+        wangid: [...wangTile.wangId],
+      },
+    ];
+  });
+}
+
+function buildNamedTiledJsonWangSets(
+  tileset: Pick<
+    Tileset,
+    "autotile" | "imageHeight" | "imageWidth" | "tileSize"
+  >,
+): TiledJsonWangSet[] {
+  return (tileset.autotile?.wangSets ?? []).flatMap((wangSet) => {
+    if (wangSet.colors.length === 0) {
+      return [];
+    }
+
+    const wangTiles = buildNamedTiledWangTiles(tileset, wangSet.tiles);
+
+    return [
+      {
+        name: wangSet.name || "Wang Colors",
+        type: wangSet.type,
+        tile: tileRegionToLocalId(tileset, wangSet.tile) ?? -1,
+        colors: buildNamedTiledWangColors(tileset, wangSet.colors),
+        wangtiles: wangTiles,
+      },
+    ];
+  });
+}
+
 export function buildTiledJsonWangSets(
   tileset: Pick<
     Tileset,
@@ -193,7 +304,16 @@ export function buildTiledJsonWangSets(
   >,
 ): TiledJsonWangSet[] | undefined {
   const autotile = tileset.autotile;
-  if (!autotile || autotile.preset !== "wang-tiles") {
+  if (!autotile) {
+    return undefined;
+  }
+
+  if (autotile.preset === "wang-named-colors" || autotile.wangSets?.length) {
+    const wangSets = buildNamedTiledJsonWangSets(tileset);
+    return wangSets.length > 0 ? wangSets : undefined;
+  }
+
+  if (autotile.preset !== "wang-tiles") {
     return undefined;
   }
 
@@ -318,51 +438,134 @@ export function readTiledXmlWangSets(
     });
 }
 
-function isSupportedEdgeWangSet(wangSet: TiledJsonWangSet): boolean {
+function normalizeColorValue(color: string | undefined) {
+  return color?.trim().toLowerCase();
+}
+
+function isLegacyTilerEdgeWangSet(wangSet: TiledJsonWangSet): boolean {
+  const colors = wangSet.colors ?? [];
+  const openColor = colors[0];
+  const terrainColor = colors[1];
+
   return (
     (!wangSet.type || wangSet.type === "edge") &&
-    (wangSet.colors?.length ?? 0) === 2
+    colors.length === 2 &&
+    (openColor?.name ?? "Open") === "Open" &&
+    normalizeColorValue(openColor?.color) === OPEN_WANG_COLOR &&
+    normalizeColorValue(terrainColor?.color) === TERRAIN_WANG_COLOR &&
+    readProbability(openColor?.probability) === 1 &&
+    readProbability(terrainColor?.probability) === 1
   );
 }
 
-export function buildAutotileFromTiledWangSets(
+function buildLegacyTerrainFromTiledWangSet(
   tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
-  wangSets: readonly TiledJsonWangSet[] | undefined,
+  wangSet: TiledJsonWangSet,
+  index: number,
+) {
+  if (!isLegacyTilerEdgeWangSet(wangSet)) {
+    return null;
+  }
+
+  const patternTiles: AutotilePatternTiles = {};
+  let firstPatternTile: AutotileTileRegion | null = null;
+
+  for (const wangTile of wangSet.wangtiles ?? []) {
+    const mask = parseTiledWangId(wangTile.wangid);
+    const tile = localIdToTileRegion(tileset, wangTile.tileid);
+    if (mask === null || !tile) {
+      continue;
+    }
+
+    patternTiles[createWangPatternId(mask)] = tile;
+    firstPatternTile = firstPatternTile ?? tile;
+  }
+
+  if (!firstPatternTile) {
+    return null;
+  }
+
+  const setTile = localIdToTileRegion(tileset, wangSet.tile);
+  const allMatchingTile = patternTiles[createWangPatternId(15)] ?? null;
+
+  return {
+    id: generateAutotileTerrainId(),
+    name: wangSet.name || `Wang Terrain ${index + 1}`,
+    paletteTile: setTile ?? allMatchingTile ?? firstPatternTile,
+    patternTiles,
+  };
+}
+
+function buildNamedWangColorFromTiled(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  color: TiledJsonWangColor,
+  index: number,
+): AutotileWangColor {
+  const colorIndex = index + 1;
+
+  return {
+    index: colorIndex,
+    name: color.name || `Color ${colorIndex}`,
+    color: color.color || DEFAULT_NAMED_WANG_COLOR,
+    tile: localIdToTileRegion(tileset, color.tile),
+    probability: readProbability(color.probability),
+  };
+}
+
+function buildNamedWangTileFromTiled(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  wangTile: TiledJsonWangTile,
+  colors: readonly AutotileWangColor[],
+): AutotileWangTile | null {
+  const tile = localIdToTileRegion(tileset, wangTile.tileid);
+  const wangId = normalizeTiledWangId(wangTile.wangid);
+
+  if (!tile || !wangId || !hasOnlyKnownWangColorIndexes(wangId, colors)) {
+    return null;
+  }
+
+  return {
+    tile,
+    wangId,
+    probability: 1,
+  };
+}
+
+function buildNamedWangSetFromTiled(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  wangSet: TiledJsonWangSet,
+  index: number,
+): AutotileWangSet | null {
+  const colors = (wangSet.colors ?? []).map((color, colorIndex) =>
+    buildNamedWangColorFromTiled(tileset, color, colorIndex),
+  );
+
+  if (colors.length === 0) {
+    return null;
+  }
+
+  const tiles = (wangSet.wangtiles ?? []).flatMap((wangTile) => {
+    const built = buildNamedWangTileFromTiled(tileset, wangTile, colors);
+    return built ? [built] : [];
+  });
+
+  return {
+    id: createNamedWangSetId(index),
+    name: wangSet.name || `Wang Colors ${index + 1}`,
+    type: normalizeTiledWangSetType(wangSet.type),
+    tile: localIdToTileRegion(tileset, wangSet.tile),
+    colors,
+    tiles,
+  };
+}
+
+function buildLegacyAutotileFromTiledWangSets(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  wangSets: readonly TiledJsonWangSet[],
 ): AutotileConfig | null {
-  const terrains = (wangSets ?? []).flatMap((wangSet, index) => {
-    if (!isSupportedEdgeWangSet(wangSet)) {
-      return [];
-    }
-
-    const patternTiles: AutotilePatternTiles = {};
-    let firstPatternTile: AutotileTileRegion | null = null;
-
-    for (const wangTile of wangSet.wangtiles ?? []) {
-      const mask = parseTiledWangId(wangTile.wangid);
-      const tile = localIdToTileRegion(tileset, wangTile.tileid);
-      if (mask === null || !tile) {
-        continue;
-      }
-
-      patternTiles[createWangPatternId(mask)] = tile;
-      firstPatternTile = firstPatternTile ?? tile;
-    }
-
-    if (!firstPatternTile) {
-      return [];
-    }
-
-    const setTile = localIdToTileRegion(tileset, wangSet.tile);
-    const allMatchingTile = patternTiles[createWangPatternId(15)] ?? null;
-
-    return [
-      {
-        id: generateAutotileTerrainId(),
-        name: wangSet.name || `Wang Terrain ${index + 1}`,
-        paletteTile: setTile ?? allMatchingTile ?? firstPatternTile,
-        patternTiles,
-      },
-    ];
+  const terrains = wangSets.flatMap((wangSet, index) => {
+    const terrain = buildLegacyTerrainFromTiledWangSet(tileset, wangSet, index);
+    return terrain ? [terrain] : [];
   });
 
   if (terrains.length === 0) {
@@ -379,5 +582,37 @@ export function buildAutotileFromTiledWangSets(
   return {
     ...autotile,
     rules: buildPresetAutotileRules(autotile),
+  };
+}
+
+export function buildAutotileFromTiledWangSets(
+  tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
+  wangSets: readonly TiledJsonWangSet[] | undefined,
+): AutotileConfig | null {
+  const tiledWangSets = wangSets ?? [];
+
+  if (tiledWangSets.length === 0) {
+    return null;
+  }
+
+  if (tiledWangSets.every(isLegacyTilerEdgeWangSet)) {
+    return buildLegacyAutotileFromTiledWangSets(tileset, tiledWangSets);
+  }
+
+  const namedWangSets = tiledWangSets.flatMap((wangSet, index) => {
+    const built = buildNamedWangSetFromTiled(tileset, wangSet, index);
+    return built ? [built] : [];
+  });
+
+  if (namedWangSets.length === 0) {
+    return buildLegacyAutotileFromTiledWangSets(tileset, tiledWangSets);
+  }
+
+  return {
+    version: AUTOTILE_CONFIG_VERSION,
+    preset: "wang-named-colors",
+    terrains: [],
+    rules: [],
+    wangSets: namedWangSets,
   };
 }
