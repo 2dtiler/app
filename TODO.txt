@@ -1,4 +1,4 @@
-Whenever there's an animation, then painting/erasing while dragging is not working anymore
+Whenever there's an animation placed on the map, then painting/erasing while dragging is not working anymore - you have to lift up on the mouse to see the actual results. I want to paint normally even when animations or on the map canvas
 
 Get code coverage above 80%
 Godot project Import/Export
