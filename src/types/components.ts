@@ -13,7 +13,10 @@ export type ColorPickerContextValue = {
   setMode: (mode: string) => void;
 };
 
-export type ColorPickerProps = HTMLAttributes<HTMLDivElement> & {
+export type ColorPickerProps = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "defaultValue" | "onChange" | "value"
+> & {
   value?: unknown; // Parameters<typeof Color>[0]
   defaultValue?: unknown; // Parameters<typeof Color>[0]
   onChange?: (value: [number, number, number, number]) => void;

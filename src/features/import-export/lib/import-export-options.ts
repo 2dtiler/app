@@ -151,9 +151,9 @@ export const IMPORT_EXPORT_OPTION_DEFINITIONS: ImportExportOptionDefinition[] =
       id: "tileset-godot",
       assetType: "tileset",
       label: "Godot 4 Tileset Bundle (.tres)",
-      description: "Exports Godot 4 tileset resources for selected tilesets.",
+      description:
+        "Imports and exports Godot 4 tileset resources, including Wang terrain metadata on atlas tilesets.",
       supportedNow: true,
-      supportedModes: ["export"],
     },
     {
       id: "tileset-unity",

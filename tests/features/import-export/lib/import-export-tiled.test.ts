@@ -7,13 +7,16 @@ import {
   createComplexTiledFixture,
   createTestMap,
   createTestTileset,
+  createTestWangAutotileConfig,
   decodeText,
   getRootEntry,
   withStubbedAssetLookup,
 } from "./tiled-test-support";
 
-test("exportTiledMapBundle emits zero margin and spacing for inline TMX tilesets", async () => {
+test("exportTiledMapBundle preserves Wang and animation metadata for inline TMX tilesets", async () => {
   const tileset = createTestTileset();
+  tileset.imageWidth = 64;
+  tileset.autotile = createTestWangAutotileConfig();
   tileset.animations = createTestAnimationConfig();
   const { map, layer } = createTestMap(tileset);
 
@@ -59,6 +62,15 @@ test("exportTiledMapBundle emits zero margin and spacing for inline TMX tilesets
           ?.querySelector('tile[id="0"] > animation > frame[tileid="1"]')
           ?.getAttribute("duration"),
         "150",
+      );
+      assert.strictEqual(
+        tilesetElement?.querySelector("wangsets > wangset")?.getAttribute("type"),
+        "edge",
+      );
+      assert.strictEqual(
+        tilesetElement?.querySelectorAll("wangsets > wangset > wangcolor")
+          .length,
+        2,
       );
     },
     {

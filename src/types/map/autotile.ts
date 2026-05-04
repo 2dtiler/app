@@ -1,3 +1,5 @@
+import type { AutotileWangSet } from "./autotile-wang";
+
 export const AUTOTILE_CONFIG_VERSION = 1 as const;
 
 export type AutotileConfigVersion = typeof AUTOTILE_CONFIG_VERSION;
@@ -35,7 +37,9 @@ export type AutotilePresetId =
   | "edges-only"
   | "edges-corners"
   | "full-corners"
-  | "blob-47";
+  | "blob-47"
+  | "wang-tiles"
+  | "wang-named-colors";
 
 export type AutotilePatternSlotId = string;
 
@@ -72,4 +76,5 @@ export interface AutotileConfig {
   preset?: AutotilePresetId;
   terrains: AutotileTerrain[];
   rules: AutotileRule[];
+  wangSets?: AutotileWangSet[];
 }

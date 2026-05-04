@@ -1,4 +1,5 @@
 import { decodeGodotAlternativeTile } from "@/features/import-export/lib/godot-scene-utils";
+import { buildAutotileFromGodotTerrainProperties } from "@/features/import-export/lib/godot-terrain";
 import {
   getProvidedEntry,
   importImageAsset,
@@ -769,6 +770,15 @@ async function resolveTilesetResource(
         context,
         textureResource.resolvedPath,
       );
+      const autotile = buildAutotileFromGodotTerrainProperties(
+        {
+          imageHeight: importedImage.height,
+          imageWidth: importedImage.width,
+          tileSize,
+        },
+        resourceSection.properties,
+        sourceSection.properties,
+      );
       const nameBase =
         textureResource.resolvedPath.split("/").pop() ??
         `Tileset ${entry.sourceId}`;
@@ -783,6 +793,7 @@ async function resolveTilesetResource(
         assetId: importedImage.assetId,
         imageWidth: importedImage.width,
         imageHeight: importedImage.height,
+        ...(autotile ? { autotile } : {}),
         createdAt: Date.now(),
       };
 

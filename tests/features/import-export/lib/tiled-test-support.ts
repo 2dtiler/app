@@ -12,6 +12,7 @@ import {
   generateTilesetId,
 } from "@/utils/ids";
 import type {
+  AutotileConfig,
   ImageLayer,
   LayerGroup,
   MapObject,
@@ -95,6 +96,25 @@ export function createTestAnimationConfig(): TilesetAnimationConfig {
   return {
     version: TILESET_ANIMATION_CONFIG_VERSION,
     animations: [animation],
+  };
+}
+
+export function createTestWangAutotileConfig(): AutotileConfig {
+  return {
+    version: 1,
+    preset: "wang-tiles",
+    terrains: [
+      {
+        id: "terrain-land",
+        name: "Land",
+        paletteTile: { sx: 16, sy: 0, sw: 16, sh: 16 },
+        patternTiles: {
+          "wang-00": { sx: 0, sy: 0, sw: 16, sh: 16 },
+          "wang-0f": { sx: 16, sy: 0, sw: 16, sh: 16 },
+        },
+      },
+    ],
+    rules: [],
   };
 }
 
@@ -545,8 +565,8 @@ export const PNG_ASSET_RECORD = {
   mimeType: "image/png",
 };
 
-export async function withStubbedAssetLookup(
-  run: () => Promise<void>,
+export async function withStubbedAssetLookup<T>(
+  run: () => Promise<T>,
   assetRecord: { data: ArrayBuffer; mimeType: string },
 ) {
   const originalGet = db.assets.get;
@@ -558,14 +578,14 @@ export async function withStubbedAssetLookup(
   })) as typeof db.assets.get;
 
   try {
-    await run();
+    return await run();
   } finally {
     db.assets.get = originalGet;
   }
 }
 
-export async function withStubbedImageImportEnvironment(
-  run: () => Promise<void>,
+export async function withStubbedImageImportEnvironment<T>(
+  run: () => Promise<T>,
   dimensions: { width: number; height: number },
 ) {
   const originalImage = globalThis.Image;
@@ -612,7 +632,7 @@ export async function withStubbedImageImportEnvironment(
   db.assets.put = (async () => undefined) as typeof db.assets.put;
 
   try {
-    await run();
+    return await run();
   } finally {
     if (originalImage) {
       Object.assign(globalThis, {

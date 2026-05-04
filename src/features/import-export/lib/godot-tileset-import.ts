@@ -8,6 +8,7 @@ import {
   resolveBundlePath,
   stripExtension,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import { buildAutotileFromGodotTerrainProperties } from "@/features/import-export/lib/godot-terrain";
 import { generateTilesetId } from "@/utils/ids";
 import type {
   GodotImportMissingResource,
@@ -433,6 +434,15 @@ async function importGodotTilesets(
       context,
       textureResource.resolvedPath,
     );
+    const autotile = buildAutotileFromGodotTerrainProperties(
+      {
+        imageHeight: importedImage.height,
+        imageWidth: importedImage.width,
+        tileSize,
+      },
+      resourceSection.properties,
+      sourceSection.properties,
+    );
     importedTilesets.push({
       id: generateTilesetId(),
       name:
@@ -447,6 +457,7 @@ async function importGodotTilesets(
       assetId: importedImage.assetId,
       imageWidth: importedImage.width,
       imageHeight: importedImage.height,
+      ...(autotile ? { autotile } : {}),
       createdAt: Date.now(),
     });
   }

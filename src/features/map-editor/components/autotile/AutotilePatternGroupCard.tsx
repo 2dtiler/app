@@ -171,7 +171,7 @@ export function AutotilePatternGroupCard({
                   region={tile}
                   size={60}
                   emptyLabel={definition.shortLabel}
-                  className="h-[3.75rem] w-[3.75rem]"
+                  className="h-15 w-15"
                 />
                 <span className="mt-2 text-[11px] font-medium leading-tight text-foreground">
                   {definition.shortLabel}

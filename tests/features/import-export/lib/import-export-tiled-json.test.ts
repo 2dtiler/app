@@ -10,6 +10,7 @@ import {
   createComplexTiledFixture,
   createTestMap,
   createTestTileset,
+  createTestWangAutotileConfig,
   decodeText,
   getRootEntry,
   withStubbedAssetLookup,
@@ -95,6 +96,68 @@ test("exportTiledMapJsonBundle serializes grouped layers and external tilesets t
     };
     assert.strictEqual(mapDocument.layers?.[1]?.type, "group");
     assert.ok(mapDocument.tilesets?.[0]?.source?.endsWith(".tsj"));
+  }, PNG_ASSET_RECORD);
+});
+
+test("exportTiledMapJsonBundle preserves Wang and animation metadata on one external TSJ tileset", async () => {
+  const tileset = createTestTileset();
+  tileset.imageWidth = 64;
+  tileset.autotile = createTestWangAutotileConfig();
+  tileset.animations = createTestAnimationConfig();
+  const { map, layer } = createTestMap(tileset);
+
+  await withStubbedAssetLookup(async () => {
+    const entries = await exportTiledMapJsonBundle(
+      map,
+      [layer],
+      [tileset],
+      [],
+      [],
+      [],
+      [],
+      {
+        encoding: "csv",
+        compression: "none",
+        compressionLevel: 0,
+        tilesetMode: "external",
+        renderOrder: "right-down",
+      },
+    );
+
+    const tilesetEntry = entries.find((entry) => entry.path.endsWith(".tsj"));
+    assert.ok(tilesetEntry);
+
+    const tilesetDocument = JSON.parse(decodeText(tilesetEntry.data)) as {
+      properties?: Array<{ name?: string; value?: string }>;
+      tiles?: Array<{
+        id?: number;
+        animation?: Array<{ tileid?: number; duration?: number }>;
+      }>;
+      wangsets?: Array<{
+        type?: string;
+        colors?: unknown[];
+        wangtiles?: Array<{ tileid?: number; wangid?: number[] }>;
+      }>;
+    };
+
+    assert.strictEqual(tilesetDocument.wangsets?.[0]?.type, "edge");
+    assert.strictEqual(tilesetDocument.wangsets?.[0]?.colors?.length, 2);
+    assert.deepEqual(tilesetDocument.wangsets?.[0]?.wangtiles?.[0], {
+      tileid: 0,
+      wangid: [1, 0, 1, 0, 1, 0, 1, 0],
+    });
+    assert.ok(
+      tilesetDocument.properties?.some(
+        (property) => property.name === "2dtiler:animations",
+      ),
+    );
+    assert.deepEqual(tilesetDocument.tiles?.[0], {
+      id: 0,
+      animation: [
+        { tileid: 0, duration: 100 },
+        { tileid: 1, duration: 150 },
+      ],
+    });
   }, PNG_ASSET_RECORD);
 });
 

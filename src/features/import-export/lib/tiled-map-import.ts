@@ -42,6 +42,10 @@ import {
   validateTiledOrientation,
 } from "@/features/import-export/lib/tiled-map-import-shared";
 import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-wang";
+import {
   collectMissingTiledJsonMapResources,
   importTiledJsonMapEntries,
 } from "@/features/import-export/lib/tiled-map-import-json";
@@ -288,6 +292,15 @@ async function parseTilesetElement(
     imageHeight: importedImage.height,
     createdAt: Date.now(),
   };
+
+  const autotile = buildAutotileFromTiledWangSets(
+    tileset,
+    readTiledXmlWangSets(tilesetElement),
+  );
+  if (autotile) {
+    tileset.autotile = autotile;
+  }
+
   const animations = readXmlTilesetAnimationConfig(tilesetElement, tileset);
   if (animations) {
     tileset.animations = animations;

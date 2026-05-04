@@ -1,8 +1,9 @@
 import type { AutotilePatternDiagramProps } from "@/features/map-editor/types/autotile-builder";
 import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
-import type {
-  AutotileNeighborPosition,
-  AutotilePatternRelation,
+import {
+  AUTOTILE_NEIGHBOR_POSITIONS,
+  type AutotileNeighborPosition,
+  type AutotilePatternRelation,
 } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -44,8 +45,17 @@ export function AutotilePatternDiagram({
   definition,
   centerCell,
 }: AutotilePatternDiagramProps) {
+  const diagramDescription = AUTOTILE_NEIGHBOR_POSITIONS.map((position) => {
+    const relation = definition.neighbors[position];
+    return `${position}: ${getCellLabel(relation)}`;
+  }).join(", ");
+
   return (
-    <div aria-hidden="true" className="grid w-full max-w-38 grid-cols-3 gap-1">
+    <div
+      role={centerCell ? undefined : "img"}
+      aria-label={`${definition.label}. ${diagramDescription}`}
+      className="grid w-full max-w-38 grid-cols-3 gap-1"
+    >
       {GRID_ORDER.map((cell) => {
         if (cell === "center") {
           if (centerCell) {
@@ -76,6 +86,7 @@ export function AutotilePatternDiagram({
                   region={region}
                   size={34}
                   emptyLabel={emptyLabel}
+                  ariaLabel={`${definition.label} tile preview`}
                   className="h-8 w-8"
                 />
               </button>

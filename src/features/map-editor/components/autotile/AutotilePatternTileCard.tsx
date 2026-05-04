@@ -31,6 +31,7 @@ export function AutotilePatternTileCard({
             definition={definition}
             centerCell={{
               id: buttonId,
+              name: buttonId,
               image,
               region: tile,
               isSelected,
@@ -45,6 +46,8 @@ export function AutotilePatternTileCard({
           {tile && onClear ? (
             <Button
               type="button"
+              id={`${buttonId}-clear`}
+              name={`${buttonId}-clear`}
               variant="ghost"
               size="xs"
               className="shrink-0"

@@ -7,6 +7,10 @@ import {
   isTiledTilesetImportOption,
 } from "@/features/import-export/lib/tiled-tileset-action-utils";
 import {
+  createTestAnimationConfig,
+  createTestWangAutotileConfig,
+} from "./tiled-test-support";
+import {
   createProjectFixture,
   createSaveStrategy,
   expectToThrow,
@@ -241,4 +245,67 @@ test("exportSelectedTiledTilesets emits zero margin and spacing for xml, json, a
     assert.match(luaText, /margin\s*=\s*0/);
     assert.match(luaText, /spacing\s*=\s*0/);
   }
+});
+
+test("exportSelectedTiledTilesets includes Wang and animation metadata in JSON tilesets", async () => {
+  const project = createTestProject();
+  const tileset = project.tilesets[0]!;
+  tileset.imageWidth = 64;
+  tileset.autotile = createTestWangAutotileConfig();
+  tileset.animations = createTestAnimationConfig();
+  let archive: Uint8Array | null = null;
+
+  const didExport = await exportSelectedTiledTilesets(
+    project,
+    [tileset.id],
+    "tileset-tiled",
+    { format: "json" },
+    {
+      saveBlob: async () => true,
+      saveByteArray: async (data) => {
+        archive = data;
+        return true;
+      },
+    },
+  );
+
+  assert.strictEqual(didExport, true);
+  assert.ok(archive);
+
+  const files = unzipSync(archive);
+  const jsonEntry = Object.entries(files).find(([path]) =>
+    path.endsWith(".tsj"),
+  );
+  assert.ok(jsonEntry);
+
+  const document = JSON.parse(decodeText(jsonEntry[1])) as {
+    properties?: Array<{ name?: string; value?: string }>;
+    tiles?: Array<{
+      id?: number;
+      animation?: Array<{ tileid?: number; duration?: number }>;
+    }>;
+    wangsets?: Array<{
+      type?: string;
+      colors?: unknown[];
+      wangtiles?: Array<{ tileid?: number; wangid?: number[] }>;
+    }>;
+  };
+  assert.strictEqual(document.wangsets?.[0]?.type, "edge");
+  assert.strictEqual(document.wangsets?.[0]?.colors?.length, 2);
+  assert.deepEqual(document.wangsets?.[0]?.wangtiles?.[0], {
+    tileid: 0,
+    wangid: [1, 0, 1, 0, 1, 0, 1, 0],
+  });
+  assert.ok(
+    document.properties?.some(
+      (property) => property.name === "2dtiler:animations",
+    ),
+  );
+  assert.deepEqual(document.tiles?.[0], {
+    id: 0,
+    animation: [
+      { tileid: 0, duration: 100 },
+      { tileid: 1, duration: 150 },
+    ],
+  });
 });

@@ -4,6 +4,7 @@ import type {
   AutotilePatternSlotId,
   AutotileTerrainId,
 } from "@/types/map/autotile";
+import type { AutotileWangSetId } from "@/types/map/autotile-wang";
 import type { NewMapType } from "@/types/map/map-geometry";
 import type {
   MapObject,
@@ -37,6 +38,17 @@ export type AutotileSelectionTarget =
       type: "pattern";
       terrainId: AutotileTerrainId;
       slotId: AutotilePatternSlotId;
+    }
+  | { type: "wangSetTile"; wangSetId: AutotileWangSetId }
+  | {
+      type: "wangColorTile";
+      wangSetId: AutotileWangSetId;
+      colorIndex: number;
+    }
+  | {
+      type: "wangTile";
+      wangSetId: AutotileWangSetId;
+      tileIndex: number;
     };
 
 export interface FillTerrainDialogProps {

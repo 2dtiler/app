@@ -8,6 +8,7 @@ export function AutotileTilePreview({
   size = 56,
   className,
   emptyLabel = "Empty",
+  ariaLabel,
 }: AutotileTilePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -47,6 +48,8 @@ export function AutotileTilePreview({
 
   return (
     <div
+      role="img"
+      aria-label={ariaLabel ?? (region ? "Assigned tile preview" : emptyLabel)}
       className={cn(
         "flex items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/20",
         className,

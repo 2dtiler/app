@@ -19,10 +19,15 @@ import {
   readJsonTilesetAnimationConfig,
   readXmlTilesetAnimationConfig,
 } from "@/features/import-export/lib/tiled-animation-conversion";
+import {
+  buildAutotileFromTiledWangSets,
+  readTiledXmlWangSets,
+} from "@/features/import-export/lib/tiled-wang";
 import type {
   ImportExportArchiveEntry,
   TiledImportMissingResource,
   TiledJsonTileset,
+  TiledJsonWangSet,
   TiledTilesetFormat,
   TiledTilesetImportPreparationResult,
   TileSize,
@@ -39,6 +44,7 @@ interface ParsedTiledTilesetDefinition {
   imageSource?: string;
   imageWidth?: number;
   imageHeight?: number;
+  wangsets?: TiledJsonWangSet[];
 }
 
 function getExternalTilesetKind(
@@ -197,6 +203,7 @@ function loadXmlTilesetDefinition(
     imageHeight: imageElement
       ? Number(imageElement.getAttribute("height") ?? "0") || undefined
       : undefined,
+    wangsets: readTiledXmlWangSets(tilesetElement),
   };
 }
 
@@ -254,6 +261,7 @@ function loadJsonLikeTilesetDefinition(
     imageSource: tileset.image,
     imageWidth: Number(tileset.imagewidth ?? 0) || undefined,
     imageHeight: Number(tileset.imageheight ?? 0) || undefined,
+    wangsets: tileset.wangsets,
   };
 }
 
@@ -365,6 +373,11 @@ async function importTiledTilesetDefinition(
     imageHeight: importedImage.height,
     createdAt: Date.now(),
   };
+
+  const autotile = buildAutotileFromTiledWangSets(tileset, definition.wangsets);
+  if (autotile) {
+    tileset.autotile = autotile;
+  }
 
   const definitionFormat =
     detectTiledTilesetFormatFromPath(definition.path) ?? format;

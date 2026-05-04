@@ -357,8 +357,7 @@ export function ImageCanvas({
     tryAutoZoom(container.clientWidth, container.clientHeight);
 
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height]); // new ResizeObserver when image dimensions change
+  }, [width, height, onZoom]); // new ResizeObserver when image dimensions change
 
   // Middle-mouse pan
   useEffect(() => {
