@@ -72,6 +72,8 @@ type DirectoryEnabledInput = HTMLInputElement & {
   webkitdirectory?: boolean;
 };
 
+const FILE_PICKER_CANCEL_DELAY_MS = 1000;
+
 interface PickFilesOptions {
   multiple?: boolean;
   configureInput?: (input: HTMLInputElement) => void;
@@ -121,7 +123,7 @@ async function pickFiles(
         if (!input.files?.length) {
           settle(null);
         }
-      }, 250);
+      }, FILE_PICKER_CANCEL_DELAY_MS);
     };
 
     input.type = "file";

@@ -1,4 +1,5 @@
 Tiled project Import is not working anymore
+Whenever there's an animation, then painting/erasing while dragging is not working anymore
 
 Get code coverage above 80%
 Godot project Import/Export

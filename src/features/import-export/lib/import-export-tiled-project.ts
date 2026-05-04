@@ -15,6 +15,7 @@ import { prepareTiledMapImport } from "@/features/import-export/lib/tiled-map-im
 import type {
   ImportExportArchiveEntry,
   Project,
+  TiledProjectArchivePreparationResult,
   TiledBundleExportOptions,
   TiledImportMissingResource,
   TiledMapFormat,
@@ -152,19 +153,28 @@ export async function exportTiledProjectEntries(
 export async function importTiledProjectFromZip(
   zipData: Uint8Array,
 ): Promise<TiledProjectImportResult> {
-  const extracted = unzipSync(zipData);
+  const prepared = await prepareTiledProjectArchive(zipData);
 
-  const allEntries: ImportExportArchiveEntry[] = Object.entries(extracted).map(
-    ([path, data]) => ({ path, data }),
-  );
-
-  const prepared = await prepareTiledProjectImport(allEntries);
-
-  if (prepared.status === "missing-resources") {
+  if (prepared.preparation.status === "missing-resources") {
     throw new Error("The Tiled project archive is missing linked resources.");
   }
 
-  return prepared.result;
+  return prepared.preparation.result;
+}
+
+export async function prepareTiledProjectArchive(
+  zipData: Uint8Array,
+): Promise<TiledProjectArchivePreparationResult> {
+  const extracted = unzipSync(zipData);
+
+  const entries: ImportExportArchiveEntry[] = Object.entries(extracted).map(
+    ([path, data]) => ({ path, data }),
+  );
+
+  return {
+    entries,
+    preparation: await prepareTiledProjectImport(entries),
+  };
 }
 
 export async function prepareTiledProjectImport(

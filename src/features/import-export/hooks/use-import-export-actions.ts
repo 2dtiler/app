@@ -32,6 +32,7 @@ import {
   assertMapsHaveNoAnimations,
   assertTilesetsHaveNoAnimations,
 } from "@/features/import-export/lib/animation-export-guards";
+import { replaceWithImportedTiledProject } from "@/features/import-export/lib/imported-tiled-project-session";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
@@ -51,10 +52,7 @@ import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-
 import { useTiledProjectImport } from "@/features/import-export/hooks/use-tiled-project-import";
 import { exportTiledProject } from "@/features/import-export/lib/tiled-project-action-utils";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
-import {
-  createEmptyProject,
-  getActiveTilesetTileSize,
-} from "@/features/project-management/lib/project";
+import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
 import { saveProject } from "@/services/db";
 import type {
@@ -304,45 +302,14 @@ export function useImportExportActions({
   );
 
   const handleImportedProjectResolved = useCallback(
-    async (result: TiledProjectImportResult, suggestedProjectName: string) => {
-      const targetProject =
-        state.project ??
-        createEmptyProject(
-          suggestedProjectName,
-          result.maps[0]?.map.tileSize ?? 32,
-        );
-      const targetMapGroupId =
-        state.activeMapGroupId ?? targetProject.mapGroups[0]?.id ?? null;
-      const targetTilesetGroupId =
-        state.activeTilesetGroupId ??
-        targetProject.tilesetGroups[0]?.id ??
-        null;
-
-      if (!state.project) {
-        await saveProject(targetProject);
-        openProjectInEditor(targetProject);
-      }
-
-      for (const mapImport of result.maps) {
-        mergeImportedMapData(
-          mapImport,
-          targetProject,
-          targetMapGroupId,
-          targetTilesetGroupId,
-          setState,
-        );
-      }
-    },
-    [
-      setState,
-      state.activeMapGroupId,
-      state.activeTilesetGroupId,
-      state.project,
-    ],
+    (result: TiledProjectImportResult, suggestedProjectName: string) =>
+      replaceWithImportedTiledProject(result, suggestedProjectName, setState),
+    [setState],
   );
 
   const {
     handleImportTiledProject,
+    tiledProjectFilesDialogProps,
     tiledMissingResourcesDialogProps: tiledProjectMissingResourcesDialogProps,
   } = useTiledProjectImport(handleImportedProjectResolved);
 
@@ -1026,6 +993,7 @@ export function useImportExportActions({
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
     tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
+    tiledProjectFilesDialogProps,
     unityMissingResourcesDialogProps: mergedUnityMissingResourcesDialogProps,
   };
 }

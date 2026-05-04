@@ -143,9 +143,28 @@ test("pickSingleFile resolves a chosen file and falls back to null on window foc
   const canceled = installPickerEnvironment();
   const cancelPromise = pickSingleFile(".json", "custom-input");
   canceled.dispatchWindow("focus");
-  vi.advanceTimersByTime(251);
+  vi.advanceTimersByTime(1001);
   assert.strictEqual(await cancelPromise, null);
   assert.strictEqual(canceled.input.name, "custom-input");
+});
+
+test("pickSingleFile waits for change when focus returns before files populate", async () => {
+  vi.useFakeTimers();
+  const selected = installPickerEnvironment();
+  const file = new File(["ok"], "project.zip");
+  const pickPromise = pickSingleFile(".zip");
+  const result = vi.fn();
+
+  void pickPromise.then(result);
+  selected.dispatchWindow("focus");
+  vi.advanceTimersByTime(251);
+
+  assert.strictEqual(result.mock.calls.length, 0);
+
+  selected.input.files = [file];
+  selected.dispatchInput("change");
+
+  assert.strictEqual(await pickPromise, file);
 });
 
 test("pickDirectoryFiles resolves chosen folder files and falls back to null on cancel", async () => {
@@ -176,7 +195,7 @@ test("pickDirectoryFiles resolves chosen folder files and falls back to null on 
   const canceled = installPickerEnvironment();
   const cancelPromise = pickDirectoryFiles("", "project-folder-cancel");
   canceled.dispatchWindow("focus");
-  vi.advanceTimersByTime(251);
+  vi.advanceTimersByTime(1001);
   assert.strictEqual(await cancelPromise, null);
   assert.strictEqual(canceled.input.multiple, true);
 });

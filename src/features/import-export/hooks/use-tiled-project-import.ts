@@ -6,16 +6,20 @@ import {
 } from "@/features/import-export/lib/import-export-action-utils";
 import { getLinkedImportResourceAccept } from "@/features/import-export/lib/linked-resource-utils";
 import {
-  importTiledProjectFromZip,
+  prepareTiledProjectArchive,
   prepareTiledProjectImport,
 } from "@/features/import-export/lib/import-export-tiled-project";
 import {
   decodeText,
   normalizeBundlePath,
 } from "@/features/import-export/lib/tiled-xml-utils";
-import type { TiledMissingResourcesDialogProps } from "@/features/import-export/types";
+import type {
+  TiledMissingResourcesDialogProps,
+  TiledProjectFilesDialogProps,
+} from "@/features/import-export/types";
 import type {
   ImportExportArchiveEntry,
+  PendingTiledProjectFilesImportState,
   PendingTiledProjectImportState,
   TiledImportMissingResource,
   TiledProjectImportResult,
@@ -77,12 +81,12 @@ function getDirectoryImportPath(file: DirectoryImportFile) {
 }
 
 async function createProjectSeedEntries(
-  projectFile: File,
+  projectFileName: string,
   projectData: Uint8Array,
   folderFiles: readonly File[],
 ) {
   const entryMap = new Map<string, ImportExportArchiveEntry>();
-  const normalizedProjectPath = normalizeBundlePath(projectFile.name);
+  const normalizedProjectPath = normalizeBundlePath(projectFileName);
 
   entryMap.set(normalizedProjectPath, {
     path: normalizedProjectPath,
@@ -111,6 +115,8 @@ export function useTiledProjectImport(
     suggestedProjectName: string,
   ) => void | Promise<void>,
 ) {
+  const [pendingProjectFilesImport, setPendingProjectFilesImport] =
+    useState<PendingTiledProjectFilesImportState | null>(null);
   const [pendingImport, setPendingImport] =
     useState<PendingTiledProjectImportState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +127,15 @@ export function useTiledProjectImport(
     }
 
     setPendingImport(null);
+    setIsSubmitting(false);
+  }, []);
+
+  const handleProjectFilesDialogOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      return;
+    }
+
+    setPendingProjectFilesImport(null);
     setIsSubmitting(false);
   }, []);
 
@@ -135,15 +150,25 @@ export function useTiledProjectImport(
       const data = await readFileAsUint8Array(file);
 
       if (isZipArchive(file.name)) {
-        const result = await importTiledProjectFromZip(data);
+        const prepared = await prepareTiledProjectArchive(data);
 
-        if (result.maps.length === 0) {
+        if (prepared.preparation.status === "missing-resources") {
+          setPendingImport({
+            projectName: deriveImportedTiledProjectName(file.name),
+            baseEntries: prepared.entries,
+            missingResources: prepared.preparation.missingResources,
+            resourceFilesByPath: {},
+          });
+          return true;
+        }
+
+        if (prepared.preparation.result.maps.length === 0) {
           alert("No importable Tiled maps found in the archive.");
           return false;
         }
 
         await onImportResolved(
-          result,
+          prepared.preparation.result,
           deriveImportedTiledProjectName(file.name),
         );
         return true;
@@ -156,40 +181,11 @@ export function useTiledProjectImport(
 
       validateTiledProjectFile(data);
 
-      const folderFiles = await pickDirectoryFiles(
-        TILED_PROJECT_FOLDER_ACCEPT,
-        "tiled-project-folder",
-      );
-      if (!folderFiles || folderFiles.length === 0) {
-        return false;
-      }
-
-      const baseEntries = await createProjectSeedEntries(
-        file,
-        data,
-        folderFiles,
-      );
-      const attempt = await prepareTiledProjectImport(baseEntries);
-
-      if (attempt.status === "missing-resources") {
-        setPendingImport({
-          projectName: deriveImportedTiledProjectName(file.name),
-          baseEntries,
-          missingResources: attempt.missingResources,
-          resourceFilesByPath: {},
-        });
-        return true;
-      }
-
-      if (attempt.result.maps.length === 0) {
-        alert("No importable Tiled maps found in the selected project files.");
-        return false;
-      }
-
-      await onImportResolved(
-        attempt.result,
-        deriveImportedTiledProjectName(file.name),
-      );
+      setPendingProjectFilesImport({
+        projectName: deriveImportedTiledProjectName(file.name),
+        projectFileName: file.name,
+        projectData: data,
+      });
       return true;
     } catch (error) {
       console.error("[Import Tiled Project] Failed:", error);
@@ -201,6 +197,60 @@ export function useTiledProjectImport(
       return false;
     }
   }, [onImportResolved]);
+
+  const handleSelectProjectFolder = useCallback(async () => {
+    if (!pendingProjectFilesImport) return;
+
+    const folderFiles = await pickDirectoryFiles(
+      TILED_PROJECT_FOLDER_ACCEPT,
+      "tiled-project-folder",
+    );
+    if (!folderFiles || folderFiles.length === 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const baseEntries = await createProjectSeedEntries(
+        pendingProjectFilesImport.projectFileName,
+        pendingProjectFilesImport.projectData,
+        folderFiles,
+      );
+      const attempt = await prepareTiledProjectImport(baseEntries);
+
+      if (attempt.status === "missing-resources") {
+        setPendingProjectFilesImport(null);
+        setPendingImport({
+          projectName: pendingProjectFilesImport.projectName,
+          baseEntries,
+          missingResources: attempt.missingResources,
+          resourceFilesByPath: {},
+        });
+        return;
+      }
+
+      if (attempt.result.maps.length === 0) {
+        alert("No importable Tiled maps found in the selected project files.");
+        return;
+      }
+
+      setPendingProjectFilesImport(null);
+      await onImportResolved(
+        attempt.result,
+        pendingProjectFilesImport.projectName,
+      );
+    } catch (error) {
+      console.error("[Import Tiled Project] Failed:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to import Tiled project.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [onImportResolved, pendingProjectFilesImport]);
 
   const handleSelectResourceFile = useCallback(
     async (resource: TiledImportMissingResource) => {
@@ -294,5 +344,17 @@ export function useTiledProjectImport(
     onImport: handleResolveImport,
   };
 
-  return { handleImportTiledProject, tiledMissingResourcesDialogProps };
+  const tiledProjectFilesDialogProps: TiledProjectFilesDialogProps = {
+    open: pendingProjectFilesImport !== null,
+    projectName: pendingProjectFilesImport?.projectName ?? "Tiled project",
+    isSubmitting,
+    onOpenChange: handleProjectFilesDialogOpenChange,
+    onSelectFolder: handleSelectProjectFolder,
+  };
+
+  return {
+    handleImportTiledProject,
+    tiledMissingResourcesDialogProps,
+    tiledProjectFilesDialogProps,
+  };
 }

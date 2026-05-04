@@ -14,7 +14,7 @@ const hookMocks = vi.hoisted(() => ({
   pickDirectoryFiles: vi.fn(),
   readFileAsUint8Array: vi.fn(),
   prepareTiledProjectImport: vi.fn(),
-  importTiledProjectFromZip: vi.fn(),
+  prepareTiledProjectArchive: vi.fn(),
   getLinkedImportResourceAccept: vi.fn((kind: string) => `.${kind}`),
 }));
 
@@ -28,7 +28,7 @@ vi.mock("@/features/import-export/lib/import-export-action-utils", () => ({
 }));
 
 vi.mock("@/features/import-export/lib/import-export-tiled-project", () => ({
-  importTiledProjectFromZip: hookMocks.importTiledProjectFromZip,
+  prepareTiledProjectArchive: hookMocks.prepareTiledProjectArchive,
   prepareTiledProjectImport: hookMocks.prepareTiledProjectImport,
 }));
 
@@ -139,7 +139,13 @@ test("useTiledProjectImport imports zip projects and derives the project name", 
 
   hookMocks.pickSingleFile.mockResolvedValueOnce(zipFile);
   hookMocks.readFileAsUint8Array.mockResolvedValueOnce(zipData);
-  hookMocks.importTiledProjectFromZip.mockResolvedValueOnce(importResult);
+  hookMocks.prepareTiledProjectArchive.mockResolvedValueOnce({
+    entries: [{ path: "demo.tiled-project", data: zipData }],
+    preparation: {
+      status: "ready",
+      result: importResult,
+    },
+  });
 
   await act(async () => {
     await expect(
@@ -147,9 +153,77 @@ test("useTiledProjectImport imports zip projects and derives the project name", 
     ).resolves.toBe(true);
   });
 
-  expect(hookMocks.importTiledProjectFromZip).toHaveBeenCalledWith(zipData);
+  expect(hookMocks.prepareTiledProjectArchive).toHaveBeenCalledWith(zipData);
   expect(onImportResolved).toHaveBeenCalledWith(importResult, "demo");
   expect(hookMocks.pickDirectoryFiles).not.toHaveBeenCalled();
+
+  await rendered.unmount();
+});
+
+test("useTiledProjectImport resolves missing linked resources for zip projects", async () => {
+  const zipFile = new File(["zip"], "demo.tiled-project.zip", {
+    type: "application/zip",
+  });
+  const resourceFile = new File(["tsx"], "terrain.tsx", {
+    type: "text/xml",
+  });
+  const zipData = new Uint8Array([1, 2, 3]);
+  const resourceData = new Uint8Array([4, 5, 6]);
+  const missingResource = {
+    path: "tilesets/terrain.tsx",
+    kind: "tsx",
+    referringPath: "maps/level.tmx",
+    label: "External tileset",
+  } satisfies TiledImportMissingResource;
+  const importResult = {
+    maps: [{ map: { tileSize: 16 } }],
+  } as unknown as TiledProjectImportResult;
+  const onImportResolved = vi.fn();
+  const rendered = await renderProjectImportHook(onImportResolved);
+
+  hookMocks.pickSingleFile
+    .mockResolvedValueOnce(zipFile)
+    .mockResolvedValueOnce(resourceFile);
+  hookMocks.readFileAsUint8Array
+    .mockResolvedValueOnce(zipData)
+    .mockResolvedValueOnce(resourceData);
+  hookMocks.prepareTiledProjectArchive.mockResolvedValueOnce({
+    entries: [{ path: "maps/level.tmx", data: zipData }],
+    preparation: {
+      status: "missing-resources",
+      missingResources: [missingResource],
+    },
+  });
+  hookMocks.prepareTiledProjectImport.mockResolvedValueOnce({
+    status: "ready",
+    result: importResult,
+  });
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(true);
+  });
+
+  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(
+    true,
+  );
+
+  await act(async () => {
+    await rendered
+      .getCurrent()
+      .tiledMissingResourcesDialogProps.onSelectFile(missingResource);
+  });
+
+  await act(async () => {
+    await rendered.getCurrent().tiledMissingResourcesDialogProps.onImport();
+  });
+
+  expect(hookMocks.prepareTiledProjectImport).toHaveBeenCalledWith([
+    { path: "maps/level.tmx", data: zipData },
+    { path: "tilesets/terrain.tsx", data: resourceData },
+  ]);
+  expect(onImportResolved).toHaveBeenCalledWith(importResult, "demo");
 
   await rendered.unmount();
 });
@@ -206,12 +280,23 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
     ).resolves.toBe(true);
   });
 
+  expect(hookMocks.pickDirectoryFiles).not.toHaveBeenCalled();
+  expect(rendered.getCurrent().tiledProjectFilesDialogProps.open).toBe(true);
+  expect(rendered.getCurrent().tiledProjectFilesDialogProps.projectName).toBe(
+    "sample",
+  );
+
+  await act(async () => {
+    await rendered.getCurrent().tiledProjectFilesDialogProps.onSelectFolder();
+  });
+
   expect(hookMocks.prepareTiledProjectImport).toHaveBeenCalledTimes(1);
   expect(
     hookMocks.prepareTiledProjectImport.mock.calls[0]?.[0].map(
       (entry: { path: string }) => entry.path,
     ),
   ).toEqual(["sample.tiled-project", "maps/level.tmx"]);
+  expect(rendered.getCurrent().tiledProjectFilesDialogProps.open).toBe(false);
   expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(
     true,
   );

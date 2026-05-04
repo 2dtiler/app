@@ -208,6 +208,11 @@ export type TiledProjectImportPreparationResult =
   | TiledProjectImportPendingResult
   | TiledProjectImportReadyResult;
 
+export interface TiledProjectArchivePreparationResult {
+  entries: ImportExportArchiveEntry[];
+  preparation: TiledProjectImportPreparationResult;
+}
+
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
@@ -402,6 +407,20 @@ export interface PendingTiledProjectImportState {
   baseEntries: ImportExportArchiveEntry[];
   missingResources: TiledImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingTiledProjectFilesImportState {
+  projectName: string;
+  projectFileName: string;
+  projectData: Uint8Array;
+}
+
+export interface TiledProjectFilesDialogProps {
+  open: boolean;
+  projectName: string;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectFolder: () => void | Promise<void>;
 }
 
 export interface TiledTilesetImportPendingResult {
