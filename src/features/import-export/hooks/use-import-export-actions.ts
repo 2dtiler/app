@@ -48,6 +48,8 @@ import { useTideMapImport } from "@/features/import-export/hooks/use-tide-map-im
 import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-tileset-import";
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
+import { useTiledProjectImport } from "@/features/import-export/hooks/use-tiled-project-import";
+import { exportTiledProject } from "@/features/import-export/lib/tiled-project-action-utils";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
@@ -59,11 +61,13 @@ import type {
   ImportExportArchiveEntry,
   ImportExportDialogMode,
   ImportExportOptionAction,
+  ImportExportOptionId,
   ImportExportRasterExportOptions,
   MapId,
   MapGroupId,
   TileMapData,
   TiledMapImportResult,
+  TiledProjectImportResult,
   Tileset,
   TilesetGroupId,
   TilesetId,
@@ -294,6 +298,31 @@ export function useImportExportActions({
       state.activeTilesetGroupId,
       state.project,
     ],
+  );
+
+  const handleImportedProjectResolved = useCallback(
+    (result: TiledProjectImportResult) => {
+      for (const mapImport of result.maps) {
+        mergeImportedMapData(
+          mapImport,
+          state.project,
+          state.activeMapGroupId,
+          state.activeTilesetGroupId,
+          setState,
+        );
+      }
+    },
+    [
+      setState,
+      state.activeMapGroupId,
+      state.activeTilesetGroupId,
+      state.project,
+    ],
+  );
+
+  const { handleImportTiledProject } = useTiledProjectImport(
+    Boolean(state.project),
+    handleImportedProjectResolved,
   );
 
   const {
@@ -752,8 +781,14 @@ export function useImportExportActions({
         importExportDialogMode === "import" ? true : Boolean(state.project),
       onSelect:
         importExportDialogMode === "import"
-          ? () => handleImportProject()
-          : () => handleExportProject(),
+          ? (optionId: ImportExportOptionId) =>
+              optionId === "project-tiled"
+                ? handleImportTiledProject()
+                : handleImportProject()
+          : (optionId: ImportExportOptionId) =>
+              optionId === "project-tiled"
+                ? exportTiledProject(state.project)
+                : handleExportProject(),
       disabledReason:
         importExportDialogMode === "export" && !state.project
           ? "Open a project first"
@@ -762,6 +797,7 @@ export function useImportExportActions({
     [
       handleExportProject,
       handleImportProject,
+      handleImportTiledProject,
       importExportDialogMode,
       state.project,
     ],

@@ -190,6 +190,10 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
+export interface TiledProjectImportResult {
+  maps: TiledMapImportResult[];
+}
+
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
