@@ -8,6 +8,7 @@ import {
   isGameMakerMapExportOptions,
   isGodotMapExportOptions,
   isRasterExportOptions,
+  pickDirectoryFiles,
   isTiledMapExportOptions,
   isTiledTilesetExportOptions,
   pickSingleFile,
@@ -40,8 +41,11 @@ function installPickerEnvironment() {
     files: undefined as File[] | undefined,
     type: "",
     accept: "",
+    multiple: false,
     name: "",
     id: "",
+    directory: false,
+    webkitdirectory: false,
     addEventListener(event: string, listener: () => void) {
       inputListeners.set(
         event,
@@ -142,6 +146,39 @@ test("pickSingleFile resolves a chosen file and falls back to null on window foc
   vi.advanceTimersByTime(251);
   assert.strictEqual(await cancelPromise, null);
   assert.strictEqual(canceled.input.name, "custom-input");
+});
+
+test("pickDirectoryFiles resolves chosen folder files and falls back to null on cancel", async () => {
+  const selected = installPickerEnvironment();
+  const mapFile = new File(["map"], "level.tmx");
+  const imageFile = new File(["png"], "terrain.png");
+  Object.defineProperty(mapFile, "webkitRelativePath", {
+    configurable: true,
+    value: "Project/maps/level.tmx",
+  });
+  Object.defineProperty(imageFile, "webkitRelativePath", {
+    configurable: true,
+    value: "Project/images/terrain.png",
+  });
+
+  const pickPromise = pickDirectoryFiles("", "project-folder");
+  selected.input.files = [mapFile, imageFile];
+  selected.dispatchInput("change");
+
+  assert.deepEqual(await pickPromise, [mapFile, imageFile]);
+  assert.strictEqual(selected.input.multiple, true);
+  assert.strictEqual(selected.input.directory, true);
+  assert.strictEqual(selected.input.webkitdirectory, true);
+  assert.strictEqual(selected.input.name, "project-folder");
+  assert.match(selected.input.id, /^project-folder-/);
+
+  vi.useFakeTimers();
+  const canceled = installPickerEnvironment();
+  const cancelPromise = pickDirectoryFiles("", "project-folder-cancel");
+  canceled.dispatchWindow("focus");
+  vi.advanceTimersByTime(251);
+  assert.strictEqual(await cancelPromise, null);
+  assert.strictEqual(canceled.input.multiple, true);
 });
 
 test("getMapExportData and grouped asset builders preserve nested layer data and group ordering", () => {

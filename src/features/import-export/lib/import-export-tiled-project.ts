@@ -6,9 +6,7 @@ import {
   exportTiledMapJsonBundle,
   exportTiledMapLuaBundle,
 } from "@/features/import-export/lib/import-export-tiled";
-import {
-  encodeJsonDocument,
-} from "@/features/import-export/lib/import-export-tiled-shared";
+import { encodeJsonDocument } from "@/features/import-export/lib/import-export-tiled-shared";
 import {
   getMapExportData,
   getUniqueArchivePath,
@@ -18,8 +16,10 @@ import type {
   ImportExportArchiveEntry,
   Project,
   TiledBundleExportOptions,
+  TiledImportMissingResource,
   TiledMapFormat,
   TiledMapImportResult,
+  TiledProjectImportPreparationResult,
   TiledProjectImportResult,
 } from "@/types";
 
@@ -158,31 +158,67 @@ export async function importTiledProjectFromZip(
     ([path, data]) => ({ path, data }),
   );
 
-  const mapPaths = Object.keys(extracted).filter((path) => {
-    if (isTilesetOrImageEntry(path)) return false;
-    if (path.toLowerCase().endsWith(".tiled-project")) return false;
-    return detectMapFormat(path) !== null;
-  });
+  const prepared = await prepareTiledProjectImport(allEntries);
+
+  if (prepared.status === "missing-resources") {
+    throw new Error("The Tiled project archive is missing linked resources.");
+  }
+
+  return prepared.result;
+}
+
+export async function prepareTiledProjectImport(
+  entries: readonly ImportExportArchiveEntry[],
+): Promise<TiledProjectImportPreparationResult> {
+  const mapPaths = entries
+    .map((entry) => entry.path)
+    .filter((path) => {
+      if (isTilesetOrImageEntry(path)) return false;
+      if (path.toLowerCase().endsWith(".tiled-project")) return false;
+      return detectMapFormat(path) !== null;
+    });
 
   if (mapPaths.length === 0) {
-    throw new Error("No Tiled map files found in the archive.");
+    throw new Error("No Tiled map files found in the provided files.");
   }
 
   const maps: TiledMapImportResult[] = [];
+  const missingResources = new Map<string, TiledImportMissingResource>();
 
   for (const mapPath of mapPaths) {
     const format = detectMapFormat(mapPath)!;
-    const result = await prepareTiledMapImport(mapPath, allEntries, format);
+    const result = await prepareTiledMapImport(mapPath, entries, format);
 
     if (result.status === "missing-resources") {
-      console.warn(
-        `[Import Tiled Project] Skipping map with unresolved resources: ${mapPath}`,
-      );
+      mergeMissingResources(missingResources, result.missingResources);
       continue;
     }
 
     maps.push(result.result);
   }
 
-  return { maps };
+  if (missingResources.size > 0) {
+    return {
+      status: "missing-resources",
+      missingResources: [...missingResources.values()],
+    };
+  }
+
+  return {
+    status: "ready",
+    result: { maps },
+  };
+}
+
+function mergeMissingResources(
+  missingResources: Map<string, TiledImportMissingResource>,
+  nextResources: readonly TiledImportMissingResource[],
+) {
+  for (const resource of nextResources) {
+    if (missingResources.has(resource.path)) {
+      continue;
+    }
+
+    missingResources.set(resource.path, resource);
+  }
 }

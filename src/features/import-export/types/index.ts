@@ -194,6 +194,20 @@ export interface TiledProjectImportResult {
   maps: TiledMapImportResult[];
 }
 
+export interface TiledProjectImportPendingResult {
+  status: "missing-resources";
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface TiledProjectImportReadyResult {
+  status: "ready";
+  result: TiledProjectImportResult;
+}
+
+export type TiledProjectImportPreparationResult =
+  | TiledProjectImportPendingResult
+  | TiledProjectImportReadyResult;
+
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
@@ -319,6 +333,7 @@ export interface TiledMissingResourcesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   format: TiledMapFormat;
+  description?: string;
   resources: TiledImportMissingResource[];
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
@@ -378,6 +393,13 @@ export interface PendingTiledMapImportState {
   format: TiledMapFormat;
   rootPath: string;
   rootData: Uint8Array;
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingTiledProjectImportState {
+  projectName: string;
+  baseEntries: ImportExportArchiveEntry[];
   missingResources: TiledImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
 }

@@ -7,6 +7,11 @@ import type {
   TilesetId,
 } from "@/types";
 import {
+  generateMapGroupId,
+  generateProjectId,
+  generateTilesetGroupId,
+} from "@/utils/ids";
+import {
   AUTOTILE_CONFIG_VERSION,
   DEFAULT_HEX_STAGGER_AXIS,
   DEFAULT_HEX_STAGGER_INDEX,
@@ -15,6 +20,32 @@ import {
 
 const DEFAULT_TILE_SIZE: TileSize = 32;
 const IMAGE_LAYER_ROTATIONS = new Set([0, 90, 180, 270]);
+
+export function createEmptyProject(
+  name: string,
+  tileSize: TileSize = DEFAULT_TILE_SIZE,
+): Project {
+  const now = Date.now();
+
+  return {
+    id: generateProjectId(),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    tileSize,
+    tilesetGroups: [{ id: generateTilesetGroupId(), name: "Main", order: 0 }],
+    tilesets: [],
+    mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
+    maps: [],
+    layers: [],
+    imageLayers: [],
+    layerGroups: [],
+    terrains: [],
+    objectLayers: [],
+    objects: [],
+    overrideTilesets: [],
+  };
+}
 
 export function getTilesetTileSize(
   tileset: Tileset | null | undefined,

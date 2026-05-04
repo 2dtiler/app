@@ -51,7 +51,10 @@ import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-
 import { useTiledProjectImport } from "@/features/import-export/hooks/use-tiled-project-import";
 import { exportTiledProject } from "@/features/import-export/lib/tiled-project-action-utils";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
-import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
+import {
+  createEmptyProject,
+  getActiveTilesetTileSize,
+} from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
 import { saveProject } from "@/services/db";
 import type {
@@ -301,13 +304,34 @@ export function useImportExportActions({
   );
 
   const handleImportedProjectResolved = useCallback(
-    (result: TiledProjectImportResult) => {
+    async (
+      result: TiledProjectImportResult,
+      suggestedProjectName: string,
+    ) => {
+      const targetProject =
+        state.project ??
+        createEmptyProject(
+          suggestedProjectName,
+          result.maps[0]?.map.tileSize ?? 32,
+        );
+      const targetMapGroupId =
+        state.activeMapGroupId ?? targetProject.mapGroups[0]?.id ?? null;
+      const targetTilesetGroupId =
+        state.activeTilesetGroupId ??
+        targetProject.tilesetGroups[0]?.id ??
+        null;
+
+      if (!state.project) {
+        await saveProject(targetProject);
+        openProjectInEditor(targetProject);
+      }
+
       for (const mapImport of result.maps) {
         mergeImportedMapData(
           mapImport,
-          state.project,
-          state.activeMapGroupId,
-          state.activeTilesetGroupId,
+          targetProject,
+          targetMapGroupId,
+          targetTilesetGroupId,
           setState,
         );
       }
@@ -320,10 +344,10 @@ export function useImportExportActions({
     ],
   );
 
-  const { handleImportTiledProject } = useTiledProjectImport(
-    Boolean(state.project),
-    handleImportedProjectResolved,
-  );
+  const {
+    handleImportTiledProject,
+    tiledMissingResourcesDialogProps: tiledProjectMissingResourcesDialogProps,
+  } = useTiledProjectImport(handleImportedProjectResolved);
 
   const {
     handleImportTiledMap,
@@ -421,97 +445,103 @@ export function useImportExportActions({
     Boolean(state.project),
     handleImportedTilesetsResolved,
   );
-  const handleImportNativeMap = useCallback(async (preselectedFile?: File) => {
-    if (!state.project) return false;
+  const handleImportNativeMap = useCallback(
+    async (preselectedFile?: File) => {
+      if (!state.project) return false;
 
-    const file =
-      preselectedFile ?? (await pickSingleFile(".2dm", "native-map-file"));
-    if (!file) return false;
+      const file =
+        preselectedFile ?? (await pickSingleFile(".2dm", "native-map-file"));
+      if (!file) return false;
 
-    try {
-      const raw = await readFileAsUint8Array(file);
-      handleImportedMapResolved(await importMap(raw));
-      return true;
-    } catch (error) {
-      console.error("[Import Map] Failed:", error);
-      alert("Failed to import map. The file may be corrupted.");
-      return false;
-    }
-  }, [handleImportedMapResolved, state.project]);
+      try {
+        const raw = await readFileAsUint8Array(file);
+        handleImportedMapResolved(await importMap(raw));
+        return true;
+      } catch (error) {
+        console.error("[Import Map] Failed:", error);
+        alert("Failed to import map. The file may be corrupted.");
+        return false;
+      }
+    },
+    [handleImportedMapResolved, state.project],
+  );
 
-  const handleImportRasterMap = useCallback(async (preselectedFile?: File) => {
-    if (!state.project) return false;
+  const handleImportRasterMap = useCallback(
+    async (preselectedFile?: File) => {
+      if (!state.project) return false;
 
-    const file = preselectedFile ?? (await pickRasterImageFile());
-    if (!file) return false;
+      const file = preselectedFile ?? (await pickRasterImageFile());
+      if (!file) return false;
 
-    try {
-      const importedAsset = await importRasterAssetFromFile(file);
-      const targetMapGroupId =
-        state.activeMapGroupId ?? state.project.mapGroups[0]?.id;
-      if (!targetMapGroupId) return false;
+      try {
+        const importedAsset = await importRasterAssetFromFile(file);
+        const targetMapGroupId =
+          state.activeMapGroupId ?? state.project.mapGroups[0]?.id;
+        if (!targetMapGroupId) return false;
 
-      const mapId = generateMapId();
-      const layerId = generateLayerId();
-      const tileSize = state.tileSize;
-      const widthInTiles = Math.max(
-        1,
-        Math.ceil(importedAsset.width / tileSize),
-      );
-      const heightInTiles = Math.max(
-        1,
-        Math.ceil(importedAsset.height / tileSize),
-      );
+        const mapId = generateMapId();
+        const layerId = generateLayerId();
+        const tileSize = state.tileSize;
+        const widthInTiles = Math.max(
+          1,
+          Math.ceil(importedAsset.width / tileSize),
+        );
+        const heightInTiles = Math.max(
+          1,
+          Math.ceil(importedAsset.height / tileSize),
+        );
 
-      setState((draft) => {
-        if (!draft.project) return;
-        if (!draft.project.imageLayers) draft.project.imageLayers = [];
+        setState((draft) => {
+          if (!draft.project) return;
+          if (!draft.project.imageLayers) draft.project.imageLayers = [];
 
-        const map: TileMapData = {
-          id: mapId,
-          name: importedAsset.name,
-          groupId: targetMapGroupId as MapGroupId,
-          orientation: "orthogonal",
-          widthInTiles,
-          heightInTiles,
-          tileSize,
-          properties: {},
-          layerOrder: [layerId],
-          createdAt: Date.now(),
-        };
+          const map: TileMapData = {
+            id: mapId,
+            name: importedAsset.name,
+            groupId: targetMapGroupId as MapGroupId,
+            orientation: "orthogonal",
+            widthInTiles,
+            heightInTiles,
+            tileSize,
+            properties: {},
+            layerOrder: [layerId],
+            createdAt: Date.now(),
+          };
 
-        const imageLayer: ImageLayer = {
-          id: layerId,
-          mapId,
-          name: importedAsset.name,
-          type: "image",
-          visible: true,
-          locked: false,
-          assetId: importedAsset.assetId,
-          x: 0,
-          y: 0,
-          width: importedAsset.width,
-          height: importedAsset.height,
-          rotation: 0,
-          flipX: false,
-          flipY: false,
-          opacity: 100,
-        };
+          const imageLayer: ImageLayer = {
+            id: layerId,
+            mapId,
+            name: importedAsset.name,
+            type: "image",
+            visible: true,
+            locked: false,
+            assetId: importedAsset.assetId,
+            x: 0,
+            y: 0,
+            width: importedAsset.width,
+            height: importedAsset.height,
+            rotation: 0,
+            flipX: false,
+            flipY: false,
+            opacity: 100,
+          };
 
-        draft.project.maps.push(map);
-        draft.project.imageLayers.push(imageLayer);
-        draft.activeMapId = mapId;
-        draft.activeMapGroupId = targetMapGroupId as MapGroupId;
-        draft.activeLayerId = layerId;
-        draft.currentTool = "select";
-      });
-      return true;
-    } catch (error) {
-      console.error("[Import Map Image] Failed:", error);
-      alert("Failed to import the image as a map.");
-      return false;
-    }
-  }, [setState, state.activeMapGroupId, state.project, state.tileSize]);
+          draft.project.maps.push(map);
+          draft.project.imageLayers.push(imageLayer);
+          draft.activeMapId = mapId;
+          draft.activeMapGroupId = targetMapGroupId as MapGroupId;
+          draft.activeLayerId = layerId;
+          draft.currentTool = "select";
+        });
+        return true;
+      } catch (error) {
+        console.error("[Import Map Image] Failed:", error);
+        alert("Failed to import the image as a map.");
+        return false;
+      }
+    },
+    [setState, state.activeMapGroupId, state.project, state.tileSize],
+  );
 
   const handleExportNativeTilesets = useCallback(
     async (selectedTilesetIds: string[], saveStrategy?: ExportSaveStrategy) => {
@@ -628,87 +658,96 @@ export function useImportExportActions({
     [state.project],
   );
 
-  const handleImportNativeTileset = useCallback(async (preselectedFile?: File) => {
-    if (!state.project) return false;
+  const handleImportNativeTileset = useCallback(
+    async (preselectedFile?: File) => {
+      if (!state.project) return false;
 
-    const file =
-      preselectedFile ?? (await pickSingleFile(".2dt", "native-tileset-file"));
-    if (!file) return false;
+      const file =
+        preselectedFile ??
+        (await pickSingleFile(".2dt", "native-tileset-file"));
+      if (!file) return false;
 
-    try {
-      const project = state.project;
-      const raw = await readFileAsUint8Array(file);
-      const tileset = await importTileset(raw, state.tileSize);
-      const targetGroupId =
-        state.activeTilesetGroupId ?? project.tilesetGroups[0]?.id;
-      if (!targetGroupId) return false;
+      try {
+        const project = state.project;
+        const raw = await readFileAsUint8Array(file);
+        const tileset = await importTileset(raw, state.tileSize);
+        const targetGroupId =
+          state.activeTilesetGroupId ?? project.tilesetGroups[0]?.id;
+        if (!targetGroupId) return false;
 
-      const exists = project.tilesets.some((entry) => entry.id === tileset.id);
-
-      setState((draft) => {
-        if (!draft.project) return;
-        if (!exists) {
-          draft.project.tilesets.push({
-            ...tileset,
-            groupId: targetGroupId as TilesetGroupId,
-          });
-        }
-        draft.activeTilesetId = tileset.id;
-        draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
-        draft.tileSize = getActiveTilesetTileSize(
-          draft.project,
-          draft.activeTilesetId,
+        const exists = project.tilesets.some(
+          (entry) => entry.id === tileset.id,
         );
-        draft.selectedTile = null;
-      });
-      return true;
-    } catch (error) {
-      console.error("[Import Tileset] Failed:", error);
-      alert("Failed to import tileset. The file may be corrupted.");
-      return false;
-    }
-  }, [setState, state.activeTilesetGroupId, state.project, state.tileSize]);
 
-  const handleImportRasterTileset = useCallback(async (preselectedFile?: File) => {
-    if (!state.project) return false;
-
-    const file = preselectedFile ?? (await pickRasterImageFile());
-    if (!file) return false;
-
-    try {
-      const importedAsset = await importRasterAssetFromFile(file);
-      const targetGroupId =
-        state.activeTilesetGroupId ?? state.project.tilesetGroups[0]?.id;
-      if (!targetGroupId) return false;
-
-      const tilesetId = generateTilesetId();
-
-      setState((draft) => {
-        if (!draft.project) return;
-
-        draft.project.tilesets.push({
-          id: tilesetId,
-          name: importedAsset.name,
-          groupId: targetGroupId as TilesetGroupId,
-          tileSize: draft.tileSize,
-          assetId: importedAsset.assetId,
-          imageWidth: importedAsset.width,
-          imageHeight: importedAsset.height,
-          createdAt: Date.now(),
+        setState((draft) => {
+          if (!draft.project) return;
+          if (!exists) {
+            draft.project.tilesets.push({
+              ...tileset,
+              groupId: targetGroupId as TilesetGroupId,
+            });
+          }
+          draft.activeTilesetId = tileset.id;
+          draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+          draft.tileSize = getActiveTilesetTileSize(
+            draft.project,
+            draft.activeTilesetId,
+          );
+          draft.selectedTile = null;
         });
+        return true;
+      } catch (error) {
+        console.error("[Import Tileset] Failed:", error);
+        alert("Failed to import tileset. The file may be corrupted.");
+        return false;
+      }
+    },
+    [setState, state.activeTilesetGroupId, state.project, state.tileSize],
+  );
 
-        draft.activeTilesetId = tilesetId;
-        draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
-        draft.tileSize = getActiveTilesetTileSize(draft.project, tilesetId);
-        draft.selectedTile = null;
-      });
-      return true;
-    } catch (error) {
-      console.error("[Import Tileset Image] Failed:", error);
-      alert("Failed to import the image as a tileset.");
-      return false;
-    }
-  }, [setState, state.activeTilesetGroupId, state.project]);
+  const handleImportRasterTileset = useCallback(
+    async (preselectedFile?: File) => {
+      if (!state.project) return false;
+
+      const file = preselectedFile ?? (await pickRasterImageFile());
+      if (!file) return false;
+
+      try {
+        const importedAsset = await importRasterAssetFromFile(file);
+        const targetGroupId =
+          state.activeTilesetGroupId ?? state.project.tilesetGroups[0]?.id;
+        if (!targetGroupId) return false;
+
+        const tilesetId = generateTilesetId();
+
+        setState((draft) => {
+          if (!draft.project) return;
+
+          draft.project.tilesets.push({
+            id: tilesetId,
+            name: importedAsset.name,
+            groupId: targetGroupId as TilesetGroupId,
+            tileSize: draft.tileSize,
+            assetId: importedAsset.assetId,
+            imageWidth: importedAsset.width,
+            imageHeight: importedAsset.height,
+            createdAt: Date.now(),
+          });
+
+          draft.activeTilesetId = tilesetId;
+          draft.activeTilesetGroupId = targetGroupId as TilesetGroupId;
+          draft.tileSize = getActiveTilesetTileSize(draft.project, tilesetId);
+          draft.selectedTile = null;
+        });
+        return true;
+      } catch (error) {
+        console.error("[Import Tileset Image] Failed:", error);
+        alert("Failed to import the image as a tileset.");
+        return false;
+      }
+    },
+    [setState, state.activeTilesetGroupId, state.project],
+  );
 
   const handleImportTilesetFromFile = useCallback(
     async (file: File): Promise<boolean> => {
@@ -826,9 +865,11 @@ export function useImportExportActions({
   const mergedTiledMissingResourcesDialogProps =
     phaserMapMissingResourcesDialogProps.open
       ? phaserMapMissingResourcesDialogProps
-      : tiledTilesetMissingResourcesDialogProps.open
-        ? tiledTilesetMissingResourcesDialogProps
-        : tiledMapMissingResourcesDialogProps;
+      : tiledProjectMissingResourcesDialogProps.open
+        ? tiledProjectMissingResourcesDialogProps
+        : tiledTilesetMissingResourcesDialogProps.open
+          ? tiledTilesetMissingResourcesDialogProps
+          : tiledMapMissingResourcesDialogProps;
 
   const mergedGodotMissingResourcesDialogProps =
     godotTilesetMissingResourcesDialogProps.open
