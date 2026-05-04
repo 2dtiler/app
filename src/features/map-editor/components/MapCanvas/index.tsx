@@ -14,7 +14,6 @@ import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import type { TilesetId, ImageLayer, TileRef } from "@/types";
 import {
   getMapCellAtPoint,
-  getMapCellBounds,
   getMapCellOrigin,
   getMapCellPolygon,
   getMapPixelSize,
@@ -58,6 +57,8 @@ import {
 } from "./draw-map-objects";
 import { MapResizeControls } from "./MapResizeControls";
 import { TextObjectEditorOverlay } from "./TextObjectEditorOverlay";
+import { useAnimationElapsedMs } from "./use-animation-elapsed-ms";
+import { useMapCanvasImperativeHandle } from "./use-map-canvas-imperative-handle";
 import { useMapResize } from "./use-map-resize";
 import { useSceneInteraction } from "./use-scene-interaction";
 
@@ -82,6 +83,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     onPaintTile,
     onPlaceAnimation,
     onPaintEnd,
+    paintBuffer,
     paintBufferVersion,
     imperativeRef,
     mapSelection,
@@ -116,7 +118,6 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
   const lowerBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upperBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imagesReady, setImagesReady] = useState(0);
-  const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
 
   const tileSize = map.tileSize;
   const mapW = map.widthInTiles;
@@ -155,20 +156,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       ),
     [layers],
   );
-
-  useEffect(() => {
-    if (!hasAnimatedTileRefs) {
-      setAnimationElapsedMs(0);
-      return;
-    }
-
-    const startedAt = performance.now();
-    const intervalId = window.setInterval(() => {
-      setAnimationElapsedMs(performance.now() - startedAt);
-    }, 50);
-
-    return () => window.clearInterval(intervalId);
-  }, [hasAnimatedTileRefs]);
+  const animationElapsedMs = useAnimationElapsedMs(hasAnimatedTileRefs);
 
   const traceCellPath = useCallback(
     (ctx: CanvasRenderingContext2D, x: number, y: number) => {
@@ -243,45 +231,14 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     }
   }, [canvasW, canvasH]);
 
-  // Imperative handle — lets MapPanel draw tiles directly onto the paint canvas
-  // with zero React overhead during a brush stroke.
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!imperativeRef) return;
-    imperativeRef.current = {
-      drawBufferTile(gx: number, gy: number, ref: TileRef) {
-        const canvas = paintCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const img = getTileImage(ref);
-        if (!img) return;
-        ctx.imageSmoothingEnabled = false;
-        const bounds = getMapCellBounds(map, zoom, gx, gy);
-        if (!usesPolygonCells) {
-          ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        }
-        drawTileWithOrientation(ctx, img, ref, bounds.x, bounds.y, scaledTile);
-      },
-      eraseBufferTile(gx: number, gy: number) {
-        const canvas = paintCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.imageSmoothingEnabled = false;
-        if (usesPolygonCells) return;
-        const bounds = getMapCellBounds(map, zoom, gx, gy);
-        ctx.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
-      },
-      clearPaintCanvas() {
-        const canvas = paintCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      },
-    };
-  });
+  useMapCanvasImperativeHandle(
+    imperativeRef,
+    paintCanvasRef,
+    map,
+    scaledTile,
+    usesPolygonCells,
+    zoom,
+  );
 
   // ---------------------------------------------------------------------------
   // Interaction hook
@@ -506,6 +463,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
       entry: activeEntry,
       getDisplayImageLayer,
       map,
+      paintBuffer,
       scaleImageLayer,
       scaledTile,
       tilesets,
