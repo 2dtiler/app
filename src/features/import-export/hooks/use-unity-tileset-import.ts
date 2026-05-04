@@ -41,13 +41,15 @@ export function useUnityTilesetImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportUnityTileset = useCallback(async () => {
+  const handleImportUnityTileset = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      UNITY_TILESET_IMPORT_ACCEPT,
-      "unity-tileset-image-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(
+        UNITY_TILESET_IMPORT_ACCEPT,
+        "unity-tileset-image-file",
+      ));
     if (!file) return false;
 
     try {

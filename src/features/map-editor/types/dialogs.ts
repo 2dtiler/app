@@ -125,6 +125,7 @@ export interface NewMapDialogProps {
   onHeightChange: (value: number) => void;
   onMapTypeChange: (value: NewMapType) => void;
   onCreate: () => void;
+  onImportMapFromFile: (file: File) => Promise<boolean>;
 }
 
 export interface NewMapGroupDialogProps {

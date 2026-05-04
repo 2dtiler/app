@@ -421,10 +421,11 @@ export function useImportExportActions({
     Boolean(state.project),
     handleImportedTilesetsResolved,
   );
-  const handleImportNativeMap = useCallback(async () => {
+  const handleImportNativeMap = useCallback(async (preselectedFile?: File) => {
     if (!state.project) return false;
 
-    const file = await pickSingleFile(".2dm", "native-map-file");
+    const file =
+      preselectedFile ?? (await pickSingleFile(".2dm", "native-map-file"));
     if (!file) return false;
 
     try {
@@ -438,10 +439,10 @@ export function useImportExportActions({
     }
   }, [handleImportedMapResolved, state.project]);
 
-  const handleImportRasterMap = useCallback(async () => {
+  const handleImportRasterMap = useCallback(async (preselectedFile?: File) => {
     if (!state.project) return false;
 
-    const file = await pickRasterImageFile();
+    const file = preselectedFile ?? (await pickRasterImageFile());
     if (!file) return false;
 
     try {
@@ -627,10 +628,11 @@ export function useImportExportActions({
     [state.project],
   );
 
-  const handleImportNativeTileset = useCallback(async () => {
+  const handleImportNativeTileset = useCallback(async (preselectedFile?: File) => {
     if (!state.project) return false;
 
-    const file = await pickSingleFile(".2dt", "native-tileset-file");
+    const file =
+      preselectedFile ?? (await pickSingleFile(".2dt", "native-tileset-file"));
     if (!file) return false;
 
     try {
@@ -667,10 +669,10 @@ export function useImportExportActions({
     }
   }, [setState, state.activeTilesetGroupId, state.project, state.tileSize]);
 
-  const handleImportRasterTileset = useCallback(async () => {
+  const handleImportRasterTileset = useCallback(async (preselectedFile?: File) => {
     if (!state.project) return false;
 
-    const file = await pickRasterImageFile();
+    const file = preselectedFile ?? (await pickRasterImageFile());
     if (!file) return false;
 
     try {
@@ -707,6 +709,90 @@ export function useImportExportActions({
       return false;
     }
   }, [setState, state.activeTilesetGroupId, state.project]);
+
+  const handleImportTilesetFromFile = useCallback(
+    async (file: File): Promise<boolean> => {
+      const name = file.name.toLowerCase();
+      if (
+        file.type.startsWith("image/") ||
+        /\.(png|jpg|jpeg|gif|bmp|webp)$/.test(name)
+      ) {
+        return handleImportRasterTileset(file);
+      }
+      if (name.endsWith(".2dt")) {
+        return handleImportNativeTileset(file);
+      }
+      if (/\.(tsx|xml|tsj|json|lua)$/.test(name)) {
+        return handleImportTiledTileset(file);
+      }
+      if (name.endsWith(".tres")) {
+        return handleImportGodotTileset(file);
+      }
+      if (name.endsWith(".tilesource")) {
+        return handleImportDefoldTileset(file);
+      }
+      if (name.endsWith(".prefab")) {
+        return handleImportUnityTileset(file);
+      }
+      return false;
+    },
+    [
+      handleImportRasterTileset,
+      handleImportNativeTileset,
+      handleImportTiledTileset,
+      handleImportGodotTileset,
+      handleImportDefoldTileset,
+      handleImportUnityTileset,
+    ],
+  );
+
+  const handleImportMapFromFile = useCallback(
+    async (file: File): Promise<boolean> => {
+      const name = file.name.toLowerCase();
+      if (
+        file.type.startsWith("image/") ||
+        /\.(png|jpg|jpeg|gif|bmp|webp)$/.test(name)
+      ) {
+        return handleImportRasterMap(file);
+      }
+      if (name.endsWith(".2dm")) {
+        return handleImportNativeMap(file);
+      }
+      if (/\.(tmx|tmj|xml|js|lua|json)$/.test(name)) {
+        return handleImportTiledMap(file);
+      }
+      if (name.endsWith(".tscn")) {
+        return handleImportGodotMap(file);
+      }
+      if (name.endsWith(".yy") || name.endsWith(".gmx")) {
+        return handleImportGameMakerMap(file);
+      }
+      if (name.endsWith(".fmp")) {
+        return handleImportMappyMap(file);
+      }
+      if (name.endsWith(".tide")) {
+        return handleImportTideMap(file);
+      }
+      if (name.endsWith(".tilemap") || name.endsWith(".collection")) {
+        return handleImportDefoldMap(file);
+      }
+      if (name.endsWith(".prefab")) {
+        return handleImportUnityMap(file);
+      }
+      return false;
+    },
+    [
+      handleImportRasterMap,
+      handleImportNativeMap,
+      handleImportTiledMap,
+      handleImportGodotMap,
+      handleImportGameMakerMap,
+      handleImportMappyMap,
+      handleImportTideMap,
+      handleImportDefoldMap,
+      handleImportUnityMap,
+    ],
+  );
 
   const {
     handleMapActionSelect,
@@ -892,6 +978,8 @@ export function useImportExportActions({
     handleOpenExportDialog,
     handleMapExportSubmit,
     handleTilesetExportSubmit,
+    handleImportTilesetFromFile,
+    handleImportMapFromFile,
     projectAction,
     mapAction,
     tilesetAction,

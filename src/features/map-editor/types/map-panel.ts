@@ -115,6 +115,7 @@ export interface MapPanelWorkspaceProps {
   onCutSelection: (fromContextMenu?: boolean) => Promise<void>;
   onDeleteSelection: (fromContextMenu?: boolean) => void;
   onEditInImageEditor: () => void;
+  onImportMapFromFile: (file: File) => Promise<boolean>;
   onOpenObjectProperties: (objectId: ObjectId) => void;
   onMoveImageLayer: MapCanvasProps["onMoveImageLayer"];
   onMoveObject: MapCanvasProps["onMoveObject"];
@@ -154,6 +155,7 @@ export interface MapPanelDialogsProps {
   onCreateGroup: () => void;
   onCreateMap: () => void;
   onDeleteConfirm: () => void;
+  onImportMapFromFile: (file: File) => Promise<boolean>;
   onUpdateMapOptions: (
     width: number,
     height: number,

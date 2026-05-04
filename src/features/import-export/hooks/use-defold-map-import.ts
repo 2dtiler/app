@@ -41,13 +41,12 @@ export function useDefoldMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportDefoldMap = useCallback(async () => {
+  const handleImportDefoldMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      DEFOLD_MAP_IMPORT_ACCEPT,
-      "defold-map-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(DEFOLD_MAP_IMPORT_ACCEPT, "defold-map-file"));
     if (!file) return false;
 
     try {

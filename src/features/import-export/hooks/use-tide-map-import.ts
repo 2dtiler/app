@@ -41,10 +41,12 @@ export function useTideMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportTideMap = useCallback(async () => {
+  const handleImportTideMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(TIDE_MAP_IMPORT_ACCEPT, "tide-map-file");
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(TIDE_MAP_IMPORT_ACCEPT, "tide-map-file"));
     if (!file) return false;
 
     try {

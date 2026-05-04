@@ -41,13 +41,12 @@ export function useUnityMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportUnityMap = useCallback(async () => {
+  const handleImportUnityMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      UNITY_PREFAB_IMPORT_ACCEPT,
-      "unity-prefab-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(UNITY_PREFAB_IMPORT_ACCEPT, "unity-prefab-file"));
     if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".prefab")) {

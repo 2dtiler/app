@@ -41,13 +41,15 @@ export function useDefoldTilesetImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportDefoldTileset = useCallback(async () => {
+  const handleImportDefoldTileset = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      DEFOLD_TILESOURCE_IMPORT_ACCEPT,
-      "defold-tilesource-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(
+        DEFOLD_TILESOURCE_IMPORT_ACCEPT,
+        "defold-tilesource-file",
+      ));
     if (!file) return false;
 
     try {

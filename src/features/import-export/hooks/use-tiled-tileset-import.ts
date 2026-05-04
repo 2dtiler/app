@@ -78,13 +78,12 @@ export function useTiledTilesetImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportTiledTileset = useCallback(async () => {
+  const handleImportTiledTileset = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      TILED_TILESET_IMPORT_ACCEPT,
-      "tiled-tileset-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(TILED_TILESET_IMPORT_ACCEPT, "tiled-tileset-file"));
     if (!file) return false;
 
     const format = detectTiledTilesetFormat(file.name);
