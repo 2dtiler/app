@@ -142,7 +142,10 @@ export function useTiledProjectImport(
           return false;
         }
 
-        await onImportResolved(result, deriveImportedTiledProjectName(file.name));
+        await onImportResolved(
+          result,
+          deriveImportedTiledProjectName(file.name),
+        );
         return true;
       }
 

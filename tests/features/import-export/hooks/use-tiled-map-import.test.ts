@@ -1,5 +1,4 @@
-import { createElement } from "react";
-import { act } from "react";
+import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { parseHTML } from "linkedom";
 import { afterEach, expect, test, vi } from "vitest";
@@ -7,43 +6,42 @@ import { PHASER_MAP_IMPORT_CONFIG } from "@/features/import-export/hooks/use-til
 import { useTiledProjectImport } from "@/features/import-export/hooks/use-tiled-project-import";
 import type {
   TiledImportMissingResource,
-  TiledMissingResourcesDialogProps,
   TiledProjectImportResult,
 } from "@/types";
 
-const pickSingleFile = vi.fn();
-const pickDirectoryFiles = vi.fn();
-const readFileAsUint8Array = vi.fn();
-const prepareTiledProjectImport = vi.fn();
-const importTiledProjectFromZip = vi.fn();
-const getLinkedImportResourceAccept = vi.fn((kind: string) => `.${kind}`);
+const hookMocks = vi.hoisted(() => ({
+  pickSingleFile: vi.fn(),
+  pickDirectoryFiles: vi.fn(),
+  readFileAsUint8Array: vi.fn(),
+  prepareTiledProjectImport: vi.fn(),
+  importTiledProjectFromZip: vi.fn(),
+  getLinkedImportResourceAccept: vi.fn((kind: string) => `.${kind}`),
+}));
 
 vi.mock("@/utils/format", () => ({
-  readFileAsUint8Array,
+  readFileAsUint8Array: hookMocks.readFileAsUint8Array,
 }));
 
 vi.mock("@/features/import-export/lib/import-export-action-utils", () => ({
-  pickDirectoryFiles,
-  pickSingleFile,
+  pickDirectoryFiles: hookMocks.pickDirectoryFiles,
+  pickSingleFile: hookMocks.pickSingleFile,
 }));
 
 vi.mock("@/features/import-export/lib/import-export-tiled-project", () => ({
-  importTiledProjectFromZip,
-  prepareTiledProjectImport,
+  importTiledProjectFromZip: hookMocks.importTiledProjectFromZip,
+  prepareTiledProjectImport: hookMocks.prepareTiledProjectImport,
 }));
 
 vi.mock("@/features/import-export/lib/linked-resource-utils", () => ({
-  getLinkedImportResourceAccept,
+  getLinkedImportResourceAccept: hookMocks.getLinkedImportResourceAccept,
 }));
 
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
+const originalActEnvironment = (
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT;
 const { window } = parseHTML("<html><body></body></html>");
-
-type HookRenderResult = {
-  handleImportTiledProject: () => Promise<boolean>;
-  tiledMissingResourcesDialogProps: TiledMissingResourcesDialogProps;
-};
 
 function installReactDomEnvironment() {
   Object.assign(globalThis, {
@@ -52,8 +50,10 @@ function installReactDomEnvironment() {
     HTMLElement: window.HTMLElement,
     Node: window.Node,
     Event: window.Event,
-    IS_REACT_ACT_ENVIRONMENT: true,
   });
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
 }
 
 async function renderProjectImportHook(
@@ -64,7 +64,7 @@ async function renderProjectImportHook(
 ) {
   installReactDomEnvironment();
 
-  let current: HookRenderResult | null = null;
+  let current: ReturnType<typeof useTiledProjectImport> | null = null;
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -95,7 +95,7 @@ async function renderProjectImportHook(
   };
 }
 
-afterEach(async () => {
+afterEach(() => {
   vi.clearAllMocks();
 
   if (originalDocument) {
@@ -108,6 +108,14 @@ afterEach(async () => {
     Object.assign(globalThis, { window: originalWindow });
   } else {
     Reflect.deleteProperty(globalThis, "window");
+  }
+
+  if (typeof originalActEnvironment === "boolean") {
+    (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = originalActEnvironment;
+  } else {
+    Reflect.deleteProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT");
   }
 });
 
@@ -129,19 +137,19 @@ test("useTiledProjectImport imports zip projects and derives the project name", 
   const onImportResolved = vi.fn();
   const rendered = await renderProjectImportHook(onImportResolved);
 
-  pickSingleFile.mockResolvedValueOnce(zipFile);
-  readFileAsUint8Array.mockResolvedValueOnce(zipData);
-  importTiledProjectFromZip.mockResolvedValueOnce(importResult);
+  hookMocks.pickSingleFile.mockResolvedValueOnce(zipFile);
+  hookMocks.readFileAsUint8Array.mockResolvedValueOnce(zipData);
+  hookMocks.importTiledProjectFromZip.mockResolvedValueOnce(importResult);
 
   await act(async () => {
-    await expect(rendered.getCurrent().handleImportTiledProject()).resolves.toBe(
-      true,
-    );
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(true);
   });
 
-  expect(importTiledProjectFromZip).toHaveBeenCalledWith(zipData);
+  expect(hookMocks.importTiledProjectFromZip).toHaveBeenCalledWith(zipData);
   expect(onImportResolved).toHaveBeenCalledWith(importResult, "demo");
-  expect(pickDirectoryFiles).not.toHaveBeenCalled();
+  expect(hookMocks.pickDirectoryFiles).not.toHaveBeenCalled();
 
   await rendered.unmount();
 });
@@ -174,15 +182,15 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
   const onImportResolved = vi.fn();
   const rendered = await renderProjectImportHook(onImportResolved);
 
-  pickSingleFile.mockResolvedValueOnce(projectFile).mockResolvedValueOnce(
-    resourceFile,
-  );
-  pickDirectoryFiles.mockResolvedValueOnce([mapFile]);
-  readFileAsUint8Array
+  hookMocks.pickSingleFile
+    .mockResolvedValueOnce(projectFile)
+    .mockResolvedValueOnce(resourceFile);
+  hookMocks.pickDirectoryFiles.mockResolvedValueOnce([mapFile]);
+  hookMocks.readFileAsUint8Array
     .mockResolvedValueOnce(projectData)
     .mockResolvedValueOnce(mapData)
     .mockResolvedValueOnce(resourceData);
-  prepareTiledProjectImport
+  hookMocks.prepareTiledProjectImport
     .mockResolvedValueOnce({
       status: "missing-resources",
       missingResources: [missingResource],
@@ -193,19 +201,20 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
     });
 
   await act(async () => {
-    await expect(rendered.getCurrent().handleImportTiledProject()).resolves.toBe(
-      true,
-    );
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(true);
   });
 
-  expect(prepareTiledProjectImport).toHaveBeenCalledTimes(1);
+  expect(hookMocks.prepareTiledProjectImport).toHaveBeenCalledTimes(1);
   expect(
-    prepareTiledProjectImport.mock.calls[0]?.[0].map(
+    hookMocks.prepareTiledProjectImport.mock.calls[0]?.[0].map(
       (entry: { path: string }) => entry.path,
     ),
   ).toEqual(["sample.tiled-project", "maps/level.tmx"]);
-
-  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(true);
+  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(
+    true,
+  );
   expect(
     rendered.getCurrent().tiledMissingResourcesDialogProps.description,
   ).toContain("Tiled project");
@@ -213,7 +222,7 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
   await act(async () => {
     await rendered.getCurrent().tiledMissingResourcesDialogProps.onImport();
   });
-  expect(prepareTiledProjectImport).toHaveBeenCalledTimes(1);
+  expect(hookMocks.prepareTiledProjectImport).toHaveBeenCalledTimes(1);
 
   await act(async () => {
     await rendered
@@ -221,7 +230,7 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
       .tiledMissingResourcesDialogProps.onSelectFile(missingResource);
   });
 
-  expect(getLinkedImportResourceAccept).toHaveBeenCalledWith("tsx");
+  expect(hookMocks.getLinkedImportResourceAccept).toHaveBeenCalledWith("tsx");
   expect(
     rendered.getCurrent().tiledMissingResourcesDialogProps.selectedFileNames[
       missingResource.path
@@ -232,9 +241,11 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
     await rendered.getCurrent().tiledMissingResourcesDialogProps.onImport();
   });
 
-  expect(prepareTiledProjectImport).toHaveBeenCalledTimes(2);
+  expect(hookMocks.prepareTiledProjectImport).toHaveBeenCalledTimes(2);
   expect(onImportResolved).toHaveBeenCalledWith(importResult, "sample");
-  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(false);
+  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(
+    false,
+  );
 
   await rendered.unmount();
 });

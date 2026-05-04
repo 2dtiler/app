@@ -304,10 +304,7 @@ export function useImportExportActions({
   );
 
   const handleImportedProjectResolved = useCallback(
-    async (
-      result: TiledProjectImportResult,
-      suggestedProjectName: string,
-    ) => {
+    async (result: TiledProjectImportResult, suggestedProjectName: string) => {
       const targetProject =
         state.project ??
         createEmptyProject(
