@@ -4,6 +4,7 @@ import {
   getFileExtensionFromMimeType,
   getTileColumns,
 } from "@/features/import-export/lib/tiled-xml-utils";
+import { buildGodotTerrainExportLines } from "@/features/import-export/lib/godot-terrain";
 import { getAsset } from "@/services/db";
 import type {
   GodotMapExportOptions,
@@ -161,27 +162,59 @@ function buildGodotTileMapData(
 }
 
 function getTilesetOrientationProperties(map: TileMapData) {
+  const orientation = getTilesetOrientationOptions(map);
+
+  return [
+    orientation.tileShape === undefined
+      ? null
+      : (["tile_shape", String(orientation.tileShape)] as [string, string]),
+    orientation.tileOffsetAxis === undefined
+      ? null
+      : (["tile_offset_axis", String(orientation.tileOffsetAxis)] as [
+          string,
+          string,
+        ]),
+    orientation.tileLayout === undefined
+      ? null
+      : (["tile_layout", String(orientation.tileLayout)] as [
+          string,
+          string,
+        ]),
+  ].filter((entry): entry is [string, string] => entry !== null);
+}
+
+function getTilesetOrientationOptions(map: TileMapData) {
   if (map.orientation === "isometric") {
-    return [["tile_shape", "1"]] as Array<[string, string]>;
+    return {
+      tileShape: 1,
+    };
   }
 
   if (map.orientation === "staggered" || map.orientation === "hexagonal") {
-    return [
-      ["tile_shape", map.orientation === "hexagonal" ? "3" : "2"],
-      ["tile_offset_axis", map.staggerAxis === "y" ? "1" : "0"],
-      ["tile_layout", map.staggerIndex === "even" ? "1" : "0"],
-    ] as Array<[string, string]>;
+    return {
+      tileShape: map.orientation === "hexagonal" ? 3 : 2,
+      tileOffsetAxis: map.staggerAxis === "y" ? 1 : 0,
+      tileLayout: map.staggerIndex === "even" ? 1 : 0,
+    };
   }
 
-  return [] as Array<[string, string]>;
+  return {};
 }
 
-function buildAtlasSourceLines(descriptor: GodotTilesetSourceDescriptor) {
+function buildAtlasSourceLines(
+  descriptor: GodotTilesetSourceDescriptor,
+  map: TileMapData,
+) {
   const rows = Math.max(
     1,
     Math.floor(descriptor.tileset.imageHeight / descriptor.tileset.tileSize),
   );
   const columns = getTileColumns(descriptor.tileset);
+  const orientation = getTilesetOrientationOptions(map);
+  const terrainLines = buildGodotTerrainExportLines(descriptor.tileset, {
+    tileShape: orientation.tileShape,
+    tileOffsetAxis: orientation.tileOffsetAxis,
+  });
   const lines = [
     `[sub_resource type="TileSetAtlasSource" id="${descriptor.resourceId}"]`,
     `texture = ExtResource("${descriptor.textureResourceId}")`,
@@ -196,6 +229,8 @@ function buildAtlasSourceLines(descriptor: GodotTilesetSourceDescriptor) {
       lines.push(`${x}:${y}/0 = 0`);
     }
   }
+
+  lines.push(...terrainLines.sourceLines);
 
   return lines.join("\n");
 }
@@ -219,6 +254,18 @@ function buildEmbeddedTilesetBundle(
     type: "Texture2D",
     path: descriptor.textureResourcePath,
   }));
+  const orientation = getTilesetOrientationOptions(map);
+  let terrainSetOffset = 0;
+  const terrainResourceLines = descriptors.flatMap((descriptor) => {
+    const terrainLines = buildGodotTerrainExportLines(descriptor.tileset, {
+      tileShape: orientation.tileShape,
+      tileOffsetAxis: orientation.tileOffsetAxis,
+      terrainSetOffset,
+    });
+
+    terrainSetOffset += terrainLines.terrainSetCount;
+    return terrainLines.resourceLines;
+  });
 
   const tileSetLines = [
     `[sub_resource type="TileSet" id="TileSet_1"]`,
@@ -226,6 +273,7 @@ function buildEmbeddedTilesetBundle(
     ...getTilesetOrientationProperties(map).map(
       ([key, value]) => `${key} = ${value}`,
     ),
+    ...terrainResourceLines,
     ...descriptors.map(
       (descriptor) =>
         `sources/${descriptor.sourceId} = SubResource("${descriptor.resourceId}")`,
@@ -242,7 +290,23 @@ function buildEmbeddedTilesetBundle(
     sceneExtResources,
     sceneTileSetValue: 'SubResource("TileSet_1")',
     sceneSubResources: [
-      ...descriptors.map((descriptor) => buildAtlasSourceLines(descriptor)),
+      ...(() => {
+        let sourceTerrainSetOffset = 0;
+        return descriptors.map((descriptor) => {
+          const resourceText = buildAtlasSourceLines(descriptor, map);
+          const terrainSetCount =
+            buildGodotTerrainExportLines(descriptor.tileset).terrainSetCount;
+          const adjustedText = sourceTerrainSetOffset
+            ? resourceText.replace(
+                /(\/terrain_set = )(\d+)/g,
+                (_match, prefix: string, value: string) =>
+                  `${prefix}${Number.parseInt(value, 10) + sourceTerrainSetOffset}`,
+              )
+            : resourceText;
+          sourceTerrainSetOffset += terrainSetCount;
+          return adjustedText;
+        });
+      })(),
       tileSetLines.join("\n"),
     ],
     externalEntries: [],
@@ -274,20 +338,46 @@ function buildExternalTilesetBundle(
     (descriptor) =>
       `[ext_resource type="Texture2D" path="res://${descriptor.textureResourcePath}" id="${descriptor.textureResourceId}"]`,
   );
+  const orientation = getTilesetOrientationOptions(map);
+  let terrainSetOffset = 0;
+  const terrainResourceLines = descriptors.flatMap((descriptor) => {
+    const terrainLines = buildGodotTerrainExportLines(descriptor.tileset, {
+      tileShape: orientation.tileShape,
+      tileOffsetAxis: orientation.tileOffsetAxis,
+      terrainSetOffset,
+    });
+
+    terrainSetOffset += terrainLines.terrainSetCount;
+    return terrainLines.resourceLines;
+  });
   const tileSetLines = [
     `[gd_resource type="TileSet" load_steps=${extResourceLines.length + descriptors.length + 1} format=3]`,
     "",
     ...extResourceLines,
     "",
-    ...descriptors.flatMap((descriptor, index) => [
-      buildAtlasSourceLines(descriptor),
-      index === descriptors.length - 1 ? "" : "",
-    ]),
+    ...(() => {
+      let sourceTerrainSetOffset = 0;
+      return descriptors.flatMap((descriptor, index) => {
+        const resourceText = buildAtlasSourceLines(descriptor, map);
+        const terrainSetCount =
+          buildGodotTerrainExportLines(descriptor.tileset).terrainSetCount;
+        const adjustedText = sourceTerrainSetOffset
+          ? resourceText.replace(
+              /(\/terrain_set = )(\d+)/g,
+              (_match, prefix: string, value: string) =>
+                `${prefix}${Number.parseInt(value, 10) + sourceTerrainSetOffset}`,
+            )
+          : resourceText;
+        sourceTerrainSetOffset += terrainSetCount;
+        return [adjustedText, index === descriptors.length - 1 ? "" : ""];
+      });
+    })(),
     "[resource]",
     `tile_size = ${formatGodotVector2i(map.tileSize, map.tileSize)}`,
     ...getTilesetOrientationProperties(map).map(
       ([key, value]) => `${key} = ${value}`,
     ),
+    ...terrainResourceLines,
     ...descriptors.map(
       (descriptor) =>
         `sources/${descriptor.sourceId} = SubResource("${descriptor.resourceId}")`,

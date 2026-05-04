@@ -5,11 +5,13 @@ import {
   getTileColumns,
 } from "@/features/import-export/lib/tiled-xml-utils";
 import { formatGodotVector2i } from "@/features/import-export/lib/godot-scene-utils";
+import { buildGodotTerrainExportLines } from "@/features/import-export/lib/godot-terrain";
 import type { ImportExportArchiveEntry, Tileset } from "@/types";
 
 function buildAtlasSourceLines(tileset: Tileset) {
   const rows = Math.max(1, Math.floor(tileset.imageHeight / tileset.tileSize));
   const columns = getTileColumns(tileset);
+  const terrainLines = buildGodotTerrainExportLines(tileset);
   const lines = [
     '[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1"]',
     'texture = ExtResource("texture_1")',
@@ -24,6 +26,8 @@ function buildAtlasSourceLines(tileset: Tileset) {
       lines.push(`${x}:${y}/0 = 0`);
     }
   }
+
+  lines.push(...terrainLines.sourceLines);
 
   return lines;
 }
@@ -51,6 +55,7 @@ export async function exportGodotTilesetBundle(
     ".tres",
     usedPaths,
   );
+  const terrainLines = buildGodotTerrainExportLines(tileset);
   const lines = [
     '[gd_resource type="TileSet" load_steps=3 format=3]',
     "",
@@ -60,6 +65,7 @@ export async function exportGodotTilesetBundle(
     "",
     "[resource]",
     `tile_size = ${formatGodotVector2i(tileset.tileSize, tileset.tileSize)}`,
+    ...terrainLines.resourceLines,
     'sources/1 = SubResource("TileSetAtlasSource_1")',
     "",
   ];

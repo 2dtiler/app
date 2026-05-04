@@ -565,8 +565,8 @@ export const PNG_ASSET_RECORD = {
   mimeType: "image/png",
 };
 
-export async function withStubbedAssetLookup(
-  run: () => Promise<void>,
+export async function withStubbedAssetLookup<T>(
+  run: () => Promise<T>,
   assetRecord: { data: ArrayBuffer; mimeType: string },
 ) {
   const originalGet = db.assets.get;
@@ -578,14 +578,14 @@ export async function withStubbedAssetLookup(
   })) as typeof db.assets.get;
 
   try {
-    await run();
+    return await run();
   } finally {
     db.assets.get = originalGet;
   }
 }
 
-export async function withStubbedImageImportEnvironment(
-  run: () => Promise<void>,
+export async function withStubbedImageImportEnvironment<T>(
+  run: () => Promise<T>,
   dimensions: { width: number; height: number },
 ) {
   const originalImage = globalThis.Image;
@@ -632,7 +632,7 @@ export async function withStubbedImageImportEnvironment(
   db.assets.put = (async () => undefined) as typeof db.assets.put;
 
   try {
-    await run();
+    return await run();
   } finally {
     if (originalImage) {
       Object.assign(globalThis, {
