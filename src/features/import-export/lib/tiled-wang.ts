@@ -254,9 +254,21 @@ function buildNamedTiledWangColors(
     }));
 }
 
+function buildColorIndexRemap(
+  colors: readonly AutotileWangColor[],
+): Map<number, number> {
+  const sorted = [...colors].sort((a, b) => a.index - b.index);
+  const remap = new Map<number, number>();
+  sorted.forEach((color, i) => {
+    remap.set(color.index, i + 1);
+  });
+  return remap;
+}
+
 function buildNamedTiledWangTiles(
   tileset: Pick<Tileset, "imageHeight" | "imageWidth" | "tileSize">,
   tiles: readonly AutotileWangTile[],
+  colorIndexRemap: Map<number, number>,
 ): TiledJsonWangTile[] {
   return tiles.flatMap((wangTile) => {
     const tileId = tileRegionToLocalId(tileset, wangTile.tile);
@@ -267,7 +279,9 @@ function buildNamedTiledWangTiles(
     return [
       {
         tileid: tileId,
-        wangid: [...wangTile.wangId],
+        wangid: wangTile.wangId.map((index) =>
+          index === 0 ? 0 : (colorIndexRemap.get(index) ?? 0),
+        ),
       },
     ];
   });
@@ -284,7 +298,12 @@ function buildNamedTiledJsonWangSets(
       return [];
     }
 
-    const wangTiles = buildNamedTiledWangTiles(tileset, wangSet.tiles);
+    const colorIndexRemap = buildColorIndexRemap(wangSet.colors);
+    const wangTiles = buildNamedTiledWangTiles(
+      tileset,
+      wangSet.tiles,
+      colorIndexRemap,
+    );
 
     return [
       {

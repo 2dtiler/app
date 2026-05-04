@@ -322,8 +322,9 @@ export function useAutotileNamedWangEditor({
             : wangSet,
         ),
       }));
+      onClearSelectionTarget();
     },
-    [setDraft],
+    [onClearSelectionTarget, setDraft],
   );
 
   const handleSelectWangTile = useCallback(

@@ -291,7 +291,12 @@ export function AutotileDialog({
       setDraft((current) => ({
         ...current,
         preset,
-        wangSets: defaultWangSet ? [defaultWangSet] : current.wangSets,
+        wangSets:
+          preset === "wang-named-colors"
+            ? defaultWangSet
+              ? [defaultWangSet]
+              : current.wangSets
+            : undefined,
       }));
       if (defaultWangSet) {
         setActiveWangSetId(defaultWangSet.id);
