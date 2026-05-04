@@ -298,7 +298,7 @@ export function AutotileDialog({
       }
       setSelectionTarget(null);
     },
-    [draft.wangSets?.length],
+    [draft.wangSets?.length, setActiveWangSetId],
   );
 
   const handleSelectRule = useCallback((terrainId: AutotileTerrain["id"]) => {

@@ -14,7 +14,6 @@ import {
   AUTOTILE_WANG_POSITION_INDEXES,
   type AutotileWangColor,
   type AutotileWangPosition,
-  type AutotileWangSet,
   type AutotileWangSetType,
 } from "@/types";
 import { cn } from "@/utils/cn";

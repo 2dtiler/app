@@ -158,9 +158,8 @@ export function PalettePanel({
     [colors],
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handlePickerChange = useCallback((value: any) => {
-    const rgba = value as number[];
+  const handlePickerChange = useCallback((value: number[]) => {
+    const rgba = value;
     pickedColorRef.current = {
       r: Math.round(rgba[0]),
       g: Math.round(rgba[1]),

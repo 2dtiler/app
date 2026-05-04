@@ -82,7 +82,7 @@ export function normalizeWangIdForSetType(
   type: AutotileWangSetType,
 ): AutotileWangId {
   const normalized = createEmptyWangId();
-  const activeIndexes = new Set(
+  const activeIndexes = new Set<number>(
     AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[type].map(
       (position) => AUTOTILE_WANG_POSITION_INDEXES[position],
     ),

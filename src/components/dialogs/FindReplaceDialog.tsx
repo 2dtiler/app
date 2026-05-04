@@ -406,7 +406,7 @@ export function FindReplaceDialog({
       const ids = new Set<string>(allMapLayerIds.map((id) => id as string));
       setSelectedLayerIds(ids);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [open]);
 
   // -----------------------------------------------------------------------

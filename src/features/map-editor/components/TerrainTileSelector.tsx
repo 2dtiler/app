@@ -122,7 +122,7 @@ export function TerrainTileSelector({
       cancelled = true;
       revokes.forEach((url) => URL.revokeObjectURL(url));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [tiles, tilesets]);
 
   // -----------------------------------------------------------------------
