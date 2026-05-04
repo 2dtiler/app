@@ -72,8 +72,6 @@ type DirectoryEnabledInput = HTMLInputElement & {
   webkitdirectory?: boolean;
 };
 
-const FILE_PICKER_CANCEL_DELAY_MS = 1000;
-
 interface PickFilesOptions {
   multiple?: boolean;
   configureInput?: (input: HTMLInputElement) => void;
@@ -86,16 +84,15 @@ async function pickFiles(
 ): Promise<File[] | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
-    let cancelTimeoutId: number | null = null;
+    let attachedInput = false;
     let settled = false;
 
     const cleanup = () => {
       input.removeEventListener("change", handleChange);
       input.removeEventListener("cancel", handleCancel);
-      window.removeEventListener("focus", handleWindowFocus, true);
 
-      if (cancelTimeoutId !== null) {
-        window.clearTimeout(cancelTimeoutId);
+      if (attachedInput) {
+        input.remove();
       }
     };
 
@@ -117,24 +114,19 @@ async function pickFiles(
       settle(null);
     };
 
-    const handleWindowFocus = () => {
-      // Some browsers do not emit a file-input cancel event after the picker closes.
-      cancelTimeoutId = window.setTimeout(() => {
-        if (!input.files?.length) {
-          settle(null);
-        }
-      }, FILE_PICKER_CANCEL_DELAY_MS);
-    };
-
     input.type = "file";
     input.accept = accept;
     input.multiple = Boolean(options.multiple);
     input.name = inputName;
     input.id = `${inputName}-${Math.random().toString(36).slice(2)}`;
+    input.hidden = true;
     options.configureInput?.(input);
     input.addEventListener("change", handleChange);
     input.addEventListener("cancel", handleCancel);
-    window.addEventListener("focus", handleWindowFocus, true);
+    if (document.body) {
+      document.body.appendChild(input);
+      attachedInput = true;
+    }
     input.click();
   });
 }
