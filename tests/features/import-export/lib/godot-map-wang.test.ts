@@ -50,7 +50,10 @@ for (const scenario of [
           : getRootEntry(entries, ".tres");
       const document = decodeText(expectedEntry.data);
 
-      assert.match(document, /terrain_set_0_0\/mode = 2|terrain_set_0\/mode = 2/);
+      assert.match(
+        document,
+        /terrain_set_0_0\/mode = 2|terrain_set_0\/mode = 2/,
+      );
       assert.match(document, /1:0\/0\/terrain_set = 0/);
       assert.match(document, /1:0\/0\/terrains_peering_bit\/top_side = 0/);
     }, PNG_ASSET_RECORD);
@@ -78,26 +81,29 @@ for (const scenario of [
       );
       const rootEntry = getRootEntry(entries, ".tscn");
 
-      await withStubbedImageImportEnvironment(async () => {
-        const imported = await prepareGodotMapImport(rootEntry.path, entries);
+      await withStubbedImageImportEnvironment(
+        async () => {
+          const imported = await prepareGodotMapImport(rootEntry.path, entries);
 
-        assert.strictEqual(imported.status, "ready");
-        if (imported.status !== "ready") {
-          return;
-        }
+          assert.strictEqual(imported.status, "ready");
+          if (imported.status !== "ready") {
+            return;
+          }
 
-        const importedTileset = imported.result.tilesets[0];
-        assert.strictEqual(importedTileset?.autotile?.preset, "wang-tiles");
-        assert.deepEqual(
-          importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-0f"],
-          {
-            sx: 16,
-            sy: 0,
-            sw: 16,
-            sh: 16,
-          },
-        );
-      }, { width: 32, height: 16 });
+          const importedTileset = imported.result.tilesets[0];
+          assert.strictEqual(importedTileset?.autotile?.preset, "wang-tiles");
+          assert.deepEqual(
+            importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-0f"],
+            {
+              sx: 16,
+              sy: 0,
+              sw: 16,
+              sh: 16,
+            },
+          );
+        },
+        { width: 32, height: 16 },
+      );
     }, PNG_ASSET_RECORD);
   });
 
@@ -154,20 +160,23 @@ for (const scenario of [
       assert.match(document, /\/terrain_set = 1/);
 
       const rootEntry = getRootEntry(entries, ".tscn");
-      await withStubbedImageImportEnvironment(async () => {
-        const imported = await prepareGodotMapImport(rootEntry.path, entries);
+      await withStubbedImageImportEnvironment(
+        async () => {
+          const imported = await prepareGodotMapImport(rootEntry.path, entries);
 
-        assert.strictEqual(imported.status, "ready");
-        if (imported.status !== "ready") {
-          return;
-        }
+          assert.strictEqual(imported.status, "ready");
+          if (imported.status !== "ready") {
+            return;
+          }
 
-        assert.strictEqual(imported.result.tilesets.length, 2);
-        assert.deepEqual(
-          imported.result.tilesets.map((tileset) => tileset.autotile?.preset),
-          ["wang-tiles", "wang-tiles"],
-        );
-      }, { width: 32, height: 16 });
+          assert.strictEqual(imported.result.tilesets.length, 2);
+          assert.deepEqual(
+            imported.result.tilesets.map((tileset) => tileset.autotile?.preset),
+            ["wang-tiles", "wang-tiles"],
+          );
+        },
+        { width: 32, height: 16 },
+      );
     }, PNG_ASSET_RECORD);
   });
 }

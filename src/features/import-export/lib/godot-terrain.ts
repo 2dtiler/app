@@ -110,7 +110,8 @@ function parseHexColor(value: string | undefined) {
 }
 
 function formatGodotColorFromHex(value: string | undefined) {
-  const parsed = parseHexColor(value) ?? parseHexColor(GODOT_DEFAULT_TERRAIN_COLOR)!;
+  const parsed =
+    parseHexColor(value) ?? parseHexColor(GODOT_DEFAULT_TERRAIN_COLOR)!;
   return formatGodotColorRgba(
     parsed.red / 255,
     parsed.green / 255,
@@ -154,7 +155,8 @@ function formatHexColorFromGodot(value: string | undefined) {
     return GODOT_DEFAULT_TERRAIN_COLOR;
   }
 
-  const suffix = parsed.alpha === 255 ? "" : parsed.alpha.toString(16).padStart(2, "0");
+  const suffix =
+    parsed.alpha === 255 ? "" : parsed.alpha.toString(16).padStart(2, "0");
   return `#${parsed.red.toString(16).padStart(2, "0")}${parsed.green
     .toString(16)
     .padStart(2, "0")}${parsed.blue.toString(16).padStart(2, "0")}${suffix}`;
@@ -237,7 +239,8 @@ function isLegacyTwoColorEdgeWangSet(wangSet: {
     colors.length === 2 &&
     (colors[0]?.name ?? "Open") === "Open" &&
     (colors[0]?.color ?? "").trim().toLowerCase() === GODOT_OPEN_COLOR &&
-    (colors[1]?.color ?? "").trim().toLowerCase() === GODOT_DEFAULT_TERRAIN_COLOR &&
+    (colors[1]?.color ?? "").trim().toLowerCase() ===
+      GODOT_DEFAULT_TERRAIN_COLOR &&
     readNumber(String(colors[0]?.probability ?? 1), 1) === 1 &&
     readNumber(String(colors[1]?.probability ?? 1), 1) === 1
   );
@@ -290,9 +293,10 @@ function computeCenterTerrainIndex(
     return 0;
   }
 
-  const activePositions = AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[
-    wangSetType === "corner" || wangSetType === "mixed" ? wangSetType : "edge"
-  ];
+  const activePositions =
+    AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[
+      wangSetType === "corner" || wangSetType === "mixed" ? wangSetType : "edge"
+    ];
   const counts = new Map<number, number>();
 
   for (const position of activePositions) {
@@ -322,7 +326,10 @@ function computeCenterTerrainIndex(
 }
 
 function readNamedTileProbability(
-  tileset: Pick<Tileset, "autotile" | "imageHeight" | "imageWidth" | "tileSize">,
+  tileset: Pick<
+    Tileset,
+    "autotile" | "imageHeight" | "imageWidth" | "tileSize"
+  >,
   wangSetIndex: number,
   localId: number,
   wangId: readonly number[] | undefined,
@@ -359,13 +366,15 @@ function inferRepresentativeTileId(
   targetValue: number,
   wangSetType: string | undefined,
 ) {
-  const activePositions = AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[
-    wangSetType === "corner" || wangSetType === "mixed" ? wangSetType : "edge"
-  ];
+  const activePositions =
+    AUTOTILE_WANG_ACTIVE_POSITIONS_BY_TYPE[
+      wangSetType === "corner" || wangSetType === "mixed" ? wangSetType : "edge"
+    ];
 
   for (const assignment of assignments) {
     const values = activePositions.map(
-      (position) => assignment.wangId[AUTOTILE_WANG_POSITION_INDEXES[position]] ?? 0,
+      (position) =>
+        assignment.wangId[AUTOTILE_WANG_POSITION_INDEXES[position]] ?? 0,
     );
     if (values.length > 0 && values.every((value) => value === targetValue)) {
       return assignment.localId;
@@ -376,7 +385,10 @@ function inferRepresentativeTileId(
 }
 
 function buildTileAssignments(
-  tileset: Pick<Tileset, "autotile" | "imageHeight" | "imageWidth" | "tileSize">,
+  tileset: Pick<
+    Tileset,
+    "autotile" | "imageHeight" | "imageWidth" | "tileSize"
+  >,
   tileShape: number,
   tileOffsetAxis: number,
 ) {
@@ -394,14 +406,10 @@ function buildTileAssignments(
 
   wangSets.forEach((wangSet, wangSetIndex) => {
     const legacyEdgeSet = isLegacyTwoColorEdgeWangSet(wangSet);
-    const keyMap = getNeighborKeyMap(
-      wangSet.type,
-      tileShape,
-      tileOffsetAxis,
-    );
+    const keyMap = getNeighborKeyMap(wangSet.type, tileShape, tileOffsetAxis);
     const terrainColors = legacyEdgeSet
       ? (wangSet.colors ?? []).slice(1)
-      : wangSet.colors ?? [];
+      : (wangSet.colors ?? []);
 
     resourceLines.push(
       `terrain_set_${wangSetIndex}/mode = ${getGodotTerrainMode(wangSet.type)}`,
@@ -475,7 +483,10 @@ function buildTileAssignments(
 }
 
 export function buildGodotTerrainExportLines(
-  tileset: Pick<Tileset, "autotile" | "imageHeight" | "imageWidth" | "tileSize">,
+  tileset: Pick<
+    Tileset,
+    "autotile" | "imageHeight" | "imageWidth" | "tileSize"
+  >,
   options?: {
     tileShape?: number;
     tileOffsetAxis?: number;
@@ -512,7 +523,9 @@ export function buildGodotTerrainExportLines(
     assignments.forEach((assignment, assignmentIndex) => {
       const alternativeId = assignmentIndex;
       if (alternativeId > 0) {
-        sourceLines.push(`${coordinates.atlasX}:${coordinates.atlasY}/${alternativeId} = 0`);
+        sourceLines.push(
+          `${coordinates.atlasX}:${coordinates.atlasY}/${alternativeId} = 0`,
+        );
       }
 
       sourceLines.push(
@@ -549,7 +562,9 @@ export function buildGodotTerrainExportLines(
   };
 }
 
-function parseTerrainSetDefinitions(resourceProperties: Record<string, string>) {
+function parseTerrainSetDefinitions(
+  resourceProperties: Record<string, string>,
+) {
   const terrainSets = new Map<
     number,
     {
@@ -562,11 +577,10 @@ function parseTerrainSetDefinitions(resourceProperties: Record<string, string>) 
     const modeMatch = key.match(/^terrain_set_(\d+)\/mode$/);
     if (modeMatch) {
       const terrainSetIndex = Number.parseInt(modeMatch[1]!, 10);
-      const current =
-        terrainSets.get(terrainSetIndex) ?? {
-          mode: GODOT_TERRAIN_MODE_MATCH_SIDES,
-          terrains: new Map<number, { name: string; color: string }>(),
-        };
+      const current = terrainSets.get(terrainSetIndex) ?? {
+        mode: GODOT_TERRAIN_MODE_MATCH_SIDES,
+        terrains: new Map<number, { name: string; color: string }>(),
+      };
       current.mode = readNumber(rawValue, GODOT_TERRAIN_MODE_MATCH_SIDES);
       terrainSets.set(terrainSetIndex, current);
       continue;
@@ -582,16 +596,14 @@ function parseTerrainSetDefinitions(resourceProperties: Record<string, string>) 
     const terrainSetIndex = Number.parseInt(terrainMatch[1]!, 10);
     const terrainIndex = Number.parseInt(terrainMatch[2]!, 10);
     const propertyName = terrainMatch[3]!;
-    const current =
-      terrainSets.get(terrainSetIndex) ?? {
-        mode: GODOT_TERRAIN_MODE_MATCH_SIDES,
-        terrains: new Map<number, { name: string; color: string }>(),
-      };
-    const terrain =
-      current.terrains.get(terrainIndex) ?? {
-        name: `Terrain ${terrainIndex + 1}`,
-        color: GODOT_DEFAULT_TERRAIN_COLOR,
-      };
+    const current = terrainSets.get(terrainSetIndex) ?? {
+      mode: GODOT_TERRAIN_MODE_MATCH_SIDES,
+      terrains: new Map<number, { name: string; color: string }>(),
+    };
+    const terrain = current.terrains.get(terrainIndex) ?? {
+      name: `Terrain ${terrainIndex + 1}`,
+      color: GODOT_DEFAULT_TERRAIN_COLOR,
+    };
 
     if (propertyName === "name") {
       terrain.name = parseGodotStringLiteral(rawValue) || terrain.name;
@@ -646,15 +658,14 @@ function parseTerrainTileAssignments(sourceProperties: Record<string, string>) {
 
     const localId = atlasY * 100000 + atlasX;
     const assignmentKey = `${localId}:${alternativeId}`;
-    const current =
-      assignments.get(assignmentKey) ?? {
-        localId,
-        alternativeId,
-        terrainSet: -1,
-        terrain: -1,
-        probability: 1,
-        peeringBits: {},
-      };
+    const current = assignments.get(assignmentKey) ?? {
+      localId,
+      alternativeId,
+      terrainSet: -1,
+      terrain: -1,
+      probability: 1,
+      peeringBits: {},
+    };
 
     if (propertyPath === "terrain_set") {
       current.terrainSet = readNumber(rawValue, -1);
@@ -670,7 +681,9 @@ function parseTerrainTileAssignments(sourceProperties: Record<string, string>) {
     assignments.set(assignmentKey, current);
   }
 
-  return [...assignments.values()].filter((assignment) => assignment.terrainSet >= 0);
+  return [...assignments.values()].filter(
+    (assignment) => assignment.terrainSet >= 0,
+  );
 }
 
 function getAssignmentLocalId(
@@ -693,7 +706,9 @@ function isLegacyGodotEdgeSet(
     wangSetType === "edge" &&
     terrainSet.terrains.length === 1 &&
     assignments.every((assignment) => {
-      const edgeValues = [0, 2, 4, 6].map((index) => assignment.wangId[index] ?? 0);
+      const edgeValues = [0, 2, 4, 6].map(
+        (index) => assignment.wangId[index] ?? 0,
+      );
       return (
         (assignment.terrain === -1 || assignment.terrain === 0) &&
         edgeValues.every((value) => value === 0 || value === 1)
@@ -715,9 +730,10 @@ function buildTiledWangIdFromGodotAssignment(
   const keyMap = getNeighborKeyMap(wangSetType, tileShape, tileOffsetAxis);
 
   for (const [position, godotKey] of Object.entries(keyMap)) {
-    const positionIndex = AUTOTILE_WANG_POSITION_INDEXES[
-      position as keyof typeof AUTOTILE_WANG_POSITION_INDEXES
-    ];
+    const positionIndex =
+      AUTOTILE_WANG_POSITION_INDEXES[
+        position as keyof typeof AUTOTILE_WANG_POSITION_INDEXES
+      ];
     const terrainValue = assignment.peeringBits[godotKey];
 
     if (legacyEdgeSet) {
@@ -741,7 +757,10 @@ export function buildAutotileFromGodotTerrainProperties(
     return null;
   }
 
-  const tileShape = readNumber(resourceProperties.tile_shape, GODOT_TILE_SHAPE_SQUARE);
+  const tileShape = readNumber(
+    resourceProperties.tile_shape,
+    GODOT_TILE_SHAPE_SQUARE,
+  );
   const tileOffsetAxis = readNumber(
     resourceProperties.tile_offset_axis,
     GODOT_TILE_OFFSET_AXIS_HORIZONTAL,
@@ -760,7 +779,9 @@ export function buildAutotileFromGodotTerrainProperties(
         localId: getAssignmentLocalId(tileset, assignment.localId),
       }))
       .filter(
-        (entry): entry is {
+        (
+          entry,
+        ): entry is {
           assignment: (typeof rawAssignments)[number];
           localId: number;
         } => entry.localId >= 0,
@@ -782,7 +803,11 @@ export function buildAutotileFromGodotTerrainProperties(
       return [];
     }
 
-    const legacyEdgeSet = isLegacyGodotEdgeSet(terrainSet, assignments, wangSetType);
+    const legacyEdgeSet = isLegacyGodotEdgeSet(
+      terrainSet,
+      assignments,
+      wangSetType,
+    );
 
     if (legacyEdgeSet) {
       const representativeTileId = inferRepresentativeTileId(
@@ -792,7 +817,9 @@ export function buildAutotileFromGodotTerrainProperties(
       );
       return [
         {
-          name: terrainSet.terrains[0]?.name ?? `Wang Terrain ${terrainSet.index + 1}`,
+          name:
+            terrainSet.terrains[0]?.name ??
+            `Wang Terrain ${terrainSet.index + 1}`,
           type: "edge",
           tile: representativeTileId,
           colors: [
@@ -803,8 +830,11 @@ export function buildAutotileFromGodotTerrainProperties(
               probability: 1,
             },
             {
-              name: terrainSet.terrains[0]?.name ?? `Terrain ${terrainSet.index + 1}`,
-              color: terrainSet.terrains[0]?.color ?? GODOT_DEFAULT_TERRAIN_COLOR,
+              name:
+                terrainSet.terrains[0]?.name ??
+                `Terrain ${terrainSet.index + 1}`,
+              color:
+                terrainSet.terrains[0]?.color ?? GODOT_DEFAULT_TERRAIN_COLOR,
               tile: representativeTileId,
               probability: 1,
             },
@@ -861,7 +891,8 @@ export function buildAutotileFromGodotTerrainProperties(
       const matchingAssignment = rawAssignments.find((assignment) => {
         return (
           assignment.terrainSet === wangSetIndex &&
-          getAssignmentLocalId(tileset, assignment.localId) === wangTile.tileid &&
+          getAssignmentLocalId(tileset, assignment.localId) ===
+            wangTile.tileid &&
           buildTiledWangIdFromGodotAssignment(
             assignment,
             wangSet.type ?? "edge",
@@ -882,24 +913,26 @@ export function buildAutotileFromGodotTerrainProperties(
     }
   });
 
-  autotile.wangSets = (autotile.wangSets ?? []).map((wangSet, wangSetIndex) => ({
-    ...wangSet,
-    tiles: wangSet.tiles.map((wangTile) => {
-      const localId = getLocalIdFromAtlasCoordinates(
-        tileset,
-        Math.floor((wangTile.tile?.sx ?? 0) / tileset.tileSize),
-        Math.floor((wangTile.tile?.sy ?? 0) / tileset.tileSize),
-      );
+  autotile.wangSets = (autotile.wangSets ?? []).map(
+    (wangSet, wangSetIndex) => ({
+      ...wangSet,
+      tiles: wangSet.tiles.map((wangTile) => {
+        const localId = getLocalIdFromAtlasCoordinates(
+          tileset,
+          Math.floor((wangTile.tile?.sx ?? 0) / tileset.tileSize),
+          Math.floor((wangTile.tile?.sy ?? 0) / tileset.tileSize),
+        );
 
-      return {
-        ...wangTile,
-        probability:
-          assignmentsBySignature.get(
-            `${wangSetIndex}:${localId}:${wangTile.wangId.join(",")}`,
-          ) ?? wangTile.probability,
-      };
+        return {
+          ...wangTile,
+          probability:
+            assignmentsBySignature.get(
+              `${wangSetIndex}:${localId}:${wangTile.wangId.join(",")}`,
+            ) ?? wangTile.probability,
+        };
+      }),
     }),
-  }));
+  );
 
   return autotile;
 }

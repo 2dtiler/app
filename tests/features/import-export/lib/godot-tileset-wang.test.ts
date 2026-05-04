@@ -90,29 +90,41 @@ test("prepareGodotTilesetImport round-trips simple Wang autotile from exported G
   const { entries } = await exportTilesetDocument(sourceTileset);
   const rootPath = entries.find((entry) => entry.path.endsWith(".tres"))?.path;
 
-  await withStubbedImageImportEnvironment(async () => {
-    const result = await prepareGodotTilesetImport(rootPath ?? "terrain.tres", entries);
+  await withStubbedImageImportEnvironment(
+    async () => {
+      const result = await prepareGodotTilesetImport(
+        rootPath ?? "terrain.tres",
+        entries,
+      );
 
-    assert.strictEqual(result.status, "ready");
-    if (result.status !== "ready") {
-      return;
-    }
+      assert.strictEqual(result.status, "ready");
+      if (result.status !== "ready") {
+        return;
+      }
 
-    const importedTileset = result.result[0];
-    assert.strictEqual(importedTileset?.autotile?.preset, "wang-tiles");
-    assert.deepEqual(importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-00"], {
-      sx: 0,
-      sy: 0,
-      sw: 16,
-      sh: 16,
-    });
-    assert.deepEqual(importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-0f"], {
-      sx: 16,
-      sy: 0,
-      sw: 16,
-      sh: 16,
-    });
-  }, { width: 32, height: 16 });
+      const importedTileset = result.result[0];
+      assert.strictEqual(importedTileset?.autotile?.preset, "wang-tiles");
+      assert.deepEqual(
+        importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-00"],
+        {
+          sx: 0,
+          sy: 0,
+          sw: 16,
+          sh: 16,
+        },
+      );
+      assert.deepEqual(
+        importedTileset?.autotile?.terrains[0]?.patternTiles?.["wang-0f"],
+        {
+          sx: 16,
+          sy: 0,
+          sw: 16,
+          sh: 16,
+        },
+      );
+    },
+    { width: 32, height: 16 },
+  );
 });
 
 test("Godot tileset Wang import and export preserve named mixed Wang geometry", async () => {
@@ -128,31 +140,42 @@ test("Godot tileset Wang import and export preserve named mixed Wang geometry", 
   assert.match(document, /terrain_set_0\/terrain_1\/name = "River"/);
   assert.match(document, /2:0\/0\/probability = 0.5/);
 
-  await withStubbedImageImportEnvironment(async () => {
-    const result = await prepareGodotTilesetImport(rootPath ?? "terrain.tres", entries);
+  await withStubbedImageImportEnvironment(
+    async () => {
+      const result = await prepareGodotTilesetImport(
+        rootPath ?? "terrain.tres",
+        entries,
+      );
 
-    assert.strictEqual(result.status, "ready");
-    if (result.status !== "ready") {
-      return;
-    }
+      assert.strictEqual(result.status, "ready");
+      if (result.status !== "ready") {
+        return;
+      }
 
-    const importedTileset = result.result[0];
-    assert.strictEqual(importedTileset?.autotile?.preset, "wang-named-colors");
-    assert.strictEqual(importedTileset?.autotile?.wangSets?.[0]?.type, "mixed");
-    assert.deepEqual(
-      importedTileset?.autotile?.wangSets?.[0]?.colors.map((color) => color.name),
-      ["Forest", "River"],
-    );
-    assert.deepEqual(importedTileset?.autotile?.wangSets?.[0]?.tiles[0]?.wangId, [
-      1,
-      2,
-      1,
-      2,
-      1,
-      2,
-      1,
-      2,
-    ]);
-    assert.strictEqual(importedTileset?.autotile?.wangSets?.[0]?.tiles[0]?.probability, 0.5);
-  }, { width: 64, height: 16 });
+      const importedTileset = result.result[0];
+      assert.strictEqual(
+        importedTileset?.autotile?.preset,
+        "wang-named-colors",
+      );
+      assert.strictEqual(
+        importedTileset?.autotile?.wangSets?.[0]?.type,
+        "mixed",
+      );
+      assert.deepEqual(
+        importedTileset?.autotile?.wangSets?.[0]?.colors.map(
+          (color) => color.name,
+        ),
+        ["Forest", "River"],
+      );
+      assert.deepEqual(
+        importedTileset?.autotile?.wangSets?.[0]?.tiles[0]?.wangId,
+        [1, 2, 1, 2, 1, 2, 1, 2],
+      );
+      assert.strictEqual(
+        importedTileset?.autotile?.wangSets?.[0]?.tiles[0]?.probability,
+        0.5,
+      );
+    },
+    { width: 64, height: 16 },
+  );
 });

@@ -176,10 +176,7 @@ function getTilesetOrientationProperties(map: TileMapData) {
         ]),
     orientation.tileLayout === undefined
       ? null
-      : (["tile_layout", String(orientation.tileLayout)] as [
-          string,
-          string,
-        ]),
+      : (["tile_layout", String(orientation.tileLayout)] as [string, string]),
   ].filter((entry): entry is [string, string] => entry !== null);
 }
 
@@ -294,8 +291,9 @@ function buildEmbeddedTilesetBundle(
         let sourceTerrainSetOffset = 0;
         return descriptors.map((descriptor) => {
           const resourceText = buildAtlasSourceLines(descriptor, map);
-          const terrainSetCount =
-            buildGodotTerrainExportLines(descriptor.tileset).terrainSetCount;
+          const terrainSetCount = buildGodotTerrainExportLines(
+            descriptor.tileset,
+          ).terrainSetCount;
           const adjustedText = sourceTerrainSetOffset
             ? resourceText.replace(
                 /(\/terrain_set = )(\d+)/g,
@@ -359,8 +357,9 @@ function buildExternalTilesetBundle(
       let sourceTerrainSetOffset = 0;
       return descriptors.flatMap((descriptor, index) => {
         const resourceText = buildAtlasSourceLines(descriptor, map);
-        const terrainSetCount =
-          buildGodotTerrainExportLines(descriptor.tileset).terrainSetCount;
+        const terrainSetCount = buildGodotTerrainExportLines(
+          descriptor.tileset,
+        ).terrainSetCount;
         const adjustedText = sourceTerrainSetOffset
           ? resourceText.replace(
               /(\/terrain_set = )(\d+)/g,
