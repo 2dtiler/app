@@ -323,8 +323,8 @@ export function TilesetCanvas({
         const withinPreview =
           point.x >= placementPreview.position.x &&
           point.y >= placementPreview.position.y &&
-          point.x <= placementPreview.position.x + placementPreview.width &&
-          point.y <= placementPreview.position.y + placementPreview.height;
+          point.x < placementPreview.position.x + placementPreview.width &&
+          point.y < placementPreview.position.y + placementPreview.height;
         const offset = withinPreview
           ? {
               x: point.x - placementPreview.position.x,

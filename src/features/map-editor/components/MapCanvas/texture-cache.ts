@@ -40,6 +40,13 @@ export function loadTilesetImage(
   }
   if (inflight) {
     loadingTilesetPromises.delete(tilesetId);
+    // Revoke any blob URL the old in-flight load may have already stored to
+    // avoid leaking object URLs when the asset changes mid-flight.
+    const staleUrl = tilesetBlobUrls.get(tilesetId);
+    if (staleUrl) {
+      URL.revokeObjectURL(staleUrl);
+      tilesetBlobUrls.delete(tilesetId);
+    }
   }
   loadingTilesetAssetIds.set(tilesetId, assetId);
 

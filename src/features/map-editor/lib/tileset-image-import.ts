@@ -2,9 +2,17 @@ import type { PendingTilesetImageImport } from "@/features/map-editor/types/tile
 
 const RASTER_IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|bmp|webp)$/i;
 
+const RASTER_IMAGE_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/bmp",
+  "image/webp",
+]);
+
 export function isTilesetImageFile(file: File): boolean {
   return (
-    file.type.startsWith("image/") ||
+    RASTER_IMAGE_MIME_TYPES.has(file.type) ||
     RASTER_IMAGE_EXTENSION_PATTERN.test(file.name)
   );
 }

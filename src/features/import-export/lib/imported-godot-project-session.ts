@@ -22,7 +22,7 @@ function deduplicateProjectTilesets(setState: EditorTravels["setState"]): void {
     const remapIds = new Map<string, TilesetId>();
 
     for (const tileset of draft.project.tilesets) {
-      const key = `${tileset.name}__${tileset.tileSize}__${tileset.imageWidth}__${tileset.imageHeight}`;
+      const key = `${tileset.assetId}__${tileset.name}__${tileset.tileSize}__${tileset.imageWidth}__${tileset.imageHeight}`;
       const canonical = seen.get(key);
       if (canonical !== undefined) {
         remapIds.set(tileset.id as string, canonical);
