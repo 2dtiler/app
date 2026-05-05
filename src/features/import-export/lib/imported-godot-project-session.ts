@@ -14,9 +14,7 @@ function snapToValidTileSize(size: number): TileSize {
   );
 }
 
-function deduplicateProjectTilesets(
-  setState: EditorTravels["setState"],
-): void {
+function deduplicateProjectTilesets(setState: EditorTravels["setState"]): void {
   setState((draft) => {
     if (!draft.project) return;
 
@@ -58,7 +56,10 @@ export async function replaceWithImportedGodotProject(
   const importedTileSize = result.maps[0]?.map.tileSize ?? 32;
   const targetTileSize = snapToValidTileSize(importedTileSize);
 
-  const targetProject = createEmptyProject(suggestedProjectName, targetTileSize);
+  const targetProject = createEmptyProject(
+    suggestedProjectName,
+    targetTileSize,
+  );
   const targetMapGroupId = targetProject.mapGroups[0]?.id ?? null;
   const targetTilesetGroupId = targetProject.tilesetGroups[0]?.id ?? null;
 

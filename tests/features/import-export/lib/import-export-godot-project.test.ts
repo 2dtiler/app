@@ -38,7 +38,9 @@ test("exportGodotProjectEntries creates a Godot project archive layout", async (
 
   await withStubbedAssetLookup(async () => {
     const entries = await exportGodotProjectEntries(project);
-    const projectEntry = entries.find((entry) => entry.path === "project.godot");
+    const projectEntry = entries.find(
+      (entry) => entry.path === "project.godot",
+    );
     const sceneEntry = entries.find((entry) =>
       entry.path.endsWith("terrain-map.tscn"),
     );

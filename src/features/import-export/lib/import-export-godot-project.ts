@@ -270,7 +270,8 @@ function mergeMissingResources(
 export async function prepareGodotProjectImport(
   entries: readonly ImportExportArchiveEntry[],
 ): Promise<GodotProjectImportPreparationResult> {
-  const { entries: projectEntries, projectEntry } = findProjectRootEntries(entries);
+  const { entries: projectEntries, projectEntry } =
+    findProjectRootEntries(entries);
   const metadata = parseGodotProjectMetadata(projectEntry.data);
   const entriesByPath = new Map(
     projectEntries.map((entry) => [entry.path, entry] as const),
@@ -284,7 +285,10 @@ export async function prepareGodotProjectImport(
     );
   }
 
-  const scenePaths = getCandidateScenePaths(projectEntries, metadata.mainScenePath);
+  const scenePaths = getCandidateScenePaths(
+    projectEntries,
+    metadata.mainScenePath,
+  );
   if (scenePaths.length === 0 && missingResources.size === 0) {
     throw new Error("No supported Godot map scenes found in the project.");
   }
@@ -472,7 +476,8 @@ function planMapEntries(
   }
 
   return {
-    scenePath: pathRewrites.get(normalizeBundlePath(sceneEntry.path)) ?? scenePath,
+    scenePath:
+      pathRewrites.get(normalizeBundlePath(sceneEntry.path)) ?? scenePath,
     entries: plannedEntries.map((entry) => ({
       ...entry,
       data: isGodotTextResource(entry.originalPath)

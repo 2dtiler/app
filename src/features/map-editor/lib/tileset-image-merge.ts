@@ -1,9 +1,6 @@
 import { getAsset, saveAsset } from "@/services/db";
 import { generateAssetId } from "@/utils/ids";
-import type {
-  AssetId,
-  TileSize,
-} from "@/types";
+import type { AssetId, TileSize } from "@/types";
 import type {
   TilesetImageImportPosition,
   TilesetImageMergeRequest,
@@ -63,11 +60,21 @@ export async function mergeTilesetImageAtPosition({
   context.imageSmoothingEnabled = false;
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(targetImage, 0, 0);
-  context.drawImage(sourceImage, position.x, position.y, sourceWidth, sourceHeight);
+  context.drawImage(
+    sourceImage,
+    position.x,
+    position.y,
+    sourceWidth,
+    sourceHeight,
+  );
 
   const blob = await canvasToBlob(canvas, TILESET_MERGE_OUTPUT_MIME_TYPE);
   const assetId = generateAssetId();
-  await saveAsset(assetId, await blob.arrayBuffer(), TILESET_MERGE_OUTPUT_MIME_TYPE);
+  await saveAsset(
+    assetId,
+    await blob.arrayBuffer(),
+    TILESET_MERGE_OUTPUT_MIME_TYPE,
+  );
 
   return {
     assetId,
@@ -77,7 +84,9 @@ export async function mergeTilesetImageAtPosition({
   };
 }
 
-async function loadTilesetImageFromAsset(assetId: AssetId): Promise<HTMLImageElement> {
+async function loadTilesetImageFromAsset(
+  assetId: AssetId,
+): Promise<HTMLImageElement> {
   const record = await getAsset(assetId);
   if (!record) {
     throw new Error("Unable to load tileset image asset.");
@@ -104,7 +113,10 @@ async function loadTilesetImageFromAsset(assetId: AssetId): Promise<HTMLImageEle
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string): Promise<Blob> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) {

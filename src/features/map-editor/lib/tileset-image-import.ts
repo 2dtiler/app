@@ -3,10 +3,15 @@ import type { PendingTilesetImageImport } from "@/features/map-editor/types/tile
 const RASTER_IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|gif|bmp|webp)$/i;
 
 export function isTilesetImageFile(file: File): boolean {
-  return file.type.startsWith("image/") || RASTER_IMAGE_EXTENSION_PATTERN.test(file.name);
+  return (
+    file.type.startsWith("image/") ||
+    RASTER_IMAGE_EXTENSION_PATTERN.test(file.name)
+  );
 }
 
-export function normalizeTilesetImageMimeType(file: Pick<File, "name" | "type">): string {
+export function normalizeTilesetImageMimeType(
+  file: Pick<File, "name" | "type">,
+): string {
   if (file.type) return file.type;
 
   const lowerName = file.name.toLowerCase();
@@ -34,7 +39,9 @@ export async function createPendingTilesetImageImport(
 ): Promise<PendingTilesetImageImport> {
   const mimeType = normalizeTilesetImageMimeType(file);
   const buffer = await file.arrayBuffer();
-  const image = await loadTilesetImageFromBlob(new Blob([buffer], { type: mimeType }));
+  const image = await loadTilesetImageFromBlob(
+    new Blob([buffer], { type: mimeType }),
+  );
 
   return {
     fileName: file.name,

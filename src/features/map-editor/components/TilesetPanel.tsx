@@ -6,20 +6,14 @@ import {
   type DragEvent,
   useSyncExternalStore,
 } from "react";
-import {
-  Film,
-  Plus,
-  Save,
-  WandSparkles,
-  ZoomIn,
-  ZoomOut,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TilesetCanvas } from "./TilesetCanvas";
+import { TilesetDeleteDialog } from "./TilesetDeleteDialog";
+import { TilesetImportChoiceDialog } from "./TilesetImportChoiceDialog";
+import { TilesetPlacementControls } from "./TilesetPlacementControls";
+import { TilesetToolbar } from "./TilesetToolbar";
 import { Button } from "@/components/ui/Button";
-import { Toggle } from "@/components/ui/Toggle";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
   Select,
@@ -34,16 +28,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/AlertDialog";
-import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -52,28 +36,33 @@ import {
 import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
 import { AnimationDialog } from "@/features/map-editor/dialogs/AnimationDialog";
 import { AnimationsStrip } from "@/features/map-editor/components/animations/AnimationsStrip";
+import { evictTileset } from "@/features/map-editor/components/MapCanvas/texture-cache";
 import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
+import { isTilesetImageFile } from "@/features/map-editor/lib/tileset-image-import";
+import {
+  getTilesetPlacementCanvasSize,
+  mergeTilesetImageAtPosition,
+  snapTilesetPlacementPosition,
+} from "@/features/map-editor/lib/tileset-image-merge";
 import {
   createEmptyAnimationConfig,
   getTilesetAnimations,
   normalizeTilesetAnimationConfig,
 } from "@/features/map-editor/lib/tileset-animations";
+import { useTilesetImageImport } from "@/features/map-editor/hooks/use-tileset-image-import";
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
 import { saveAsset, getAsset, deleteAsset } from "@/services/db";
 import { getTilesetTileSize } from "@/features/project-management/lib/project";
-import { saveProjectAndNotify } from "@/features/project-management/lib/project-save";
 import {
   generateTilesetId,
   generateTilesetGroupId,
   generateAssetId,
 } from "@/utils/ids";
 import {
-  TILE_SIZES,
   type TileSize,
   type EditorState,
-  type QuickExportSurfaceProps,
   type TilesetGroupId,
   type TilesetId,
   type Tileset,
@@ -81,6 +70,15 @@ import {
   type TilesetAnimation,
 } from "@/types";
 import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
+import type { TileRegion } from "@/features/map-editor/types/editor-ui";
+import type {
+  TilesetDeleteTarget,
+  TilesetPanelProps,
+} from "@/features/map-editor/types/tileset-panel";
+import type {
+  TilesetImageImportPosition,
+  TilesetPlacementPreview,
+} from "@/features/map-editor/types/tileset-import";
 
 function getAdjacentItemId<T extends { id: string }>(
   items: T[],
@@ -111,22 +109,32 @@ function syncActiveTilesetState(
 export function TilesetPanel({
   quickExportControl,
   onImportTilesetFromFile,
-}: QuickExportSurfaceProps & {
-  onImportTilesetFromFile: (file: File) => Promise<boolean>;
-}) {
+}: TilesetPanelProps) {
   const { state, setState } = useEditorStore();
   const { tilesetZoom } = useSyncExternalStore(
     zoomStore.subscribe,
     zoomStore.getSnapshot,
   );
+  const {
+    pendingImport,
+    mode: imageImportMode,
+    placementPosition,
+    isLoading: isImageImportLoading,
+    isCommitting: isImageImportCommitting,
+    error: imageImportError,
+    queueImageFile,
+    beginPlacement,
+    updatePlacementPosition,
+    setCommitting: setImageImportCommitting,
+    setError: setImageImportError,
+    reset: resetImageImport,
+  } = useTilesetImageImport();
   const project = state.project;
   const projectId = project?.id ?? null;
 
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: "tileset" | "group";
-    id: string;
-    name: string;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TilesetDeleteTarget | null>(
+    null,
+  );
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [autotileDialogOpen, setAutotileDialogOpen] = useState(false);
@@ -163,8 +171,6 @@ export function TilesetPanel({
       ? state.selectedAnimation.animationId
       : null;
 
-  // Derive the selected-tile region for the TilesetCanvas (strip tilesetId)
-
   const canvasSelectedTile =
     activeTileset && state.selectedTile?.tilesetId === activeTileset.id
       ? {
@@ -176,7 +182,7 @@ export function TilesetPanel({
       : null;
 
   const handleTileSelect = useCallback(
-    (tile: { sx: number; sy: number; sw: number; sh: number }) => {
+    (tile: TileRegion) => {
       if (!activeTileset) return;
       setState((draft) => {
         draft.selectedTile = { tilesetId: activeTileset.id, ...tile };
@@ -196,54 +202,140 @@ export function TilesetPanel({
     zoomStore.setTilesetZoom(newZoom);
   }, []);
 
+  const placementPreview: TilesetPlacementPreview | null =
+    pendingImport && imageImportMode === "placement"
+      ? {
+          image: pendingImport.image,
+          position: placementPosition,
+          width: pendingImport.width,
+          height: pendingImport.height,
+        }
+      : null;
+  const placementCanvasSize =
+    activeTileset && pendingImport
+      ? getTilesetPlacementCanvasSize(
+          activeTileset.imageWidth,
+          activeTileset.imageHeight,
+          pendingImport.width,
+          pendingImport.height,
+          placementPosition,
+        )
+      : null;
+  const isImageImportBusy = isImageImportLoading || isImageImportCommitting;
+
+  const handlePlacementPositionChange = useCallback(
+    (position: TilesetImageImportPosition) => {
+      updatePlacementPosition(
+        snapTilesetPlacementPosition(position, activeTileSize),
+      );
+    },
+    [activeTileSize, updatePlacementPosition],
+  );
+
   if (!project) return null;
 
   async function handleAddTileset() {
     fileInputRef.current?.click();
   }
 
-  async function createTilesetFromFile(file: File | null | undefined) {
-    if (!file || !activeGroup) return;
-    if (!file.type.startsWith("image/")) return;
+  async function createTilesetFromPendingImport() {
+    if (!pendingImport) return;
+    if (!project) return;
 
-    const buffer = await file.arrayBuffer();
-    const assetId = generateAssetId();
-    await saveAsset(assetId, buffer, file.type);
+    const targetGroupId = activeGroup?.id ?? project.tilesetGroups[0]?.id;
+    if (!targetGroupId) {
+      setImageImportError("Create a tileset group first.");
+      return;
+    }
 
-    // Get image dimensions
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    await new Promise<void>((resolve) => {
-      img.onload = () => resolve();
-      img.src = url;
-    });
-    URL.revokeObjectURL(url);
+    setImageImportCommitting(true);
+    setImageImportError(null);
 
-    const tilesetId = generateTilesetId();
-    const name = file.name.replace(/\.[^/.]+$/, "");
+    try {
+      const assetId = generateAssetId();
+      await saveAsset(assetId, pendingImport.buffer, pendingImport.mimeType);
 
-    setState((draft) => {
-      if (!draft.project) return;
-      const tileset: Tileset = {
-        id: tilesetId,
-        name,
-        groupId: activeGroup.id,
-        tileSize: activeTileSize,
-        assetId,
-        imageWidth: img.width,
-        imageHeight: img.height,
-        createdAt: Date.now(),
-      };
-      draft.project.tilesets.push(tileset);
-      syncActiveTilesetState(draft, tilesetId);
-    });
+      const tilesetId = generateTilesetId();
+      const name = pendingImport.name;
+
+      setState((draft) => {
+        if (!draft.project) return;
+        const tileset: Tileset = {
+          id: tilesetId,
+          name,
+          groupId: targetGroupId,
+          tileSize: activeTileSize,
+          assetId,
+          imageWidth: pendingImport.width,
+          imageHeight: pendingImport.height,
+          createdAt: Date.now(),
+        };
+        draft.project.tilesets.push(tileset);
+        draft.activeTilesetGroupId = targetGroupId;
+        syncActiveTilesetState(draft, tilesetId);
+      });
+      resetImageImport();
+    } catch (caughtError) {
+      console.error("[Tileset Image Import] Failed:", caughtError);
+      setImageImportError("Failed to create the tileset.");
+    } finally {
+      setImageImportCommitting(false);
+    }
+  }
+
+  function beginPendingTilesetPlacement() {
+    if (!activeTileset) {
+      setImageImportError("Select a tileset first.");
+      return;
+    }
+    beginPlacement();
+  }
+
+  async function commitPendingTilesetPlacement() {
+    if (!pendingImport || !activeTileset) return;
+
+    setImageImportCommitting(true);
+    setImageImportError(null);
+
+    try {
+      const snappedPosition = snapTilesetPlacementPosition(
+        placementPosition,
+        activeTileSize,
+      );
+      const result = await mergeTilesetImageAtPosition({
+        targetTileset: activeTileset,
+        sourceImage: pendingImport.image,
+        sourceWidth: pendingImport.width,
+        sourceHeight: pendingImport.height,
+        position: snappedPosition,
+      });
+
+      evictTileset(activeTileset.id);
+      setState((draft) => {
+        const tileset = draft.project?.tilesets.find(
+          (candidate) => candidate.id === activeTileset.id,
+        );
+        if (!tileset) return;
+
+        tileset.assetId = result.assetId;
+        tileset.imageWidth = result.width;
+        tileset.imageHeight = result.height;
+        syncActiveTilesetState(draft, activeTileset.id);
+      });
+      resetImageImport();
+    } catch (caughtError) {
+      console.error("[Tileset Image Merge] Failed:", caughtError);
+      setImageImportError("Failed to add the image to the active tileset.");
+    } finally {
+      setImageImportCommitting(false);
+    }
   }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith("image/")) {
-        await createTilesetFromFile(file);
+      if (isTilesetImageFile(file)) {
+        await queueImageFile(file);
       } else {
         await onImportTilesetFromFile(file);
       }
@@ -277,8 +369,8 @@ export function TilesetPanel({
 
     e.preventDefault();
     setIsDropTargetActive(false);
-    if (file.type.startsWith("image/")) {
-      await createTilesetFromFile(file);
+    if (isTilesetImageFile(file)) {
+      await queueImageFile(file);
     } else {
       await onImportTilesetFromFile(file);
     }
@@ -577,112 +669,18 @@ export function TilesetPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tileset toolbar */}
-      <div className="flex items-center gap-1 px-1 py-2 border-b border-border bg-card shrink-0 flex-wrap">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              aria-label="Save project"
-              onMouseDown={() => {
-                void saveProjectAndNotify(project);
-              }}
-            >
-              <Save className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Save Project (Ctrl+S)</TooltipContent>
-        </Tooltip>
+      <TilesetToolbar
+        project={project}
+        activeTileSize={activeTileSize}
+        activeTileset={activeTileset ?? null}
+        animationsVisible={animationsVisible}
+        tilesetZoom={tilesetZoom}
+        onTileSizeChange={handleTileSizeChange}
+        onZoom={handleZoom}
+        onOpenAutotile={() => setAutotileDialogOpen(true)}
+        onAnimationsVisibleChange={setAnimationsVisible}
+      />
 
-        {/* Tile size selector */}
-        <Select
-          value={String(activeTileSize)}
-          onValueChange={handleTileSizeChange}
-        >
-          <SelectTrigger className="h-6 w-18 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TILE_SIZES.map((s) => (
-              <SelectItem key={s} value={String(s)}>
-                {s}px
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                aria-label="Zoom tileset out"
-                onMouseDown={() => handleZoom(-1)}
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom Out</TooltipContent>
-          </Tooltip>
-          <span className="text-[10px] text-muted-foreground w-8 text-center">
-            {Math.round(tilesetZoom * 100)}%
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                aria-label="Zoom tileset in"
-                onMouseDown={() => handleZoom(1)}
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom In</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activeTileset?.autotile ? "outline" : "ghost"}
-                size="xs"
-                className="h-6 px-2.5"
-                disabled={!activeTileset}
-                aria-label="Open autotile setup"
-                onMouseDown={() => setAutotileDialogOpen(true)}
-              >
-                <WandSparkles className="h-3.5 w-3.5" />
-                Autotile
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Autotile</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                type="button"
-                variant={animationsVisible ? "outline" : "default"}
-                size="sm"
-                className="h-6 min-w-0 shrink-0 gap-1 border border-border-visible bg-transparent px-2.5 font-mono font-normal uppercase tracking-[0.08em] text-[10px] text-muted-foreground transition-colors duration-200 ease-out shadow-none disabled:opacity-40 focus-visible:border-ring focus-visible:ring-0 aria-invalid:ring-0 dark:aria-invalid:ring-0 hover:border-foreground hover:bg-secondary hover:text-foreground data-[state=on]:bg-transparent [&_svg:not([class*='size-'])]:size-3"
-                disabled={!activeTileset}
-                pressed={animationsVisible}
-                aria-label="Toggle animations"
-                onPressedChange={setAnimationsVisible}
-              >
-                <Film className="h-3.5 w-3.5" />
-                Animations
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent>Toggle Animations</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Group selector + Tileset tabs + Add */}
       <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0">
         <Select
           value={state.activeTilesetGroupId ?? ""}
@@ -837,14 +835,13 @@ export function TilesetPanel({
           variant="default"
           size="sm"
           className="h-6 px-2 text-[10px] shrink-0"
-          onMouseDown={handleAddTileset}
+          onClick={handleAddTileset}
         >
           <Plus className="h-3.5 w-3.5" />
           Add Tileset
         </Button>
       </div>
 
-      {/* Tileset canvas area — uses the shared TilesetCanvas component */}
       <div
         className="relative flex-1 min-h-0 flex flex-col overflow-hidden"
         onContextMenu={(e) => e.preventDefault()}
@@ -879,6 +876,8 @@ export function TilesetPanel({
                 onTileSelect={handleTileSelect}
                 selectionMode="rectangle"
                 className="h-full min-h-0"
+                placementPreview={placementPreview}
+                onPlacementChange={handlePlacementPositionChange}
               />
             </Panel>
           </Group>
@@ -892,6 +891,8 @@ export function TilesetPanel({
             onTileSelect={handleTileSelect}
             selectionMode="rectangle"
             className="flex-1 min-h-0"
+            placementPreview={placementPreview}
+            onPlacementChange={handlePlacementPositionChange}
             placeholder={
               groupTilesets.length === 0
                 ? "Click '+ Add Tileset' to add a tileset"
@@ -899,6 +900,33 @@ export function TilesetPanel({
             }
           />
         )}
+        {pendingImport && imageImportMode === "choice" ? (
+          <TilesetImportChoiceDialog
+            pendingImport={pendingImport}
+            activeTileset={activeTileset ?? null}
+            isBusy={isImageImportBusy}
+            error={imageImportError}
+            onCreateNew={createTilesetFromPendingImport}
+            onAddToExisting={beginPendingTilesetPlacement}
+            onCancel={resetImageImport}
+          />
+        ) : null}
+        {pendingImport &&
+        imageImportMode === "placement" &&
+        activeTileset &&
+        placementCanvasSize ? (
+          <TilesetPlacementControls
+            pendingImport={pendingImport}
+            position={placementPosition}
+            tileSize={activeTileSize}
+            canvasSize={placementCanvasSize}
+            isBusy={isImageImportBusy}
+            error={imageImportError}
+            onPositionChange={handlePlacementPositionChange}
+            onPlace={commitPendingTilesetPlacement}
+            onCancel={resetImageImport}
+          />
+        ) : null}
         <div className="absolute bottom-3 right-3 z-20">
           <QuickExportButtonGroup
             buttonId="tileset-quick-export-button"
@@ -911,13 +939,12 @@ export function TilesetPanel({
         {isDropTargetActive && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
             <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
-              Drop a file to create a tileset
+              Drop a file to choose tileset import options
             </span>
           </div>
         )}
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         id="tileset-file-input"
@@ -959,30 +986,11 @@ export function TilesetPanel({
         />
       ) : null}
 
-      {/* Delete confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete {deleteTarget?.type === "group" ? "group" : "tileset"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{deleteTarget?.name}"
-              {deleteTarget?.type === "group" && " and all tilesets in it"}.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onMouseDown={handleDeleteConfirm}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TilesetDeleteDialog
+        deleteTarget={deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

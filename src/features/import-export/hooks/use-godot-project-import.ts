@@ -131,7 +131,10 @@ export function useGodotProjectImport(
           return true;
         }
 
-        await onImportResolved(prepared.preparation.result, prepared.projectName);
+        await onImportResolved(
+          prepared.preparation.result,
+          prepared.projectName,
+        );
         return true;
       }
 

@@ -311,10 +311,7 @@ export function useImportExportActions({
   );
 
   const handleImportedGodotProjectResolved = useCallback(
-    async (
-      result: GodotProjectImportResult,
-      suggestedProjectName: string,
-    ) => {
+    async (result: GodotProjectImportResult, suggestedProjectName: string) => {
       await replaceWithImportedGodotProject(
         result,
         suggestedProjectName,

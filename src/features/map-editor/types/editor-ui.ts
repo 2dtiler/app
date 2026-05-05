@@ -1,4 +1,8 @@
 import type { AssetId, TileSize, TilesetId } from "@/types/map/schema";
+import type {
+  TilesetImageImportPosition,
+  TilesetPlacementPreview,
+} from "@/features/map-editor/types/tileset-import";
 import type { DragEvent } from "react";
 
 export interface TileRegion {
@@ -20,6 +24,8 @@ export interface TilesetCanvasProps {
   placeholder?: string;
   dragTilesetId?: TilesetId;
   onContextMenuTile?: (tx: number, ty: number) => void;
+  placementPreview?: TilesetPlacementPreview | null;
+  onPlacementChange?: (position: TilesetImageImportPosition) => void;
 }
 
 export interface BaseLayerItem {

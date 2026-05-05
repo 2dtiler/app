@@ -1,6 +1,6 @@
-Godot project Import/Export
-
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
+
+Autotile Setup should not default to wang tiles
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
   - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
@@ -9,6 +9,7 @@ Image Editor Crop should change the dimensions of the image
 Manage Tilesets
 Manage Maps
 World View
+Terrain Brush
 
 AI Asset Generation:
   Recheck out all native implementations work
@@ -45,7 +46,6 @@ Exploration:
 Text Layer custom fonts not working
 
 Royalty free packs
-Terrain Brush
 Add tutorial video
 Add roadmap voting on home page
 Windows/Mac/Linux Apps
