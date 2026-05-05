@@ -27,4 +27,4 @@ dist-ssr
 .wrangler
 
 .env
-coverage/*package-lock.json
+coverage

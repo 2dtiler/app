@@ -1,4 +1,5 @@
 export * from "./components";
+export * from "./gif";
 export * from "./map/animation";
 export * from "./map/autotile";
 export * from "./map/autotile-wang";
