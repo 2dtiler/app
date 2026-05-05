@@ -79,6 +79,13 @@ const TiledMissingResourcesDialog = lazy(() =>
     }),
   ),
 );
+const TiledProjectFilesDialog = lazy(() =>
+  import("@/features/import-export/components/TiledProjectFilesDialog").then(
+    (module) => ({
+      default: module.TiledProjectFilesDialog,
+    }),
+  ),
+);
 const TideMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/TideMissingResourcesDialog").then(
     (module) => ({
@@ -226,6 +233,8 @@ export function AppShell({
     handleOpenExportDialog,
     handleMapExportSubmit,
     handleTilesetExportSubmit,
+    handleImportTilesetFromFile,
+    handleImportMapFromFile,
     projectAction,
     mapAction,
     tilesetAction,
@@ -234,6 +243,7 @@ export function AppShell({
     godotMissingResourcesDialogProps,
     tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
+    tiledProjectFilesDialogProps,
     unityMissingResourcesDialogProps,
   } = useImportExportActions({
     state,
@@ -356,9 +366,17 @@ export function AppShell({
             <>
               <CompactEditorShell
                 tilesetPanel={
-                  <TilesetPanel quickExportControl={tilesetQuickExport} />
+                  <TilesetPanel
+                    quickExportControl={tilesetQuickExport}
+                    onImportTilesetFromFile={handleImportTilesetFromFile}
+                  />
                 }
-                mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
+                mapPanel={
+                  <MapPanel
+                    quickExportControl={mapQuickExport}
+                    onImportMapFromFile={handleImportMapFromFile}
+                  />
+                }
                 workspaceSummary={activeWorkspaceSummary}
                 workspaceButtonLabel={workspaceButtonLabel}
                 workspaceOpen={workspaceDrawerOpen}
@@ -379,9 +397,17 @@ export function AppShell({
           ) : (
             <DesktopEditorLayout
               tilesetPanel={
-                <TilesetPanel quickExportControl={tilesetQuickExport} />
+                <TilesetPanel
+                  quickExportControl={tilesetQuickExport}
+                  onImportTilesetFromFile={handleImportTilesetFromFile}
+                />
               }
-              mapPanel={<MapPanel quickExportControl={mapQuickExport} />}
+              mapPanel={
+                <MapPanel
+                  quickExportControl={mapQuickExport}
+                  onImportMapFromFile={handleImportMapFromFile}
+                />
+              }
               layersPanel={<LayersPanel />}
               detailsPanel={detailsPanel}
               showDetailsPanel={showDetailsPanel}
@@ -458,6 +484,7 @@ export function AppShell({
             open={tiledMissingResourcesDialogProps.open}
             onOpenChange={tiledMissingResourcesDialogProps.onOpenChange}
             format={tiledMissingResourcesDialogProps.format}
+            description={tiledMissingResourcesDialogProps.description}
             resources={tiledMissingResourcesDialogProps.resources}
             selectedFileNames={
               tiledMissingResourcesDialogProps.selectedFileNames
@@ -466,6 +493,11 @@ export function AppShell({
             onSelectFile={tiledMissingResourcesDialogProps.onSelectFile}
             onImport={tiledMissingResourcesDialogProps.onImport}
           />
+        </Suspense>
+      )}
+      {tiledProjectFilesDialogProps.open && (
+        <Suspense>
+          <TiledProjectFilesDialog {...tiledProjectFilesDialogProps} />
         </Suspense>
       )}
       {tideMissingResourcesDialogProps.open && (

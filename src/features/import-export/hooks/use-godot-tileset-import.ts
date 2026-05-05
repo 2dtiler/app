@@ -41,13 +41,12 @@ export function useGodotTilesetImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportGodotTileset = useCallback(async () => {
+  const handleImportGodotTileset = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      GODOT_TILESET_IMPORT_ACCEPT,
-      "godot-tileset-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(GODOT_TILESET_IMPORT_ACCEPT, "godot-tileset-file"));
     if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".tres")) {

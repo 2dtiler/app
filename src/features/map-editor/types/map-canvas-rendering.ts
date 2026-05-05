@@ -2,6 +2,7 @@ import type {
   EditorState,
   ImageLayer,
   MapSelection,
+  TileRef,
   TileLayer,
   TileMapData,
   Tileset,
@@ -36,6 +37,7 @@ export interface RenderActiveLayerEntryParams {
   entry: MapCanvasLayerEntry | undefined;
   getDisplayImageLayer: DisplayImageLayerResolver;
   map: TileMapData;
+  paintBuffer: ReadonlyMap<string, TileRef | null>;
   scaleImageLayer: ImageLayerScaler;
   scaledTile: number;
   tilesets: readonly Tileset[];

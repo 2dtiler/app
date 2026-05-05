@@ -41,13 +41,12 @@ export function useGodotMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportGodotMap = useCallback(async () => {
+  const handleImportGodotMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      GODOT_SCENE_IMPORT_ACCEPT,
-      "godot-scene-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(GODOT_SCENE_IMPORT_ACCEPT, "godot-scene-file"));
     if (!file) return false;
 
     if (!file.name.toLowerCase().endsWith(".tscn")) {

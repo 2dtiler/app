@@ -190,6 +190,29 @@ export interface TiledMapImportResult {
   objects: MapObject[];
 }
 
+export interface TiledProjectImportResult {
+  maps: TiledMapImportResult[];
+}
+
+export interface TiledProjectImportPendingResult {
+  status: "missing-resources";
+  missingResources: TiledImportMissingResource[];
+}
+
+export interface TiledProjectImportReadyResult {
+  status: "ready";
+  result: TiledProjectImportResult;
+}
+
+export type TiledProjectImportPreparationResult =
+  | TiledProjectImportPendingResult
+  | TiledProjectImportReadyResult;
+
+export interface TiledProjectArchivePreparationResult {
+  entries: ImportExportArchiveEntry[];
+  preparation: TiledProjectImportPreparationResult;
+}
+
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
 }
@@ -315,6 +338,7 @@ export interface TiledMissingResourcesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   format: TiledMapFormat;
+  description?: string;
   resources: TiledImportMissingResource[];
   selectedFileNames: Record<string, string>;
   isSubmitting: boolean;
@@ -376,6 +400,27 @@ export interface PendingTiledMapImportState {
   rootData: Uint8Array;
   missingResources: TiledImportMissingResource[];
   resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingTiledProjectImportState {
+  projectName: string;
+  baseEntries: ImportExportArchiveEntry[];
+  missingResources: TiledImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingTiledProjectFilesImportState {
+  projectName: string;
+  projectFileName: string;
+  projectData: Uint8Array;
+}
+
+export interface TiledProjectFilesDialogProps {
+  open: boolean;
+  projectName: string;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectFolder: () => void | Promise<void>;
 }
 
 export interface TiledTilesetImportPendingResult {

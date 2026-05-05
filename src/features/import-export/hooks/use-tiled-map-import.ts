@@ -124,10 +124,12 @@ export function useTiledMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportTiledMap = useCallback(async () => {
+  const handleImportTiledMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(config.accept, config.inputName);
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(config.accept, config.inputName));
     if (!file) return false;
 
     const format = config.detectFormat(file.name);

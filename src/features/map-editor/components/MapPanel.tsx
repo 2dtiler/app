@@ -71,7 +71,12 @@ function getAdjacentItemId<T extends { id: string }>(
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
-export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
+export function MapPanel({
+  quickExportControl,
+  onImportMapFromFile,
+}: QuickExportSurfaceProps & {
+  onImportMapFromFile: (file: File) => Promise<boolean>;
+}) {
   "use no memo";
 
   const { state, setState, controls } = useEditorStore();
@@ -755,6 +760,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onCutSelection={handleCutSelection}
         onDeleteSelection={handleDeleteSelection}
         onEditInImageEditor={handleEditInImageEditor}
+        onImportMapFromFile={onImportMapFromFile}
         onMoveImageLayer={handleMoveImageLayer}
         onMoveObject={handleMoveObject}
         onMoveTiles={handleMoveTiles}
@@ -804,6 +810,7 @@ export function MapPanel({ quickExportControl }: QuickExportSurfaceProps) {
         onCreateGroup={handleCreateGroup}
         onCreateMap={handleCreateMap}
         onDeleteConfirm={handleDeleteConfirm}
+        onImportMapFromFile={onImportMapFromFile}
         onUpdateMapOptions={handleUpdateMapOptions}
         propsObjectId={propsObjectId}
         setAddGroupOpen={setAddGroupOpen}

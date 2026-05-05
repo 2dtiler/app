@@ -8,6 +8,7 @@ import {
   isGameMakerMapExportOptions,
   isGodotMapExportOptions,
   isRasterExportOptions,
+  pickDirectoryFiles,
   isTiledMapExportOptions,
   isTiledTilesetExportOptions,
   pickSingleFile,
@@ -35,13 +36,15 @@ afterEach(() => {
 
 function installPickerEnvironment() {
   const inputListeners = new Map<string, Set<() => void>>();
-  const windowListeners = new Map<string, Set<() => void>>();
   const input = {
     files: undefined as File[] | undefined,
     type: "",
     accept: "",
+    multiple: false,
     name: "",
     id: "",
+    directory: false,
+    webkitdirectory: false,
     addEventListener(event: string, listener: () => void) {
       inputListeners.set(
         event,
@@ -54,15 +57,6 @@ function installPickerEnvironment() {
     click: vi.fn(),
   };
   const mockWindow = {
-    addEventListener(event: string, listener: () => void) {
-      windowListeners.set(
-        event,
-        (windowListeners.get(event) ?? new Set()).add(listener),
-      );
-    },
-    removeEventListener(event: string, listener: () => void) {
-      windowListeners.get(event)?.delete(listener);
-    },
     setTimeout,
     clearTimeout,
   };
@@ -77,11 +71,6 @@ function installPickerEnvironment() {
     input,
     dispatchInput(event: string) {
       for (const listener of inputListeners.get(event) ?? []) {
-        listener();
-      }
-    },
-    dispatchWindow(event: string) {
-      for (const listener of windowListeners.get(event) ?? []) {
         listener();
       }
     },
@@ -124,7 +113,7 @@ test("action-utils type guards and archive path helpers recognize supported opti
   );
 });
 
-test("pickSingleFile resolves a chosen file and falls back to null on window focus cancel", async () => {
+test("pickSingleFile resolves a chosen file and falls back to null on cancel", async () => {
   const selected = installPickerEnvironment();
   const file = new File(["ok"], "map.tmx");
   const pickPromise = pickSingleFile(".tmx");
@@ -135,13 +124,59 @@ test("pickSingleFile resolves a chosen file and falls back to null on window foc
   assert.strictEqual(selected.input.name, "import-file");
   assert.match(selected.input.id, /^import-file-/);
 
-  vi.useFakeTimers();
   const canceled = installPickerEnvironment();
   const cancelPromise = pickSingleFile(".json", "custom-input");
-  canceled.dispatchWindow("focus");
-  vi.advanceTimersByTime(251);
+  canceled.dispatchInput("cancel");
   assert.strictEqual(await cancelPromise, null);
   assert.strictEqual(canceled.input.name, "custom-input");
+});
+
+test("pickSingleFile waits for change without treating window focus as cancellation", async () => {
+  const selected = installPickerEnvironment();
+  const file = new File(["ok"], "project.zip");
+  const pickPromise = pickSingleFile(".zip");
+  const result = vi.fn();
+
+  void pickPromise.then(result);
+  await Promise.resolve();
+
+  assert.strictEqual(result.mock.calls.length, 0);
+
+  selected.input.files = [file];
+  selected.dispatchInput("change");
+
+  assert.strictEqual(await pickPromise, file);
+});
+
+test("pickDirectoryFiles resolves chosen folder files and falls back to null on cancel", async () => {
+  const selected = installPickerEnvironment();
+  const mapFile = new File(["map"], "level.tmx");
+  const imageFile = new File(["png"], "terrain.png");
+  Object.defineProperty(mapFile, "webkitRelativePath", {
+    configurable: true,
+    value: "Project/maps/level.tmx",
+  });
+  Object.defineProperty(imageFile, "webkitRelativePath", {
+    configurable: true,
+    value: "Project/images/terrain.png",
+  });
+
+  const pickPromise = pickDirectoryFiles("", "project-folder");
+  selected.input.files = [mapFile, imageFile];
+  selected.dispatchInput("change");
+
+  assert.deepEqual(await pickPromise, [mapFile, imageFile]);
+  assert.strictEqual(selected.input.multiple, true);
+  assert.strictEqual(selected.input.directory, true);
+  assert.strictEqual(selected.input.webkitdirectory, true);
+  assert.strictEqual(selected.input.name, "project-folder");
+  assert.match(selected.input.id, /^project-folder-/);
+
+  const canceled = installPickerEnvironment();
+  const cancelPromise = pickDirectoryFiles("", "project-folder-cancel");
+  canceled.dispatchInput("cancel");
+  assert.strictEqual(await cancelPromise, null);
+  assert.strictEqual(canceled.input.multiple, true);
 });
 
 test("getMapExportData and grouped asset builders preserve nested layer data and group ordering", () => {

@@ -67,60 +67,89 @@ export function isDefoldMapExportOptions(
   );
 }
 
-export async function pickSingleFile(
+type DirectoryEnabledInput = HTMLInputElement & {
+  directory?: boolean;
+  webkitdirectory?: boolean;
+};
+
+interface PickFilesOptions {
+  multiple?: boolean;
+  configureInput?: (input: HTMLInputElement) => void;
+}
+
+async function pickFiles(
   accept: string,
-  inputName = "import-file",
-): Promise<File | null> {
+  inputName: string,
+  options: PickFilesOptions = {},
+): Promise<File[] | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
-    let cancelTimeoutId: number | null = null;
+    let attachedInput = false;
     let settled = false;
 
     const cleanup = () => {
       input.removeEventListener("change", handleChange);
       input.removeEventListener("cancel", handleCancel);
-      window.removeEventListener("focus", handleWindowFocus, true);
 
-      if (cancelTimeoutId !== null) {
-        window.clearTimeout(cancelTimeoutId);
+      if (attachedInput) {
+        input.remove();
       }
     };
 
-    const settle = (file: File | null) => {
+    const settle = (files: File[] | null) => {
       if (settled) {
         return;
       }
 
       settled = true;
       cleanup();
-      resolve(file);
+      resolve(files);
     };
 
     const handleChange = () => {
-      settle(input.files?.[0] ?? null);
+      settle(input.files ? [...input.files] : null);
     };
 
     const handleCancel = () => {
       settle(null);
     };
 
-    const handleWindowFocus = () => {
-      // Some browsers do not emit a file-input cancel event after the picker closes.
-      cancelTimeoutId = window.setTimeout(() => {
-        if (!input.files?.length) {
-          settle(null);
-        }
-      }, 250);
-    };
-
     input.type = "file";
     input.accept = accept;
+    input.multiple = Boolean(options.multiple);
     input.name = inputName;
     input.id = `${inputName}-${Math.random().toString(36).slice(2)}`;
+    input.hidden = true;
+    options.configureInput?.(input);
     input.addEventListener("change", handleChange);
     input.addEventListener("cancel", handleCancel);
-    window.addEventListener("focus", handleWindowFocus, true);
+    if (document.body) {
+      document.body.appendChild(input);
+      attachedInput = true;
+    }
     input.click();
+  });
+}
+
+export async function pickSingleFile(
+  accept: string,
+  inputName = "import-file",
+): Promise<File | null> {
+  const files = await pickFiles(accept, inputName);
+  return files?.[0] ?? null;
+}
+
+export async function pickDirectoryFiles(
+  accept = "",
+  inputName = "import-directory",
+): Promise<File[] | null> {
+  return pickFiles(accept, inputName, {
+    multiple: true,
+    configureInput: (input) => {
+      const directoryInput = input as DirectoryEnabledInput;
+      directoryInput.directory = true;
+      directoryInput.webkitdirectory = true;
+    },
   });
 }
 

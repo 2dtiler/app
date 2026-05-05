@@ -1,5 +1,6 @@
 import { assert, test } from "vitest";
 import {
+  createEmptyProject,
   getActiveTilesetTileSize,
   getTilesetTileSize,
   normalizeProject,
@@ -140,4 +141,17 @@ test("project normalization fills defaults and preserves active tileset sizes", 
     getActiveTilesetTileSize(normalized, "missing" as Tileset["id"]),
     32,
   );
+});
+
+test("createEmptyProject initializes the main groups and requested tile size", () => {
+  const project = createEmptyProject("Imported", 16);
+
+  assert.strictEqual(project.name, "Imported");
+  assert.strictEqual(project.tileSize, 16);
+  assert.strictEqual(project.tilesetGroups.length, 1);
+  assert.strictEqual(project.tilesetGroups[0]?.name, "Main");
+  assert.strictEqual(project.mapGroups.length, 1);
+  assert.strictEqual(project.mapGroups[0]?.name, "Main");
+  assert.deepEqual(project.maps, []);
+  assert.deepEqual(project.tilesets, []);
 });

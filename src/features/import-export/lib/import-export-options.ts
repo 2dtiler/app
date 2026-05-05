@@ -17,9 +17,9 @@ export const IMPORT_EXPORT_OPTION_DEFINITIONS: ImportExportOptionDefinition[] =
     {
       id: "project-tiled",
       assetType: "project",
-      label: "Tiled Project (.tiled-project)",
-      description: "Tiled multi-map project container.",
-      supportedNow: false,
+      label: "Tiled Project (.tiled-project.zip)",
+      description: "Tiled multi-map project archive (.tiled-project.zip).",
+      supportedNow: true,
     },
     {
       id: "map-native",
@@ -170,6 +170,10 @@ export const IMPORT_EXPORT_ASSET_TABS: ImportExportAssetType[] = [
   "map",
   "tileset",
 ];
+
+export function isTiledProjectOption(optionId: ImportExportOptionId) {
+  return optionId === "project-tiled";
+}
 
 export function isRasterImageOption(optionId: ImportExportOptionId) {
   return optionId === "map-image" || optionId === "tileset-image";

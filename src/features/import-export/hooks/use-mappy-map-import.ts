@@ -11,13 +11,12 @@ export function useMappyMapImport(
   enabled: boolean,
   onImportResolved: (imported: MappyMapImportResult) => void,
 ) {
-  const handleImportMappyMap = useCallback(async () => {
+  const handleImportMappyMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      MAPPY_MAP_IMPORT_ACCEPT,
-      "mappy-map-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(MAPPY_MAP_IMPORT_ACCEPT, "mappy-map-file"));
     if (!file) return false;
 
     try {

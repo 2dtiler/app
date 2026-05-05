@@ -12,6 +12,31 @@ import type {
   RenderLayerEntriesParams,
 } from "@/features/map-editor/types/map-canvas-rendering";
 
+function mergePaintBufferIntoLayer(
+  layer: TileLayer,
+  paintBuffer: ReadonlyMap<string, TileRef | null>,
+): TileLayer {
+  if (paintBuffer.size === 0) {
+    return layer;
+  }
+
+  const tiles = { ...layer.tiles };
+
+  for (const [key, ref] of paintBuffer.entries()) {
+    if (ref === null) {
+      delete tiles[key];
+      continue;
+    }
+
+    tiles[key] = ref;
+  }
+
+  return {
+    ...layer,
+    tiles,
+  };
+}
+
 function drawTileLayer(
   context: CanvasRenderingContext2D,
   layer: TileLayer,
@@ -114,6 +139,7 @@ export function renderActiveLayerEntryToCanvas({
   entry,
   getDisplayImageLayer,
   map,
+  paintBuffer,
   scaleImageLayer,
   scaledTile,
   tilesets,
@@ -135,7 +161,7 @@ export function renderActiveLayerEntryToCanvas({
     return;
   }
 
-  drawTileLayer(context, entry.layer, {
+  drawTileLayer(context, mergePaintBufferIntoLayer(entry.layer, paintBuffer), {
     animationElapsedMs,
     map,
     scaledTile,

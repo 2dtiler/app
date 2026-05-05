@@ -31,6 +31,7 @@ export function MapPanelDialogs({
   onCreateGroup,
   onCreateMap,
   onDeleteConfirm,
+  onImportMapFromFile,
   onUpdateMapOptions,
   propsObjectId,
   setAddGroupOpen,
@@ -61,6 +62,7 @@ export function MapPanelDialogs({
         onHeightChange={setNewMapHeight}
         onMapTypeChange={setNewMapType}
         onCreate={onCreateMap}
+        onImportMapFromFile={onImportMapFromFile}
       />
 
       {activeMap && (

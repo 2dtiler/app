@@ -108,7 +108,12 @@ function syncActiveTilesetState(
   draft.selectedAnimation = null;
 }
 
-export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
+export function TilesetPanel({
+  quickExportControl,
+  onImportTilesetFromFile,
+}: QuickExportSurfaceProps & {
+  onImportTilesetFromFile: (file: File) => Promise<boolean>;
+}) {
   const { state, setState } = useEditorStore();
   const { tilesetZoom } = useSyncExternalStore(
     zoomStore.subscribe,
@@ -236,28 +241,25 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    await createTilesetFromFile(file);
+    if (file) {
+      if (file.type.startsWith("image/")) {
+        await createTilesetFromFile(file);
+      } else {
+        await onImportTilesetFromFile(file);
+      }
+    }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function hasImageData(dataTransfer: DataTransfer): boolean {
-    const itemList = Array.from(dataTransfer.items ?? []);
-    if (
-      itemList.some(
-        (item) => item.kind === "file" && item.type.startsWith("image/"),
-      )
-    ) {
-      return true;
-    }
-
-    return Array.from(dataTransfer.files ?? []).some((file) =>
-      file.type.startsWith("image/"),
+  function hasFileData(dataTransfer: DataTransfer): boolean {
+    return Array.from(dataTransfer.items ?? []).some(
+      (item) => item.kind === "file",
     );
   }
 
   function handleCanvasDragOver(e: DragEvent<HTMLDivElement>) {
-    if (!hasImageData(e.dataTransfer)) return;
+    if (!hasFileData(e.dataTransfer)) return;
 
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
@@ -270,14 +272,16 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
   }
 
   async function handleCanvasDrop(e: DragEvent<HTMLDivElement>) {
-    const file = Array.from(e.dataTransfer.files).find((candidate) =>
-      candidate.type.startsWith("image/"),
-    );
+    const file = e.dataTransfer.files[0];
     if (!file) return;
 
     e.preventDefault();
     setIsDropTargetActive(false);
-    await createTilesetFromFile(file);
+    if (file.type.startsWith("image/")) {
+      await createTilesetFromFile(file);
+    } else {
+      await onImportTilesetFromFile(file);
+    }
   }
 
   function handleGroupChange(value: string) {
@@ -907,7 +911,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         {isDropTargetActive && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
             <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
-              Drop an image to create a tileset
+              Drop a file to create a tileset
             </span>
           </div>
         )}
@@ -919,7 +923,7 @@ export function TilesetPanel({ quickExportControl }: QuickExportSurfaceProps) {
         id="tileset-file-input"
         name="tileset-file-input"
         type="file"
-        accept="image/*"
+        accept="image/*,.2dt,.tsx,.tsj,.xml,.json,.lua,.tres,.tilesource,.prefab"
         className="hidden"
         onChange={(e) => {
           void handleFileSelected(e);

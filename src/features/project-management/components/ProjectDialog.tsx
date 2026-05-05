@@ -35,11 +35,7 @@ import {
 } from "@/services/db";
 import { saveByteArrayFile } from "@/services/file-system";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
-import {
-  generateMapGroupId,
-  generateProjectId,
-  generateTilesetGroupId,
-} from "@/utils/ids";
+import { createEmptyProject } from "@/features/project-management/lib/project";
 import type { ProjectDialogProps } from "@/features/project-management/types";
 import type { Project } from "@/types";
 import type { ProjectRecord } from "@/features/import-export/types";
@@ -48,28 +44,6 @@ import {
   importProject,
   readFileAsUint8Array,
 } from "@/utils/format";
-
-function createNewProject(name: string): Project {
-  const now = Date.now();
-  return {
-    id: generateProjectId(),
-    name,
-    createdAt: now,
-    updatedAt: now,
-    tileSize: 32,
-    tilesetGroups: [{ id: generateTilesetGroupId(), name: "Main", order: 0 }],
-    tilesets: [],
-    mapGroups: [{ id: generateMapGroupId(), name: "Main", order: 0 }],
-    maps: [],
-    layers: [],
-    imageLayers: [],
-    layerGroups: [],
-    terrains: [],
-    objectLayers: [],
-    objects: [],
-    overrideTilesets: [],
-  };
-}
 
 export function ProjectDialog({
   open,
@@ -120,7 +94,7 @@ export function ProjectDialog({
     const name = newProjectName.trim();
     if (!name) return;
 
-    const project = createNewProject(name);
+    const project = createEmptyProject(name);
     await saveProject(project);
     openProject(project);
   }

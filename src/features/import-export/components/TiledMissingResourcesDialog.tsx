@@ -15,6 +15,7 @@ export function TiledMissingResourcesDialog({
   open,
   onOpenChange,
   format,
+  description,
   resources,
   selectedFileNames,
   isSubmitting,
@@ -34,18 +35,16 @@ export function TiledMissingResourcesDialog({
           : "Tiled JSON";
   const externalTilesetLabel =
     format === "xml" ? "TSX" : format === "lua" ? "Lua tileset" : "TSJ/TSX";
+  const dialogDescription =
+    description ??
+    `Select the missing ${externalTilesetLabel} and image files referenced by this ${rootFormatLabel} map. If a chosen ${externalTilesetLabel} file references more files, this list will update after you continue.`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" showCloseButton={!isSubmitting}>
         <DialogHeader>
           <DialogTitle>Resolve linked Tiled resources</DialogTitle>
-          <DialogDescription>
-            Select the missing {externalTilesetLabel} and image files referenced
-            by this {rootFormatLabel} map. If a chosen
-            {externalTilesetLabel} file references more files, this list will
-            update after you continue.
-          </DialogDescription>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-112 pr-4">

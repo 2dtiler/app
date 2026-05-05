@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from "react";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/ContextMenu";
 import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 import { MapCanvas } from "@/features/map-editor/components/MapCanvas";
@@ -35,6 +36,7 @@ export function MapPanelWorkspace({
   onCutSelection,
   onDeleteSelection,
   onEditInImageEditor,
+  onImportMapFromFile,
   onMoveImageLayer,
   onMoveObject,
   onMoveTiles,
@@ -57,6 +59,8 @@ export function MapPanelWorkspace({
   state,
   textObjectEditing,
 }: MapPanelWorkspaceProps) {
+  const [isMapDropTargetActive, setIsMapDropTargetActive] = useState(false);
+
   const canvasTilesets = [
     ...project.tilesets,
     ...(project.overrideTilesets ?? []),
@@ -72,7 +76,37 @@ export function MapPanelWorkspace({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="relative min-h-0 flex-1">
+        <div
+          className="relative min-h-0 flex-1"
+          onDragOver={(e: DragEvent<HTMLDivElement>) => {
+            if (
+              !Array.from(e.dataTransfer.items).some((i) => i.kind === "file")
+            )
+              return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setIsMapDropTargetActive(true);
+          }}
+          onDragLeave={(e: DragEvent<HTMLDivElement>) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node | null))
+              return;
+            setIsMapDropTargetActive(false);
+          }}
+          onDrop={(e: DragEvent<HTMLDivElement>) => {
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+            e.preventDefault();
+            setIsMapDropTargetActive(false);
+            void onImportMapFromFile(file);
+          }}
+        >
+          {isMapDropTargetActive && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
+              <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
+                Drop a map file to import
+              </span>
+            </div>
+          )}
           <div
             ref={containerRef}
             className="h-full min-h-0 overflow-auto"

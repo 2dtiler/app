@@ -41,13 +41,12 @@ export function useGameMakerMapImport(
     setIsSubmitting(false);
   }, []);
 
-  const handleImportGameMakerMap = useCallback(async () => {
+  const handleImportGameMakerMap = useCallback(async (preselectedFile?: File) => {
     if (!enabled) return false;
 
-    const file = await pickSingleFile(
-      GAME_MAKER_MAP_IMPORT_ACCEPT,
-      "gamemaker-room-file",
-    );
+    const file =
+      preselectedFile ??
+      (await pickSingleFile(GAME_MAKER_MAP_IMPORT_ACCEPT, "gamemaker-room-file"));
     if (!file) return false;
 
     try {

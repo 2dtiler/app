@@ -1,3 +1,4 @@
+import { parseHTML } from "linkedom";
 import { assert, test } from "vitest";
 import { exportGameMakerMapBundle } from "@/features/import-export/lib/import-export-gamemaker";
 import {
@@ -11,6 +12,7 @@ import {
   GAMEMAKER_ROOM_PERSISTENT_PROPERTY_KEY,
   GAMEMAKER_ROOM_SPEED_PROPERTY_KEY,
 } from "@/features/import-export/lib/gamemaker-property-keys";
+import { parseXmlDocument } from "@/features/import-export/lib/tiled-xml-utils";
 import { db } from "@/services/db";
 import type {
   ImageLayer,
@@ -21,6 +23,32 @@ import type {
   TileMapData,
   Tileset,
 } from "@/types";
+
+const { window } = parseHTML("<html><body></body></html>");
+
+class TestXMLSerializer {
+  serializeToString(document: { toString: () => string }) {
+    return document.toString();
+  }
+}
+
+Object.assign(globalThis, {
+  DOMParser: window.DOMParser,
+  XMLSerializer: TestXMLSerializer,
+  document: window.document,
+  window,
+});
+
+Object.defineProperty(window.document, "implementation", {
+  configurable: true,
+  value: {
+    createDocument: (_namespace: string, rootName: string) =>
+      new window.DOMParser().parseFromString(
+        `<${rootName}></${rootName}>`,
+        "application/xml",
+      ),
+  },
+});
 
 test("exportGameMakerMapBundle encodes background, tile, instance, and room metadata in YY output", async () => {
   const originalGet = db.assets.get;
@@ -195,6 +223,212 @@ test("exportGameMakerMapBundle encodes background, tile, instance, and room meta
     );
     assert.strictEqual(tilesetResource.resourceType, "GMTileSet");
     assert.strictEqual(tilesetResource.spriteId.name, "terrain");
+  } finally {
+    db.assets.get = originalGet;
+  }
+});
+
+test("exportGameMakerMapBundle emits legacy GMX room resources for gmx format", async () => {
+  const originalGet = db.assets.get;
+  db.assets.get = (async (assetId) => ({
+    id: assetId,
+    data: new Uint8Array([9, 8, 7]).buffer,
+    mimeType: "image/png",
+    createdAt: Date.now(),
+  })) as typeof db.assets.get;
+
+  try {
+    const mapProperties: Record<string, PropertyValue> = {
+      [GAMEMAKER_ROOM_CAPTION_PROPERTY_KEY]: {
+        type: "string",
+        value: "Forest Room",
+      },
+      [GAMEMAKER_ROOM_PERSISTENT_PROPERTY_KEY]: {
+        type: "bool",
+        value: "true",
+      },
+      [GAMEMAKER_ROOM_SPEED_PROPERTY_KEY]: {
+        type: "int",
+        value: "30",
+      },
+      [GAMEMAKER_ROOM_CREATION_CODE_PATH_PROPERTY_KEY]: {
+        type: "file",
+        value: "rooms/forest/create.gml",
+      },
+    };
+    const map: TileMapData = {
+      id: "map-1",
+      name: "forest",
+      groupId: "group-1" as TileMapData["groupId"],
+      orientation: "orthogonal",
+      widthInTiles: 4,
+      heightInTiles: 2,
+      tileSize: 16,
+      properties: mapProperties,
+      layerOrder: ["bg-1", "tiles-1", "objects-1"],
+      createdAt: 0,
+    };
+    const layers: TileLayer[] = [
+      {
+        id: "tiles-1",
+        mapId: map.id,
+        name: "Ground",
+        visible: true,
+        locked: false,
+        tiles: {
+          "1,0": {
+            tilesetId: "tileset-1",
+            sx: 16,
+            sy: 0,
+            sw: 16,
+            sh: 16,
+          },
+        },
+      },
+    ];
+    const tilesets: Tileset[] = [
+      {
+        id: "tileset-1",
+        name: "terrain",
+        groupId: "group-1" as Tileset["groupId"],
+        tileSize: 16,
+        assetId: "asset-tileset",
+        imageWidth: 32,
+        imageHeight: 32,
+        createdAt: 0,
+      },
+    ];
+    const imageLayers: ImageLayer[] = [
+      {
+        id: "bg-1",
+        mapId: map.id,
+        name: "Backdrop",
+        type: "image",
+        visible: true,
+        locked: false,
+        assetId: "asset-bg",
+        x: 4,
+        y: 8,
+        width: 64,
+        height: 32,
+        opacity: 100,
+      },
+    ];
+    const objectLayers: ObjectLayer[] = [
+      {
+        id: "objects-1",
+        mapId: map.id,
+        name: "Actors",
+        type: "object",
+        visible: true,
+        locked: false,
+        objectOrder: ["object-1"],
+      },
+    ];
+    const objects: MapObject[] = [
+      {
+        id: "object-1",
+        layerId: "objects-1",
+        name: "tree_1",
+        type: "point",
+        x: 24,
+        y: 16,
+        width: 0,
+        height: 0,
+        rotation: 15,
+        points: [],
+        visible: true,
+        locked: false,
+        properties: {
+          [GAMEMAKER_INSTANCE_OBJECT_NAME_PROPERTY_KEY]: {
+            type: "string",
+            value: "obj_tree",
+          },
+          [GAMEMAKER_INSTANCE_OBJECT_PATH_PROPERTY_KEY]: {
+            type: "file",
+            value: "objects/obj_tree/obj_tree.yy",
+          },
+          [GAMEMAKER_INSTANCE_SCALE_X_PROPERTY_KEY]: {
+            type: "float",
+            value: "1.5",
+          },
+          [GAMEMAKER_INSTANCE_SCALE_Y_PROPERTY_KEY]: {
+            type: "float",
+            value: "0.75",
+          },
+          [GAMEMAKER_INSTANCE_CREATION_CODE_PATH_PROPERTY_KEY]: {
+            type: "file",
+            value: "objects/obj_tree/create.gml",
+          },
+        },
+      },
+    ];
+
+    const entries = await exportGameMakerMapBundle(
+      map,
+      layers,
+      tilesets,
+      imageLayers,
+      [],
+      objectLayers,
+      objects,
+      { format: "gmx" },
+    );
+
+    const roomEntry = entries.find((entry) => entry.path === "forest.room.gmx");
+    assert.ok(roomEntry);
+    const room = parseXmlDocument(new TextDecoder().decode(roomEntry?.data));
+
+    assert.strictEqual(room.querySelector("name")?.textContent, "forest");
+    assert.strictEqual(
+      room.querySelector("caption")?.textContent,
+      "Forest Room",
+    );
+    assert.strictEqual(room.querySelector("persistent")?.textContent, "1");
+    assert.strictEqual(room.querySelector("speed")?.textContent, "30");
+    assert.strictEqual(
+      room.querySelector("creationCodeFile")?.textContent,
+      "rooms/forest/create.gml",
+    );
+
+    const backgroundElement = room.querySelector("backgrounds > background");
+    assert.ok(backgroundElement);
+    assert.strictEqual(backgroundElement?.getAttribute("name"), "Backdrop");
+    assert.strictEqual(backgroundElement?.getAttribute("x"), "4");
+    assert.strictEqual(backgroundElement?.getAttribute("depth"), "3000");
+
+    const tileElement = room.querySelector("tiles > tile");
+    assert.ok(tileElement);
+    assert.strictEqual(tileElement?.getAttribute("bgName"), "terrain");
+    assert.strictEqual(
+      tileElement?.getAttribute("bgPath"),
+      "sprites/tilesets/terrain/terrain.png",
+    );
+    assert.strictEqual(tileElement?.getAttribute("depth"), "2000");
+
+    const instanceElement = room.querySelector("instances > instance");
+    assert.ok(instanceElement);
+    assert.strictEqual(instanceElement?.getAttribute("objName"), "obj_tree");
+    assert.strictEqual(
+      instanceElement?.getAttribute("objPath"),
+      "objects/obj_tree/obj_tree.yy",
+    );
+    assert.strictEqual(
+      instanceElement?.getAttribute("code"),
+      "objects/obj_tree/create.gml",
+    );
+    assert.strictEqual(instanceElement?.getAttribute("depth"), "1000");
+
+    assert.ok(
+      entries.find(
+        (entry) => entry.path === "sprites/tilesets/terrain/terrain.yy",
+      ),
+    );
+    assert.ok(
+      entries.find(
+        (entry) => entry.path === "sprites/backgrounds/Backdrop/Backdrop.yy",
+      ),
+    );
   } finally {
     db.assets.get = originalGet;
   }
