@@ -1,5 +1,3 @@
-Whenever there's an animation placed on the map, then painting/erasing while dragging is not working anymore - you have to lift up on the mouse to see the actual results. I want to paint normally even when animations or on the map canvas
-
 Godot project Import/Export
 More freedom to creata tilesets i.e. drag and drop parts, delete, rotate, duplicate etc.
 
