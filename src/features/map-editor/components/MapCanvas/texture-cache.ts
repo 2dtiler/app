@@ -7,6 +7,7 @@ import { getImageLayerCenter } from "./image-layer-transform";
 // ---------------------------------------------------------------------------
 
 export const tilesetImageCache = new Map<TilesetId, HTMLImageElement>();
+const tilesetCacheAssetIds = new Map<TilesetId, AssetId>();
 const tilesetBlobUrls = new Map<TilesetId, string>();
 // Promise deduplication: if a tileset is already being loaded, all callers
 // share the same promise so none silently returns null mid-flight.
@@ -14,33 +15,65 @@ const loadingTilesetPromises = new Map<
   TilesetId,
   Promise<HTMLImageElement | null>
 >();
+const loadingTilesetAssetIds = new Map<TilesetId, AssetId>();
 
 export function loadTilesetImage(
   tilesetId: TilesetId,
   assetId: AssetId,
 ): Promise<HTMLImageElement | null> {
-  if (tilesetImageCache.has(tilesetId))
+  if (
+    tilesetImageCache.has(tilesetId) &&
+    tilesetCacheAssetIds.get(tilesetId) === assetId
+  ) {
     return Promise.resolve(tilesetImageCache.get(tilesetId)!);
+  }
+
+  if (tilesetImageCache.has(tilesetId)) {
+    evictTileset(tilesetId);
+  }
 
   // If already in-flight, all callers share the same promise and will all
   // receive the result once it resolves — no more silent null returns.
   const inflight = loadingTilesetPromises.get(tilesetId);
-  if (inflight) return inflight;
+  if (inflight && loadingTilesetAssetIds.get(tilesetId) === assetId) {
+    return inflight;
+  }
+  if (inflight) {
+    loadingTilesetPromises.delete(tilesetId);
+    // Revoke any blob URL the old in-flight load may have already stored to
+    // avoid leaking object URLs when the asset changes mid-flight.
+    const staleUrl = tilesetBlobUrls.get(tilesetId);
+    if (staleUrl) {
+      URL.revokeObjectURL(staleUrl);
+      tilesetBlobUrls.delete(tilesetId);
+    }
+  }
+  loadingTilesetAssetIds.set(tilesetId, assetId);
 
   const promise = (async () => {
     try {
       const url = await getAssetUrl(assetId);
       if (!url) return null;
+      if (loadingTilesetAssetIds.get(tilesetId) !== assetId) {
+        URL.revokeObjectURL(url);
+        return null;
+      }
       tilesetBlobUrls.set(tilesetId, url);
       const img = new Image();
       img.src = url;
       await img.decode();
-      tilesetImageCache.set(tilesetId, img);
+      if (loadingTilesetAssetIds.get(tilesetId) === assetId) {
+        tilesetImageCache.set(tilesetId, img);
+        tilesetCacheAssetIds.set(tilesetId, assetId);
+      }
       return img;
     } catch {
       return null;
     } finally {
-      loadingTilesetPromises.delete(tilesetId);
+      if (loadingTilesetAssetIds.get(tilesetId) === assetId) {
+        loadingTilesetPromises.delete(tilesetId);
+        loadingTilesetAssetIds.delete(tilesetId);
+      }
     }
   })();
 
@@ -55,6 +88,7 @@ export function evictUnusedTilesets(activeIds: Set<TilesetId>): void {
   for (const [id] of tilesetImageCache) {
     if (!activeIds.has(id as TilesetId)) {
       tilesetImageCache.delete(id as TilesetId);
+      tilesetCacheAssetIds.delete(id as TilesetId);
       const url = tilesetBlobUrls.get(id as TilesetId);
       if (url) {
         URL.revokeObjectURL(url);
@@ -75,6 +109,7 @@ export function evictTileset(tilesetId: TilesetId): void {
     tilesetBlobUrls.delete(tilesetId);
   }
   tilesetImageCache.delete(tilesetId);
+  tilesetCacheAssetIds.delete(tilesetId);
 }
 
 export function getTileImage(ref: TileRef): HTMLImageElement | null {

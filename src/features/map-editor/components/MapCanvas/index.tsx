@@ -11,7 +11,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
-import type { TilesetId, ImageLayer, TileRef } from "@/types";
+import type { TilesetId, ImageLayer } from "@/types";
 import {
   getMapCellAtPoint,
   getMapCellOrigin,
@@ -481,6 +481,7 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     animationElapsedMs,
     liveImagePos,
     liveImageResize,
+    paintBuffer,
     paintBufferVersion,
     tilesets,
     getDisplayImageLayer,

@@ -86,6 +86,13 @@ const TiledProjectFilesDialog = lazy(() =>
     }),
   ),
 );
+const GodotProjectFilesDialog = lazy(() =>
+  import("@/features/import-export/components/GodotProjectFilesDialog").then(
+    (module) => ({
+      default: module.GodotProjectFilesDialog,
+    }),
+  ),
+);
 const TideMissingResourcesDialog = lazy(() =>
   import("@/features/import-export/components/TideMissingResourcesDialog").then(
     (module) => ({
@@ -241,6 +248,7 @@ export function AppShell({
     defoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps,
+    godotProjectFilesDialogProps,
     tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps,
     tiledProjectFilesDialogProps,
@@ -498,6 +506,11 @@ export function AppShell({
       {tiledProjectFilesDialogProps.open && (
         <Suspense>
           <TiledProjectFilesDialog {...tiledProjectFilesDialogProps} />
+        </Suspense>
+      )}
+      {godotProjectFilesDialogProps.open && (
+        <Suspense>
+          <GodotProjectFilesDialog {...godotProjectFilesDialogProps} />
         </Suspense>
       )}
       {tideMissingResourcesDialogProps.open && (

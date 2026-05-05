@@ -4,6 +4,7 @@ import {
 } from "@/features/map-editor/components/MapCanvas/texture-cache";
 import { drawMapObjects } from "@/features/map-editor/components/MapCanvas/draw-map-objects";
 import { getAsset, saveAsset } from "@/services/db";
+import { encodeGifFrames } from "@/services/gif";
 import { generateAssetId } from "@/utils/ids";
 import {
   getMapCellOrigin,
@@ -406,19 +407,11 @@ async function encodeGif(
   }
 
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  const rgba = new Uint8Array(imageData.data);
-  const { GIFEncoder, quantize, applyPalette } = await import("gifenc");
-  const palette = quantize(rgba, 256);
-  const indexed = applyPalette(rgba, palette);
-  const gif = GIFEncoder();
-  gif.writeFrame(indexed, canvas.width, canvas.height, {
-    palette,
-    delay: 0,
-    transparent: transparency,
-  });
-  gif.finish();
-  return new Blob([new Uint8Array(gif.bytes())], {
-    type: getRasterMimeType("gif"),
+  return encodeGifFrames({
+    width: canvas.width,
+    height: canvas.height,
+    transparency,
+    frames: [{ data: imageData.data, delay: 0 }],
   });
 }
 

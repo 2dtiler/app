@@ -15,6 +15,7 @@ import {
 import { useImageEditorFrameActions } from "@/features/image-editor/hooks/use-image-editor-frame-actions";
 import { useImageEditorLayerActions } from "@/features/image-editor/hooks/use-image-editor-layer-actions";
 import { useImageEditorPaletteActions } from "@/features/image-editor/hooks/use-image-editor-palette-actions";
+import { encodeGifFrames } from "@/services/gif";
 import {
   initImageEditorStore,
   getImageEditorStore,
@@ -631,30 +632,16 @@ export function useImageEditor() {
   const exportGif = useCallback(async (): Promise<boolean> => {
     if (!state || state.frames.length === 0) return false;
 
-    // Dynamic import gifenc
-    const { GIFEncoder, quantize, applyPalette } = await import("gifenc");
-
-    const gif = GIFEncoder();
-
-    for (const frame of state.frames) {
-      const data = computeComposite(frame.id, state);
-
-      // gifenc expects RGBA Uint8Array
-      const rgba = new Uint8Array(data.data.buffer);
-      const palette = quantize(rgba, 256);
-      const index = applyPalette(rgba, palette);
-
-      gif.writeFrame(index, state.width, state.height, {
-        palette,
+    const blob = await encodeGifFrames({
+      width: state.width,
+      height: state.height,
+      transparency: true,
+      frames: state.frames.map((frame) => ({
+        data: computeComposite(frame.id, state).data,
         delay: frame.duration,
-        transparent: true,
-      });
-    }
+      })),
+    });
 
-    gif.finish();
-
-    const bytes = gif.bytes();
-    const blob = new Blob([new Uint8Array(bytes)], { type: "image/gif" });
     downloadBlob(blob, "animation.gif");
     return true;
   }, [state]);

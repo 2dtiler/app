@@ -190,6 +190,26 @@ test("evictUnusedTilesets and evictTileset revoke blob URLs while getTileImage t
   expect(urlCtor.revokeObjectURL).toHaveBeenCalledWith("blob:single");
 });
 
+test("loadTilesetImage reloads when the same tileset id points at a new asset", async () => {
+  getAssetUrlMock
+    .mockResolvedValueOnce("blob:first")
+    .mockResolvedValueOnce("blob:second");
+
+  const firstImage = await loadTilesetImage(
+    "tileset-replaced" as TilesetId,
+    "asset-first" as AssetId,
+  );
+  const secondImage = await loadTilesetImage(
+    "tileset-replaced" as TilesetId,
+    "asset-second" as AssetId,
+  );
+
+  expect(secondImage).not.toBe(firstImage);
+  expect(getAssetUrlMock).toHaveBeenCalledTimes(2);
+  expect(urlCtor.revokeObjectURL).toHaveBeenCalledWith("blob:first");
+  expect(createdImages[1]?.src).toBe("blob:second");
+});
+
 test("drawTileWithOrientation draws directly when there is no rotation or flipping", () => {
   const ctx = createCanvasContext();
   const image = new MockImage() as unknown as HTMLImageElement;
