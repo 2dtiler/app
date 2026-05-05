@@ -33,13 +33,16 @@ import {
   assertTilesetsHaveNoAnimations,
 } from "@/features/import-export/lib/animation-export-guards";
 import { replaceWithImportedTiledProject } from "@/features/import-export/lib/imported-tiled-project-session";
+import { replaceWithImportedGodotProject } from "@/features/import-export/lib/imported-godot-project-session";
 import { mergeImportedMapData } from "@/features/import-export/lib/imported-map-merge";
 import { useGodotMapImport } from "@/features/import-export/hooks/use-godot-map-import";
+import { useGodotProjectImport } from "@/features/import-export/hooks/use-godot-project-import";
 import { useGodotTilesetImport } from "@/features/import-export/hooks/use-godot-tileset-import";
 import { useDefoldMapImport } from "@/features/import-export/hooks/use-defold-map-import";
 import { useDefoldTilesetImport } from "@/features/import-export/hooks/use-defold-tileset-import";
 import { useGameMakerMapImport } from "@/features/import-export/hooks/use-gamemaker-map-import";
 import { useImportExportDispatch } from "@/features/import-export/hooks/use-import-export-dispatch";
+import { useProjectImportExportAction } from "@/features/import-export/hooks/use-project-import-export-action";
 import { useMappyMapImport } from "@/features/import-export/hooks/use-mappy-map-import";
 import {
   PHASER_MAP_IMPORT_CONFIG,
@@ -50,7 +53,8 @@ import { useTiledTilesetImport } from "@/features/import-export/hooks/use-tiled-
 import { useUnityMapImport } from "@/features/import-export/hooks/use-unity-map-import";
 import { useUnityTilesetImport } from "@/features/import-export/hooks/use-unity-tileset-import";
 import { useTiledProjectImport } from "@/features/import-export/hooks/use-tiled-project-import";
-import { exportTiledProject } from "@/features/import-export/lib/tiled-project-action-utils";
+import { selectOpenDialogProps } from "@/features/import-export/lib/dialog-prop-utils";
+import { showGodotProjectImportWarnings } from "@/features/import-export/lib/godot-project-warning-utils";
 import { generateLayerId, generateMapId, generateTilesetId } from "@/utils/ids";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
 import { openProjectInEditor } from "@/features/project-management/lib/project-session";
@@ -61,9 +65,8 @@ import type {
   ImageLayer,
   ImportExportArchiveEntry,
   ImportExportDialogMode,
-  ImportExportOptionAction,
-  ImportExportOptionId,
   ImportExportRasterExportOptions,
+  GodotProjectImportResult,
   MapId,
   MapGroupId,
   TileMapData,
@@ -307,11 +310,31 @@ export function useImportExportActions({
     [setState],
   );
 
+  const handleImportedGodotProjectResolved = useCallback(
+    async (
+      result: GodotProjectImportResult,
+      suggestedProjectName: string,
+    ) => {
+      await replaceWithImportedGodotProject(
+        result,
+        suggestedProjectName,
+        setState,
+      );
+      showGodotProjectImportWarnings(result.warnings);
+    },
+    [setState],
+  );
+
   const {
     handleImportTiledProject,
     tiledProjectFilesDialogProps,
     tiledMissingResourcesDialogProps: tiledProjectMissingResourcesDialogProps,
   } = useTiledProjectImport(handleImportedProjectResolved);
+  const {
+    handleImportGodotProject,
+    godotProjectFilesDialogProps,
+    godotMissingResourcesDialogProps: godotProjectMissingResourcesDialogProps,
+  } = useGodotProjectImport(handleImportedGodotProjectResolved);
 
   const {
     handleImportTiledMap,
@@ -826,29 +849,25 @@ export function useImportExportActions({
     handleImportUnityTileset,
   });
 
-  const mergedTiledMissingResourcesDialogProps =
-    phaserMapMissingResourcesDialogProps.open
-      ? phaserMapMissingResourcesDialogProps
-      : tiledProjectMissingResourcesDialogProps.open
-        ? tiledProjectMissingResourcesDialogProps
-        : tiledTilesetMissingResourcesDialogProps.open
-          ? tiledTilesetMissingResourcesDialogProps
-          : tiledMapMissingResourcesDialogProps;
-
-  const mergedGodotMissingResourcesDialogProps =
-    godotTilesetMissingResourcesDialogProps.open
-      ? godotTilesetMissingResourcesDialogProps
-      : godotMissingResourcesDialogProps;
-
-  const mergedUnityMissingResourcesDialogProps =
-    unityTilesetMissingResourcesDialogProps.open
-      ? unityTilesetMissingResourcesDialogProps
-      : unityMissingResourcesDialogProps;
-
-  const mergedDefoldMissingResourcesDialogProps =
-    defoldTilesetMissingResourcesDialogProps.open
-      ? defoldTilesetMissingResourcesDialogProps
-      : defoldMissingResourcesDialogProps;
+  const mergedTiledMissingResourcesDialogProps = selectOpenDialogProps(
+    tiledMapMissingResourcesDialogProps,
+    phaserMapMissingResourcesDialogProps,
+    tiledProjectMissingResourcesDialogProps,
+    tiledTilesetMissingResourcesDialogProps,
+  );
+  const mergedGodotMissingResourcesDialogProps = selectOpenDialogProps(
+    godotMissingResourcesDialogProps,
+    godotProjectMissingResourcesDialogProps,
+    godotTilesetMissingResourcesDialogProps,
+  );
+  const mergedUnityMissingResourcesDialogProps = selectOpenDialogProps(
+    unityMissingResourcesDialogProps,
+    unityTilesetMissingResourcesDialogProps,
+  );
+  const mergedDefoldMissingResourcesDialogProps = selectOpenDialogProps(
+    defoldMissingResourcesDialogProps,
+    defoldTilesetMissingResourcesDialogProps,
+  );
 
   const mapExportGroups = useMemo(
     () =>
@@ -866,35 +885,16 @@ export function useImportExportActions({
     [importExportDialogOpen, state.project],
   );
 
-  const projectAction: ImportExportOptionAction = useMemo(
-    () => ({
-      enabled:
-        importExportDialogMode === "import" ? true : Boolean(state.project),
-      onSelect:
-        importExportDialogMode === "import"
-          ? (optionId: ImportExportOptionId) =>
-              optionId === "project-tiled"
-                ? handleImportTiledProject()
-                : handleImportProject()
-          : (optionId: ImportExportOptionId) =>
-              optionId === "project-tiled"
-                ? exportTiledProject(state.project)
-                : handleExportProject(),
-      disabledReason:
-        importExportDialogMode === "export" && !state.project
-          ? "Open a project first"
-          : undefined,
-    }),
-    [
-      handleExportProject,
-      handleImportProject,
-      handleImportTiledProject,
-      importExportDialogMode,
-      state.project,
-    ],
+  const projectAction = useProjectImportExportAction(
+    importExportDialogMode,
+    state.project,
+    handleExportProject,
+    handleImportProject,
+    handleImportTiledProject,
+    handleImportGodotProject,
   );
 
-  const mapAction: ImportExportOptionAction = useMemo(
+  const mapAction = useMemo(
     () => ({
       enabled:
         importExportDialogMode === "import"
@@ -934,7 +934,7 @@ export function useImportExportActions({
     ],
   );
 
-  const tilesetAction: ImportExportOptionAction = useMemo(
+  const tilesetAction = useMemo(
     () => ({
       enabled:
         importExportDialogMode === "import"
@@ -991,6 +991,7 @@ export function useImportExportActions({
     defoldMissingResourcesDialogProps: mergedDefoldMissingResourcesDialogProps,
     gameMakerMissingResourcesDialogProps,
     godotMissingResourcesDialogProps: mergedGodotMissingResourcesDialogProps,
+    godotProjectFilesDialogProps,
     tideMissingResourcesDialogProps,
     tiledMissingResourcesDialogProps: mergedTiledMissingResourcesDialogProps,
     tiledProjectFilesDialogProps,

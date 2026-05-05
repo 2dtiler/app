@@ -40,6 +40,7 @@ export type ImportExportAssetType = "project" | "map" | "tileset";
 export type ImportExportOptionId =
   | "project-native"
   | "project-tiled"
+  | "project-godot"
   | "map-native"
   | "map-image"
   | "map-phaser"
@@ -215,6 +216,35 @@ export interface TiledProjectArchivePreparationResult {
 
 export interface GodotMapImportResult extends TiledMapImportResult {
   warnings: GodotImportWarning[];
+}
+
+export interface GodotProjectImportWarning extends GodotImportWarning {
+  scenePath: string;
+}
+
+export interface GodotProjectImportResult {
+  maps: GodotMapImportResult[];
+  warnings: GodotProjectImportWarning[];
+}
+
+export interface GodotProjectImportPendingResult {
+  status: "missing-resources";
+  missingResources: GodotImportMissingResource[];
+}
+
+export interface GodotProjectImportReadyResult {
+  status: "ready";
+  result: GodotProjectImportResult;
+}
+
+export type GodotProjectImportPreparationResult =
+  | GodotProjectImportPendingResult
+  | GodotProjectImportReadyResult;
+
+export interface GodotProjectArchivePreparationResult {
+  entries: ImportExportArchiveEntry[];
+  projectName: string;
+  preparation: GodotProjectImportPreparationResult;
 }
 
 export type GameMakerMapImportResult = TiledMapImportResult;
@@ -415,12 +445,37 @@ export interface PendingTiledProjectFilesImportState {
   projectData: Uint8Array;
 }
 
+export interface PendingGodotProjectImportState {
+  projectName: string;
+  baseEntries: ImportExportArchiveEntry[];
+  missingResources: GodotImportMissingResource[];
+  resourceFilesByPath: Record<string, File>;
+}
+
+export interface PendingGodotProjectFilesImportState {
+  projectName: string;
+  projectFileName: string;
+  projectData: Uint8Array;
+}
+
 export interface TiledProjectFilesDialogProps {
   open: boolean;
   projectName: string;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectFolder: () => void | Promise<void>;
+}
+
+export interface GodotProjectFilesDialogProps {
+  open: boolean;
+  projectName: string;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectFolder: () => void | Promise<void>;
+}
+
+export interface DirectoryImportFile extends File {
+  webkitRelativePath: string;
 }
 
 export interface TiledTilesetImportPendingResult {

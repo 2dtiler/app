@@ -22,6 +22,14 @@ export const IMPORT_EXPORT_OPTION_DEFINITIONS: ImportExportOptionDefinition[] =
       supportedNow: true,
     },
     {
+      id: "project-godot",
+      assetType: "project",
+      label: "Godot 4 Project (.godot-project.zip)",
+      description:
+        "Import or export Godot 4 project archives with text scenes, tilesets, and image resources.",
+      supportedNow: true,
+    },
+    {
       id: "map-native",
       assetType: "map",
       label: "2D Tiler Map (.2dm)",
@@ -173,6 +181,10 @@ export const IMPORT_EXPORT_ASSET_TABS: ImportExportAssetType[] = [
 
 export function isTiledProjectOption(optionId: ImportExportOptionId) {
   return optionId === "project-tiled";
+}
+
+export function isGodotProjectOption(optionId: ImportExportOptionId) {
+  return optionId === "project-godot";
 }
 
 export function isRasterImageOption(optionId: ImportExportOptionId) {
