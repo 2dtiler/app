@@ -37,6 +37,7 @@ vi.mock("@/features/import-export/lib/linked-resource-utils", () => ({
 }));
 
 const originalDocument = globalThis.document;
+const originalAlert = globalThis.alert;
 const originalWindow = globalThis.window;
 const originalActEnvironment = (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -97,6 +98,12 @@ async function renderProjectImportHook(
 
 afterEach(() => {
   vi.clearAllMocks();
+
+  if (originalAlert) {
+    globalThis.alert = originalAlert;
+  } else {
+    Reflect.deleteProperty(globalThis, "alert");
+  }
 
   if (originalDocument) {
     Object.assign(globalThis, { document: originalDocument });
@@ -332,5 +339,116 @@ test("useTiledProjectImport keeps prompting for missing raw-project resources un
     false,
   );
 
+  await rendered.unmount();
+});
+
+test("useTiledProjectImport returns false when the picker is cancelled", async () => {
+  const rendered = await renderProjectImportHook(vi.fn());
+
+  hookMocks.pickSingleFile.mockResolvedValueOnce(null);
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(false);
+  });
+
+  expect(hookMocks.readFileAsUint8Array).not.toHaveBeenCalled();
+
+  await rendered.unmount();
+});
+
+test("useTiledProjectImport alerts for unsupported project files and empty zip imports", async () => {
+  const rendered = await renderProjectImportHook(vi.fn());
+  const alertMock = vi.fn();
+  globalThis.alert = alertMock;
+
+  hookMocks.pickSingleFile.mockResolvedValueOnce(
+    new File(["plain text"], "notes.txt", { type: "text/plain" }),
+  );
+  hookMocks.readFileAsUint8Array.mockResolvedValueOnce(
+    new TextEncoder().encode("plain text"),
+  );
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(false);
+  });
+
+  expect(alertMock).toHaveBeenCalledWith("Unsupported Tiled project file type.");
+
+  hookMocks.pickSingleFile.mockResolvedValueOnce(
+    new File(["zip"], "demo.zip", { type: "application/zip" }),
+  );
+  hookMocks.readFileAsUint8Array.mockResolvedValueOnce(new Uint8Array([1, 2]));
+  hookMocks.prepareTiledProjectArchive.mockResolvedValueOnce({
+    entries: [{ path: "maps/level.tmx", data: new Uint8Array([1, 2]) }],
+    preparation: {
+      status: "ready",
+      result: { maps: [] },
+    },
+  });
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(false);
+  });
+
+  expect(alertMock).toHaveBeenCalledWith(
+    "No importable Tiled maps found in the archive.",
+  );
+
+  await rendered.unmount();
+});
+
+test("useTiledProjectImport alerts for invalid project files and clears the project-files dialog when closed", async () => {
+  const rendered = await renderProjectImportHook(vi.fn());
+  const alertMock = vi.fn();
+  const consoleErrorMock = vi
+    .spyOn(console, "error")
+    .mockImplementation(() => undefined);
+
+  globalThis.alert = alertMock;
+  hookMocks.pickSingleFile.mockResolvedValueOnce(
+    new File(["[]"], "sample.tiled-project", {
+      type: "application/json",
+    }),
+  );
+  hookMocks.readFileAsUint8Array
+    .mockResolvedValueOnce(new TextEncoder().encode("[]"))
+    .mockResolvedValueOnce(new TextEncoder().encode("{}"));
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(false);
+  });
+
+  expect(alertMock).toHaveBeenCalledWith("Invalid Tiled project file.");
+  expect(consoleErrorMock).toHaveBeenCalled();
+
+  hookMocks.pickSingleFile.mockResolvedValueOnce(
+    new File(["{}"], "sample.tiled-project", {
+      type: "application/json",
+    }),
+  );
+
+  await act(async () => {
+    await expect(
+      rendered.getCurrent().handleImportTiledProject(),
+    ).resolves.toBe(true);
+  });
+
+  expect(rendered.getCurrent().tiledProjectFilesDialogProps.open).toBe(true);
+
+  await act(async () => {
+    rendered.getCurrent().tiledProjectFilesDialogProps.onOpenChange(false);
+  });
+
+  expect(rendered.getCurrent().tiledProjectFilesDialogProps.open).toBe(false);
+
+  consoleErrorMock.mockRestore();
   await rendered.unmount();
 });
