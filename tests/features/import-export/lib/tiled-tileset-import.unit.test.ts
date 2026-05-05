@@ -18,13 +18,16 @@ const tilesetMocks = vi.hoisted(() => ({
     },
   ),
   buildAutotileFromTiledWangSets: vi.fn(),
-  buildEntryMap: vi.fn((entries: readonly { path: string; data: Uint8Array }[]) => {
-    return new Map(entries.map((entry) => [entry.path, entry.data]));
-  }),
+  buildEntryMap: vi.fn(
+    (entries: readonly { path: string; data: Uint8Array }[]) => {
+      return new Map(entries.map((entry) => [entry.path, entry.data]));
+    },
+  ),
   decodeText: vi.fn((data: Uint8Array) => new TextDecoder().decode(data)),
   generateTilesetId: vi.fn(() => "tileset-generated"),
   getProvidedEntry: vi.fn(
-    (entries: ReadonlyMap<string, Uint8Array>, path: string) => entries.get(path),
+    (entries: ReadonlyMap<string, Uint8Array>, path: string) =>
+      entries.get(path),
   ),
   importTiledTilesetImageAsset: vi.fn(),
   normalizeBundlePath: vi.fn((path: string) => path.replace(/\\/g, "/")),
@@ -46,7 +49,8 @@ const tilesetMocks = vi.hoisted(() => ({
   resolveBundlePath: vi.fn((base: string, relative: string) => {
     const normalizedBase = base.replace(/\\/g, "/");
     const slashIndex = normalizedBase.lastIndexOf("/");
-    const baseDir = slashIndex >= 0 ? normalizedBase.slice(0, slashIndex + 1) : "";
+    const baseDir =
+      slashIndex >= 0 ? normalizedBase.slice(0, slashIndex + 1) : "";
     return `${baseDir}${relative}`.replace(/\/\.\//g, "/");
   }),
   stripExtension: vi.fn((path: string) => path.replace(/\.[^/.]+$/, "")),
@@ -57,7 +61,8 @@ vi.mock("@/utils/ids", () => ({
 }));
 
 vi.mock("@/features/import-export/lib/tiled-lua-format", () => ({
-  normalizeTiledLuaTilesetDocument: tilesetMocks.normalizeTiledLuaTilesetDocument,
+  normalizeTiledLuaTilesetDocument:
+    tilesetMocks.normalizeTiledLuaTilesetDocument,
 }));
 
 vi.mock("@/features/import-export/lib/tiled-lua", () => ({
@@ -120,12 +125,9 @@ afterEach(() => {
 
 test("prepareTiledTilesetImport reports missing linked tileset and image resources", async () => {
   tilesetMocks.parseXmlDocument.mockReturnValueOnce({
-    documentElement: createXmlElement(
-      "tileset",
-      {
-        source: "linked.tsj",
-      },
-    ),
+    documentElement: createXmlElement("tileset", {
+      source: "linked.tsj",
+    }),
   });
 
   const linkedTilesetResult = await prepareTiledTilesetImport(

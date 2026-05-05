@@ -376,7 +376,9 @@ test("useTiledProjectImport alerts for unsupported project files and empty zip i
     ).resolves.toBe(false);
   });
 
-  expect(alertMock).toHaveBeenCalledWith("Unsupported Tiled project file type.");
+  expect(alertMock).toHaveBeenCalledWith(
+    "Unsupported Tiled project file type.",
+  );
 
   hookMocks.pickSingleFile.mockResolvedValueOnce(
     new File(["zip"], "demo.zip", { type: "application/zip" }),

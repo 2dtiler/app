@@ -172,8 +172,9 @@ function installWindow() {
 }
 
 function renderActions(overrides = {}) {
-  const overrideParams =
-    overrides as Partial<Parameters<typeof useMapPanelCanvasActions>[0]>;
+  const overrideParams = overrides as Partial<
+    Parameters<typeof useMapPanelCanvasActions>[0]
+  >;
   const { activeMap, imageLayer, objectLayer, project, tileLayer } =
     createProject();
   const state: EditorState = {
@@ -190,11 +191,10 @@ function renderActions(overrides = {}) {
   const effectiveState = overrideParams.state ?? state;
   const effectiveActiveMap = overrideParams.activeMap ?? activeMap;
   const effectiveActiveLayer = overrideParams.activeLayer ?? tileLayer;
-  const effectiveActiveImageLayer =
-    overrideParams.activeImageLayer ?? null;
-  const effectiveContextMenuTileRef =
-    overrideParams.contextMenuTileRef ??
-    ({ current: null as { x: number; y: number } | null });
+  const effectiveActiveImageLayer = overrideParams.activeImageLayer ?? null;
+  const effectiveContextMenuTileRef = overrideParams.contextMenuTileRef ?? {
+    current: null as { x: number; y: number } | null,
+  };
   const effectiveHasContextMenuImageLayer =
     overrideParams.hasContextMenuImageLayer ?? false;
   const paintBuffer = new Map<string, TileRef | null>();
@@ -252,7 +252,9 @@ function renderActions(overrides = {}) {
     ...overrides,
   } as Parameters<typeof useMapPanelCanvasActions>[0];
 
-  function HookHarness(hookParams: Parameters<typeof useMapPanelCanvasActions>[0]) {
+  function HookHarness(
+    hookParams: Parameters<typeof useMapPanelCanvasActions>[0],
+  ) {
     hookResult.setCurrent(useMapPanelCanvasActions(hookParams));
     return null;
   }
@@ -468,12 +470,7 @@ test("map panel canvas actions paint the selected tile across the brush area", (
 
   actions.handlePaintTile(1, 1);
 
-  expect([...paintBuffer.keys()].sort()).toEqual([
-    "1,1",
-    "1,2",
-    "2,1",
-    "2,2",
-  ]);
+  expect([...paintBuffer.keys()].sort()).toEqual(["1,1", "1,2", "2,1", "2,2"]);
 
   actions.handlePaintEnd();
 

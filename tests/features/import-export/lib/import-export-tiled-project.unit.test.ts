@@ -47,8 +47,8 @@ const projectMocks = vi.hoisted(() => ({
     return candidate;
   }),
   prepareTiledMapImport: vi.fn(),
-  sanitizeDownloadSegment: vi.fn((value: string, fallback: string) =>
-    value || fallback,
+  sanitizeDownloadSegment: vi.fn(
+    (value: string, fallback: string) => value || fallback,
   ),
   unzipSync: vi.fn(),
 }));
@@ -167,12 +167,18 @@ test("exportTiledProjectEntries rewrites conflicting asset paths across maps", a
 
   projectMocks.exportTiledMapBundle
     .mockResolvedValueOnce([
-      { path: "LevelA.tmx", data: encodeText('"tilesets/shared.tsx" "images/shared.png"') },
+      {
+        path: "LevelA.tmx",
+        data: encodeText('"tilesets/shared.tsx" "images/shared.png"'),
+      },
       { path: "tilesets/shared.tsx", data: encodeText("tsx-a") },
       { path: "images/shared.png", data: new Uint8Array([1]) },
     ])
     .mockResolvedValueOnce([
-      { path: "LevelB.tmx", data: encodeText('"tilesets/shared.tsx" "images/shared.png"') },
+      {
+        path: "LevelB.tmx",
+        data: encodeText('"tilesets/shared.tsx" "images/shared.png"'),
+      },
       { path: "tilesets/shared.tsx", data: encodeText("tsx-b") },
       { path: "images/shared.png", data: new Uint8Array([2]) },
     ]);
@@ -308,7 +314,7 @@ test("importTiledProjectFromZip returns ready results and rejects missing-resour
     },
   );
 
-  await expect(
-    importTiledProjectFromZip(new Uint8Array([2])),
-  ).rejects.toThrow("The Tiled project archive is missing linked resources.");
+  await expect(importTiledProjectFromZip(new Uint8Array([2]))).rejects.toThrow(
+    "The Tiled project archive is missing linked resources.",
+  );
 });

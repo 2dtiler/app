@@ -51,8 +51,9 @@ function installReactDomEnvironment() {
 
 async function renderTiledMapImportHook(
   enabled = true,
-  onImportResolved: (result: TiledMapImportResult) => void | Promise<void> =
-    vi.fn(),
+  onImportResolved: (
+    result: TiledMapImportResult,
+  ) => void | Promise<void> = vi.fn(),
 ) {
   installReactDomEnvironment();
 
@@ -313,9 +314,9 @@ test("useTiledMapImport clears pending resources when the dialog closes", async 
   expect(
     rendered.getCurrent().tiledMissingResourcesDialogProps.selectedFileNames,
   ).toEqual({});
-  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.isSubmitting).toBe(
-    false,
-  );
+  expect(
+    rendered.getCurrent().tiledMissingResourcesDialogProps.isSubmitting,
+  ).toBe(false);
 
   await rendered.unmount();
 });
@@ -398,9 +399,9 @@ test("useTiledMapImport keeps the dialog open and resets submitting when resourc
   expect(rendered.getCurrent().tiledMissingResourcesDialogProps.open).toBe(
     true,
   );
-  expect(rendered.getCurrent().tiledMissingResourcesDialogProps.isSubmitting).toBe(
-    false,
-  );
+  expect(
+    rendered.getCurrent().tiledMissingResourcesDialogProps.isSubmitting,
+  ).toBe(false);
 
   consoleErrorMock.mockRestore();
   await rendered.unmount();
