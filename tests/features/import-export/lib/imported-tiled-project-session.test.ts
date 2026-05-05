@@ -66,9 +66,10 @@ test("replaceWithImportedTiledProject replaces the active project with a fresh i
 
   await replaceWithImportedTiledProject(result, "Imported Project", setState);
 
+  // tileSize 24 is not a valid TILE_SIZE; it snaps to 16 (nearest valid value)
   expect(helperMocks.createEmptyProject).toHaveBeenCalledWith(
     "Imported Project",
-    24,
+    16,
   );
   expect(helperMocks.saveProject).toHaveBeenCalledWith(targetProject);
   expect(helperMocks.openProjectInEditor).toHaveBeenCalledWith(targetProject);
@@ -90,5 +91,34 @@ test("replaceWithImportedTiledProject replaces the active project with a fresh i
   );
   expect(helperMocks.saveProjectAndMarkClean).toHaveBeenCalledWith(
     importedProject,
+  );
+});
+
+test("replaceWithImportedTiledProject passes through a valid tile size unchanged", async () => {
+  const targetProject = {
+    id: "project-1",
+    name: "Imported Project",
+    mapGroups: [{ id: "map-group-1" }],
+    tilesetGroups: [{ id: "tileset-group-1" }],
+  } as unknown as Project;
+  const importedProject = {
+    ...targetProject,
+    maps: [{ id: "map-1" }],
+  } as unknown as Project;
+  const result = {
+    maps: [{ map: { tileSize: 32, name: "Level 1" } }],
+  } as unknown as TiledProjectImportResult;
+  const setState = vi.fn() as unknown as EditorTravels["setState"];
+
+  helperMocks.createEmptyProject.mockReturnValue(targetProject);
+  helperMocks.getEditorStore.mockReturnValue({
+    getState: () => ({ project: importedProject }),
+  });
+
+  await replaceWithImportedTiledProject(result, "Imported Project", setState);
+
+  expect(helperMocks.createEmptyProject).toHaveBeenCalledWith(
+    "Imported Project",
+    32,
   );
 });

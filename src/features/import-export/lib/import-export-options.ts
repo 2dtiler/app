@@ -17,8 +17,8 @@ export const IMPORT_EXPORT_OPTION_DEFINITIONS: ImportExportOptionDefinition[] =
     {
       id: "project-tiled",
       assetType: "project",
-      label: "Tiled Project (.tiled-project)",
-      description: "Tiled multi-map project container.",
+      label: "Tiled Project (.tiled-project.zip)",
+      description: "Tiled multi-map project archive (.tiled-project.zip).",
       supportedNow: true,
     },
     {

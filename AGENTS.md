@@ -2,17 +2,17 @@
 
 Use `semble search` to find code by describing what it does or naming a symbol/identifier, instead of grep:
 
-​`bash
+```bash
 semble search "authentication flow" ./my-project
 semble search "save_pretrained" ./my-project
 semble search "save model to disk" ./my-project --top-k 10
-​`
+```
 
 Use `semble find-related` to discover code similar to a known location (pass `file_path` and `line` from a prior search result):
 
-​`bash
+```bash
 semble find-related src/auth.py 42 ./my-project
-​`
+```
 
 `path` defaults to the current directory when omitted; git URLs are accepted.
 

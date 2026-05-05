@@ -45,11 +45,13 @@ export function NewMapDialog({
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImportFile(file: File) {
-    await onImportMapFromFile(file);
-    onOpenChange(false);
+    const success = await onImportMapFromFile(file);
+    if (success) {
+      onOpenChange(false);
+    }
   }
 
-  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+  function handleDragOver(e: DragEvent<HTMLElement>) {
     if (!Array.from(e.dataTransfer.items).some((i) => i.kind === "file"))
       return;
     e.preventDefault();
@@ -57,12 +59,12 @@ export function NewMapDialog({
     setIsDroppingFile(true);
   }
 
-  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+  function handleDragLeave(e: DragEvent<HTMLElement>) {
     if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setIsDroppingFile(false);
   }
 
-  async function handleDrop(e: DragEvent<HTMLDivElement>) {
+  async function handleDrop(e: DragEvent<HTMLElement>) {
     e.preventDefault();
     setIsDroppingFile(false);
     const file = e.dataTransfer.files[0];
@@ -195,12 +197,14 @@ export function NewMapDialog({
             </DialogFooter>
           </TabsContent>
           <TabsContent value="import">
-            <div
-              className={`flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 transition-colors ${
+            <button
+              type="button"
+              className={`flex w-full min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-6 transition-colors ${
                 isDroppingFile
                   ? "border-primary bg-primary/10"
                   : "border-muted-foreground/30 hover:border-muted-foreground/50"
               }`}
+              aria-label="Drop a map file here or click to browse"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => void handleDrop(e)}
@@ -216,7 +220,7 @@ export function NewMapDialog({
                   .tilemap, .prefab, images, and more
                 </p>
               </div>
-            </div>
+            </button>
             <input
               ref={importFileInputRef}
               type="file"
