@@ -1,6 +1,7 @@
 import { FillTerrainDialog } from "@/features/map-editor/dialogs/FillTerrainDialog";
 import { MapOptionsDialog } from "@/features/map-editor/dialogs/MapOptionsDialog";
 import { NewMapDialog } from "@/features/map-editor/dialogs/NewMapDialog";
+import { ManageMapsDialog } from "./ManageMapsDialog";
 import { NewMapGroupDialog } from "@/components/dialogs/NewMapGroupDialog";
 import { ObjectPropertiesDialogManager } from "@/features/map-editor/components/ObjectPropertiesDialogManager";
 import {
@@ -20,6 +21,10 @@ export function MapPanelDialogs({
   addGroupOpen,
   addMapOpen,
   deleteTarget,
+  manageMapsGroups,
+  manageMapsItems,
+  manageMapsOpen,
+  manageMapsSelectedGroupId,
   mapOptionsOpen,
   newGroupName,
   newMapHeight,
@@ -30,13 +35,21 @@ export function MapPanelDialogs({
   onDeleteTerrain,
   onCreateGroup,
   onCreateMap,
+  onDeleteEmptyGroup,
   onDeleteConfirm,
   onImportMapFromFile,
+  onManageMapsSelectedGroupChange,
+  onMoveMapToGroup,
+  onRenameGroup,
+  onRenameMap,
+  onReorderGroups,
+  onReorderMaps,
   onUpdateMapOptions,
   propsObjectId,
   setAddGroupOpen,
   setAddMapOpen,
   setDeleteTarget,
+  setManageMapsOpen,
   setMapOptionsOpen,
   setNewGroupName,
   setNewMapHeight,
@@ -95,6 +108,35 @@ export function MapPanelDialogs({
         name={newGroupName}
         onNameChange={setNewGroupName}
         onCreate={onCreateGroup}
+      />
+
+      <ManageMapsDialog
+        open={manageMapsOpen}
+        onOpenChange={setManageMapsOpen}
+        groups={manageMapsGroups}
+        maps={manageMapsItems}
+        selectedGroupId={manageMapsSelectedGroupId}
+        onSelectedGroupChange={onManageMapsSelectedGroupChange}
+        onCreateGroup={onCreateGroup}
+        onCreateMap={onCreateMap}
+        onRenameGroup={onRenameGroup}
+        onDeleteGroup={onDeleteEmptyGroup}
+        onRenameMap={onRenameMap}
+        onDeleteMap={(mapId) => {
+          const map = state.project?.maps.find((entry) => entry.id === mapId);
+          if (!map) {
+            return;
+          }
+
+          setDeleteTarget({
+            type: "map",
+            id: map.id,
+            name: map.name,
+          });
+        }}
+        onReorderGroups={onReorderGroups}
+        onMoveMapToGroup={onMoveMapToGroup}
+        onReorderMaps={onReorderMaps}
       />
 
       <AlertDialog

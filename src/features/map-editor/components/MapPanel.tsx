@@ -29,6 +29,13 @@ import {
   getAllLayerIds,
   isLayerEffectivelyLocked,
 } from "@/features/map-editor/lib/layers";
+import {
+  moveGroupedItem,
+  moveOrderedGroup,
+  reindexOrderedGroups,
+  getAdjacentGroupedItemId,
+} from "@/features/map-editor/lib/asset-manager";
+import { deleteMapFromProject } from "@/features/map-editor/lib/map-management";
 import { applyMapResizeToProject } from "@/features/map-editor/lib/map-resize";
 import { getGeometryForNewMapType } from "@/features/map-editor/lib/map-geometry";
 import { zoomStore } from "@/store/zoom-store";
@@ -48,8 +55,8 @@ import {
   type LayerGroup,
   type LayerGroupId,
   type LayerId,
-  type MapGroup,
   type MapGroupId,
+  type MapGroup,
   type MapId,
   type NewMapType,
   type ObjectId,
@@ -65,15 +72,6 @@ import {
 function clampMapDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(256, Math.max(1, Math.round(value)));
-}
-
-function getAdjacentItemId<T extends { id: string }>(
-  items: T[],
-  targetId: string,
-): string | null {
-  const index = items.findIndex((item) => item.id === targetId);
-  if (index === -1) return null;
-  return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
 }
 
 function cloneTerrainTiles(tiles: TerrainTile[] | null): TerrainTile[] | null {
@@ -129,6 +127,11 @@ export function MapPanel({
   const [terrainDialogInitialTiles, setTerrainDialogInitialTiles] = useState<
     TerrainTile[] | null
   >(null);
+  const [manageMapsOpen, setManageMapsOpen] = useState(false);
+  const [manageMapsSelectedGroupId, setManageMapsSelectedGroupId] =
+    useState<MapGroupId | null>(null);
+  const [createMapTargetGroupId, setCreateMapTargetGroupId] =
+    useState<MapGroupId | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [propsObjectId, setPropsObjectId] = useState<ObjectId | null>(null);
@@ -284,19 +287,94 @@ export function MapPanel({
   const activeGroup = currentProject.mapGroups.find(
     (group) => group.id === state.activeMapGroupId,
   );
+  const orderedMapGroups = [...currentProject.mapGroups].sort(
+    (left, right) => left.order - right.order,
+  );
   const groupMaps = currentProject.maps.filter(
     (map) => map.groupId === state.activeMapGroupId,
   );
+  const resolvedManageMapsSelectedGroupId = orderedMapGroups.some(
+    (group) => group.id === manageMapsSelectedGroupId,
+  )
+    ? manageMapsSelectedGroupId
+    : (orderedMapGroups[0]?.id ?? null);
+  const manageMapsGroups = orderedMapGroups.map((group) => {
+    const itemCount = currentProject.maps.filter(
+      (map) => map.groupId === group.id,
+    ).length;
+    const isLastGroup = orderedMapGroups.length <= 1;
+
+    return {
+      id: group.id,
+      name: group.name,
+      itemCount,
+      canDelete: !isLastGroup && itemCount === 0,
+      deleteDisabledReason: isLastGroup
+        ? "Projects must keep at least one map group."
+        : itemCount > 0
+          ? "Move or delete all maps in this group first."
+          : undefined,
+    };
+  });
+  const manageMapsItems = currentProject.maps
+    .filter((map) => map.groupId === resolvedManageMapsSelectedGroupId)
+    .map((map) => ({
+      id: map.id,
+      name: map.name,
+      subtitle: `${map.widthInTiles} × ${map.heightInTiles} tiles`,
+    }));
   const flatAllIds = activeMap
     ? getAllLayerIds(activeMap.layerOrder, layerGroups)
     : [];
   const flatMap = activeMap ? { ...activeMap, layerOrder: flatAllIds } : null;
 
+  function syncActiveMapStateForGroup(
+    draft: EditorState,
+    groupId: MapGroupId | null,
+    mapId?: MapId | null,
+  ) {
+    draft.activeMapGroupId = groupId;
+    const nextMap = mapId
+      ? (draft.project?.maps.find((entry) => entry.id === mapId) ?? null)
+      : groupId
+        ? (draft.project?.maps.find((entry) => entry.groupId === groupId) ??
+          null)
+        : null;
+
+    draft.activeMapId = nextMap?.id ?? null;
+    draft.activeLayerId = nextMap
+      ? (findLastLayerId(
+          nextMap.layerOrder,
+          draft.project?.layers ?? [],
+          draft.project?.layerGroups ?? [],
+        ) ?? null)
+      : null;
+
+    if (
+      draft.activeObjectId &&
+      !(draft.project?.objects ?? []).some(
+        (object) => object.id === draft.activeObjectId,
+      )
+    ) {
+      draft.activeObjectId = null;
+    }
+  }
+
+  function openManageMapsDialog(
+    groupId: MapGroupId | null = state.activeMapGroupId,
+  ) {
+    setManageMapsSelectedGroupId(groupId ?? orderedMapGroups[0]?.id ?? null);
+    setManageMapsOpen(true);
+  }
+
   function handleZoom(direction: 1 | -1) {
     zoomStore.setMapZoom(mapZoom + direction * 0.5);
   }
 
-  function handleAddMap() {
+  function handleAddMap(
+    targetGroupId: MapGroupId | null = state.activeMapGroupId,
+  ) {
+    setCreateMapTargetGroupId(targetGroupId);
     setAddMapOpen(true);
     setNewMapName("Untitled Map");
     setNewMapWidth(20);
@@ -305,7 +383,8 @@ export function MapPanel({
   }
 
   function handleCreateMap() {
-    if (!activeGroup) return;
+    const targetGroupId = createMapTargetGroupId ?? activeGroup?.id ?? null;
+    if (!targetGroupId) return;
 
     const name = newMapName.trim() || "Untitled Map";
     const mapId = generateMapId();
@@ -318,7 +397,7 @@ export function MapPanel({
       const map: TileMapData = {
         id: mapId,
         name,
-        groupId: activeGroup.id,
+        groupId: targetGroupId,
         ...geometry,
         widthInTiles: newMapWidth,
         heightInTiles: newMapHeight,
@@ -339,11 +418,14 @@ export function MapPanel({
 
       draft.project.maps.push(map);
       draft.project.layers.push(layer);
+      draft.activeMapGroupId = targetGroupId;
       draft.activeMapId = mapId;
       draft.activeLayerId = layerId;
     });
 
     setAddMapOpen(false);
+    setCreateMapTargetGroupId(null);
+    setManageMapsSelectedGroupId(targetGroupId);
   }
 
   function handleGroupChange(value: string) {
@@ -353,19 +435,13 @@ export function MapPanel({
       return;
     }
 
+    if (value === "__manage__") {
+      openManageMapsDialog();
+      return;
+    }
+
     setState((draft) => {
-      draft.activeMapGroupId = value as MapGroupId;
-      const firstInGroup = draft.project?.maps.find(
-        (map) => map.groupId === value,
-      );
-      draft.activeMapId = firstInGroup?.id ?? null;
-      draft.activeLayerId = firstInGroup
-        ? (findLastLayerId(
-            firstInGroup.layerOrder,
-            draft.project?.layers ?? [],
-            draft.project?.layerGroups ?? [],
-          ) ?? null)
-        : null;
+      syncActiveMapStateForGroup(draft, value as MapGroupId);
     });
   }
 
@@ -383,11 +459,129 @@ export function MapPanel({
         order: draft.project.mapGroups.length,
       };
       draft.project.mapGroups.push(group);
-      draft.activeMapGroupId = id;
-      draft.activeMapId = null;
-      draft.activeLayerId = null;
+      reindexOrderedGroups(draft.project.mapGroups);
+      syncActiveMapStateForGroup(draft, id);
     });
     setAddGroupOpen(false);
+    setManageMapsSelectedGroupId(id);
+  }
+
+  function handleRenameMapGroup(groupId: MapGroupId, name: string) {
+    setState((draft) => {
+      const group = draft.project?.mapGroups.find(
+        (entry) => entry.id === groupId,
+      );
+      if (group) {
+        group.name = name;
+      }
+    });
+  }
+
+  function handleRenameManagedMap(mapId: MapId, name: string) {
+    setState((draft) => {
+      const map = draft.project?.maps.find((entry) => entry.id === mapId);
+      if (map) {
+        map.name = name;
+      }
+    });
+  }
+
+  function handleDeleteEmptyMapGroup(groupId: MapGroupId) {
+    const groupIndex = orderedMapGroups.findIndex(
+      (group) => group.id === groupId,
+    );
+    const remainingGroups = orderedMapGroups.filter(
+      (group) => group.id !== groupId,
+    );
+    const fallbackGroupId =
+      remainingGroups[Math.min(groupIndex, remainingGroups.length - 1)]?.id ??
+      remainingGroups[0]?.id ??
+      null;
+
+    setState((draft) => {
+      if (!draft.project) return;
+      if (draft.project.mapGroups.length <= 1) return;
+      if (draft.project.maps.some((map) => map.groupId === groupId)) return;
+
+      draft.project.mapGroups = draft.project.mapGroups.filter(
+        (group) => group.id !== groupId,
+      );
+      reindexOrderedGroups(draft.project.mapGroups);
+
+      if (draft.activeMapGroupId === groupId) {
+        syncActiveMapStateForGroup(draft, fallbackGroupId as MapGroupId | null);
+      }
+    });
+
+    setManageMapsSelectedGroupId(fallbackGroupId as MapGroupId | null);
+  }
+
+  function handleReorderMapGroups(
+    dragId: MapGroupId,
+    targetId: MapGroupId,
+    position: "above" | "below",
+  ) {
+    setState((draft) => {
+      if (!draft.project) return;
+      const nextGroups = [...draft.project.mapGroups].sort(
+        (left, right) => left.order - right.order,
+      );
+      if (!moveOrderedGroup(nextGroups, dragId, targetId, position)) {
+        return;
+      }
+
+      draft.project.mapGroups = nextGroups;
+    });
+  }
+
+  function handleMoveMapToGroup(mapId: MapId, targetGroupId: MapGroupId) {
+    setState((draft) => {
+      if (!draft.project) return;
+      if (
+        !moveGroupedItem(draft.project.maps, mapId, {
+          targetGroupId,
+        })
+      ) {
+        return;
+      }
+
+      if (draft.activeMapId === mapId) {
+        draft.activeMapGroupId = targetGroupId;
+      }
+    });
+
+    setManageMapsSelectedGroupId(targetGroupId);
+  }
+
+  function handleReorderMaps(
+    dragId: MapId,
+    targetId: MapId,
+    position: "above" | "below",
+  ) {
+    setState((draft) => {
+      if (!draft.project) return;
+
+      const targetMap = draft.project.maps.find(
+        (entry) => entry.id === targetId,
+      );
+      if (!targetMap) {
+        return;
+      }
+
+      if (
+        !moveGroupedItem(draft.project.maps, dragId, {
+          targetGroupId: targetMap.groupId,
+          targetItemId: targetId,
+          position,
+        })
+      ) {
+        return;
+      }
+
+      if (draft.activeMapId === dragId) {
+        draft.activeMapGroupId = targetMap.groupId;
+      }
+    });
   }
 
   function handleDeleteConfirm() {
@@ -400,36 +594,27 @@ export function MapPanel({
         const map = draft.project.maps.find(
           (entry) => entry.id === deleteTarget.id,
         );
-        const mapsInGroup = map
-          ? draft.project.maps.filter((entry) => entry.groupId === map.groupId)
-          : [];
-        const nextMapId = getAdjacentItemId(mapsInGroup, deleteTarget.id);
-
-        if (map) {
-          draft.project.layers = draft.project.layers.filter(
-            (layer) => layer.mapId !== deleteTarget.id,
-          );
-          draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
-            (layer) => layer.mapId !== deleteTarget.id,
-          );
-        }
-
-        draft.project.maps = draft.project.maps.filter(
-          (entry) => entry.id !== deleteTarget.id,
+        const nextMapId = getAdjacentGroupedItemId(
+          draft.project.maps,
+          deleteTarget.id,
         );
 
+        if (map) {
+          const removed = deleteMapFromProject(draft.project, map.id);
+          if (
+            draft.activeObjectId &&
+            removed.objectIds.includes(draft.activeObjectId as string)
+          ) {
+            draft.activeObjectId = null;
+          }
+        }
+
         if (draft.activeMapId === deleteTarget.id) {
-          draft.activeMapId = nextMapId as MapId | null;
-          const nextMap = nextMapId
-            ? draft.project.maps.find((entry) => entry.id === nextMapId)
-            : null;
-          draft.activeLayerId = nextMap
-            ? (findLastLayerId(
-                nextMap.layerOrder,
-                draft.project.layers,
-                draft.project.layerGroups ?? [],
-              ) ?? null)
-            : null;
+          syncActiveMapStateForGroup(
+            draft,
+            map?.groupId ?? null,
+            nextMapId as MapId | null,
+          );
         }
       });
     } else {
@@ -439,24 +624,26 @@ export function MapPanel({
         const mapsInGroup = draft.project.maps.filter(
           (map) => map.groupId === deleteTarget.id,
         );
+        const removedObjectIds: string[] = [];
         for (const map of mapsInGroup) {
-          draft.project.layers = draft.project.layers.filter(
-            (layer) => layer.mapId !== map.id,
-          );
-          draft.project.imageLayers = (draft.project.imageLayers ?? []).filter(
-            (layer) => layer.mapId !== map.id,
-          );
+          const removed = deleteMapFromProject(draft.project, map.id);
+          removedObjectIds.push(...removed.objectIds);
         }
-        draft.project.maps = draft.project.maps.filter(
-          (map) => map.groupId !== deleteTarget.id,
-        );
         draft.project.mapGroups = draft.project.mapGroups.filter(
           (group) => group.id !== deleteTarget.id,
         );
+        reindexOrderedGroups(draft.project.mapGroups);
+        if (
+          draft.activeObjectId &&
+          removedObjectIds.includes(draft.activeObjectId as string)
+        ) {
+          draft.activeObjectId = null;
+        }
         if (draft.activeMapGroupId === deleteTarget.id) {
-          draft.activeMapGroupId = draft.project.mapGroups[0]?.id ?? null;
-          draft.activeMapId = null;
-          draft.activeLayerId = null;
+          syncActiveMapStateForGroup(
+            draft,
+            draft.project.mapGroups[0]?.id ?? null,
+          );
         }
       });
     }
@@ -475,15 +662,7 @@ export function MapPanel({
 
     const name = renameValue.trim();
     if (name) {
-      setState((draft) => {
-        if (!draft.project) return;
-        const map = draft.project.maps.find(
-          (entry) => entry.id === renamingTabId,
-        );
-        if (map) {
-          map.name = name;
-        }
-      });
+      handleRenameManagedMap(renamingTabId, name);
     }
     setRenamingTabId(null);
   }
@@ -923,13 +1102,27 @@ export function MapPanel({
         onDeleteTerrain={handleDeleteTerrain}
         onCreateGroup={handleCreateGroup}
         onCreateMap={handleCreateMap}
+        onDeleteEmptyGroup={handleDeleteEmptyMapGroup}
         onDeleteConfirm={handleDeleteConfirm}
         onImportMapFromFile={onImportMapFromFile}
+        onManageMapsSelectedGroupChange={(groupId) =>
+          setManageMapsSelectedGroupId(groupId)
+        }
+        onMoveMapToGroup={handleMoveMapToGroup}
+        onRenameGroup={handleRenameMapGroup}
+        onRenameMap={handleRenameManagedMap}
+        onReorderGroups={handleReorderMapGroups}
+        onReorderMaps={handleReorderMaps}
         onUpdateMapOptions={handleUpdateMapOptions}
         propsObjectId={propsObjectId}
         setAddGroupOpen={setAddGroupOpen}
         setAddMapOpen={setAddMapOpen}
         setDeleteTarget={setDeleteTarget}
+        setManageMapsOpen={setManageMapsOpen}
+        manageMapsGroups={manageMapsGroups}
+        manageMapsItems={manageMapsItems}
+        manageMapsOpen={manageMapsOpen}
+        manageMapsSelectedGroupId={resolvedManageMapsSelectedGroupId}
         setMapOptionsOpen={setMapOptionsOpen}
         setNewGroupName={setNewGroupName}
         setNewMapHeight={setNewMapHeight}

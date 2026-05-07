@@ -1,5 +1,8 @@
 import { afterEach, assert, beforeEach, test, vi } from "vitest";
-import type { Palette } from "@/features/image-editor/types";
+import type {
+  LospecPaletteRecord,
+  Palette,
+} from "@/features/image-editor/types";
 import {
   cleanOrphanedAssets,
   db,
@@ -15,6 +18,8 @@ import {
   getProject,
   getSettings,
   listProjects,
+  loadLospecPaletteCache,
+  loadLospecPaletteCacheIds,
   loadLastProjectId,
   loadPaletteLibrary,
   loadProjectPrefs,
@@ -22,6 +27,7 @@ import {
   loadQuickExportSaveTarget,
   saveAsset,
   saveLastProjectId,
+  saveLospecPaletteCache,
   savePaletteLibrary,
   saveProject,
   saveProjectPrefs,
@@ -91,6 +97,7 @@ function installDbTableStubs() {
     string,
     { id: string; autoSaveEnabled: boolean }
   >();
+  const lospecPaletteStore = new Map<string, LospecPaletteRecord>();
   const preferenceStore = new Map<
     string,
     {
@@ -132,6 +139,11 @@ function installDbTableStubs() {
     settings: {
       get: db.settings.get,
       put: db.settings.put,
+    },
+    lospecPalettes: {
+      bulkPut: db.lospecPalettes.bulkPut,
+      orderBy: db.lospecPalettes.orderBy,
+      toCollection: db.lospecPalettes.toCollection,
     },
     quickExportPreferences: {
       put: db.quickExportPreferences.put,
@@ -199,6 +211,29 @@ function installDbTableStubs() {
     settingsStore.set(record.id, record);
   }) as typeof db.settings.put;
 
+  db.lospecPalettes.bulkPut = vi.fn(async (records) => {
+    for (const record of records) {
+      lospecPaletteStore.set(record.id, record);
+    }
+  }) as typeof db.lospecPalettes.bulkPut;
+  db.lospecPalettes.orderBy = vi.fn(
+    () =>
+      ({
+        reverse: () => ({
+          toArray: async () =>
+            [...lospecPaletteStore.values()].sort(
+              (left, right) => right.publishedAtMs - left.publishedAtMs,
+            ),
+        }),
+      }) as ReturnType<typeof db.lospecPalettes.orderBy>,
+  ) as typeof db.lospecPalettes.orderBy;
+  db.lospecPalettes.toCollection = vi.fn(
+    () =>
+      ({
+        primaryKeys: async () => [...lospecPaletteStore.keys()],
+      }) as ReturnType<typeof db.lospecPalettes.toCollection>,
+  ) as typeof db.lospecPalettes.toCollection;
+
   db.quickExportPreferences.put = vi.fn(async (record) => {
     preferenceStore.set(
       record.id,
@@ -260,6 +295,7 @@ function installDbTableStubs() {
   return {
     assetStore,
     projectStore,
+    lospecPaletteStore,
     preferenceStore,
     saveTargetStore,
     settingsStore,
@@ -276,6 +312,9 @@ function installDbTableStubs() {
       db.projects.orderBy = originals.projects.orderBy;
       db.settings.get = originals.settings.get;
       db.settings.put = originals.settings.put;
+      db.lospecPalettes.bulkPut = originals.lospecPalettes.bulkPut;
+      db.lospecPalettes.orderBy = originals.lospecPalettes.orderBy;
+      db.lospecPalettes.toCollection = originals.lospecPalettes.toCollection;
       db.quickExportPreferences.put = originals.quickExportPreferences.put;
       db.quickExportPreferences.get = originals.quickExportPreferences.get;
       db.quickExportPreferences.delete =
@@ -585,6 +624,60 @@ test("project, quick-export, and settings helpers persist normalized records and
     assert.strictEqual(tables.preferenceStore.size, 0);
     assert.strictEqual(tables.saveTargetStore.size, 0);
     assert.strictEqual(tables.assetStore.has("asset-keep"), false);
+  } finally {
+    tables.restore();
+  }
+});
+
+test("lospec palette cache helpers persist records and return newest palettes first", async () => {
+  const tables = installDbTableStubs();
+  const olderPalette: LospecPaletteRecord = {
+    id: "lospec-old",
+    title: "Older Palette",
+    slug: "older-palette",
+    description: "Older entry",
+    tags: ["retro"],
+    user: "artist-old",
+    colors: [
+      { r: 0, g: 0, b: 0, a: 255 },
+      { r: 255, g: 255, b: 255, a: 255 },
+    ],
+    colorHexes: ["000000", "ffffff"],
+    examples: [{ image: "https://example.com/old.png", description: "Old" }],
+    publishedAt: "2026-05-01T00:00:00.000Z",
+    publishedAtMs: Date.parse("2026-05-01T00:00:00.000Z"),
+    cachedAt: 1,
+  };
+  const newerPalette: LospecPaletteRecord = {
+    id: "lospec-new",
+    title: "Newer Palette",
+    slug: "newer-palette",
+    description: "Newer entry",
+    tags: ["bright", "vivid"],
+    user: "artist-new",
+    colors: [{ r: 16, g: 32, b: 48, a: 255 }],
+    colorHexes: ["102030"],
+    examples: [{ image: "https://example.com/new.png", description: "New" }],
+    publishedAt: "2026-05-06T00:00:00.000Z",
+    publishedAtMs: Date.parse("2026-05-06T00:00:00.000Z"),
+    cachedAt: 2,
+  };
+
+  try {
+    await saveLospecPaletteCache([olderPalette, newerPalette]);
+
+    assert.deepEqual(await loadLospecPaletteCacheIds(), [
+      "lospec-old",
+      "lospec-new",
+    ]);
+
+    const palettes = await loadLospecPaletteCache();
+    assert.deepEqual(
+      palettes.map((palette) => palette.id),
+      ["lospec-new", "lospec-old"],
+    );
+    assert.notStrictEqual(palettes[0], newerPalette);
+    assert.deepEqual(tables.lospecPaletteStore.get("lospec-new"), newerPalette);
   } finally {
     tables.restore();
   }

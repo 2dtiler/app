@@ -6,38 +6,23 @@ import {
   type DragEvent,
   useSyncExternalStore,
 } from "react";
-import { Plus, Trash2, X } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TilesetCanvas } from "./TilesetCanvas";
-import { TilesetDeleteDialog } from "./TilesetDeleteDialog";
-import { TilesetImportChoiceDialog } from "./TilesetImportChoiceDialog";
-import { TilesetPlacementControls } from "./TilesetPlacementControls";
+import { TilesetPanelDialogs } from "./TilesetPanel/TilesetPanelDialogs";
+import { TilesetFileInput } from "./TilesetPanel/TilesetFileInput";
+import { TilesetPanelOverlays } from "./TilesetPanel/TilesetPanelOverlays";
+import { TilesetPanelTabs } from "./TilesetPanel/TilesetPanelTabs";
 import { TilesetToolbar } from "./TilesetToolbar";
-import { Button } from "@/components/ui/Button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/Select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/Tooltip";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/ContextMenu";
-import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
-import { AnimationDialog } from "@/features/map-editor/dialogs/AnimationDialog";
 import { AnimationsStrip } from "@/features/map-editor/components/animations/AnimationsStrip";
 import { evictTileset } from "@/features/map-editor/components/MapCanvas/texture-cache";
+import {
+  getAdjacentGroupedItemId,
+  moveGroupedItem,
+  moveOrderedGroup,
+  reindexOrderedGroups,
+} from "@/features/map-editor/lib/asset-manager";
 import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
+import { syncActiveTilesetState } from "@/features/map-editor/lib/tileset-panel-state";
 import { isTilesetImageFile } from "@/features/map-editor/lib/tileset-image-import";
 import {
   getTilesetPlacementCanvasSize,
@@ -50,7 +35,6 @@ import {
   normalizeTilesetAnimationConfig,
 } from "@/features/map-editor/lib/tileset-animations";
 import { useTilesetImageImport } from "@/features/map-editor/hooks/use-tileset-image-import";
-import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
 import { saveAsset, getAsset, deleteAsset } from "@/services/db";
@@ -62,14 +46,12 @@ import {
 } from "@/utils/ids";
 import {
   type TileSize,
-  type EditorState,
   type TilesetGroupId,
   type TilesetId,
   type Tileset,
   type TilesetGroup,
   type TilesetAnimation,
 } from "@/types";
-import { QuickExportButtonGroup } from "@/features/import-export/components/QuickExportButtonGroup";
 import type { TileRegion } from "@/features/map-editor/types/editor-ui";
 import type {
   TilesetDeleteTarget,
@@ -80,32 +62,6 @@ import type {
   TilesetImageImportPosition,
   TilesetPlacementPreview,
 } from "@/features/map-editor/types/tileset-import";
-
-function getAdjacentItemId<T extends { id: string }>(
-  items: T[],
-  targetId: string,
-): string | null {
-  const index = items.findIndex((item) => item.id === targetId);
-  if (index === -1) return null;
-  return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
-}
-
-function syncActiveTilesetState(
-  draft: EditorState,
-  tilesetId: TilesetId | null,
-): void {
-  draft.activeTilesetId = tilesetId;
-  const activeTileset = draft.project?.tilesets.find(
-    (tileset) => tileset.id === tilesetId,
-  );
-  draft.tileSize = getTilesetTileSize(
-    activeTileset,
-    draft.project?.tileSize ?? draft.tileSize,
-  );
-  draft.selectedTile = null;
-  draft.selectedAutotileTerrain = null;
-  draft.selectedAnimation = null;
-}
 
 export function TilesetPanel({
   quickExportControl,
@@ -143,6 +99,11 @@ export function TilesetPanel({
   const [animationDialogOpen, setAnimationDialogOpen] = useState(false);
   const [editingAnimation, setEditingAnimation] =
     useState<TilesetAnimation | null>(null);
+  const [manageTilesetsOpen, setManageTilesetsOpen] = useState(false);
+  const [manageTilesetsSelectedGroupId, setManageTilesetsSelectedGroupId] =
+    useState<TilesetGroupId | null>(null);
+  const [tilesetImportTargetGroupId, setTilesetImportTargetGroupId] =
+    useState<TilesetGroupId | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<TilesetId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isDropTargetActive, setIsDropTargetActive] = useState(false);
@@ -156,9 +117,45 @@ export function TilesetPanel({
   const activeGroup = project?.tilesetGroups.find(
     (g) => g.id === state.activeTilesetGroupId,
   );
+  const orderedTilesetGroups = [...(project?.tilesetGroups ?? [])].sort(
+    (left, right) => left.order - right.order,
+  );
   const groupTilesets =
     project?.tilesets.filter((t) => t.groupId === state.activeTilesetGroupId) ??
     [];
+  const resolvedManageTilesetsSelectedGroupId = orderedTilesetGroups.some(
+    (group) => group.id === manageTilesetsSelectedGroupId,
+  )
+    ? manageTilesetsSelectedGroupId
+    : (orderedTilesetGroups[0]?.id ?? null);
+  const manageTilesetGroups = orderedTilesetGroups.map((group) => {
+    const itemCount =
+      project?.tilesets.filter((tileset) => tileset.groupId === group.id)
+        .length ?? 0;
+    const isLastGroup = orderedTilesetGroups.length <= 1;
+
+    return {
+      id: group.id,
+      name: group.name,
+      itemCount,
+      canDelete: !isLastGroup && itemCount === 0,
+      deleteDisabledReason: isLastGroup
+        ? "Projects must keep at least one tileset group."
+        : itemCount > 0
+          ? "Move or delete all tilesets in this group first."
+          : undefined,
+    };
+  });
+  const manageTilesetItems =
+    project?.tilesets
+      .filter(
+        (tileset) => tileset.groupId === resolvedManageTilesetsSelectedGroupId,
+      )
+      .map((tileset) => ({
+        id: tileset.id,
+        name: tileset.name,
+        subtitle: `${tileset.imageWidth} × ${tileset.imageHeight} px`,
+      })) ?? [];
   const activeTileset = project?.tilesets.find(
     (t) => t.id === state.activeTilesetId,
   );
@@ -235,17 +232,36 @@ export function TilesetPanel({
 
   if (!project) return null;
 
-  async function handleAddTileset() {
+  function openManageTilesetsDialog(
+    groupId: TilesetGroupId | null = state.activeTilesetGroupId,
+  ) {
+    setManageTilesetsSelectedGroupId(
+      groupId ?? orderedTilesetGroups[0]?.id ?? null,
+    );
+    setManageTilesetsOpen(true);
+  }
+
+  function handleResetImageImport() {
+    setTilesetImportTargetGroupId(null);
+    resetImageImport();
+  }
+
+  async function handleAddTileset(
+    targetGroupId: TilesetGroupId | null = state.activeTilesetGroupId,
+  ) {
+    setTilesetImportTargetGroupId(targetGroupId);
     fileInputRef.current?.click();
   }
 
   async function createTilesetFromPendingImport(
     importToCreate: PendingTilesetImageImport | null = pendingImport,
+    targetGroupIdOverride: TilesetGroupId | null = tilesetImportTargetGroupId,
   ) {
     if (!importToCreate) return;
     if (!project) return;
 
-    const targetGroupId = activeGroup?.id ?? project.tilesetGroups[0]?.id;
+    const targetGroupId =
+      targetGroupIdOverride ?? activeGroup?.id ?? project.tilesetGroups[0]?.id;
     if (!targetGroupId) {
       setImageImportError("Create a tileset group first.");
       return;
@@ -277,7 +293,8 @@ export function TilesetPanel({
         draft.activeTilesetGroupId = targetGroupId;
         syncActiveTilesetState(draft, tilesetId);
       });
-      resetImageImport();
+      handleResetImageImport();
+      setManageTilesetsSelectedGroupId(targetGroupId);
     } catch (caughtError) {
       console.error("[Tileset Image Import] Failed:", caughtError);
       setImageImportError("Failed to create the tileset.");
@@ -325,7 +342,7 @@ export function TilesetPanel({
         tileset.imageHeight = result.height;
         syncActiveTilesetState(draft, activeTileset.id);
       });
-      resetImageImport();
+      handleResetImageImport();
     } catch (caughtError) {
       console.error("[Tileset Image Merge] Failed:", caughtError);
       setImageImportError("Failed to add the image to the active tileset.");
@@ -336,10 +353,13 @@ export function TilesetPanel({
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    const showChoiceDialog =
+      !tilesetImportTargetGroupId && Boolean(activeTileset);
+
     if (file) {
       if (isTilesetImageFile(file)) {
         const nextPendingImport = await queueImageFile(file, {
-          showChoiceDialog: Boolean(activeTileset),
+          showChoiceDialog,
         });
         if (nextPendingImport && !activeTileset) {
           await createTilesetFromPendingImport(nextPendingImport);
@@ -379,7 +399,7 @@ export function TilesetPanel({
     setIsDropTargetActive(false);
     if (isTilesetImageFile(file)) {
       const nextPendingImport = await queueImageFile(file, {
-        showChoiceDialog: Boolean(activeTileset),
+        showChoiceDialog: !tilesetImportTargetGroupId && Boolean(activeTileset),
       });
       if (nextPendingImport && !activeTileset) {
         await createTilesetFromPendingImport(nextPendingImport);
@@ -393,6 +413,8 @@ export function TilesetPanel({
     if (value === "__add__") {
       setAddGroupOpen(true);
       setNewGroupName("");
+    } else if (value === "__manage__") {
+      openManageTilesetsDialog();
     } else {
       setState((draft) => {
         draft.activeTilesetGroupId = value as TilesetGroupId;
@@ -416,10 +438,142 @@ export function TilesetPanel({
         order: draft.project.tilesetGroups.length,
       };
       draft.project.tilesetGroups.push(group);
+      reindexOrderedGroups(draft.project.tilesetGroups);
       draft.activeTilesetGroupId = id;
       syncActiveTilesetState(draft, null);
     });
     setAddGroupOpen(false);
+    setManageTilesetsSelectedGroupId(id);
+  }
+
+  function handleRenameTilesetGroup(groupId: TilesetGroupId, name: string) {
+    setState((draft) => {
+      const group = draft.project?.tilesetGroups.find(
+        (entry) => entry.id === groupId,
+      );
+      if (group) {
+        group.name = name;
+      }
+    });
+  }
+
+  function handleRenameManagedTileset(tilesetId: TilesetId, name: string) {
+    setState((draft) => {
+      const tileset = draft.project?.tilesets.find(
+        (entry) => entry.id === tilesetId,
+      );
+      if (tileset) {
+        tileset.name = name;
+      }
+    });
+  }
+
+  function handleDeleteEmptyTilesetGroup(groupId: TilesetGroupId) {
+    const groupIndex = orderedTilesetGroups.findIndex(
+      (group) => group.id === groupId,
+    );
+    const remainingGroups = orderedTilesetGroups.filter(
+      (group) => group.id !== groupId,
+    );
+    const fallbackGroupId =
+      remainingGroups[Math.min(groupIndex, remainingGroups.length - 1)]?.id ??
+      remainingGroups[0]?.id ??
+      null;
+
+    setState((draft) => {
+      if (!draft.project) return;
+      if (draft.project.tilesetGroups.length <= 1) return;
+      if (draft.project.tilesets.some((tileset) => tileset.groupId === groupId))
+        return;
+
+      draft.project.tilesetGroups = draft.project.tilesetGroups.filter(
+        (group) => group.id !== groupId,
+      );
+      reindexOrderedGroups(draft.project.tilesetGroups);
+
+      if (draft.activeTilesetGroupId === groupId) {
+        draft.activeTilesetGroupId = fallbackGroupId as TilesetGroupId | null;
+        const firstInGroup = fallbackGroupId
+          ? draft.project.tilesets.find(
+              (tileset) => tileset.groupId === fallbackGroupId,
+            )
+          : null;
+        syncActiveTilesetState(draft, firstInGroup?.id ?? null);
+      }
+    });
+
+    setManageTilesetsSelectedGroupId(fallbackGroupId as TilesetGroupId | null);
+  }
+
+  function handleReorderTilesetGroups(
+    dragId: TilesetGroupId,
+    targetId: TilesetGroupId,
+    position: "above" | "below",
+  ) {
+    setState((draft) => {
+      if (!draft.project) return;
+      const nextGroups = [...draft.project.tilesetGroups].sort(
+        (left, right) => left.order - right.order,
+      );
+      if (!moveOrderedGroup(nextGroups, dragId, targetId, position)) {
+        return;
+      }
+
+      draft.project.tilesetGroups = nextGroups;
+    });
+  }
+
+  function handleMoveTilesetToGroup(
+    tilesetId: TilesetId,
+    targetGroupId: TilesetGroupId,
+  ) {
+    setState((draft) => {
+      if (!draft.project) return;
+      if (
+        !moveGroupedItem(draft.project.tilesets, tilesetId, {
+          targetGroupId,
+        })
+      ) {
+        return;
+      }
+
+      if (draft.activeTilesetId === tilesetId) {
+        draft.activeTilesetGroupId = targetGroupId;
+      }
+    });
+
+    setManageTilesetsSelectedGroupId(targetGroupId);
+  }
+
+  function handleReorderTilesets(
+    dragId: TilesetId,
+    targetId: TilesetId,
+    position: "above" | "below",
+  ) {
+    setState((draft) => {
+      if (!draft.project) return;
+
+      const targetTileset = draft.project.tilesets.find(
+        (entry) => entry.id === targetId,
+      );
+      if (!targetTileset) {
+        return;
+      }
+
+      if (
+        !moveGroupedItem(draft.project.tilesets, dragId, {
+          targetGroupId: targetTileset.groupId,
+          targetItemId: targetId,
+          position,
+        })
+      ) {
+        return;
+      }
+
+      if (draft.activeTilesetId === dragId) {
+        draft.activeTilesetGroupId = targetTileset.groupId;
+      }
+    });
   }
 
   function handleDeleteConfirm() {
@@ -427,13 +581,9 @@ export function TilesetPanel({
     if (deleteTarget.type === "tileset") {
       // Find asset to clean up
       const tileset = project?.tilesets.find((t) => t.id === deleteTarget.id);
-      const tilesetsInGroup = tileset
-        ? project?.tilesets.filter((t) => t.groupId === tileset.groupId)
-        : [];
-      const nextTilesetId = getAdjacentItemId(
-        tilesetsInGroup ?? [],
-        deleteTarget.id,
-      );
+      const nextTilesetId = tileset
+        ? getAdjacentGroupedItemId(project?.tilesets ?? [], deleteTarget.id)
+        : null;
       if (tileset) {
         void deleteAsset(tileset.assetId);
       }
@@ -467,13 +617,19 @@ export function TilesetPanel({
         draft.project.tilesetGroups = draft.project.tilesetGroups.filter(
           (g) => g.id !== deleteTarget.id,
         );
+        reindexOrderedGroups(draft.project.tilesetGroups);
         draft.project.tilesets = draft.project.tilesets.filter(
           (t) => t.groupId !== deleteTarget.id,
         );
         if (draft.activeTilesetGroupId === deleteTarget.id) {
           draft.activeTilesetGroupId =
             draft.project.tilesetGroups[0]?.id ?? null;
-          syncActiveTilesetState(draft, null);
+          const firstInGroup = draft.activeTilesetGroupId
+            ? draft.project.tilesets.find(
+                (tileset) => tileset.groupId === draft.activeTilesetGroupId,
+              )
+            : null;
+          syncActiveTilesetState(draft, firstInGroup?.id ?? null);
         }
       });
     }
@@ -486,23 +642,11 @@ export function TilesetPanel({
     setTimeout(() => renameInputRef.current?.select(), 0);
   }
 
-  function requestDeleteTileset(tileset: Tileset) {
-    setDeleteTarget({
-      type: "tileset",
-      id: tileset.id,
-      name: tileset.name,
-    });
-  }
-
   function commitRename() {
     if (!renamingTabId) return;
     const name = renameValue.trim();
     if (name) {
-      setState((draft) => {
-        if (!draft.project) return;
-        const t = draft.project.tilesets.find((t) => t.id === renamingTabId);
-        if (t) t.name = name;
-      });
+      handleRenameManagedTileset(renamingTabId, name);
     }
     setRenamingTabId(null);
   }
@@ -694,166 +838,30 @@ export function TilesetPanel({
         onAnimationsVisibleChange={setAnimationsVisible}
       />
 
-      <div className="flex items-center gap-1 px-1 py-0.5 border-b border-border bg-card shrink-0">
-        <Select
-          value={state.activeTilesetGroupId ?? ""}
-          onValueChange={handleGroupChange}
-        >
-          <SelectTrigger className="h-6 w-25 text-xs shrink-0">
-            <SelectValue placeholder="Group" />
-          </SelectTrigger>
-          <SelectContent>
-            {project.tilesetGroups.map((g) => (
-              <SelectItem key={g.id} value={g.id}>
-                {g.name}
-              </SelectItem>
-            ))}
-            <SelectItem value="__add__">+ Add Group</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {activeGroup && project.tilesetGroups.length > 1 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 shrink-0 text-destructive"
-                aria-label={`Delete group ${activeGroup.name}`}
-                onMouseDown={() =>
-                  setDeleteTarget({
-                    type: "group",
-                    id: activeGroup.id,
-                    name: activeGroup.name,
-                  })
-                }
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Delete Group</TooltipContent>
-          </Tooltip>
-        )}
-
-        {groupTilesets.length > 0 && (
-          <div className="flex-1 min-w-0 overflow-x-auto">
-            <Tabs
-              value={state.activeTilesetId ?? ""}
-              onValueChange={(v) =>
-                setState((draft) => {
-                  syncActiveTilesetState(draft, v as TilesetId);
-                })
-              }
-            >
-              <TabsList
-                variant="editor"
-                className="h-8 rounded-none bg-transparent p-0"
-                scrollable
-              >
-                {groupTilesets.map((t) => (
-                  <div
-                    key={t.id}
-                    data-state={
-                      state.activeTilesetId === t.id ? "active" : "inactive"
-                    }
-                    className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
-                  >
-                    {renamingTabId === t.id ? (
-                      <input
-                        ref={renameInputRef}
-                        id={`rename-tileset-tab-${t.id}`}
-                        name={`rename-tileset-tab-${t.id}`}
-                        aria-label={`Rename tileset ${t.name}`}
-                        className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={commitRename}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") commitRename();
-                          if (e.key === "Escape") setRenamingTabId(null);
-                        }}
-                      />
-                    ) : (
-                      <ContextMenu>
-                        <ContextMenuTrigger asChild>
-                          <div>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div>
-                                  <TabsTrigger
-                                    value={t.id}
-                                    className="h-7 min-w-0 rounded-none px-2 text-[11px]"
-                                    onDoubleClick={() =>
-                                      handleTabDoubleClick(t)
-                                    }
-                                  >
-                                    <span className="max-w-40 truncate">
-                                      {t.name}
-                                    </span>
-                                  </TabsTrigger>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Double Click to Rename
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem
-                            onMouseDown={() => handleTabDoubleClick(t)}
-                          >
-                            Rename
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onMouseDown={() => handleDuplicateTileset(t)}
-                          >
-                            Duplicate
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onMouseDown={() => requestDeleteTileset(t)}
-                          >
-                            Delete
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={`Close tileset ${t.name}`}
-                          className="mr-1 flex h-5 w-5 flex-none items-center justify-center rounded-sm text-muted-foreground/80 opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/tab:opacity-100 group-data-[state=active]/tab:opacity-100 group-hover/tab:pointer-events-auto group-data-[state=active]/tab:pointer-events-auto pointer-events-none"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            requestDeleteTileset(t);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Close Tileset</TooltipContent>
-                    </Tooltip>
-                  </div>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
-
-        {!groupTilesets.length && <div className="flex-1" />}
-
-        <Button
-          variant="default"
-          size="sm"
-          className="h-6 px-2 text-[10px] shrink-0"
-          onClick={handleAddTileset}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Tileset
-        </Button>
-      </div>
+      <TilesetPanelTabs
+        activeGroup={activeGroup}
+        groupTilesets={groupTilesets}
+        onAddTileset={() => void handleAddTileset()}
+        onCancelRename={() => setRenamingTabId(null)}
+        onCommitRename={commitRename}
+        onDuplicateTileset={(tileset) => {
+          void handleDuplicateTileset(tileset);
+        }}
+        onGroupChange={handleGroupChange}
+        onRequestDeleteTarget={setDeleteTarget}
+        onSelectTileset={(tilesetId) =>
+          setState((draft) => {
+            syncActiveTilesetState(draft, tilesetId as TilesetId);
+          })
+        }
+        onStartRenamingTab={handleTabDoubleClick}
+        project={project}
+        renameInputRef={renameInputRef}
+        renameValue={renameValue}
+        renamingTabId={renamingTabId}
+        setRenameValue={setRenameValue}
+        state={state}
+      />
 
       <div
         className="relative flex-1 min-h-0 flex flex-col overflow-hidden"
@@ -913,96 +921,78 @@ export function TilesetPanel({
             }
           />
         )}
-        {pendingImport && imageImportMode === "choice" ? (
-          <TilesetImportChoiceDialog
-            pendingImport={pendingImport}
-            activeTileset={activeTileset ?? null}
-            isBusy={isImageImportBusy}
-            error={imageImportError}
-            onCreateNew={createTilesetFromPendingImport}
-            onAddToExisting={beginPendingTilesetPlacement}
-            onCancel={resetImageImport}
-          />
-        ) : null}
-        {pendingImport &&
-        imageImportMode === "placement" &&
-        activeTileset &&
-        placementCanvasSize ? (
-          <TilesetPlacementControls
-            pendingImport={pendingImport}
-            position={placementPosition}
-            tileSize={activeTileSize}
-            canvasSize={placementCanvasSize}
-            isBusy={isImageImportBusy}
-            error={imageImportError}
-            onPositionChange={handlePlacementPositionChange}
-            onPlace={commitPendingTilesetPlacement}
-            onCancel={resetImageImport}
-          />
-        ) : null}
-        <div className="absolute bottom-3 right-3 z-20">
-          <QuickExportButtonGroup
-            buttonId="tileset-quick-export-button"
-            buttonName="tileset-quick-export-button"
-            dropdownButtonId="tileset-quick-export-dropdown"
-            dropdownButtonName="tileset-quick-export-dropdown"
-            state={quickExportControl}
-          />
-        </div>
-        {isDropTargetActive && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/80">
-            <span className="rounded-md bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-sm">
-              Drop a file to choose tileset import options
-            </span>
-          </div>
-        )}
+        <TilesetPanelOverlays
+          activeTileSize={activeTileSize}
+          activeTileset={activeTileset ?? null}
+          imageImportError={imageImportError}
+          imageImportMode={imageImportMode}
+          isDropTargetActive={isDropTargetActive}
+          isImageImportBusy={isImageImportBusy}
+          pendingImport={pendingImport}
+          placementCanvasSize={placementCanvasSize}
+          placementPosition={placementPosition}
+          quickExportControl={quickExportControl}
+          onAddToExisting={beginPendingTilesetPlacement}
+          onCancel={handleResetImageImport}
+          onCreateNew={createTilesetFromPendingImport}
+          onPlace={commitPendingTilesetPlacement}
+          onPositionChange={handlePlacementPositionChange}
+        />
       </div>
 
-      <input
-        ref={fileInputRef}
-        id="tileset-file-input"
-        name="tileset-file-input"
-        type="file"
-        accept="image/*,.2dt,.tsx,.tsj,.xml,.json,.lua,.tres,.tilesource,.prefab"
-        className="hidden"
-        onChange={(e) => {
-          void handleFileSelected(e);
+      <TilesetFileInput
+        fileInputRef={fileInputRef}
+        onChange={(event) => {
+          void handleFileSelected(event);
         }}
       />
 
-      <NewTilesetGroupDialog
-        open={addGroupOpen}
-        onOpenChange={setAddGroupOpen}
-        name={newGroupName}
-        onNameChange={setNewGroupName}
-        onCreate={handleCreateGroup}
-      />
-
-      {activeTileset && (
-        <AutotileDialog
-          key={`${activeTileset.id}-${autotileDialogOpen ? "open" : "closed"}`}
-          open={autotileDialogOpen}
-          onOpenChange={setAutotileDialogOpen}
-          onSave={handleSaveAutotile}
-          tileset={activeTileset}
-        />
-      )}
-
-      {activeTileset && animationDialogOpen ? (
-        <AnimationDialog
-          key={`${activeTileset.id}-${editingAnimation?.id ?? "new"}-open`}
-          animation={editingAnimation}
-          open={animationDialogOpen}
-          onOpenChange={setAnimationDialogOpen}
-          onSave={handleSaveAnimation}
-          tileset={activeTileset}
-        />
-      ) : null}
-
-      <TilesetDeleteDialog
+      <TilesetPanelDialogs
+        activeTileset={activeTileset ?? null}
+        addGroupOpen={addGroupOpen}
+        animationDialogOpen={animationDialogOpen}
+        autotileDialogOpen={autotileDialogOpen}
         deleteTarget={deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={handleDeleteConfirm}
+        editingAnimation={editingAnimation}
+        manageTilesetGroups={manageTilesetGroups}
+        manageTilesetItems={manageTilesetItems}
+        manageTilesetsOpen={manageTilesetsOpen}
+        manageTilesetsSelectedGroupId={resolvedManageTilesetsSelectedGroupId}
+        newGroupName={newGroupName}
+        onCreateGroup={handleCreateGroup}
+        onCreateTileset={(groupId) => {
+          void handleAddTileset(groupId);
+        }}
+        onDeleteConfirm={handleDeleteConfirm}
+        onDeleteEmptyGroup={handleDeleteEmptyTilesetGroup}
+        onDeleteTileset={(tilesetId) => {
+          const tileset = project.tilesets.find(
+            (entry) => entry.id === tilesetId,
+          );
+          if (!tileset) {
+            return;
+          }
+
+          setDeleteTarget({
+            type: "tileset",
+            id: tileset.id,
+            name: tileset.name,
+          });
+        }}
+        onMoveTilesetToGroup={handleMoveTilesetToGroup}
+        onRenameGroup={handleRenameTilesetGroup}
+        onRenameTileset={handleRenameManagedTileset}
+        onReorderGroups={handleReorderTilesetGroups}
+        onReorderTilesets={handleReorderTilesets}
+        onSaveAnimation={handleSaveAnimation}
+        onSaveAutotile={handleSaveAutotile}
+        setAddGroupOpen={setAddGroupOpen}
+        setAnimationDialogOpen={setAnimationDialogOpen}
+        setAutotileDialogOpen={setAutotileDialogOpen}
+        setDeleteTarget={setDeleteTarget}
+        setManageTilesetsOpen={setManageTilesetsOpen}
+        setManageTilesetsSelectedGroupId={setManageTilesetsSelectedGroupId}
+        setNewGroupName={setNewGroupName}
       />
     </div>
   );

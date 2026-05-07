@@ -35,7 +35,12 @@ import {
   DEFAULT_PALETTE_COLORS,
   getActivePalette,
 } from "@/features/image-editor/types";
-import type { Color, Palette, PaletteId } from "@/features/image-editor/types";
+import type {
+  Color,
+  LospecPaletteRecord,
+  Palette,
+  PaletteId,
+} from "@/features/image-editor/types";
 import type {
   PaletteExportFormat,
   PngSwatchSize,
@@ -51,6 +56,44 @@ export function useImageEditorPaletteActions({
   state,
   setState,
 }: ImageEditorPaletteActionsParams) {
+  const pushPaletteHistorySnapshot = useCallback(() => {
+    const currentState = isImageEditorStoreReady()
+      ? getImageEditorStore().getState()
+      : state;
+
+    if (!currentState) {
+      return;
+    }
+
+    paletteUndoStack.push(snapshotPaletteLibrary(currentState));
+    paletteRedoStack.length = 0;
+    frameOpRedoStack.length = 0;
+    redoLog.length = 0;
+    actionLog.push("palette");
+  }, [state]);
+
+  const appendPalette = useCallback(
+    (name: string, colors: Color[]) => {
+      if (colors.length === 0) {
+        return;
+      }
+
+      pushPaletteHistorySnapshot();
+
+      const newId = uuidv4() as PaletteId;
+      const paletteName = name.trim() || "Imported Palette";
+      setState((draft) => {
+        draft.palettes.push({
+          id: newId,
+          name: paletteName,
+          colors: colors.map((color) => ({ ...color })),
+        });
+        draft.activePaletteId = newId;
+      });
+    },
+    [pushPaletteHistorySnapshot, setState],
+  );
+
   const addPaletteColor = useCallback(
     (color: Color) => {
       if (state) {
@@ -135,29 +178,17 @@ export function useImageEditorPaletteActions({
         colors = await parsePng(await file.arrayBuffer());
       }
 
-      if (colors.length === 0) return;
-
-      if (isImageEditorStoreReady()) {
-        const currentState = getImageEditorStore().getState();
-        paletteUndoStack.push(snapshotPaletteLibrary(currentState));
-        paletteRedoStack.length = 0;
-        frameOpRedoStack.length = 0;
-        redoLog.length = 0;
-        actionLog.push("palette");
-      }
-
       const paletteName = file.name.replace(/\.[^.]+$/, "");
-      const newId = uuidv4() as PaletteId;
-      setState((draft) => {
-        draft.palettes.push({
-          id: newId,
-          name: paletteName,
-          colors,
-        });
-        draft.activePaletteId = newId;
-      });
+      appendPalette(paletteName, colors);
     },
-    [setState],
+    [appendPalette],
+  );
+
+  const importLospecPalette = useCallback(
+    (palette: LospecPaletteRecord) => {
+      appendPalette(palette.title, palette.colors);
+    },
+    [appendPalette],
   );
 
   const exportPalette = useCallback(
@@ -341,6 +372,7 @@ export function useImageEditorPaletteActions({
     updatePaletteColor,
     resetPalette,
     importPalette,
+    importLospecPalette,
     exportPalette,
     switchPalette,
     renamePalette,

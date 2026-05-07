@@ -11,6 +11,7 @@ import { NewImageDialog } from "./NewImageDialog";
 import { ImageCanvas } from "./ImageCanvas";
 import { ToolSidebar } from "./ToolSidebar";
 import { EditorToolbar } from "./EditorToolbar";
+import { LospecPaletteDialog } from "./LospecPaletteDialog";
 import { PalettePanel } from "./PalettePanel";
 import { TimelinePanel } from "./TimelinePanel";
 import { SaveFormatDialog } from "./SaveFormatDialog";
@@ -35,6 +36,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLospecDialog, setShowLospecDialog] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [isClosingAfterSave, setIsClosingAfterSave] = useState(false);
   const {
@@ -411,6 +413,7 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
                   palettes={palettes}
                   activePaletteId={activePaletteId}
                   onSwitchPalette={editor.switchPalette}
+                  onOpenLospecDialog={() => setShowLospecDialog(true)}
                   onRenamePalette={editor.renamePalette}
                   onDeletePalette={editor.deletePalette}
                   onDuplicatePalette={editor.duplicatePalette}
@@ -477,6 +480,11 @@ export function ImageEditor({ onRequestClose }: ImageEditorProps) {
         onSavePng={handleExportPng}
         onSaveGif={handleExportGif}
         onSaveSpriteSheet={handleExportSpriteSheet}
+      />
+      <LospecPaletteDialog
+        open={showLospecDialog}
+        onOpenChange={setShowLospecDialog}
+        onImportPalette={editor.importLospecPalette}
       />
       <AlertDialog open={showUnsavedDialog}>
         <AlertDialogContent>

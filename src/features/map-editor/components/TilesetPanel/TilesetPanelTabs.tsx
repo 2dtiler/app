@@ -19,18 +19,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
-import type { MapPanelTabsProps } from "@/features/map-editor/types/map-panel";
+import type { TilesetPanelTabsProps } from "@/features/map-editor/types/tileset-panel";
 
-export function MapPanelTabs({
+export function TilesetPanelTabs({
   activeGroup,
-  groupMaps,
-  onAddMap,
+  groupTilesets,
+  onAddTileset,
   onCancelRename,
   onCommitRename,
-  onDuplicateMap,
+  onDuplicateTileset,
   onGroupChange,
   onRequestDeleteTarget,
-  onSelectMap,
+  onSelectTileset,
   onStartRenamingTab,
   project,
   renameInputRef,
@@ -38,23 +38,15 @@ export function MapPanelTabs({
   renamingTabId,
   setRenameValue,
   state,
-}: MapPanelTabsProps) {
-  const orderedGroups = [...project.mapGroups].sort(
+}: TilesetPanelTabsProps) {
+  const orderedGroups = [...project.tilesetGroups].sort(
     (left, right) => left.order - right.order,
   );
-
-  function requestDeleteMap(mapId: string, mapName: string) {
-    onRequestDeleteTarget({
-      type: "map",
-      id: mapId,
-      name: mapName,
-    });
-  }
 
   return (
     <div className="flex shrink-0 items-center gap-1 border-b border-border bg-card px-1 py-0.5">
       <Select
-        value={state.activeMapGroupId ?? ""}
+        value={state.activeTilesetGroupId ?? ""}
         onValueChange={onGroupChange}
       >
         <SelectTrigger className="h-6 w-25 shrink-0 text-xs">
@@ -67,17 +59,18 @@ export function MapPanelTabs({
             </SelectItem>
           ))}
           <SelectItem value="__add__">+ Add Group</SelectItem>
-          <SelectItem value="__manage__">Manage Maps</SelectItem>
+          <SelectItem value="__manage__">Manage Tilesets</SelectItem>
         </SelectContent>
       </Select>
 
-      {activeGroup && project.mapGroups.length > 1 && (
+      {activeGroup && project.tilesetGroups.length > 1 && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6 shrink-0 text-destructive"
+              aria-label={`Delete group ${activeGroup.name}`}
               onMouseDown={() =>
                 onRequestDeleteTarget({
                   type: "group",
@@ -93,38 +86,48 @@ export function MapPanelTabs({
         </Tooltip>
       )}
 
-      {groupMaps.length > 0 && (
+      {groupTilesets.length > 0 && (
         <div className="min-w-0 flex-1 overflow-x-auto">
           <Tabs
-            value={state.activeMapId ?? ""}
-            onValueChange={(value) => onSelectMap(value as never)}
+            value={state.activeTilesetId ?? ""}
+            onValueChange={(value) =>
+              onSelectTileset(
+                value as Parameters<
+                  TilesetPanelTabsProps["onSelectTileset"]
+                >[0],
+              )
+            }
           >
             <TabsList
               variant="editor"
               className="h-8 rounded-none bg-transparent p-0"
               scrollable
             >
-              {groupMaps.map((map) => (
+              {groupTilesets.map((tileset) => (
                 <div
-                  key={map.id}
+                  key={tileset.id}
                   data-state={
-                    state.activeMapId === map.id ? "active" : "inactive"
+                    state.activeTilesetId === tileset.id ? "active" : "inactive"
                   }
                   className="group/tab -mb-px flex h-7 min-w-0 items-center rounded-t-sm border border-transparent border-b-border/70 bg-muted/20 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
-                  {renamingTabId === map.id ? (
+                  {renamingTabId === tileset.id ? (
                     <input
                       ref={renameInputRef}
-                      id={`rename-map-tab-${map.id}`}
-                      name={`rename-map-tab-${map.id}`}
-                      aria-label={`Rename map ${map.name}`}
+                      id={`rename-tileset-tab-${tileset.id}`}
+                      name={`rename-tileset-tab-${tileset.id}`}
+                      aria-label={`Rename tileset ${tileset.name}`}
                       className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
                       value={renameValue}
-                      onChange={(event) => setRenameValue(event.target.value)}
                       onBlur={onCommitRename}
+                      onChange={(event) => setRenameValue(event.target.value)}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") onCommitRename();
-                        if (event.key === "Escape") onCancelRename();
+                        if (event.key === "Enter") {
+                          onCommitRename();
+                        }
+                        if (event.key === "Escape") {
+                          onCancelRename();
+                        }
                       }}
                     />
                   ) : (
@@ -135,12 +138,14 @@ export function MapPanelTabs({
                             <TooltipTrigger asChild>
                               <div>
                                 <TabsTrigger
-                                  value={map.id}
+                                  value={tileset.id}
                                   className="h-7 min-w-0 rounded-none px-2 text-[11px]"
-                                  onDoubleClick={() => onStartRenamingTab(map)}
+                                  onDoubleClick={() =>
+                                    onStartRenamingTab(tileset)
+                                  }
                                 >
                                   <span className="max-w-40 truncate">
-                                    {map.name}
+                                    {tileset.name}
                                   </span>
                                 </TabsTrigger>
                               </div>
@@ -153,39 +158,50 @@ export function MapPanelTabs({
                       </ContextMenuTrigger>
                       <ContextMenuContent>
                         <ContextMenuItem
-                          onMouseDown={() => onStartRenamingTab(map)}
+                          onMouseDown={() => onStartRenamingTab(tileset)}
                         >
                           Rename
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onMouseDown={() => onDuplicateMap(map)}
+                          onMouseDown={() => onDuplicateTileset(tileset)}
                         >
                           Duplicate
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onMouseDown={() => requestDeleteMap(map.id, map.name)}
+                          onMouseDown={() =>
+                            onRequestDeleteTarget({
+                              type: "tileset",
+                              id: tileset.id,
+                              name: tileset.name,
+                            })
+                          }
                         >
                           Delete
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
                   )}
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        aria-label={`Close map ${map.name}`}
+                        aria-label={`Close tileset ${tileset.name}`}
                         className="pointer-events-none mr-1 flex h-5 w-5 flex-none items-center justify-center rounded-sm text-muted-foreground/80 opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100"
                         onMouseDown={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          requestDeleteMap(map.id, map.name);
+                          onRequestDeleteTarget({
+                            type: "tileset",
+                            id: tileset.id,
+                            name: tileset.name,
+                          });
                         }}
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>Close Map</TooltipContent>
+                    <TooltipContent>Close Tileset</TooltipContent>
                   </Tooltip>
                 </div>
               ))}
@@ -194,16 +210,16 @@ export function MapPanelTabs({
         </div>
       )}
 
-      {!groupMaps.length && <div className="flex-1" />}
+      {!groupTilesets.length && <div className="flex-1" />}
 
       <Button
         variant="default"
         size="sm"
         className="h-6 shrink-0 px-2 text-[10px]"
-        onMouseDown={onAddMap}
+        onClick={onAddTileset}
       >
         <Plus className="h-3.5 w-3.5" />
-        Add Map
+        Add Tileset
       </Button>
     </div>
   );

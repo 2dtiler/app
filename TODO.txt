@@ -1,11 +1,6 @@
-Terrain Brush
+Manage Tilesets/Maps needs some work
+Deploy and check lospec import. Whitelist localhost for checking
 
-Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-  - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-
-Image Editor Crop should change the dimensions of the image
-Manage Tilesets
-Manage Maps
 World View
 
 AI Asset Generation:

@@ -79,6 +79,7 @@ export function PalettePanel({
   palettes,
   activePaletteId,
   onSwitchPalette,
+  onOpenLospecDialog,
   onRenamePalette,
   onDeletePalette,
   onDuplicatePalette,
@@ -246,6 +247,7 @@ export function PalettePanel({
           ) : (
             <Select value={activePaletteId} onValueChange={onSwitchPalette}>
               <SelectTrigger
+                aria-label="Active Palette"
                 className="flex-1 h-6 min-w-0 text-xs px-1.5 py-0"
                 size="sm"
               >
@@ -265,9 +267,19 @@ export function PalettePanel({
             </Select>
           )}
 
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 shrink-0 px-2 text-[10px]"
+            onClick={onOpenLospecDialog}
+          >
+            Import from Lospec
+          </Button>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                aria-label="Rename Palette"
                 variant="ghost"
                 size="icon-xs"
                 onClick={handleRenameStart}
@@ -281,6 +293,7 @@ export function PalettePanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                aria-label="Duplicate Palette"
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => onDuplicatePalette(activePaletteId)}
@@ -294,6 +307,7 @@ export function PalettePanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                aria-label="Delete Palette"
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => onDeletePalette(activePaletteId)}
@@ -365,6 +379,8 @@ export function PalettePanel({
               <button
                 key={index}
                 draggable
+                type="button"
+                aria-label={`Palette color ${index + 1}: ${colorToHex(color)}`}
                 className={`w-5 h-5 rounded-sm border hover:ring-1 hover:ring-white/50 transition-shadow ${
                   index === selectedIndex
                     ? "ring-2 ring-white border-white"
@@ -402,6 +418,7 @@ export function PalettePanel({
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
                   <Button
+                    aria-label="Add Color"
                     variant="ghost"
                     size="icon-xs"
                     onClick={openPickerForAdd}
@@ -458,6 +475,7 @@ export function PalettePanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                aria-label="Remove Selected Color"
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => {
@@ -474,6 +492,7 @@ export function PalettePanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                aria-label="Import Palette File"
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => importRef.current?.click()}
@@ -488,7 +507,11 @@ export function PalettePanel({
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-xs">
+                  <Button
+                    aria-label="Export Palette File"
+                    variant="ghost"
+                    size="icon-xs"
+                  >
                     <FileDown className="size-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -568,7 +591,12 @@ export function PalettePanel({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" onClick={onReset}>
+              <Button
+                aria-label="Reset Active Palette to Default"
+                variant="ghost"
+                size="icon-xs"
+                onClick={onReset}
+              >
                 <RotateCcw className="size-3" />
               </Button>
             </TooltipTrigger>
