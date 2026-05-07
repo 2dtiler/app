@@ -9,7 +9,9 @@ import type {
   MapObject,
   ObjectId,
   ObjectLayer,
+  PaintMode,
   PropertyValue,
+  TerrainId,
   TerrainTile,
   TileLayer,
   TileMapData,
@@ -18,6 +20,10 @@ import type { QuickExportControlState } from "@/types";
 import type { NewMapType } from "@/types/map/map-geometry";
 import type { TextObjectEditingState } from "@/types/map/text-object";
 import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
+import type {
+  AppliedTerrainSelection,
+  TerrainToolTarget,
+} from "./dialogs";
 import type {
   MapCanvasContextMenuTile,
   OrientAction,
@@ -57,11 +63,18 @@ export interface MapPanelToolbarProps {
     tool: Extract<EditorTool, "paint" | "erase">,
     size: EditorState["brushSize"],
   ) => void;
+  onSelectPaintMode: (mode: PaintMode) => void;
+  onSelectPaintTerrain: (
+    terrainId: TerrainId,
+    size: EditorState["brushSize"],
+  ) => void;
   onSelectAutotileTool: (
     terrainId: NonNullable<EditorState["selectedAutotileTerrain"]>["terrainId"],
     size: EditorState["brushSize"],
   ) => void;
   onSelectFillMode: (mode: FillMode) => void;
+  onSelectFillTerrain: (terrainId: TerrainId) => void;
+  onOpenTerrainDialog: (target: TerrainToolTarget) => void;
   onSelectTool: (tool: EditorTool) => void;
   onZoom: (direction: 1 | -1) => void;
   state: EditorState;
@@ -144,14 +157,14 @@ export interface MapPanelDialogsProps {
   addGroupOpen: boolean;
   addMapOpen: boolean;
   deleteTarget: MapPanelDeleteTarget | null;
-  fillTerrainDialogOpen: boolean;
   mapOptionsOpen: boolean;
   newGroupName: string;
   newMapHeight: number;
   newMapName: string;
   newMapType: NewMapType;
   newMapWidth: number;
-  onApplyTerrainFill: (tiles: TerrainTile[]) => void;
+  onApplyTerrainSelection: (selection: AppliedTerrainSelection) => void;
+  onDeleteTerrain: (terrainId: TerrainId) => void;
   onCreateGroup: () => void;
   onCreateMap: () => void;
   onDeleteConfirm: () => void;
@@ -165,7 +178,6 @@ export interface MapPanelDialogsProps {
   setAddGroupOpen: Dispatch<SetStateAction<boolean>>;
   setAddMapOpen: Dispatch<SetStateAction<boolean>>;
   setDeleteTarget: Dispatch<SetStateAction<MapPanelDeleteTarget | null>>;
-  setFillTerrainDialogOpen: Dispatch<SetStateAction<boolean>>;
   setMapOptionsOpen: Dispatch<SetStateAction<boolean>>;
   setNewGroupName: Dispatch<SetStateAction<string>>;
   setNewMapHeight: Dispatch<SetStateAction<number>>;
@@ -174,6 +186,11 @@ export interface MapPanelDialogsProps {
   setNewMapWidth: Dispatch<SetStateAction<number>>;
   setPropsObjectId: Dispatch<SetStateAction<ObjectId | null>>;
   state: EditorState;
+  terrainDialogOpen: boolean;
+  terrainDialogTarget: TerrainToolTarget;
+  terrainDialogInitialTerrainId: TerrainId | null;
+  terrainDialogInitialTiles: TerrainTile[] | null;
+  setTerrainDialogOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 export interface MapPanelCanvasActionParams {

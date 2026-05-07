@@ -196,6 +196,38 @@ export function useMapPanelCanvasActions({
       }
 
       if (state.currentTool === "paint") {
+        if (state.paintMode === "paintTerrain") {
+          if (!state.activePaintTerrain || state.activePaintTerrain.length === 0) {
+            return;
+          }
+
+          const brushNum = parseInt(state.brushSize);
+
+          for (let dy = 0; dy < brushNum; dy++) {
+            for (let dx = 0; dx < brushNum; dx++) {
+              const tx = gx + dx;
+              const ty = gy + dy;
+              if (
+                tx >= activeMap.widthInTiles ||
+                ty >= activeMap.heightInTiles
+              ) {
+                continue;
+              }
+
+              const picked = pickWeightedTile(state.activePaintTerrain);
+              if (!picked) {
+                continue;
+              }
+
+              const ref = { ...picked };
+              paintBuffer.set(`${tx},${ty}`, ref);
+              mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+            }
+          }
+
+          return;
+        }
+
         if (!selectedStamp) return;
 
         if (isMultiTileStamp(selectedStamp)) {
@@ -436,9 +468,11 @@ export function useMapPanelCanvasActions({
       setState,
       state.activeFillTerrain,
       state.activeLayerId,
+      state.activePaintTerrain,
       state.brushSize,
       state.currentTool,
       state.fillMode,
+      state.paintMode,
       state.selectedAutotileTerrain,
       state.selectedTile,
       state.tileSize,

@@ -33,6 +33,10 @@ import { applyMapResizeToProject } from "@/features/map-editor/lib/map-resize";
 import { getGeometryForNewMapType } from "@/features/map-editor/lib/map-geometry";
 import { zoomStore } from "@/store/zoom-store";
 import type {
+  AppliedTerrainSelection,
+  TerrainToolTarget,
+} from "@/features/map-editor/types/dialogs";
+import type {
   MapCanvasImperativeHandle,
   MapResizeRequest,
 } from "@/features/map-editor/types/map-canvas";
@@ -50,6 +54,7 @@ import {
   type NewMapType,
   type ObjectId,
   type PropertyValue,
+  type TerrainId,
   type TerrainTile,
   type TileLayer,
   type TileMapData,
@@ -69,6 +74,13 @@ function getAdjacentItemId<T extends { id: string }>(
   const index = items.findIndex((item) => item.id === targetId);
   if (index === -1) return null;
   return items[index + 1]?.id ?? items[index - 1]?.id ?? null;
+}
+
+function cloneTerrainTiles(tiles: TerrainTile[] | null): TerrainTile[] | null {
+  return tiles?.map((tile) => ({
+    probability: tile.probability,
+    tileRef: { ...tile.tileRef },
+  })) ?? null;
 }
 
 export function MapPanel({
@@ -107,7 +119,13 @@ export function MapPanel({
   const [newMapType, setNewMapType] =
     useState<NewMapType>(DEFAULT_NEW_MAP_TYPE);
   const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
-  const [fillTerrainDialogOpen, setFillTerrainDialogOpen] = useState(false);
+  const [terrainDialogOpen, setTerrainDialogOpen] = useState(false);
+  const [terrainDialogTarget, setTerrainDialogTarget] =
+    useState<TerrainToolTarget>("fill");
+  const [terrainDialogInitialTerrainId, setTerrainDialogInitialTerrainId] =
+    useState<TerrainId | null>(null);
+  const [terrainDialogInitialTiles, setTerrainDialogInitialTiles] =
+    useState<TerrainTile[] | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [propsObjectId, setPropsObjectId] = useState<ObjectId | null>(null);
@@ -644,6 +662,38 @@ export function MapPanel({
     setState((draft) => {
       draft.currentTool = tool;
       draft.brushSize = size;
+      if (tool === "paint") {
+        draft.paintMode = "paint";
+      }
+    });
+  }
+
+  function getSavedTerrain(terrainId: TerrainId) {
+    return project?.terrains.find((terrain) => terrain.id === terrainId) ?? null;
+  }
+
+  function handleOpenTerrainDialog(target: TerrainToolTarget) {
+    setTerrainDialogTarget(target);
+    setTerrainDialogInitialTerrainId(null);
+    setTerrainDialogInitialTiles(null);
+    setTerrainDialogOpen(true);
+  }
+
+  function handleSelectPaintTerrain(
+    terrainId: TerrainId,
+    size: EditorState["brushSize"],
+  ) {
+    const terrain = getSavedTerrain(terrainId);
+    if (!terrain) {
+      return;
+    }
+
+    setState((draft) => {
+      draft.currentTool = "paint";
+      draft.paintMode = "paintTerrain";
+      draft.brushSize = size;
+      draft.selectedPaintTerrainId = terrain.id;
+      draft.activePaintTerrain = cloneTerrainTiles(terrain.tiles);
     });
   }
 
@@ -670,9 +720,65 @@ export function MapPanel({
       draft.currentTool = "fill";
       draft.fillMode = mode;
     });
-    if (mode === "fillTerrain") {
-      setFillTerrainDialogOpen(true);
+  }
+
+  function handleSelectFillTerrain(terrainId: TerrainId) {
+    const terrain = getSavedTerrain(terrainId);
+    if (!terrain) {
+      return;
     }
+
+    setState((draft) => {
+      draft.currentTool = "fill";
+      draft.fillMode = "fillTerrain";
+      draft.selectedFillTerrainId = terrain.id;
+      draft.activeFillTerrain = cloneTerrainTiles(terrain.tiles);
+    });
+  }
+
+  function handleApplyTerrainSelection({
+    terrainId,
+    tiles,
+  }: AppliedTerrainSelection) {
+    const clonedTiles = cloneTerrainTiles(tiles);
+    if (!clonedTiles || clonedTiles.length === 0) {
+      return;
+    }
+
+    setState((draft) => {
+      if (terrainDialogTarget === "paint") {
+        draft.currentTool = "paint";
+        draft.paintMode = "paintTerrain";
+        draft.selectedPaintTerrainId = terrainId;
+        draft.activePaintTerrain = clonedTiles;
+        return;
+      }
+
+      draft.currentTool = "fill";
+      draft.fillMode = "fillTerrain";
+      draft.selectedFillTerrainId = terrainId;
+      draft.activeFillTerrain = clonedTiles;
+    });
+  }
+
+  function handleDeleteTerrain(terrainId: TerrainId) {
+    setState((draft) => {
+      if (draft.selectedPaintTerrainId === terrainId) {
+        draft.selectedPaintTerrainId = null;
+        draft.activePaintTerrain = null;
+        if (draft.paintMode === "paintTerrain") {
+          draft.paintMode = "paint";
+        }
+      }
+
+      if (draft.selectedFillTerrainId === terrainId) {
+        draft.selectedFillTerrainId = null;
+        draft.activeFillTerrain = null;
+        if (draft.fillMode === "fillTerrain") {
+          draft.fillMode = "fill";
+        }
+      }
+    });
   }
 
   function handleSelectMap(mapId: MapId) {
@@ -706,7 +812,16 @@ export function MapPanel({
         onOrientSelection={handleOrientSelection}
         onSelectAutotileTool={handleSelectAutotileTool}
         onSelectBrushTool={handleSelectBrushTool}
+        onSelectPaintMode={(mode) => {
+          setState((draft) => {
+            draft.currentTool = "paint";
+            draft.paintMode = mode;
+          });
+        }}
+        onSelectPaintTerrain={handleSelectPaintTerrain}
         onSelectFillMode={handleSelectFillMode}
+        onSelectFillTerrain={handleSelectFillTerrain}
+        onOpenTerrainDialog={handleOpenTerrainDialog}
         onSelectTool={handleSelectTool}
         onZoom={handleZoom}
         state={state}
@@ -793,20 +908,14 @@ export function MapPanel({
         addGroupOpen={addGroupOpen}
         addMapOpen={addMapOpen}
         deleteTarget={deleteTarget}
-        fillTerrainDialogOpen={fillTerrainDialogOpen}
         mapOptionsOpen={mapOptionsOpen}
         newGroupName={newGroupName}
         newMapHeight={newMapHeight}
         newMapName={newMapName}
         newMapType={newMapType}
         newMapWidth={newMapWidth}
-        onApplyTerrainFill={(tiles: TerrainTile[]) => {
-          setState((draft) => {
-            draft.currentTool = "fill";
-            draft.fillMode = "fillTerrain";
-            draft.activeFillTerrain = tiles;
-          });
-        }}
+        onApplyTerrainSelection={handleApplyTerrainSelection}
+        onDeleteTerrain={handleDeleteTerrain}
         onCreateGroup={handleCreateGroup}
         onCreateMap={handleCreateMap}
         onDeleteConfirm={handleDeleteConfirm}
@@ -816,7 +925,6 @@ export function MapPanel({
         setAddGroupOpen={setAddGroupOpen}
         setAddMapOpen={setAddMapOpen}
         setDeleteTarget={setDeleteTarget}
-        setFillTerrainDialogOpen={setFillTerrainDialogOpen}
         setMapOptionsOpen={setMapOptionsOpen}
         setNewGroupName={setNewGroupName}
         setNewMapHeight={setNewMapHeight}
@@ -825,6 +933,11 @@ export function MapPanel({
         setNewMapWidth={setNewMapWidth}
         setPropsObjectId={setPropsObjectId}
         state={state}
+        terrainDialogOpen={terrainDialogOpen}
+        terrainDialogTarget={terrainDialogTarget}
+        terrainDialogInitialTerrainId={terrainDialogInitialTerrainId}
+        terrainDialogInitialTiles={terrainDialogInitialTiles}
+        setTerrainDialogOpen={setTerrainDialogOpen}
       />
     </div>
   );

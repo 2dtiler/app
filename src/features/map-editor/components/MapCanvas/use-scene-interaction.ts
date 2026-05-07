@@ -63,6 +63,7 @@ export function useSceneInteraction({
   zoom,
   activeLayerId,
   currentTool,
+  paintMode,
   fillMode,
   activeFillTerrain,
   canPreviewFill,
@@ -310,7 +311,7 @@ export function useSceneInteraction({
           currentTool === "erase" ||
           currentTool === "fill");
       const selectedStamp =
-        currentTool === "paint" && selectedTile
+        currentTool === "paint" && paintMode === "paint" && selectedTile
           ? createTileStamp(selectedTile, selectedTileSize)
           : null;
       const animationPreviewStamp =
@@ -435,7 +436,14 @@ export function useSceneInteraction({
         }
       }
 
-      if (currentTool !== "paint" || !selectedTile || !selectedStamp) return;
+      if (
+        currentTool !== "paint" ||
+        paintMode !== "paint" ||
+        !selectedTile ||
+        !selectedStamp
+      ) {
+        return;
+      }
 
       const tileImg = getTileImage(selectedTile);
       if (!tileImg) return;
@@ -499,6 +507,7 @@ export function useSceneInteraction({
       mapW,
       objectLayers,
       overlayCanvasRef,
+      paintMode,
       scaledTile,
       selectedTile,
       selectedAnimationStamp,

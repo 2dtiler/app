@@ -11,6 +11,7 @@ import type {
   ObjectId,
   PropertyType,
   PropertyValue,
+  TerrainId,
   TerrainTile,
   TileMapData,
   Tileset,
@@ -51,10 +52,21 @@ export type AutotileSelectionTarget =
       tileIndex: number;
     };
 
-export interface FillTerrainDialogProps {
+export type TerrainToolTarget = "paint" | "fill";
+
+export interface AppliedTerrainSelection {
+  terrainId: TerrainId | null;
+  tiles: TerrainTile[];
+}
+
+export interface TerrainDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApply: (tiles: TerrainTile[]) => void;
+  onApply: (selection: AppliedTerrainSelection) => void;
+  onDeleteTerrain: (terrainId: TerrainId) => void;
+  initialTerrainId: TerrainId | null;
+  initialTiles: TerrainTile[] | null;
+  target: TerrainToolTarget;
 }
 
 export type FindReplaceGridSize = 1 | 2 | 3 | 4 | 5;

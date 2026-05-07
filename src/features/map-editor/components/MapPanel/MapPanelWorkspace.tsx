@@ -122,6 +122,7 @@ export function MapPanelWorkspace({
                 zoom={mapZoom}
                 activeLayerId={state.activeLayerId}
                 currentTool={state.currentTool}
+                paintMode={state.paintMode}
                 fillMode={state.fillMode}
                 activeFillTerrain={state.activeFillTerrain}
                 canPreviewFill={!activeLayerEffectivelyLocked}

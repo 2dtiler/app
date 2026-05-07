@@ -37,11 +37,12 @@ import {
 } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { TerrainTileSelector } from "@/features/map-editor/components/TerrainTileSelector";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { generateTerrainId } from "@/utils/ids";
-import type { FillTerrainDialogProps } from "@/features/map-editor/types/dialogs";
+import type { TerrainDialogProps } from "@/features/map-editor/types/dialogs";
 import type { TerrainTile, TerrainId, TilesetId, Terrain } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +53,11 @@ export function FillTerrainDialog({
   open,
   onOpenChange,
   onApply,
-}: FillTerrainDialogProps) {
+  onDeleteTerrain,
+  initialTerrainId,
+  initialTiles,
+  target,
+}: TerrainDialogProps) {
   const { state, setState } = useEditorStore();
   const project = state.project;
 
@@ -82,22 +87,39 @@ export function FillTerrainDialog({
   const terrains = useMemo(() => project?.terrains ?? [], [project?.terrains]);
   const activeTileset =
     tilesets.find((t) => t.id === selectedTilesetId) ?? null;
+  const targetTitle = target === "paint" ? "Paint Terrain" : "Fill Terrain";
+  const targetDescription =
+    target === "paint"
+      ? "Select tiles and set their probabilities for weighted random brush painting."
+      : "Select tiles and set their probabilities for weighted random fill.";
 
   // -----------------------------------------------------------------------
   // Reset local state when the dialog opens
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (open) {
-      setSelectedTilesetId(tilesets[0]?.id ?? null);
-      setTerrainTiles([]);
+      const initialTerrain = initialTerrainId
+        ? (terrains.find((terrain) => terrain.id === initialTerrainId) ?? null)
+        : null;
+      const initialSelection = initialTerrain
+        ? initialTerrain.tiles.map((tile) => ({ ...tile }))
+        : (initialTiles?.map((tile) => ({ ...tile })) ?? []);
+
+      setSelectedTilesetId(
+        initialTerrain?.tilesetId ??
+          initialSelection[0]?.tileRef.tilesetId ??
+          tilesets[0]?.id ??
+          null,
+      );
+      setTerrainTiles(initialSelection);
       setZoom(1);
-      setTerrainName("");
-      setSelectedTerrainId(null);
+      setTerrainName(initialTerrain?.name ?? "");
+      setSelectedTerrainId(initialTerrain?.id ?? null);
       setShowSaveInput(false);
       setCanvasSelectedTile(null);
     }
     // oxlint-disable-next-line react/exhaustive-deps
-  }, [open]);
+  }, [initialTerrainId, initialTiles, open, terrains, tilesets]);
 
   // -----------------------------------------------------------------------
   // When the user picks a tile from the canvas, append it to the selection
@@ -163,6 +185,9 @@ export function FillTerrainDialog({
   // -----------------------------------------------------------------------
   const handleTilesetChange = useCallback((tilesetId: string) => {
     setSelectedTilesetId(tilesetId as TilesetId);
+    setSelectedTerrainId(null);
+    setTerrainName("");
+    setTerrainTiles([]);
     setCanvasSelectedTile(null);
   }, []);
 
@@ -214,6 +239,7 @@ export function FillTerrainDialog({
   // -----------------------------------------------------------------------
   const handleDeleteTerrain = useCallback(() => {
     if (!selectedTerrainId) return;
+    onDeleteTerrain(selectedTerrainId);
     setState((draft) => {
       if (!draft.project) return;
       draft.project.terrains = draft.project.terrains.filter(
@@ -223,16 +249,19 @@ export function FillTerrainDialog({
     setSelectedTerrainId(null);
     setTerrainTiles([]);
     setTerrainName("");
-  }, [selectedTerrainId, setState]);
+  }, [onDeleteTerrain, selectedTerrainId, setState]);
 
   // -----------------------------------------------------------------------
   // Apply — close dialog and pass the terrain config to the parent
   // -----------------------------------------------------------------------
   const handleApply = useCallback(() => {
     if (terrainTiles.length === 0) return;
-    onApply(terrainTiles);
+    onApply({
+      terrainId: selectedTerrainId,
+      tiles: terrainTiles.map((tile) => ({ ...tile })),
+    });
     onOpenChange(false);
-  }, [terrainTiles, onApply, onOpenChange]);
+  }, [onApply, onOpenChange, selectedTerrainId, terrainTiles]);
 
   if (!project) return null;
 
@@ -240,21 +269,22 @@ export function FillTerrainDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-150 max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Fill Terrain</DialogTitle>
-          <DialogDescription>
-            Select tiles and set their probabilities for weighted random fill.
-          </DialogDescription>
+          <DialogTitle>{targetTitle}</DialogTitle>
+          <DialogDescription>{targetDescription}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
           {/* ---- Row 1: Saved terrains selector ---- */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium shrink-0">Terrain:</span>
+            <Label htmlFor="terrain-select" className="text-xs font-medium shrink-0">
+              Terrain:
+            </Label>
             <Select
+              name="terrain-select"
               value={selectedTerrainId ?? "__none__"}
               onValueChange={handleLoadTerrain}
             >
-              <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectTrigger id="terrain-select" className="h-7 text-xs flex-1">
                 <SelectValue placeholder="(Unsaved)" />
               </SelectTrigger>
               <SelectContent>
@@ -280,12 +310,18 @@ export function FillTerrainDialog({
 
           {/* ---- Row 2: Tileset selector ---- */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium shrink-0">Tileset:</span>
+            <Label
+              htmlFor="terrain-tileset"
+              className="text-xs font-medium shrink-0"
+            >
+              Tileset:
+            </Label>
             <Select
+              name="terrain-tileset"
               value={selectedTilesetId ?? ""}
               onValueChange={handleTilesetChange}
             >
-              <SelectTrigger className="h-7 text-xs flex-1">
+              <SelectTrigger id="terrain-tileset" className="h-7 text-xs flex-1">
                 <SelectValue placeholder="Select a tileset" />
               </SelectTrigger>
               <SelectContent>
@@ -326,6 +362,7 @@ export function FillTerrainDialog({
               <>
                 <Input
                   id="terrain-name"
+                  name="terrain-name"
                   placeholder="Terrain name"
                   value={terrainName}
                   onChange={(e) => setTerrainName(e.target.value)}

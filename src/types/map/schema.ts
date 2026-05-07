@@ -342,6 +342,9 @@ export type EditorTool =
   | "erase"
   | "fill";
 
+/** Sub-modes for the paint tool */
+export type PaintMode = "paint" | "paintTerrain";
+
 /** Sub-modes for the fill tool */
 export type FillMode = "fill" | "fillTerrain";
 
@@ -401,8 +404,17 @@ export interface EditorState {
   selectedAutotileTerrain: SelectedAutotileTerrain | null;
   selectedAnimation: SelectedTilesetAnimation | null;
 
+  /** Which paint sub-mode is active: plain paint or terrain paint */
+  paintMode: PaintMode;
+  /** Saved terrain currently selected for paint terrain, if any */
+  selectedPaintTerrainId: TerrainId | null;
+  /** Transient terrain tile config used by the current paint-terrain mode */
+  activePaintTerrain: TerrainTile[] | null;
+
   /** Which fill sub-mode is active: plain fill or terrain fill */
   fillMode: FillMode;
+  /** Saved terrain currently selected for fill terrain, if any */
+  selectedFillTerrainId: TerrainId | null;
   /** Transient terrain tile config used by the current fill-terrain operation */
   activeFillTerrain: TerrainTile[] | null;
 
@@ -425,7 +437,11 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
   selectedTile: null,
   selectedAutotileTerrain: null,
   selectedAnimation: null,
+  paintMode: "paint",
+  selectedPaintTerrainId: null,
+  activePaintTerrain: null,
   fillMode: "fill",
+  selectedFillTerrainId: null,
   activeFillTerrain: null,
   mapSelection: null,
 };

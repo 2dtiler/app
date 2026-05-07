@@ -478,6 +478,49 @@ test("map panel canvas actions paint the selected tile across the brush area", (
   expect(project.layers[0]?.tiles["2,2"]).toEqual(createTileRef(48, 0));
 });
 
+test("map panel canvas actions paint terrain selections across the brush area", () => {
+  const base = createProject();
+  base.activeMap.widthInTiles = 4;
+  base.activeMap.heightInTiles = 4;
+  base.tileLayer.tiles = {};
+  base.project.layers = [base.tileLayer];
+  base.project.maps = [base.activeMap];
+  const terrainTile = createTileRef(16, 16);
+  const { actions, paintBuffer, project } = renderActions({
+    activeLayer: base.tileLayer,
+    activeMap: base.activeMap,
+    project: base.project,
+    state: {
+      ...DEFAULT_EDITOR_STATE,
+      project: base.project,
+      activeMapGroupId: MAP_GROUP_ID,
+      activeMapId: MAP_ID,
+      activeLayerId: TILE_LAYER_ID,
+      activeTilesetGroupId: TILESET_GROUP_ID,
+      activeTilesetId: TILESET_ID,
+      currentTool: "paint",
+      paintMode: "paintTerrain",
+      brushSize: "2x2",
+      activePaintTerrain: [{ tileRef: terrainTile, probability: 100 }],
+      selectedTile: null,
+      tileSize: 16,
+    },
+  });
+
+  actions.handlePaintTile(1, 1);
+
+  expect([...paintBuffer.keys()].sort()).toEqual(["1,1", "1,2", "2,1", "2,2"]);
+
+  actions.handlePaintEnd();
+
+  expect(project.layers[0]?.tiles).toMatchObject({
+    "1,1": terrainTile,
+    "1,2": terrainTile,
+    "2,1": terrainTile,
+    "2,2": terrainTile,
+  });
+});
+
 test("map panel canvas actions flood-fill contiguous tiles from the selected stamp", () => {
   const base = createProject();
   base.activeMap.widthInTiles = 2;

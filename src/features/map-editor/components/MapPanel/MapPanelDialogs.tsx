@@ -20,14 +20,14 @@ export function MapPanelDialogs({
   addGroupOpen,
   addMapOpen,
   deleteTarget,
-  fillTerrainDialogOpen,
   mapOptionsOpen,
   newGroupName,
   newMapHeight,
   newMapName,
   newMapType,
   newMapWidth,
-  onApplyTerrainFill,
+  onApplyTerrainSelection,
+  onDeleteTerrain,
   onCreateGroup,
   onCreateMap,
   onDeleteConfirm,
@@ -37,7 +37,6 @@ export function MapPanelDialogs({
   setAddGroupOpen,
   setAddMapOpen,
   setDeleteTarget,
-  setFillTerrainDialogOpen,
   setMapOptionsOpen,
   setNewGroupName,
   setNewMapHeight,
@@ -46,6 +45,11 @@ export function MapPanelDialogs({
   setNewMapWidth,
   setPropsObjectId,
   state,
+  terrainDialogOpen,
+  terrainDialogTarget,
+  terrainDialogInitialTerrainId,
+  terrainDialogInitialTiles,
+  setTerrainDialogOpen,
 }: MapPanelDialogsProps) {
   return (
     <>
@@ -76,9 +80,13 @@ export function MapPanelDialogs({
       )}
 
       <FillTerrainDialog
-        open={fillTerrainDialogOpen}
-        onOpenChange={setFillTerrainDialogOpen}
-        onApply={onApplyTerrainFill}
+        open={terrainDialogOpen}
+        onOpenChange={setTerrainDialogOpen}
+        onApply={onApplyTerrainSelection}
+        onDeleteTerrain={onDeleteTerrain}
+        initialTerrainId={terrainDialogInitialTerrainId}
+        initialTiles={terrainDialogInitialTiles}
+        target={terrainDialogTarget}
       />
 
       <NewMapGroupDialog
