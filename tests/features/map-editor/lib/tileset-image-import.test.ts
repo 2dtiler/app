@@ -63,24 +63,26 @@ test("createPendingTilesetImageImport decodes the image and revokes its object U
   URL.revokeObjectURL = revokeObjectURL;
   globalThis.Image = DecodingImage as unknown as typeof Image;
 
-  const result = await createPendingTilesetImageImport(
-    new File([new Uint8Array([1, 2, 3])], "terrain.png", { type: "" }),
-  );
+  try {
+    const result = await createPendingTilesetImageImport(
+      new File([new Uint8Array([1, 2, 3])], "terrain.png", { type: "" }),
+    );
 
-  expect(result).toMatchObject({
-    fileName: "terrain.png",
-    name: "terrain",
-    mimeType: "image/png",
-    width: 96,
-    height: 48,
-  });
-  expect(decode).toHaveBeenCalled();
-  expect(createObjectURL).toHaveBeenCalled();
-  expect(revokeObjectURL).toHaveBeenCalledWith("blob:tileset");
-
-  URL.createObjectURL = originalCreateObjectURL;
-  URL.revokeObjectURL = originalRevokeObjectURL;
-  globalThis.Image = originalImage;
+    expect(result).toMatchObject({
+      fileName: "terrain.png",
+      name: "terrain",
+      mimeType: "image/png",
+      width: 96,
+      height: 48,
+    });
+    expect(decode).toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:tileset");
+  } finally {
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+    globalThis.Image = originalImage;
+  }
 });
 
 test("createPendingTilesetImageImport falls back to load events when decode is unavailable", async () => {
@@ -106,20 +108,22 @@ test("createPendingTilesetImageImport falls back to load events when decode is u
   URL.revokeObjectURL = revokeObjectURL;
   globalThis.Image = FallbackImage as unknown as typeof Image;
 
-  const result = await createPendingTilesetImageImport(
-    new File([new Uint8Array([4, 5, 6])], "terrain.webp", { type: "" }),
-  );
+  try {
+    const result = await createPendingTilesetImageImport(
+      new File([new Uint8Array([4, 5, 6])], "terrain.webp", { type: "" }),
+    );
 
-  expect(result).toMatchObject({
-    fileName: "terrain.webp",
-    name: "terrain",
-    mimeType: "image/webp",
-    width: 80,
-    height: 40,
-  });
-  expect(revokeObjectURL).toHaveBeenCalledWith("blob:fallback");
-
-  URL.createObjectURL = originalCreateObjectURL;
-  URL.revokeObjectURL = originalRevokeObjectURL;
-  globalThis.Image = originalImage;
+    expect(result).toMatchObject({
+      fileName: "terrain.webp",
+      name: "terrain",
+      mimeType: "image/webp",
+      width: 80,
+      height: 40,
+    });
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fallback");
+  } finally {
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+    globalThis.Image = originalImage;
+  }
 });

@@ -1,5 +1,3 @@
-import type { importImageAsset } from "@/features/import-export/lib/tiled-map-import-shared";
-
 export interface LegacyTilesetDescriptor {
   name: string;
   imagePath: string;
@@ -34,6 +32,10 @@ export interface ParsedModernTileData {
   cells: ParsedModernTileCell[];
 }
 
-export type GameMakerImportedImageRecord = Awaited<
-  ReturnType<typeof importImageAsset>
->;
+export interface GameMakerImportedImageRecord {
+  assetId: AssetId;
+  mimeType: string;
+  width: number;
+  height: number;
+}
+import type { AssetId } from "@/types";
