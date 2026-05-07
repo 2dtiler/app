@@ -104,7 +104,9 @@ test("queueImageFile enters choice mode by default", async () => {
     height: 64,
   } satisfies PendingTilesetImageImport;
 
-  hookMocks.createPendingTilesetImageImport.mockResolvedValueOnce(pendingImport);
+  hookMocks.createPendingTilesetImageImport.mockResolvedValueOnce(
+    pendingImport,
+  );
 
   await act(async () => {
     await expect(rendered.getCurrent().queueImageFile(file)).resolves.toBe(
@@ -131,13 +133,13 @@ test("queueImageFile stays idle when the choice dialog is suppressed", async () 
     height: 64,
   } satisfies PendingTilesetImageImport;
 
-  hookMocks.createPendingTilesetImageImport.mockResolvedValueOnce(pendingImport);
+  hookMocks.createPendingTilesetImageImport.mockResolvedValueOnce(
+    pendingImport,
+  );
 
   await act(async () => {
     await expect(
-      rendered
-        .getCurrent()
-        .queueImageFile(file, { showChoiceDialog: false }),
+      rendered.getCurrent().queueImageFile(file, { showChoiceDialog: false }),
     ).resolves.toBe(pendingImport);
   });
 

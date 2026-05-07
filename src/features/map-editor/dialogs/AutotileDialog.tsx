@@ -4,6 +4,7 @@ import {
   AUTOTILE_CONFIG_VERSION,
   type AutotileConfig,
   type AutotilePatternSlotId,
+  type AutotilePresetId,
   type AutotileTerrain,
   type AutotileTileRegion,
 } from "@/types";
@@ -37,6 +38,7 @@ import {
   cloneAutotileConfig,
   countConfiguredAssignments,
   createDefaultWangSet,
+  DEFAULT_AUTOTILE_PRESET_ID,
   getAutotileActiveSlotIds,
   getAutotileAssignmentGroups,
   getSelectionInstructions,
@@ -70,6 +72,16 @@ export function AutotileDialog({
   const [activeTerrainId, setActiveTerrainId] = useState<
     AutotileTerrain["id"] | null
   >(() => cloneAutotileConfig(tileset.autotile).terrains[0]?.id ?? null);
+  const [lastNonNamedWangPreset, setLastNonNamedWangPreset] =
+    useState<AutotilePresetId>(() => {
+      const preset =
+        cloneAutotileConfig(tileset.autotile).preset ??
+        DEFAULT_AUTOTILE_PRESET_ID;
+
+      return preset === "wang-named-colors"
+        ? DEFAULT_AUTOTILE_PRESET_ID
+        : preset;
+    });
   const [zoom, setZoom] = useState(1);
   const [selectionTarget, setSelectionTarget] =
     useState<AutotileSelectionTarget | null>(null);
@@ -213,6 +225,7 @@ export function AutotileDialog({
     handleUpdateWangTileColor,
   } = useAutotileNamedWangEditor({
     draft,
+    fallbackPreset: lastNonNamedWangPreset,
     setDraft,
     onSelectTarget: handleSelectTarget,
     onClearSelectionTarget: () => setSelectionTarget(null),
@@ -282,7 +295,11 @@ export function AutotileDialog({
   );
 
   const handlePresetChange = useCallback(
-    (preset: AutotileConfig["preset"]) => {
+    (preset: AutotilePresetId) => {
+      if (preset !== "wang-named-colors") {
+        setLastNonNamedWangPreset(preset);
+      }
+
       const defaultWangSet =
         preset === "wang-named-colors" && !draft.wangSets?.length
           ? createDefaultWangSet(1)

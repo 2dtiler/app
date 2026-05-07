@@ -3,6 +3,7 @@ import {
   assignTileToSelectionTarget,
   cloneAutotileConfig,
   countConfiguredAssignments,
+  deleteWangSetFromAutotileConfig,
   getAutotileActiveSlotIds,
   getAutotileAssignmentGroups,
   getSelectionInstructions,
@@ -171,6 +172,108 @@ test("cloneAutotileConfig preserves named Wang sets", () => {
     draft.wangSets?.[0]?.tiles[0]?.wangId,
     [0, 1, 0, 1, 0, 1, 0, 1],
   );
+});
+
+test("deleteWangSetFromAutotileConfig keeps named Wang mode while sets remain", () => {
+  const draft = deleteWangSetFromAutotileConfig(
+    cloneAutotileConfig({
+      version: 1,
+      preset: "wang-named-colors",
+      terrains: [
+        {
+          id: "terrain-land",
+          name: "Land",
+          paletteTile: null,
+          patternTiles: {},
+        },
+      ],
+      rules: [],
+      wangSets: [
+        {
+          id: wangSetId,
+          name: "Biomes",
+          type: "edge",
+          tile: null,
+          colors: [],
+          tiles: [],
+        },
+        {
+          id: "wang-set-2" as AutotileWangSetId,
+          name: "Roads",
+          type: "mixed",
+          tile: null,
+          colors: [],
+          tiles: [],
+        },
+      ],
+    }),
+    wangSetId,
+    "full-corners",
+  );
+
+  assert.strictEqual(draft.preset, "wang-named-colors");
+  assert.strictEqual(draft.wangSets?.length, 1);
+  assert.strictEqual(draft.wangSets?.[0]?.id, "wang-set-2");
+  assert.strictEqual(draft.terrains[0]?.id, "terrain-land");
+});
+
+test("deleteWangSetFromAutotileConfig exits named Wang mode on final delete", () => {
+  const draft = deleteWangSetFromAutotileConfig(
+    cloneAutotileConfig({
+      version: 1,
+      preset: "wang-named-colors",
+      terrains: [
+        {
+          id: "terrain-land",
+          name: "Land",
+          paletteTile: null,
+          patternTiles: {},
+        },
+      ],
+      rules: [],
+      wangSets: [
+        {
+          id: wangSetId,
+          name: "Biomes",
+          type: "edge",
+          tile: null,
+          colors: [],
+          tiles: [],
+        },
+      ],
+    }),
+    wangSetId,
+    "full-corners",
+  );
+
+  assert.strictEqual(draft.preset, "full-corners");
+  assert.isUndefined(draft.wangSets);
+  assert.strictEqual(draft.terrains[0]?.id, "terrain-land");
+});
+
+test("deleteWangSetFromAutotileConfig falls back to edges corners by default", () => {
+  const draft = deleteWangSetFromAutotileConfig(
+    cloneAutotileConfig({
+      version: 1,
+      preset: "wang-named-colors",
+      terrains: [],
+      rules: [],
+      wangSets: [
+        {
+          id: wangSetId,
+          name: "Biomes",
+          type: "edge",
+          tile: null,
+          colors: [],
+          tiles: [],
+        },
+      ],
+    }),
+    wangSetId,
+  );
+
+  assert.strictEqual(draft.preset, "edges-corners");
+  assert.isUndefined(draft.wangSets);
 });
 
 test("getSelectionInstructions describes named Wang targets", () => {

@@ -12,6 +12,7 @@ import {
   createDefaultWangColor,
   createDefaultWangSet,
   createDefaultWangTile,
+  deleteWangSetFromAutotileConfig,
   normalizeWangIdForSetType,
 } from "@/features/map-editor/lib/autotile-dialog";
 import type { UseAutotileNamedWangEditorOptions } from "@/features/map-editor/types/autotile-dialog";
@@ -37,6 +38,7 @@ function clearColorIndex(
 
 export function useAutotileNamedWangEditor({
   draft,
+  fallbackPreset,
   setDraft,
   onSelectTarget,
   onClearSelectionTarget,
@@ -77,26 +79,29 @@ export function useAutotileNamedWangEditor({
 
   const handleDeleteWangSet = useCallback(
     (wangSetId: AutotileWangSet["id"]) => {
-      const remainingWangSets = (draft.wangSets ?? []).filter(
-        (wangSet) => wangSet.id !== wangSetId,
+      const nextDraft = deleteWangSetFromAutotileConfig(
+        draft,
+        wangSetId,
+        fallbackPreset,
+      );
+      const remainingWangSets = nextDraft.wangSets ?? [];
+
+      setDraft((current) =>
+        deleteWangSetFromAutotileConfig(current, wangSetId, fallbackPreset),
       );
 
-      setDraft((current) => ({
-        ...current,
-        wangSets: (current.wangSets ?? []).filter(
-          (wangSet) => wangSet.id !== wangSetId,
-        ),
-      }));
-
-      if (
+      if (remainingWangSets.length === 0) {
+        setActiveWangSetId(null);
+      } else if (
         activeWangSetId === wangSetId ||
         !remainingWangSets.some((wangSet) => wangSet.id === activeWangSetId)
       ) {
         setActiveWangSetId(remainingWangSets[0]?.id ?? null);
       }
+
       onClearSelectionTarget();
     },
-    [activeWangSetId, draft.wangSets, onClearSelectionTarget, setDraft],
+    [activeWangSetId, draft, fallbackPreset, onClearSelectionTarget, setDraft],
   );
 
   const handleSelectWangSet = useCallback(

@@ -1,6 +1,7 @@
 import type {
   AutotileConfig,
   AutotilePatternSlotId,
+  AutotilePresetId,
   AutotileTerrain,
   AutotileTileRegion,
   AutotileWangPosition,
@@ -168,6 +169,7 @@ export interface AutotileNamedWangTileAssignmentsProps {
 
 export interface UseAutotileNamedWangEditorOptions {
   draft: AutotileConfig;
+  fallbackPreset: AutotilePresetId;
   setDraft: Dispatch<SetStateAction<AutotileConfig>>;
   onSelectTarget: (target: AutotileSelectionTarget) => void;
   onClearSelectionTarget: () => void;

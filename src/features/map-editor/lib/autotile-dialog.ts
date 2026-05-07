@@ -202,6 +202,32 @@ export function cloneAutotileConfig(
   return normalized;
 }
 
+export function deleteWangSetFromAutotileConfig(
+  autotile: AutotileConfig,
+  wangSetId: AutotileWangSet["id"],
+  fallbackPreset: AutotilePresetId = DEFAULT_AUTOTILE_PRESET_ID,
+): AutotileConfig {
+  const remainingWangSets = (autotile.wangSets ?? []).filter(
+    (wangSet) => wangSet.id !== wangSetId,
+  );
+
+  if (remainingWangSets.length > 0) {
+    return {
+      ...autotile,
+      wangSets: remainingWangSets,
+    };
+  }
+
+  return {
+    ...autotile,
+    preset:
+      fallbackPreset === "wang-named-colors"
+        ? DEFAULT_AUTOTILE_PRESET_ID
+        : fallbackPreset,
+    wangSets: undefined,
+  };
+}
+
 export function assignTileToSelectionTarget(
   autotile: AutotileConfig,
   target: AutotileSelectionTarget,
