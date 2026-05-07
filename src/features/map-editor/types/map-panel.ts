@@ -20,10 +20,7 @@ import type { QuickExportControlState } from "@/types";
 import type { NewMapType } from "@/types/map/map-geometry";
 import type { TextObjectEditingState } from "@/types/map/text-object";
 import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
-import type {
-  AppliedTerrainSelection,
-  TerrainToolTarget,
-} from "./dialogs";
+import type { AppliedTerrainSelection, TerrainToolTarget } from "./dialogs";
 import type {
   MapCanvasContextMenuTile,
   OrientAction,

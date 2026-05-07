@@ -49,11 +49,19 @@ vi.mock("@/components/ui/DropdownMenu", async () => {
         children,
       ),
     DropdownMenuLabel: ({ children }: { children: React.ReactNode }) =>
-      React.createElement("div", { "data-slot": "dropdown-menu-label" }, children),
+      React.createElement(
+        "div",
+        { "data-slot": "dropdown-menu-label" },
+        children,
+      ),
     DropdownMenuSeparator: () =>
       React.createElement("hr", { "data-slot": "dropdown-menu-separator" }),
     DropdownMenuSub: ({ children }: { children: React.ReactNode }) =>
-      React.createElement("div", { "data-slot": "dropdown-menu-sub" }, children),
+      React.createElement(
+        "div",
+        { "data-slot": "dropdown-menu-sub" },
+        children,
+      ),
     DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) =>
       React.createElement(
         "div",
@@ -84,7 +92,11 @@ vi.mock("@/components/ui/Tooltip", async () => {
     }) =>
       asChild
         ? children
-        : React.createElement("div", { "data-slot": "tooltip-trigger" }, children),
+        : React.createElement(
+            "div",
+            { "data-slot": "tooltip-trigger" },
+            children,
+          ),
     TooltipContent: ({ children }: { children: React.ReactNode }) =>
       React.createElement("div", { "data-slot": "tooltip-content" }, children),
   };
@@ -235,7 +247,10 @@ async function renderToolbar(overrides: Partial<MapPanelToolbarProps> = {}) {
 }
 
 function normalizeText(text: string | null) {
-  return (text ?? "").replace(/\s*✓\s*/g, "").replace(/\s+/g, " ").trim();
+  return (text ?? "")
+    .replace(/\s*✓\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function findButtonByText(root: ParentNode, label: string) {
@@ -315,13 +330,17 @@ test("map panel toolbar exposes shared paint and fill terrain menu actions", asy
   dispatchMouseDown(paintSizeButton);
   expect(props.onSelectBrushTool).toHaveBeenCalledWith("paint", "1x1");
 
-  dispatchMouseDown(findButtonByText(paintTerrainSubmenu, "Create / New Terrain"));
+  dispatchMouseDown(
+    findButtonByText(paintTerrainSubmenu, "Create / New Terrain"),
+  );
   expect(props.onOpenTerrainDialog).toHaveBeenCalledWith("paint");
 
   dispatchMouseDown(findButtonByText(grassPaintSubmenu, "4x4"));
   expect(props.onSelectPaintTerrain).toHaveBeenCalledWith(TERRAIN_ID, "4x4");
 
-  dispatchMouseDown(findButtonByText(fillTerrainSubmenu, "Create / New Terrain"));
+  dispatchMouseDown(
+    findButtonByText(fillTerrainSubmenu, "Create / New Terrain"),
+  );
   expect(props.onOpenTerrainDialog).toHaveBeenCalledWith("fill");
 
   dispatchMouseDown(findButtonByText(fillTerrainSubmenu, "Grass"));

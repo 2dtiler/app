@@ -276,7 +276,10 @@ export function FillTerrainDialog({
         <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
           {/* ---- Row 1: Saved terrains selector ---- */}
           <div className="flex items-center gap-2">
-            <Label htmlFor="terrain-select" className="text-xs font-medium shrink-0">
+            <Label
+              htmlFor="terrain-select"
+              className="text-xs font-medium shrink-0"
+            >
               Terrain:
             </Label>
             <Select
@@ -321,7 +324,10 @@ export function FillTerrainDialog({
               value={selectedTilesetId ?? ""}
               onValueChange={handleTilesetChange}
             >
-              <SelectTrigger id="terrain-tileset" className="h-7 text-xs flex-1">
+              <SelectTrigger
+                id="terrain-tileset"
+                className="h-7 text-xs flex-1"
+              >
                 <SelectValue placeholder="Select a tileset" />
               </SelectTrigger>
               <SelectContent>

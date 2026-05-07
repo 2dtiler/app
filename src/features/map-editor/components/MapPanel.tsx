@@ -77,10 +77,12 @@ function getAdjacentItemId<T extends { id: string }>(
 }
 
 function cloneTerrainTiles(tiles: TerrainTile[] | null): TerrainTile[] | null {
-  return tiles?.map((tile) => ({
-    probability: tile.probability,
-    tileRef: { ...tile.tileRef },
-  })) ?? null;
+  return (
+    tiles?.map((tile) => ({
+      probability: tile.probability,
+      tileRef: { ...tile.tileRef },
+    })) ?? null
+  );
 }
 
 export function MapPanel({
@@ -124,8 +126,9 @@ export function MapPanel({
     useState<TerrainToolTarget>("fill");
   const [terrainDialogInitialTerrainId, setTerrainDialogInitialTerrainId] =
     useState<TerrainId | null>(null);
-  const [terrainDialogInitialTiles, setTerrainDialogInitialTiles] =
-    useState<TerrainTile[] | null>(null);
+  const [terrainDialogInitialTiles, setTerrainDialogInitialTiles] = useState<
+    TerrainTile[] | null
+  >(null);
   const [renamingTabId, setRenamingTabId] = useState<MapId | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [propsObjectId, setPropsObjectId] = useState<ObjectId | null>(null);
@@ -669,7 +672,9 @@ export function MapPanel({
   }
 
   function getSavedTerrain(terrainId: TerrainId) {
-    return project?.terrains.find((terrain) => terrain.id === terrainId) ?? null;
+    return (
+      project?.terrains.find((terrain) => terrain.id === terrainId) ?? null
+    );
   }
 
   function handleOpenTerrainDialog(target: TerrainToolTarget) {

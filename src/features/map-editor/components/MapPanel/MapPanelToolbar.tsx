@@ -118,7 +118,9 @@ export function MapPanelToolbar({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               Paint
-              {state.currentTool === "paint" && state.paintMode === "paint" && " ✓"}
+              {state.currentTool === "paint" &&
+                state.paintMode === "paint" &&
+                " ✓"}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {BRUSH_SIZES.map((size) => (
@@ -143,7 +145,9 @@ export function MapPanelToolbar({
                 " ✓"}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onMouseDown={() => onOpenTerrainDialog("paint")}>
+              <DropdownMenuItem
+                onMouseDown={() => onOpenTerrainDialog("paint")}
+              >
                 Create / New Terrain
               </DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -197,7 +197,10 @@ export function useMapPanelCanvasActions({
 
       if (state.currentTool === "paint") {
         if (state.paintMode === "paintTerrain") {
-          if (!state.activePaintTerrain || state.activePaintTerrain.length === 0) {
+          if (
+            !state.activePaintTerrain ||
+            state.activePaintTerrain.length === 0
+          ) {
             return;
           }
 
