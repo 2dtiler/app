@@ -131,3 +131,103 @@ test("replaceWithImportedGodotProject passes through a valid tile size", async (
     32,
   );
 });
+
+test("replaceWithImportedGodotProject deduplicates tilesets after importing multiple maps", async () => {
+  const targetProject = {
+    id: "project-1",
+    name: "Imported Godot Project",
+    mapGroups: [{ id: "map-group-1" }],
+    tilesetGroups: [{ id: "tileset-group-1" }],
+  } as unknown as Project;
+  const importedProject = {
+    ...targetProject,
+    maps: [{ id: "map-1" }],
+  } as unknown as Project;
+  const result = {
+    maps: [
+      { map: { tileSize: 16, name: "Level 1" }, warnings: [] },
+      { map: { tileSize: 16, name: "Level 2" }, warnings: [] },
+    ],
+    warnings: [],
+  } as unknown as GodotProjectImportResult;
+  const draftState = {
+    project: {
+      tilesets: [
+        {
+          id: "tileset-1",
+          assetId: "asset-1",
+          name: "Terrain",
+          tileSize: 16,
+          imageWidth: 32,
+          imageHeight: 16,
+        },
+        {
+          id: "tileset-2",
+          assetId: "asset-1",
+          name: "Terrain",
+          tileSize: 16,
+          imageWidth: 32,
+          imageHeight: 16,
+        },
+      ],
+      layers: [
+        {
+          tiles: {
+            "0,0": {
+              tilesetId: "tileset-2",
+              sx: 0,
+              sy: 0,
+              sw: 16,
+              sh: 16,
+            },
+          },
+        },
+      ],
+    },
+  };
+  const setState = ((updater: (draft: typeof draftState) => void) => {
+    updater(draftState);
+  }) as unknown as EditorTravels["setState"];
+
+  helperMocks.createEmptyProject.mockReturnValue(targetProject);
+  helperMocks.getEditorStore.mockReturnValue({
+    getState: () => ({ project: importedProject }),
+  });
+
+  await replaceWithImportedGodotProject(
+    result,
+    "Imported Godot Project",
+    setState,
+  );
+
+  expect(draftState.project.tilesets).toHaveLength(1);
+  expect(draftState.project.layers[0]?.tiles["0,0"]?.tilesetId).toBe(
+    "tileset-1",
+  );
+});
+
+test("replaceWithImportedGodotProject throws when the imported project cannot be opened", async () => {
+  const targetProject = {
+    id: "project-1",
+    name: "Imported Godot Project",
+    mapGroups: [{ id: "map-group-1" }],
+    tilesetGroups: [{ id: "tileset-group-1" }],
+  } as unknown as Project;
+  const result = {
+    maps: [{ map: { tileSize: 16, name: "Level 1" }, warnings: [] }],
+    warnings: [],
+  } as unknown as GodotProjectImportResult;
+
+  helperMocks.createEmptyProject.mockReturnValue(targetProject);
+  helperMocks.getEditorStore.mockReturnValue({
+    getState: () => ({ project: null }),
+  });
+
+  await expect(
+    replaceWithImportedGodotProject(
+      result,
+      "Imported Godot Project",
+      vi.fn() as unknown as EditorTravels["setState"],
+    ),
+  ).rejects.toThrow("Imported Godot project could not be opened.");
+});

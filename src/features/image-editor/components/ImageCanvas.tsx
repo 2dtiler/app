@@ -34,19 +34,11 @@ import {
   getResizeHandleCursor,
   drawFloatingOnOverlay,
 } from "@/features/image-editor/lib/image-editor-tools";
-
-function clampCanvasDimension(value: number, fallback: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(1024, Math.max(1, Math.round(value)));
-}
-
-function getResizeDeltaInPixels(delta: number, zoom: number): number {
-  if (zoom <= 0) return 0;
-  if (delta >= 0) {
-    return Math.floor(delta / zoom);
-  }
-  return Math.ceil(delta / zoom);
-}
+import {
+  beginCanvasResizeAction,
+  getCanvasResizeCommit,
+  updateCanvasResizeAction,
+} from "@/features/image-editor/lib/canvas-resize-controller";
 
 export function ImageCanvas({
   width,
@@ -100,17 +92,15 @@ export function ImageCanvas({
       const action = resizeActionRef.current;
       if (!action) return;
 
+      const nextResize = getCanvasResizeCommit(action, commit);
+
       resizeActionRef.current = null;
       setActiveResizeHandle(null);
       setHoveredResizeHandle(null);
       setResizePreview(null);
 
-      if (
-        commit &&
-        (action.nextWidth !== action.origWidth ||
-          action.nextHeight !== action.origHeight)
-      ) {
-        onResizeCanvas(action.nextWidth, action.nextHeight);
+      if (nextResize) {
+        onResizeCanvas(nextResize.width, nextResize.height);
       }
     },
     [onResizeCanvas],
@@ -121,28 +111,9 @@ export function ImageCanvas({
       const action = resizeActionRef.current;
       if (!action) return;
 
-      const deltaX = getResizeDeltaInPixels(
-        clientX - action.startClientX,
-        zoom,
+      setResizePreview(
+        updateCanvasResizeAction(action, clientX, clientY, zoom),
       );
-      const deltaY = getResizeDeltaInPixels(
-        clientY - action.startClientY,
-        zoom,
-      );
-      const nextWidth = clampCanvasDimension(
-        action.origWidth +
-          (action.handle === "e" || action.handle === "se" ? deltaX : 0),
-        action.origWidth,
-      );
-      const nextHeight = clampCanvasDimension(
-        action.origHeight +
-          (action.handle === "s" || action.handle === "se" ? deltaY : 0),
-        action.origHeight,
-      );
-
-      action.nextWidth = nextWidth;
-      action.nextHeight = nextHeight;
-      setResizePreview({ width: nextWidth, height: nextHeight });
     },
     [zoom],
   );
@@ -156,18 +127,20 @@ export function ImageCanvas({
 
       e.preventDefault();
       e.stopPropagation();
-      resizeActionRef.current = {
+      const nextAction = beginCanvasResizeAction(
         handle,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        origWidth: width,
-        origHeight: height,
-        nextWidth: width,
-        nextHeight: height,
-      };
+        e.clientX,
+        e.clientY,
+        width,
+        height,
+      );
+      resizeActionRef.current = nextAction;
       setActiveResizeHandle(handle);
       setHoveredResizeHandle(handle);
-      setResizePreview({ width, height });
+      setResizePreview({
+        width: nextAction.nextWidth,
+        height: nextAction.nextHeight,
+      });
     },
     [width, height],
   );
