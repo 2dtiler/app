@@ -5,7 +5,6 @@ import {
   prepareTiledProjectImport,
 } from "@/features/import-export/lib/import-export-tiled-project";
 import type {
-  ImportExportArchiveEntry,
   Project,
   TiledImportMissingResource,
   TiledMapImportResult,

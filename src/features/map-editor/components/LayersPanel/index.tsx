@@ -18,6 +18,10 @@ import {
   getAllGroupIds,
   isAncestorOf,
 } from "@/features/map-editor/lib/layers";
+import {
+  applyLayerDrop,
+  getLayerDropPosition,
+} from "@/features/map-editor/lib/layers-panel-dnd";
 import type {
   LayerId,
   LayerGroupId,
@@ -75,7 +79,6 @@ export function LayersPanel() {
     );
   }
 
-  // Build display tree (top-to-bottom for rendering)
   const imageLayers = project.imageLayers ?? [];
   const objectLayers = project.objectLayers ?? [];
   const treeNodes = buildDisplayTree(
@@ -88,12 +91,7 @@ export function LayersPanel() {
     objectLayers,
   );
 
-  // Count total layers (including nested) for default name
   const totalItems = getAllLayerIds(activeMap.layerOrder, layerGroups).length;
-
-  // -------------------------------------------------------------------------
-  // Drag & Drop handlers
-  // -------------------------------------------------------------------------
 
   function handleDragStart(id: string, isGroup: boolean) {
     setDragId(id);
@@ -134,19 +132,11 @@ export function LayersPanel() {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const ratio = y / rect.height;
-
-    let position: "above" | "below" | "inside";
-    if (targetIsGroup) {
-      // Groups have three zones: top 25% = above, middle 50% = inside, bottom 25% = below
-      if (ratio < 0.25) position = "above";
-      else if (ratio > 0.75) position = "below";
-      else position = "inside";
-    } else {
-      // Layers have two zones: top 50% = above, bottom 50% = below
-      position = ratio < 0.5 ? "above" : "below";
-    }
+    const position = getLayerDropPosition(
+      targetIsGroup,
+      e.clientY - rect.top,
+      rect.height,
+    );
 
     setDropIndicator({ targetId, position });
   }
@@ -167,63 +157,11 @@ export function LayersPanel() {
       if (!map) return;
       const groups = draft.project.layerGroups ?? [];
 
-      // --- 1. Remove the dragged item from its current location ---
-      const removeFromOrder = (order: (LayerId | LayerGroupId)[]) => {
-        const idx = (order as string[]).indexOf(dragId);
-        if (idx !== -1) order.splice(idx, 1);
-      };
-
-      // Remove from top-level
-      removeFromOrder(map.layerOrder);
-      // Remove from all groups
-      for (const g of groups) {
-        removeFromOrder(g.childOrder);
-      }
-
-      // --- 2. Insert at the target location ---
-      if (position === "inside") {
-        // Drop into a group
-        const targetGroup = groups.find((g) => g.id === targetId);
-        if (targetGroup) {
-          // Add to the top of the group (end of childOrder = visually top)
-          targetGroup.childOrder.push(dragId as LayerId | LayerGroupId);
-          // Auto-expand the group so user can see the dropped item
-          targetGroup.expanded = true;
-        }
-      } else {
-        // "above" or "below" — insert relative to the target
-        // Find which array the target is in
-        let targetOrder: (LayerId | LayerGroupId)[] | null = null;
-
-        if ((map.layerOrder as string[]).includes(targetId)) {
-          targetOrder = map.layerOrder;
-        } else {
-          for (const g of groups) {
-            if ((g.childOrder as string[]).includes(targetId)) {
-              targetOrder = g.childOrder;
-              break;
-            }
-          }
-        }
-
-        if (targetOrder) {
-          const targetIdx = (targetOrder as string[]).indexOf(targetId);
-          if (targetIdx !== -1) {
-            // Display is reversed: "above" in display = higher index in data,
-            // "below" in display = lower index in data
-            const insertIdx = position === "above" ? targetIdx + 1 : targetIdx;
-            targetOrder.splice(insertIdx, 0, dragId as LayerId | LayerGroupId);
-          }
-        }
-      }
+      applyLayerDrop(map.layerOrder, groups, dragId, targetId, position);
     });
 
     handleDragEnd();
   }
-
-  // -------------------------------------------------------------------------
-  // Handlers
-  // -------------------------------------------------------------------------
 
   function handleAddLayer() {
     setAddLayerOpen(true);
