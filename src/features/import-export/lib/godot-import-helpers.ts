@@ -68,7 +68,10 @@ function resolveGodotNodeParent(parent: string, rootNodeName: string | null) {
   return `${rootNodeName}/${parent}`;
 }
 
-export function resolveGodotResourcePath(fromPath: string, resourcePath: string) {
+export function resolveGodotResourcePath(
+  fromPath: string,
+  resourcePath: string,
+) {
   if (resourcePath.startsWith("res://")) {
     return normalizeBundlePath(resourcePath.slice("res://".length));
   }
@@ -145,7 +148,10 @@ export function parseGodotDocument(
     throw new Error(`Unsupported Godot file: ${normalizeBundlePath(path)}.`);
   }
 
-  const extResources = new Map<string, import("@/features/import-export/types").GodotExtResource>();
+  const extResources = new Map<
+    string,
+    import("@/features/import-export/types").GodotExtResource
+  >();
   const subResources = new Map<string, GodotSection>();
   const nodes: GodotNode[] = [];
   const normalizedPath = normalizeBundlePath(path);
@@ -303,7 +309,11 @@ export function collectMissingResources(
 
   for (const resource of document.extResources.values()) {
     if (!getProvidedEntry(context.providedEntries, resource.resolvedPath)) {
-      addMissingResource(missingResources, resource.resolvedPath, document.path);
+      addMissingResource(
+        missingResources,
+        resource.resolvedPath,
+        document.path,
+      );
       continue;
     }
 

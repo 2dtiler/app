@@ -111,7 +111,9 @@ export function ImageCanvas({
       const action = resizeActionRef.current;
       if (!action) return;
 
-      setResizePreview(updateCanvasResizeAction(action, clientX, clientY, zoom));
+      setResizePreview(
+        updateCanvasResizeAction(action, clientX, clientY, zoom),
+      );
     },
     [zoom],
   );
@@ -135,7 +137,10 @@ export function ImageCanvas({
       resizeActionRef.current = nextAction;
       setActiveResizeHandle(handle);
       setHoveredResizeHandle(handle);
-      setResizePreview({ width: nextAction.nextWidth, height: nextAction.nextHeight });
+      setResizePreview({
+        width: nextAction.nextWidth,
+        height: nextAction.nextHeight,
+      });
     },
     [width, height],
   );

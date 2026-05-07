@@ -54,7 +54,10 @@ test("applyLayerDrop inserts items into groups and expands them", () => {
   );
 
   assert.deepEqual(fixtures.layerOrder, [fixtures.layerA, fixtures.groupId]);
-  assert.deepEqual(fixtures.groups[0]?.childOrder, [fixtures.layerB, fixtures.layerC]);
+  assert.deepEqual(fixtures.groups[0]?.childOrder, [
+    fixtures.layerB,
+    fixtures.layerC,
+  ]);
   assert.strictEqual(fixtures.groups[0]?.expanded, true);
 });
 
@@ -69,5 +72,9 @@ test("applyLayerDrop reorders items relative to the visible target", () => {
     "below",
   );
 
-  assert.deepEqual(fixtures.layerOrder, [fixtures.groupId, fixtures.layerA, fixtures.layerC]);
+  assert.deepEqual(fixtures.layerOrder, [
+    fixtures.groupId,
+    fixtures.layerA,
+    fixtures.layerC,
+  ]);
 });

@@ -21,10 +21,7 @@ export function getLayerDropPosition(
   return ratio < 0.5 ? "above" : "below";
 }
 
-function removeFromOrder(
-  order: (LayerId | LayerGroupId)[],
-  dragId: string,
-) {
+function removeFromOrder(order: (LayerId | LayerGroupId)[], dragId: string) {
   const itemIndex = (order as string[]).indexOf(dragId);
   if (itemIndex !== -1) {
     order.splice(itemIndex, 1);
@@ -41,8 +38,9 @@ function findTargetOrder(
   }
 
   return (
-    layerGroups.find((group) => (group.childOrder as string[]).includes(targetId))
-      ?.childOrder ?? null
+    layerGroups.find((group) =>
+      (group.childOrder as string[]).includes(targetId),
+    )?.childOrder ?? null
   );
 }
 

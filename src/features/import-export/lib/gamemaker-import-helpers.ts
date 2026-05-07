@@ -28,7 +28,10 @@ import type {
 
 const DEFAULT_ROOM_SPEED = 60;
 
-export function normalizeGameMakerPath(fromPath: string, candidatePath: string) {
+export function normalizeGameMakerPath(
+  fromPath: string,
+  candidatePath: string,
+) {
   if (candidatePath.startsWith("./") || candidatePath.startsWith("../")) {
     return resolveBundlePath(fromPath, candidatePath);
   }
@@ -328,7 +331,10 @@ export function collectMissingImageChain(
 
   const spriteRecord = parseJsonEntry(providedEntries, spritePath);
   const derivedImagePath = deriveSpriteImagePath(spritePath, spriteRecord);
-  if (derivedImagePath && !getProvidedEntry(providedEntries, derivedImagePath)) {
+  if (
+    derivedImagePath &&
+    !getProvidedEntry(providedEntries, derivedImagePath)
+  ) {
     addMissingResource(
       missingResources,
       derivedImagePath,
