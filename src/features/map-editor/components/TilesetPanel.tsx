@@ -76,6 +76,7 @@ import type {
   TilesetPanelProps,
 } from "@/features/map-editor/types/tileset-panel";
 import type {
+  PendingTilesetImageImport,
   TilesetImageImportPosition,
   TilesetPlacementPreview,
 } from "@/features/map-editor/types/tileset-import";
@@ -238,8 +239,10 @@ export function TilesetPanel({
     fileInputRef.current?.click();
   }
 
-  async function createTilesetFromPendingImport() {
-    if (!pendingImport) return;
+  async function createTilesetFromPendingImport(
+    importToCreate: PendingTilesetImageImport | null = pendingImport,
+  ) {
+    if (!importToCreate) return;
     if (!project) return;
 
     const targetGroupId = activeGroup?.id ?? project.tilesetGroups[0]?.id;
@@ -253,10 +256,10 @@ export function TilesetPanel({
 
     try {
       const assetId = generateAssetId();
-      await saveAsset(assetId, pendingImport.buffer, pendingImport.mimeType);
+      await saveAsset(assetId, importToCreate.buffer, importToCreate.mimeType);
 
       const tilesetId = generateTilesetId();
-      const name = pendingImport.name;
+      const name = importToCreate.name;
 
       setState((draft) => {
         if (!draft.project) return;
@@ -266,8 +269,8 @@ export function TilesetPanel({
           groupId: targetGroupId,
           tileSize: activeTileSize,
           assetId,
-          imageWidth: pendingImport.width,
-          imageHeight: pendingImport.height,
+          imageWidth: importToCreate.width,
+          imageHeight: importToCreate.height,
           createdAt: Date.now(),
         };
         draft.project.tilesets.push(tileset);
@@ -335,7 +338,12 @@ export function TilesetPanel({
     const file = e.target.files?.[0];
     if (file) {
       if (isTilesetImageFile(file)) {
-        await queueImageFile(file);
+        const nextPendingImport = await queueImageFile(file, {
+          showChoiceDialog: Boolean(activeTileset),
+        });
+        if (nextPendingImport && !activeTileset) {
+          await createTilesetFromPendingImport(nextPendingImport);
+        }
       } else {
         await onImportTilesetFromFile(file);
       }
@@ -370,7 +378,12 @@ export function TilesetPanel({
     e.preventDefault();
     setIsDropTargetActive(false);
     if (isTilesetImageFile(file)) {
-      await queueImageFile(file);
+      const nextPendingImport = await queueImageFile(file, {
+        showChoiceDialog: Boolean(activeTileset),
+      });
+      if (nextPendingImport && !activeTileset) {
+        await createTilesetFromPendingImport(nextPendingImport);
+      }
     } else {
       await onImportTilesetFromFile(file);
     }

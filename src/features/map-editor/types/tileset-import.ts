@@ -44,6 +44,10 @@ export interface TilesetImageMergeResult {
   mimeType: string;
 }
 
+export interface QueueTilesetImageFileOptions {
+  showChoiceDialog?: boolean;
+}
+
 export interface UseTilesetImageImportResult {
   pendingImport: PendingTilesetImageImport | null;
   mode: TilesetImageImportMode;
@@ -51,7 +55,10 @@ export interface UseTilesetImageImportResult {
   isLoading: boolean;
   isCommitting: boolean;
   error: string | null;
-  queueImageFile: (file: File) => Promise<boolean>;
+  queueImageFile: (
+    file: File,
+    options?: QueueTilesetImageFileOptions,
+  ) => Promise<PendingTilesetImageImport | null>;
   beginPlacement: () => void;
   updatePlacementPosition: (position: TilesetImageImportPosition) => void;
   setCommitting: (isCommitting: boolean) => void;

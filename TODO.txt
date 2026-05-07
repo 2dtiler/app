@@ -1,4 +1,5 @@
 Autotile Setup should not default to wang tiles
+
 Terrain Brush
 
 Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
