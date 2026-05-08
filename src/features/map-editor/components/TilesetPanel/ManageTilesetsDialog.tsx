@@ -23,7 +23,6 @@ export function ManageTilesetsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Manage Tilesets"
-      description="Reorganize tileset groups and tilesets without losing the current editor context."
       groupSectionTitle="Tileset Groups"
       itemSectionTitle="Tilesets"
       createGroupLabel="New Group"

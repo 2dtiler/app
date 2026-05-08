@@ -1,3 +1,5 @@
+import type { AssetId } from "@/types";
+
 export type AssetManagerDragType = "group" | "item";
 
 export type AssetManagerGroupDropPosition = "above" | "below" | "inside";
@@ -28,6 +30,7 @@ export interface AssetManagerItemViewModel {
   id: string;
   name: string;
   subtitle?: string;
+  previewAssetId?: AssetId | null;
 }
 
 export interface AssetManagerDragState {
@@ -49,7 +52,7 @@ export interface AssetManagerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description: string;
+  description?: string;
   groupSectionTitle: string;
   itemSectionTitle: string;
   createGroupLabel: string;
@@ -63,7 +66,9 @@ export interface AssetManagerDialogProps {
   onCreateItem: (groupId: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
-  onRenameItem: (itemId: string, name: string) => void;
+  onRenameItem?: (itemId: string, name: string) => void;
+  onEditItem?: (itemId: string) => void;
+  editItemLabel?: string;
   onDeleteItem: (itemId: string) => void;
   onReorderGroups: (
     dragId: string,

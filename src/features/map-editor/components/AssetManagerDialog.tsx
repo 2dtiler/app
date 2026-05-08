@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useAssetImage } from "@/features/map-editor/hooks/use-asset-image";
 import {
   getAssetManagerGroupDropPosition,
   getAssetManagerItemDropPosition,
@@ -18,12 +19,32 @@ import type {
   AssetManagerDialogProps,
   AssetManagerDragState,
   AssetManagerGroupDropState,
+  AssetManagerItemViewModel,
   AssetManagerItemDropState,
 } from "@/features/map-editor/types/asset-manager";
 import { cn } from "@/utils/cn";
 
 function getGroupDeleteLabel(reason?: string) {
   return reason ?? "Move or delete all items before deleting this group.";
+}
+
+function AssetManagerItemPreview(item: AssetManagerItemViewModel) {
+  const image = useAssetImage(item.previewAssetId ?? null);
+
+  if (!image?.src) {
+    return null;
+  }
+
+  return (
+    <div className="shrink-0 overflow-hidden rounded-xl border border-border bg-background/70">
+      <img
+        src={image.src}
+        alt={`${item.name} preview`}
+        className="h-14 w-20 object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
 }
 
 export function AssetManagerDialog({
@@ -45,6 +66,8 @@ export function AssetManagerDialog({
   onRenameGroup,
   onDeleteGroup,
   onRenameItem,
+  onEditItem,
+  editItemLabel,
   onDeleteItem,
   onReorderGroups,
   onMoveItemToGroup,
@@ -64,6 +87,8 @@ export function AssetManagerDialog({
 
   const selectedGroup =
     groups.find((group) => group.id === selectedGroupId) ?? null;
+  const resolvedEditItemLabel =
+    editItemLabel ?? (onEditItem ? "Edit item" : "Rename item");
 
   useEffect(() => {
     if (open) {
@@ -137,7 +162,7 @@ export function AssetManagerDialog({
     }
 
     const name = renameItemValue.trim();
-    if (name) {
+    if (name && onRenameItem) {
       onRenameItem(renamingItemId, name);
     }
 
@@ -223,15 +248,17 @@ export function AssetManagerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[min(70rem,calc(100%-2rem))] gap-0 overflow-hidden p-0"
+        className="sm:max-w-7xl max-h-[92vh] flex flex-col gap-0 overflow-hidden p-0"
         showCloseButton={false}
       >
         <DialogHeader className="border-b border-border px-6 py-5">
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {description ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : null}
         </DialogHeader>
 
-        <div className="grid min-h-[32rem] grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[20%_minmax(0,1fr)] overflow-hidden">
           <div className="flex min-h-0 flex-col border-r border-border bg-card/60">
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
@@ -298,20 +325,24 @@ export function AssetManagerDialog({
                           handleGroupKeyDown(event, group.id)
                         }
                       >
-                        <div className="mt-0.5 text-muted-foreground">
+                        <div
+                          className={cn(
+                            "mt-0.5 cursor-pointer text-muted-foreground",
+                            dragState?.type === "group" &&
+                              dragState.id === group.id &&
+                              "cursor-grabbing",
+                          )}
+                        >
                           <GripVertical className="h-4 w-4" />
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            Group
-                          </div>
                           {isRenaming ? (
                             <Input
                               id={`asset-manager-group-${group.id}`}
                               name={`asset-manager-group-${group.id}`}
                               aria-label={`Rename group ${group.name}`}
-                              className="mt-2 h-9 rounded-lg text-xs"
+                              className="h-9 rounded-lg text-xs"
                               value={renameGroupValue}
                               onBlur={commitGroupRename}
                               onChange={(event) =>
@@ -329,10 +360,10 @@ export function AssetManagerDialog({
                             />
                           ) : (
                             <>
-                              <div className="mt-1 truncate text-sm text-foreground">
+                              <div className="truncate text-sm text-foreground">
                                 {group.name}
                               </div>
-                              <div className="mt-2 text-xs text-muted-foreground">
+                              <div className="mt-1 text-xs text-muted-foreground">
                                 {group.itemCount}{" "}
                                 {group.itemCount === 1 ? "item" : "items"}
                               </div>
@@ -452,20 +483,26 @@ export function AssetManagerDialog({
                           ) : null}
 
                           <div className="flex min-w-0 items-start gap-3">
-                            <div className="mt-0.5 text-muted-foreground">
+                            <div
+                              className={cn(
+                                "mt-0.5 cursor-pointer text-muted-foreground",
+                                dragState?.type === "item" &&
+                                  dragState.id === item.id &&
+                                  "cursor-grabbing",
+                              )}
+                            >
                               <GripVertical className="h-4 w-4" />
                             </div>
 
+                            <AssetManagerItemPreview {...item} />
+
                             <div className="min-w-0 flex-1">
-                              <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                                Item
-                              </div>
                               {isRenaming ? (
                                 <Input
                                   id={`asset-manager-item-${item.id}`}
                                   name={`asset-manager-item-${item.id}`}
                                   aria-label={`Rename item ${item.name}`}
-                                  className="mt-2 h-9 rounded-lg text-xs"
+                                  className="h-9 rounded-lg text-xs"
                                   value={renameItemValue}
                                   onBlur={commitItemRename}
                                   onChange={(event) =>
@@ -483,11 +520,11 @@ export function AssetManagerDialog({
                                 />
                               ) : (
                                 <>
-                                  <div className="mt-1 truncate text-sm text-foreground">
+                                  <div className="truncate text-sm text-foreground">
                                     {item.name}
                                   </div>
                                   {item.subtitle ? (
-                                    <div className="mt-2 truncate text-xs text-muted-foreground">
+                                    <div className="mt-1 truncate text-xs text-muted-foreground">
                                       {item.subtitle}
                                     </div>
                                   ) : null}
@@ -496,17 +533,24 @@ export function AssetManagerDialog({
                             </div>
 
                             <div className="flex shrink-0 items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-xs"
-                                aria-label={`Rename item ${item.name}`}
-                                onClick={() =>
-                                  beginItemRename(item.id, item.name)
-                                }
-                              >
-                                <PencilLine className="h-3 w-3" />
-                              </Button>
+                              {onEditItem || onRenameItem ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  aria-label={`${resolvedEditItemLabel} ${item.name}`}
+                                  onClick={() => {
+                                    if (onEditItem) {
+                                      onEditItem(item.id);
+                                      return;
+                                    }
+
+                                    beginItemRename(item.id, item.name);
+                                  }}
+                                >
+                                  <PencilLine className="h-3 w-3" />
+                                </Button>
+                              ) : null}
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -523,12 +567,12 @@ export function AssetManagerDialog({
                     })}
                   </div>
                 ) : (
-                  <div className="flex h-full min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 text-center text-sm text-muted-foreground">
+                  <div className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 text-center text-sm text-muted-foreground">
                     {emptyItemsMessage}
                   </div>
                 )
               ) : (
-                <div className="flex h-full min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 text-center text-sm text-muted-foreground">
+                <div className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 text-center text-sm text-muted-foreground">
                   Select a group to manage its items.
                 </div>
               )}

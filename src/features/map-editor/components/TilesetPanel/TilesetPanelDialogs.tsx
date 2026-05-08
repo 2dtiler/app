@@ -1,9 +1,20 @@
+import { useState } from "react";
 import { NewTilesetGroupDialog } from "@/components/dialogs/NewTilesetGroupDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/AlertDialog";
 import { AnimationDialog } from "@/features/map-editor/dialogs/AnimationDialog";
 import { AutotileDialog } from "@/features/map-editor/dialogs/AutotileDialog";
 import { ManageTilesetsDialog } from "./ManageTilesetsDialog";
 import { TilesetDeleteDialog } from "../TilesetDeleteDialog";
 import type { TilesetPanelDialogsProps } from "@/features/map-editor/types/tileset-panel";
+import type { TilesetGroupId } from "@/types";
 
 export function TilesetPanelDialogs({
   activeTileset,
@@ -37,6 +48,29 @@ export function TilesetPanelDialogs({
   setManageTilesetsSelectedGroupId,
   setNewGroupName,
 }: TilesetPanelDialogsProps) {
+  const [blockedDeleteGroupName, setBlockedDeleteGroupName] = useState<
+    string | null
+  >(null);
+
+  function handleRequestCreateGroup() {
+    setNewGroupName("");
+    setAddGroupOpen(true);
+  }
+
+  function handleRequestDeleteGroup(groupId: string) {
+    const group = manageTilesetGroups.find((entry) => entry.id === groupId);
+    if (!group) {
+      return;
+    }
+
+    if (group.itemCount > 0) {
+      setBlockedDeleteGroupName(group.name);
+      return;
+    }
+
+    onDeleteEmptyGroup(groupId as TilesetGroupId);
+  }
+
   return (
     <>
       <NewTilesetGroupDialog
@@ -54,16 +88,41 @@ export function TilesetPanelDialogs({
         tilesets={manageTilesetItems}
         selectedGroupId={manageTilesetsSelectedGroupId}
         onSelectedGroupChange={setManageTilesetsSelectedGroupId}
-        onCreateGroup={onCreateGroup}
+        onCreateGroup={handleRequestCreateGroup}
         onCreateTileset={onCreateTileset}
         onRenameGroup={onRenameGroup}
-        onDeleteGroup={onDeleteEmptyGroup}
+        onDeleteGroup={handleRequestDeleteGroup}
         onRenameTileset={onRenameTileset}
         onDeleteTileset={onDeleteTileset}
         onReorderGroups={onReorderGroups}
         onMoveTilesetToGroup={onMoveTilesetToGroup}
         onReorderTilesets={onReorderTilesets}
       />
+
+      {blockedDeleteGroupName ? (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setBlockedDeleteGroupName(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Can&apos;t delete this group yet
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Move or delete all tilesets in this group first.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction>OK</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
 
       {activeTileset ? (
         <AutotileDialog

@@ -1,4 +1,3 @@
-Manage Tilesets/Maps needs some work
 Deploy and check lospec import. Whitelist localhost for checking
 
 World View
@@ -39,7 +38,6 @@ Text Layer custom fonts not working
 
 Royalty free packs
 Add tutorial video
-Add roadmap voting on home page
 Windows/Mac/Linux Apps
 Drive some traffic to it: 2dtiler.com
 First time start: Show example map with tutorial

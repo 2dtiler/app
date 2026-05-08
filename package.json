@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && echo '__BUILD_OK__'",
     "lint": "bun x oxlint .",
     "test": "vitest run --coverage",
     "preview": "vite preview",

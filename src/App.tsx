@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import {
   initEditorStore,
@@ -22,7 +22,12 @@ import { getActiveTilesetTileSize } from "@/features/project-management/lib/proj
 import { zoomStore } from "@/store/zoom-store";
 import type { ToolName } from "@/features/app-shell";
 import { Toaster } from "@/components/ui/Sonner";
-import { AppShell } from "@/features/app-shell";
+
+const AppShell = lazy(() =>
+  import("@/features/app-shell").then((module) => ({
+    default: module.AppShell,
+  })),
+);
 
 // Hoisted static JSX: avoids re-creation on every render (rendering-hoist-jsx)
 const loadingScreen = (
@@ -296,22 +301,24 @@ function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <Toaster />
-      <AppShell
-        settingsOpen={settingsOpen}
-        setSettingsOpen={setSettingsOpen}
-        projectDialogOpen={projectDialogOpen}
-        setProjectDialogOpen={setProjectDialogOpen}
-        aboutOpen={aboutOpen}
-        setAboutOpen={setAboutOpen}
-        shortcutsOpen={shortcutsOpen}
-        setShortcutsOpen={setShortcutsOpen}
-        findReplaceOpen={findReplaceOpen}
-        setFindReplaceOpen={setFindReplaceOpen}
-        bugReportOpen={bugReportOpen}
-        setBugReportOpen={setBugReportOpen}
-        activeTool={activeTool}
-        setActiveTool={setActiveTool}
-      />
+      <Suspense fallback={loadingScreen}>
+        <AppShell
+          settingsOpen={settingsOpen}
+          setSettingsOpen={setSettingsOpen}
+          projectDialogOpen={projectDialogOpen}
+          setProjectDialogOpen={setProjectDialogOpen}
+          aboutOpen={aboutOpen}
+          setAboutOpen={setAboutOpen}
+          shortcutsOpen={shortcutsOpen}
+          setShortcutsOpen={setShortcutsOpen}
+          findReplaceOpen={findReplaceOpen}
+          setFindReplaceOpen={setFindReplaceOpen}
+          bugReportOpen={bugReportOpen}
+          setBugReportOpen={setBugReportOpen}
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
+        />
+      </Suspense>
     </TooltipProvider>
   );
 }

@@ -12,7 +12,7 @@ export function ManageMapsDialog({
   onCreateMap,
   onRenameGroup,
   onDeleteGroup,
-  onRenameMap,
+  onEditMap,
   onDeleteMap,
   onReorderGroups,
   onMoveMapToGroup,
@@ -54,12 +54,10 @@ export function ManageMapsDialog({
           groupId as ManageMapsDialogProps["selectedGroupId"] & string,
         )
       }
-      onRenameItem={(itemId, name) =>
-        onRenameMap(
-          itemId as Parameters<ManageMapsDialogProps["onRenameMap"]>[0],
-          name,
-        )
+      onEditItem={(itemId) =>
+        onEditMap(itemId as Parameters<ManageMapsDialogProps["onEditMap"]>[0])
       }
+      editItemLabel="Edit map"
       onDeleteItem={(itemId) =>
         onDeleteMap(
           itemId as Parameters<ManageMapsDialogProps["onDeleteMap"]>[0],

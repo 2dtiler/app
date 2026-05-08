@@ -224,7 +224,7 @@ export async function syncLospecPaletteCatalog(
   const saveCache = dependencies.saveCache ?? saveLospecPaletteCache;
   const now = dependencies.now ?? Date.now;
   const knownIds = new Set(await loadCacheIds());
-  let page = 1;
+  let page = 0;
   let addedCount = 0;
 
   try {

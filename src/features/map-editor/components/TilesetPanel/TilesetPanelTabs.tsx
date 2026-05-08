@@ -58,8 +58,14 @@ export function TilesetPanelTabs({
               {group.name}
             </SelectItem>
           ))}
-          <SelectItem value="__add__">+ Add Group</SelectItem>
-          <SelectItem value="__manage__">Manage Tilesets</SelectItem>
+          <SelectItem value="__add__">
+            <span aria-hidden="true">✚</span>
+            <span>Add Group</span>
+          </SelectItem>
+          <SelectItem value="__manage__">
+            <span aria-hidden="true">🛠</span>
+            <span>Manage Tilesets</span>
+          </SelectItem>
         </SelectContent>
       </Select>
 

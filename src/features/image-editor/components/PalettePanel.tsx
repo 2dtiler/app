@@ -267,15 +267,6 @@ export function PalettePanel({
             </Select>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 shrink-0 px-2 text-[10px]"
-            onClick={onOpenLospecDialog}
-          >
-            Import from Lospec
-          </Button>
-
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -318,6 +309,15 @@ export function PalettePanel({
             </TooltipTrigger>
             <TooltipContent>Delete Palette</TooltipContent>
           </Tooltip>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 shrink-0 px-2 text-[10px]"
+            onClick={onOpenLospecDialog}
+          >
+            Import from Lospec
+          </Button>
         </div>
 
         <div className="p-2 border-b border-border">

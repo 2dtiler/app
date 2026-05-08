@@ -21,6 +21,11 @@ import {
   moveOrderedGroup,
   reindexOrderedGroups,
 } from "@/features/map-editor/lib/asset-manager";
+import {
+  buildManageTilesetGroups,
+  buildManageTilesetItems,
+  shouldAutoCreateTilesetImport,
+} from "@/features/map-editor/lib/tileset-manager-dialog";
 import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
 import { syncActiveTilesetState } from "@/features/map-editor/lib/tileset-panel-state";
 import { isTilesetImageFile } from "@/features/map-editor/lib/tileset-image-import";
@@ -128,34 +133,11 @@ export function TilesetPanel({
   )
     ? manageTilesetsSelectedGroupId
     : (orderedTilesetGroups[0]?.id ?? null);
-  const manageTilesetGroups = orderedTilesetGroups.map((group) => {
-    const itemCount =
-      project?.tilesets.filter((tileset) => tileset.groupId === group.id)
-        .length ?? 0;
-    const isLastGroup = orderedTilesetGroups.length <= 1;
-
-    return {
-      id: group.id,
-      name: group.name,
-      itemCount,
-      canDelete: !isLastGroup && itemCount === 0,
-      deleteDisabledReason: isLastGroup
-        ? "Projects must keep at least one tileset group."
-        : itemCount > 0
-          ? "Move or delete all tilesets in this group first."
-          : undefined,
-    };
-  });
-  const manageTilesetItems =
-    project?.tilesets
-      .filter(
-        (tileset) => tileset.groupId === resolvedManageTilesetsSelectedGroupId,
-      )
-      .map((tileset) => ({
-        id: tileset.id,
-        name: tileset.name,
-        subtitle: `${tileset.imageWidth} × ${tileset.imageHeight} px`,
-      })) ?? [];
+  const manageTilesetGroups = buildManageTilesetGroups(project);
+  const manageTilesetItems = buildManageTilesetItems(
+    project,
+    resolvedManageTilesetsSelectedGroupId,
+  );
   const activeTileset = project?.tilesets.find(
     (t) => t.id === state.activeTilesetId,
   );
@@ -353,15 +335,18 @@ export function TilesetPanel({
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    const showChoiceDialog =
-      !tilesetImportTargetGroupId && Boolean(activeTileset);
+    const autoCreateTileset = shouldAutoCreateTilesetImport(
+      activeTileset?.id ?? null,
+      tilesetImportTargetGroupId,
+    );
+    const showChoiceDialog = !autoCreateTileset && Boolean(activeTileset);
 
     if (file) {
       if (isTilesetImageFile(file)) {
         const nextPendingImport = await queueImageFile(file, {
           showChoiceDialog,
         });
-        if (nextPendingImport && !activeTileset) {
+        if (nextPendingImport && autoCreateTileset) {
           await createTilesetFromPendingImport(nextPendingImport);
         }
       } else {
@@ -398,10 +383,14 @@ export function TilesetPanel({
     e.preventDefault();
     setIsDropTargetActive(false);
     if (isTilesetImageFile(file)) {
+      const autoCreateTileset = shouldAutoCreateTilesetImport(
+        activeTileset?.id ?? null,
+        tilesetImportTargetGroupId,
+      );
       const nextPendingImport = await queueImageFile(file, {
-        showChoiceDialog: !tilesetImportTargetGroupId && Boolean(activeTileset),
+        showChoiceDialog: !autoCreateTileset && Boolean(activeTileset),
       });
-      if (nextPendingImport && !activeTileset) {
+      if (nextPendingImport && autoCreateTileset) {
         await createTilesetFromPendingImport(nextPendingImport);
       }
     } else {

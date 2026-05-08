@@ -26,7 +26,11 @@ import type {
   AssetManagerItemDropPosition,
   AssetManagerItemViewModel,
 } from "./asset-manager";
-import type { MapCanvasImperativeHandle, MapCanvasProps } from "./map-canvas";
+import type {
+  MapCanvasImperativeHandle,
+  MapCanvasProps,
+  MapResizeRequest,
+} from "./map-canvas";
 import type { AppliedTerrainSelection, TerrainToolTarget } from "./dialogs";
 import type {
   MapCanvasContextMenuTile,
@@ -114,7 +118,7 @@ export interface ManageMapsDialogProps {
   onCreateMap: (groupId: MapGroupId) => void;
   onRenameGroup: (groupId: MapGroupId, name: string) => void;
   onDeleteGroup: (groupId: MapGroupId) => void;
-  onRenameMap: (mapId: MapId, name: string) => void;
+  onEditMap: (mapId: MapId) => void;
   onDeleteMap: (mapId: MapId) => void;
   onReorderGroups: (
     dragId: MapGroupId,
@@ -183,7 +187,6 @@ export interface MapPanelWorkspaceProps {
 }
 
 export interface MapPanelDialogsProps {
-  activeMap: TileMapData | undefined;
   addGroupOpen: boolean;
   addMapOpen: boolean;
   deleteTarget: MapPanelDeleteTarget | null;
@@ -191,6 +194,7 @@ export interface MapPanelDialogsProps {
   manageMapsGroups: AssetManagerGroupViewModel[];
   manageMapsItems: AssetManagerItemViewModel[];
   mapOptionsOpen: boolean;
+  mapOptionsMap: TileMapData | undefined;
   manageMapsSelectedGroupId: MapGroupId | null;
   newGroupName: string;
   newMapHeight: number;
@@ -201,13 +205,15 @@ export interface MapPanelDialogsProps {
   onDeleteTerrain: (terrainId: TerrainId) => void;
   onCreateGroup: () => void;
   onCreateMap: () => void;
-  onDeleteEmptyGroup: (groupId: MapGroupId) => void;
   onDeleteConfirm: () => void;
   onImportMapFromFile: (file: File) => Promise<boolean>;
+  onMapOptionsOpenChange: (open: boolean) => void;
   onManageMapsSelectedGroupChange: (groupId: MapGroupId) => void;
   onMoveMapToGroup: (mapId: MapId, targetGroupId: MapGroupId) => void;
+  onRequestCreateMap: (groupId: MapGroupId) => void;
+  onRequestDeleteGroup: (groupId: MapGroupId) => void;
+  onRequestEditMap: (mapId: MapId) => void;
   onRenameGroup: (groupId: MapGroupId, name: string) => void;
-  onRenameMap: (mapId: MapId, name: string) => void;
   onReorderGroups: (
     dragId: MapGroupId,
     targetId: MapGroupId,
@@ -228,7 +234,6 @@ export interface MapPanelDialogsProps {
   setAddMapOpen: Dispatch<SetStateAction<boolean>>;
   setDeleteTarget: Dispatch<SetStateAction<MapPanelDeleteTarget | null>>;
   setManageMapsOpen: Dispatch<SetStateAction<boolean>>;
-  setMapOptionsOpen: Dispatch<SetStateAction<boolean>>;
   setNewGroupName: Dispatch<SetStateAction<string>>;
   setNewMapHeight: Dispatch<SetStateAction<number>>;
   setNewMapName: Dispatch<SetStateAction<string>>;
@@ -241,6 +246,73 @@ export interface MapPanelDialogsProps {
   terrainDialogInitialTerrainId: TerrainId | null;
   terrainDialogInitialTiles: TerrainTile[] | null;
   setTerrainDialogOpen: Dispatch<SetStateAction<boolean>>;
+}
+
+export interface CreateMapPanelMapManagementParams {
+  createMapTargetGroupId: MapGroupId | null;
+  currentProject: NonNullable<EditorState["project"]>;
+  deleteTarget: MapPanelDeleteTarget | null;
+  manageMapsSelectedGroupId: MapGroupId | null;
+  mapOptionsTargetMapId: MapId | null;
+  newGroupName: string;
+  newMapHeight: number;
+  newMapName: string;
+  newMapType: NewMapType;
+  newMapWidth: number;
+  setAddGroupOpen: Dispatch<SetStateAction<boolean>>;
+  setAddMapOpen: Dispatch<SetStateAction<boolean>>;
+  setCreateMapTargetGroupId: Dispatch<SetStateAction<MapGroupId | null>>;
+  setDeleteTarget: Dispatch<SetStateAction<MapPanelDeleteTarget | null>>;
+  setManageMapsOpen: Dispatch<SetStateAction<boolean>>;
+  setManageMapsSelectedGroupId: Dispatch<SetStateAction<MapGroupId | null>>;
+  setMapOptionsOpen: Dispatch<SetStateAction<boolean>>;
+  setMapOptionsTargetMapId: Dispatch<SetStateAction<MapId | null>>;
+  setNewGroupName: Dispatch<SetStateAction<string>>;
+  setNewMapHeight: Dispatch<SetStateAction<number>>;
+  setNewMapName: Dispatch<SetStateAction<string>>;
+  setNewMapType: Dispatch<SetStateAction<NewMapType>>;
+  setNewMapWidth: Dispatch<SetStateAction<number>>;
+  setState: ReturnType<
+    typeof import("@/store/editor-store").getEditorStore
+  >["setState"];
+  state: EditorState;
+}
+
+export interface CreateMapPanelMapManagementResult {
+  activeGroup: MapGroup | undefined;
+  groupMaps: TileMapData[];
+  handleAddMap: (targetGroupId?: MapGroupId | null) => void;
+  handleCreateGroup: () => void;
+  handleCreateMap: () => void;
+  handleDeleteConfirm: () => void;
+  handleDeleteEmptyMapGroup: (groupId: MapGroupId) => void;
+  handleGroupChange: (value: string) => void;
+  handleMapOptionsOpenChange: (open: boolean) => void;
+  handleMoveMapToGroup: (mapId: MapId, targetGroupId: MapGroupId) => void;
+  handleOpenMapOptions: (mapId?: MapId | null) => void;
+  handleRenameManagedMap: (mapId: MapId, name: string) => void;
+  handleRenameMapGroup: (groupId: MapGroupId, name: string) => void;
+  handleReorderMapGroups: (
+    dragId: MapGroupId,
+    targetId: MapGroupId,
+    position: "above" | "below",
+  ) => void;
+  handleReorderMaps: (
+    dragId: MapId,
+    targetId: MapId,
+    position: "above" | "below",
+  ) => void;
+  handleResizeMap: (request: MapResizeRequest) => void;
+  handleUpdateMapOptions: (
+    width: number,
+    height: number,
+    properties: Record<string, PropertyValue>,
+  ) => void;
+  manageMapsGroups: AssetManagerGroupViewModel[];
+  manageMapsItems: AssetManagerItemViewModel[];
+  mapOptionsMap: TileMapData | undefined;
+  openManageMapsDialog: (groupId?: MapGroupId | null) => void;
+  resolvedManageMapsSelectedGroupId: MapGroupId | null;
 }
 
 export interface MapPanelCanvasActionParams {
