@@ -1,5 +1,6 @@
-Deploy and check lospec import. Whitelist localhost for checking
-
+Lospec dialog scroll
+Select Project Loading screen
+Better CI/CD Dev -> Prod workflow
 World View
 
 AI Asset Generation:
