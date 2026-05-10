@@ -100,6 +100,23 @@ test("normalizeLospecPalettePage drops invalid records", () => {
   );
 });
 
+test("normalizeLospecPaletteRecord deduplicates repeated tags", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "duplicate-tags",
+    title: "Duplicate Tags",
+    slug: "duplicate-tags",
+    description: "Tag cleanup",
+    tags: ["3bit", "retro", "3bit", "Retro", ""],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.deepEqual(palette?.tags, ["3bit", "retro"]);
+});
+
 test("syncLospecPaletteCatalog saves new pages until it reaches a known palette id", async () => {
   const cachedPalettes = [
     createLospecPaletteFixture({

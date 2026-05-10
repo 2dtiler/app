@@ -46,13 +46,22 @@ function normalizeLospecTags(value: unknown): string[] {
     return [];
   }
 
+  const seen = new Set<string>();
+
   return value.flatMap((entry) => {
     if (typeof entry !== "string") {
       return [];
     }
 
     const normalized = entry.trim();
-    return normalized ? [normalized] : [];
+    const normalizedKey = normalized.toLowerCase();
+
+    if (!normalized || seen.has(normalizedKey)) {
+      return [];
+    }
+
+    seen.add(normalizedKey);
+    return [normalized];
   });
 }
 

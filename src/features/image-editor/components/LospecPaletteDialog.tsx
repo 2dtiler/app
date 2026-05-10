@@ -121,7 +121,7 @@ export function LospecPaletteDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-4xl">
-        <div className="flex min-h-128 flex-col">
+        <div className="flex h-[90vh] max-h-[48rem] min-h-0 flex-col">
           <DialogHeader className="border-b border-border px-6 pt-6 pb-4">
             <DialogTitle>Import from Lospec</DialogTitle>
             <DialogDescription>

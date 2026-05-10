@@ -1,4 +1,9 @@
-Lospec dialog scroll
+Lospec dialog
+  429 refetch after 1 minute
+  Tags should be clickable
+  Show all colors when clicking plus button
+  Colors should have tooltips
+
 Select Project Loading screen
 Better CI/CD Dev -> Prod workflow
 World View
