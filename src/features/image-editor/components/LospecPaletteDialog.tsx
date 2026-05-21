@@ -124,10 +124,6 @@ export function LospecPaletteDialog({
         <div className="flex h-[90vh] max-h-[48rem] min-h-0 flex-col">
           <DialogHeader className="border-b border-border px-6 pt-6 pb-4">
             <DialogTitle>Import from Lospec</DialogTitle>
-            <DialogDescription>
-              Sync the Lospec palette catalog into local IndexedDB, then search,
-              sort, preview, and import palettes into the Image/Sprite Editor.
-            </DialogDescription>
           </DialogHeader>
 
           {isLoading ? (

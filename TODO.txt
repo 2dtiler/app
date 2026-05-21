@@ -1,5 +1,6 @@
 Lospec dialog
-  429 refetch after 1 minute
+  Should not download from API. Fetch directly from server. Cache Responses
+  Add Pagination
   Tags should be clickable
   Show all colors when clicking plus button
   Colors should have tooltips
