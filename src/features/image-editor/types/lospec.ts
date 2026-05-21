@@ -39,7 +39,11 @@ export interface LospecPaletteRecord {
 
 export type LospecPaletteSortOrder = "newest" | "alphabetical";
 
-export type LospecPaletteSyncStatus = "synced" | "cache-only" | "error";
+export type LospecPaletteSyncStatus =
+  | "synced"
+  | "partial"
+  | "cache-only"
+  | "error";
 
 export interface LospecPaletteSyncResult {
   palettes: LospecPaletteRecord[];

@@ -224,6 +224,8 @@ export function filterAndSortLospecPalettes(
   return filtered;
 }
 
+const LOSPEC_SYNC_MAX_PAGES = 200;
+
 export async function syncLospecPaletteCatalog(
   dependencies: LospecPaletteSyncDependencies = {},
 ): Promise<LospecPaletteSyncResult> {
@@ -237,7 +239,7 @@ export async function syncLospecPaletteCatalog(
   let addedCount = 0;
 
   try {
-    while (true) {
+    while (page < LOSPEC_SYNC_MAX_PAGES) {
       const pagePalettes = await fetchLospecPalettePage(page, fetchImpl, now);
       if (pagePalettes.length === 0) {
         break;
@@ -264,6 +266,16 @@ export async function syncLospecPaletteCatalog(
       }
 
       page += 1;
+    }
+
+    if (page >= LOSPEC_SYNC_MAX_PAGES) {
+      return {
+        palettes: await loadCache(),
+        addedCount,
+        usedCache: false,
+        status: "partial",
+        errorMessage: `Reached Lospec sync cap (${LOSPEC_SYNC_MAX_PAGES} pages). Imported a partial catalog.`,
+      };
     }
 
     return {

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -86,6 +85,15 @@ export function LospecPaletteDialog({
           result.errorMessage ?? "Lospec palettes could not be loaded.";
         setErrorMessage(message);
         toast.error(message);
+        return;
+      }
+
+      if (result.status === "partial") {
+        const message =
+          result.errorMessage ??
+          "Lospec sync reached its request cap and imported a partial catalog.";
+        setSyncMessage(message);
+        toast(message);
         return;
       }
 

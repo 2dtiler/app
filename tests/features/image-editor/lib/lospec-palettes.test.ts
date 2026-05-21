@@ -218,6 +218,40 @@ test("syncLospecPaletteCatalog returns cached palettes when the network fails", 
   assert.deepEqual(result.palettes, cachedPalettes);
 });
 
+test("syncLospecPaletteCatalog returns partial status when request cap is reached", async () => {
+  const cachedPalettes: LospecPaletteRecord[] = [];
+  let index = 0;
+  const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
+    createFetchResponse([
+      {
+        id: `new-palette-${index++}`,
+        title: "New Palette",
+        slug: "new-palette",
+        description: "Desc",
+        tags: ["fresh"],
+        user: "artist",
+        colors: ["112233"],
+        examples: [],
+        published_at: "2026-05-07T00:00:00.000Z",
+      },
+    ]),
+  );
+
+  const result = await syncLospecPaletteCatalog({
+    fetchImpl,
+    loadCache: async () => cachedPalettes,
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async (palettes) => {
+      cachedPalettes.push(...palettes);
+    },
+    now: () => 999,
+  });
+
+  assert.strictEqual(result.status, "partial");
+  assert.ok(result.errorMessage);
+  assert.strictEqual(fetchImpl.mock.calls.length, 200);
+});
+
 test("filterAndSortLospecPalettes matches tag queries and supports alphabetical sorting", () => {
   const palettes = [
     createLospecPaletteFixture({

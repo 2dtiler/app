@@ -119,7 +119,7 @@ export function FillTerrainDialog({
       setCanvasSelectedTile(null);
     }
     // oxlint-disable-next-line react/exhaustive-deps
-  }, [initialTerrainId, initialTiles, open, terrains, tilesets]);
+  }, [initialTerrainId, initialTiles, open]);
 
   // -----------------------------------------------------------------------
   // When the user picks a tile from the canvas, append it to the selection
