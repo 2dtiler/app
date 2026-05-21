@@ -7,7 +7,10 @@ import type {
   QuickExportPreferenceRecord,
   QuickExportSaveTargetRecord,
 } from "@/types";
-import type { Palette } from "@/features/image-editor/types";
+import type {
+  LospecPaletteRecord,
+  Palette,
+} from "@/features/image-editor/types";
 import { normalizeProject } from "@/features/project-management/lib/project";
 import type {
   AssetRecord,
@@ -25,6 +28,7 @@ class TilerDatabase extends Dexie {
   settings!: EntityTable<AppSettings & { id: string }, "id">;
   quickExportPreferences!: EntityTable<QuickExportPreferenceRecord, "id">;
   quickExportSaveTargets!: EntityTable<QuickExportSaveTargetRecord, "id">;
+  lospecPalettes!: EntityTable<LospecPaletteRecord, "id">;
 
   constructor() {
     super("TilerDB");
@@ -44,6 +48,17 @@ class TilerDatabase extends Dexie {
       quickExportPreferences: "id, projectId, assetType, assetId, updatedAt",
       quickExportSaveTargets:
         "id, projectId, assetType, assetId, optionId, updatedAt",
+    });
+
+    this.version(3).stores({
+      projects: "id, name, updatedAt",
+      assets: "id, createdAt",
+      settings: "id",
+      history: "id",
+      quickExportPreferences: "id, projectId, assetType, assetId, updatedAt",
+      quickExportSaveTargets:
+        "id, projectId, assetType, assetId, optionId, updatedAt",
+      lospecPalettes: "id, slug, title, publishedAtMs, *tags, cachedAt",
     });
   }
 }
@@ -375,4 +390,41 @@ export function deletePaletteLibrary(projectId: string): void {
   } catch {
     // Silently fail
   }
+}
+
+// ---------------------------------------------------------------------------
+// Lospec palette cache (IndexedDB)
+// ---------------------------------------------------------------------------
+
+function cloneLospecPaletteRecord(
+  palette: LospecPaletteRecord,
+): LospecPaletteRecord {
+  return {
+    ...palette,
+    tags: [...palette.tags],
+    colors: palette.colors.map((color) => ({ ...color })),
+    colorHexes: [...palette.colorHexes],
+    examples: palette.examples.map((example) => ({ ...example })),
+  };
+}
+
+export async function saveLospecPaletteCache(
+  palettes: LospecPaletteRecord[],
+): Promise<void> {
+  if (palettes.length === 0) return;
+  await db.lospecPalettes.bulkPut(
+    palettes.map((palette) => cloneLospecPaletteRecord(palette)),
+  );
+}
+
+export async function loadLospecPaletteCache(): Promise<LospecPaletteRecord[]> {
+  const palettes = await db.lospecPalettes
+    .orderBy("publishedAtMs")
+    .reverse()
+    .toArray();
+  return palettes.map((palette) => cloneLospecPaletteRecord(palette));
+}
+
+export async function loadLospecPaletteCacheIds(): Promise<string[]> {
+  return (await db.lospecPalettes.toCollection().primaryKeys()) as string[];
 }

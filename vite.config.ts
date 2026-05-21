@@ -8,6 +8,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const manualChunkPackages = [
   ["react-vendor", ["react", "react-dom"]],
+  ["icons", ["lucide-react"]],
   [
     "radix-ui",
     [
@@ -21,12 +22,124 @@ const manualChunkPackages = [
   ],
   ["sentry", ["@sentry/react"]],
   ["db", ["dexie", "dexie-react-hooks"]],
+  ["editor-state", ["travels", "mutative", "uuid"]],
+  ["archive", ["@msgpack/msgpack", "fflate"]],
   ["gif", ["gifenc"]],
   ["color", ["color"]],
   ["panels", ["react-resizable-panels"]],
 ] as const;
 
+const manualChunkPaths = [
+  [
+    "import-export-project-importers",
+    [
+      "/src/features/import-export/hooks/use-godot-project-import.ts",
+      "/src/features/import-export/hooks/use-tiled-project-import.ts",
+      "/src/features/import-export/lib/godot-project-action-utils.ts",
+      "/src/features/import-export/lib/godot-project-warning-utils.ts",
+      "/src/features/import-export/lib/import-export-godot-project.ts",
+      "/src/features/import-export/lib/import-export-tiled-project.ts",
+      "/src/features/import-export/lib/imported-godot-project-session.ts",
+      "/src/features/import-export/lib/imported-tiled-project-session.ts",
+      "/src/features/import-export/lib/tiled-project-action-utils.ts",
+    ],
+  ],
+  [
+    "import-export-engine-importers",
+    [
+      "/src/features/import-export/hooks/use-defold-map-import.ts",
+      "/src/features/import-export/hooks/use-defold-tileset-import.ts",
+      "/src/features/import-export/hooks/use-gamemaker-map-import.ts",
+      "/src/features/import-export/hooks/use-godot-map-import.ts",
+      "/src/features/import-export/hooks/use-godot-tileset-import.ts",
+      "/src/features/import-export/hooks/use-mappy-map-import.ts",
+      "/src/features/import-export/hooks/use-tide-map-import.ts",
+      "/src/features/import-export/hooks/use-tiled-map-import.ts",
+      "/src/features/import-export/hooks/use-tiled-tileset-import.ts",
+      "/src/features/import-export/hooks/use-unity-map-import.ts",
+      "/src/features/import-export/hooks/use-unity-tileset-import.ts",
+      "/src/features/import-export/lib/defold-",
+      "/src/features/import-export/lib/gamemaker-",
+      "/src/features/import-export/lib/godot-import-helpers.ts",
+      "/src/features/import-export/lib/godot-map-",
+      "/src/features/import-export/lib/godot-scene-utils.ts",
+      "/src/features/import-export/lib/godot-terrain.ts",
+      "/src/features/import-export/lib/godot-tileset-",
+      "/src/features/import-export/lib/import-export-defold.ts",
+      "/src/features/import-export/lib/import-export-gamemaker.ts",
+      "/src/features/import-export/lib/import-export-godot-tileset.ts",
+      "/src/features/import-export/lib/import-export-godot.ts",
+      "/src/features/import-export/lib/import-export-mappy.ts",
+      "/src/features/import-export/lib/import-export-tide.ts",
+      "/src/features/import-export/lib/import-export-tiled-json.ts",
+      "/src/features/import-export/lib/import-export-tiled-lua.ts",
+      "/src/features/import-export/lib/import-export-tiled-shared.ts",
+      "/src/features/import-export/lib/import-export-tiled.ts",
+      "/src/features/import-export/lib/import-export-unity-tileset.ts",
+      "/src/features/import-export/lib/import-export-unity.ts",
+      "/src/features/import-export/lib/mappy-",
+      "/src/features/import-export/lib/tide-",
+      "/src/features/import-export/lib/tiled-animation-conversion.ts",
+      "/src/features/import-export/lib/tiled-lua",
+      "/src/features/import-export/lib/tiled-map-",
+      "/src/features/import-export/lib/tiled-tileset-",
+      "/src/features/import-export/lib/tiled-wang.ts",
+      "/src/features/import-export/lib/tiled-xml-utils.ts",
+      "/src/features/import-export/lib/unity-",
+    ],
+  ],
+  [
+    "import-export-runtime",
+    [
+      "/src/features/import-export/hooks/",
+      "/src/features/import-export/lib/",
+      "/src/features/import-export/components/QuickExportButtonGroup.tsx",
+      "/src/utils/format.ts",
+    ],
+  ],
+  [
+    "map-editor-map-panel",
+    [
+      "/src/features/map-editor/components/MapPanel/",
+      "/src/features/map-editor/components/MapPanel.tsx",
+      "/src/features/map-editor/components/MapCanvas/",
+      "/src/features/map-editor/hooks/use-text-object-editing.ts",
+      "/src/hooks/use-canvas-navigation.ts",
+    ],
+  ],
+  [
+    "map-editor-tileset",
+    [
+      "/src/features/map-editor/components/TilesetPanel/",
+      "/src/features/map-editor/components/TilesetPanel.tsx",
+      "/src/features/map-editor/components/TilesetCanvas.tsx",
+      "/src/features/map-editor/components/TilesetToolbar.tsx",
+      "/src/features/map-editor/components/animations/",
+      "/src/features/map-editor/components/autotile/",
+      "/src/features/map-editor/hooks/use-tileset-image-import.ts",
+    ],
+  ],
+  [
+    "map-editor-workspace",
+    [
+      "/src/features/map-editor/components/LayersPanel/",
+      "/src/features/map-editor/components/LayersPanel.tsx",
+      "/src/features/map-editor/components/ObjectsPanel.tsx",
+      "/src/features/map-editor/components/ImageLayerPropertiesPanel.tsx",
+      "/src/features/map-editor/components/Layout/",
+    ],
+  ],
+] as const;
+
 function getManualChunk(id: string) {
+  for (const [chunkName, paths] of manualChunkPaths) {
+    for (const segment of paths) {
+      if (id.includes(segment)) {
+        return chunkName;
+      }
+    }
+  }
+
   for (const [chunkName, packages] of manualChunkPackages) {
     for (const packageName of packages) {
       if (
@@ -90,7 +203,7 @@ export default defineConfig({
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
-        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com; " +
+        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://api.2dtiler.com; " +
         "worker-src 'self' blob:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +

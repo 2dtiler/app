@@ -3,6 +3,7 @@ import type {
   Frame,
   FrameId,
   ImageEditorTool,
+  LospecPaletteRecord,
   Palette,
   PaletteId,
   PixelSelection,
@@ -144,6 +145,7 @@ export interface PalettePanelProps {
   palettes: Palette[];
   activePaletteId: PaletteId;
   onSwitchPalette: (id: PaletteId) => void;
+  onOpenLospecDialog: () => void;
   onRenamePalette: (id: PaletteId, name: string) => void;
   onDeletePalette: (id: PaletteId) => void;
   onDuplicatePalette: (id: PaletteId) => void;
@@ -159,6 +161,12 @@ export interface PalettePanelProps {
   onImport: (file: File) => void;
   onExport: (format: PaletteExportFormat, swatchSize?: PngSwatchSize) => void;
   onReset: () => void;
+}
+
+export interface LospecPaletteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImportPalette: (palette: LospecPaletteRecord) => void;
 }
 
 export interface FramesPanelProps {

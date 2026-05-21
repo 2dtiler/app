@@ -1,3 +1,5 @@
+import type { ImportExportDialogMode } from "@/features/import-export/types";
+
 export type ToolName = "image-editor" | "ai-assets";
 
 export interface ToolbarProps {
@@ -28,6 +30,13 @@ export interface AppShellProps {
   setBugReportOpen: (value: boolean) => void;
   activeTool: ToolName | null;
   setActiveTool: (value: ToolName | null) => void;
+}
+
+export interface AppShellEditorRuntimeProps {
+  importExportDialogOpen: boolean;
+  setImportExportDialogOpen: (open: boolean) => void;
+  importExportDialogMode: ImportExportDialogMode;
+  setImportExportDialogMode: (mode: ImportExportDialogMode) => void;
 }
 
 export interface AboutDialogProps {

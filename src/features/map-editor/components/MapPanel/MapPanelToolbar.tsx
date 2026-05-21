@@ -37,7 +37,6 @@ import { getPaintableAutotileTerrains } from "@/features/map-editor/lib/autotile
 import { BRUSH_SIZES } from "@/types";
 import type { MapPanelToolbarProps } from "@/features/map-editor/types/map-panel";
 
-const brushTools = ["paint"] as const;
 const eraseTools = ["erase"] as const;
 const toolIcons = {
   select: BoxSelect,
@@ -59,6 +58,9 @@ export function MapPanelToolbar({
   onSelectAutotileTool,
   onSelectBrushTool,
   onSelectFillMode,
+  onSelectFillTerrain,
+  onSelectPaintTerrain,
+  onOpenTerrainDialog,
   onSelectTool,
   onZoom,
   state,
@@ -67,6 +69,17 @@ export function MapPanelToolbar({
     (tileset) => tileset.id === state.activeTilesetId,
   );
   const autotileRules = getPaintableAutotileTerrains(activeTileset?.autotile);
+  const savedTerrains = state.project?.terrains ?? [];
+  const activeToolLabel =
+    state.currentTool === "paint"
+      ? state.paintMode === "paintTerrain"
+        ? "PAINT TERRAIN"
+        : "PAINT"
+      : state.currentTool === "fill"
+        ? state.fillMode === "fillTerrain"
+          ? "FILL TERRAIN"
+          : "FILL"
+        : state.currentTool.toUpperCase();
 
   return (
     <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card px-1 py-0.5">
@@ -85,45 +98,95 @@ export function MapPanelToolbar({
         <TooltipContent>Select Tool (S)</TooltipContent>
       </Tooltip>
 
-      {brushTools.map((tool) => {
-        const Icon = toolIcons[tool];
-        const isActive = state.currentTool === tool;
-
-        return (
-          <DropdownMenu key={tool}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant={isActive ? "default" : "ghost"}
-                    size="icon"
-                    className="h-6 w-6"
-                    aria-label={`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool options`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {`${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={state.currentTool === "paint" ? "default" : "ghost"}
+                size="icon"
+                className="h-6 w-6"
+                aria-label="Paint tool options"
+              >
+                <Paintbrush className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Paint Tool (B)</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              Paint
+              {state.currentTool === "paint" &&
+                state.paintMode === "paint" &&
+                " ✓"}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
               {BRUSH_SIZES.map((size) => (
                 <DropdownMenuItem
                   key={size}
-                  onMouseDown={() => onSelectBrushTool(tool, size)}
+                  onMouseDown={() => onSelectBrushTool("paint", size)}
                 >
                   {size}
-                  {state.currentTool === tool &&
+                  {state.currentTool === "paint" &&
+                    state.paintMode === "paint" &&
                     state.brushSize === size &&
                     " ✓"}
                 </DropdownMenuItem>
               ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              Paint Terrain
+              {state.currentTool === "paint" &&
+                state.paintMode === "paintTerrain" &&
+                " ✓"}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onMouseDown={() => onOpenTerrainDialog("paint")}
+              >
+                Create / New Terrain
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {savedTerrains.length === 0 ? (
+                <DropdownMenuItem disabled>No saved terrains</DropdownMenuItem>
+              ) : (
+                savedTerrains.map((terrain) => (
+                  <DropdownMenuSub key={terrain.id}>
+                    <DropdownMenuSubTrigger>
+                      {terrain.name}
+                      {state.currentTool === "paint" &&
+                        state.paintMode === "paintTerrain" &&
+                        state.selectedPaintTerrainId === terrain.id &&
+                        " ✓"}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {BRUSH_SIZES.map((size) => (
+                        <DropdownMenuItem
+                          key={size}
+                          onMouseDown={() =>
+                            onSelectPaintTerrain(terrain.id, size)
+                          }
+                        >
+                          {size}
+                          {state.currentTool === "paint" &&
+                            state.paintMode === "paintTerrain" &&
+                            state.selectedPaintTerrainId === terrain.id &&
+                            state.brushSize === size &&
+                            " ✓"}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                ))
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <DropdownMenu>
         <Tooltip>
@@ -210,12 +273,36 @@ export function MapPanelToolbar({
             Fill
             {state.currentTool === "fill" && state.fillMode === "fill" && " ✓"}
           </DropdownMenuItem>
-          <DropdownMenuItem onMouseDown={() => onSelectFillMode("fillTerrain")}>
-            Fill Terrain
-            {state.currentTool === "fill" &&
-              state.fillMode === "fillTerrain" &&
-              " ✓"}
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              Fill Terrain
+              {state.currentTool === "fill" &&
+                state.fillMode === "fillTerrain" &&
+                " ✓"}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onMouseDown={() => onOpenTerrainDialog("fill")}>
+                Create / New Terrain
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {savedTerrains.length === 0 ? (
+                <DropdownMenuItem disabled>No saved terrains</DropdownMenuItem>
+              ) : (
+                savedTerrains.map((terrain) => (
+                  <DropdownMenuItem
+                    key={terrain.id}
+                    onMouseDown={() => onSelectFillTerrain(terrain.id)}
+                  >
+                    {terrain.name}
+                    {state.currentTool === "fill" &&
+                      state.fillMode === "fillTerrain" &&
+                      state.selectedFillTerrainId === terrain.id &&
+                      " ✓"}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -418,11 +505,7 @@ export function MapPanelToolbar({
       )}
 
       <span className="ml-auto text-[10px] text-muted-foreground">
-        {state.currentTool === "fill"
-          ? state.fillMode === "fillTerrain"
-            ? "FILL TERRAIN"
-            : "FILL"
-          : state.currentTool.toUpperCase()}{" "}
+        {activeToolLabel}{" "}
         {state.currentTool !== "fill" &&
           state.currentTool !== "select" &&
           state.brushSize}

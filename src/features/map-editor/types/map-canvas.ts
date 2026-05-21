@@ -105,6 +105,7 @@ export interface MapCanvasProps {
   zoom: number;
   activeLayerId: string | null;
   currentTool: EditorState["currentTool"];
+  paintMode: EditorState["paintMode"];
   fillMode: EditorState["fillMode"];
   activeFillTerrain: EditorState["activeFillTerrain"];
   canPreviewFill: boolean;
@@ -392,6 +393,7 @@ export interface UseSceneInteractionParams {
   zoom: number;
   activeLayerId: string | null;
   currentTool: EditorState["currentTool"];
+  paintMode: EditorState["paintMode"];
   fillMode: EditorState["fillMode"];
   activeFillTerrain: EditorState["activeFillTerrain"];
   canPreviewFill: boolean;

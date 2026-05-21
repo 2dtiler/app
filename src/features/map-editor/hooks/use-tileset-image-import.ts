@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { createPendingTilesetImageImport } from "@/features/map-editor/lib/tileset-image-import";
 import type {
   PendingTilesetImageImport,
+  QueueTilesetImageFileOptions,
   TilesetImageImportMode,
   TilesetImageImportPosition,
   UseTilesetImageImportResult,
@@ -28,26 +29,32 @@ export function useTilesetImageImport(): UseTilesetImageImportResult {
     setError(null);
   }, []);
 
-  const queueImageFile = useCallback(async (file: File) => {
-    setIsLoading(true);
-    setError(null);
-    setPendingImport(null);
-    setMode("idle");
+  const queueImageFile = useCallback(
+    async (
+      file: File,
+      options?: QueueTilesetImageFileOptions,
+    ): Promise<PendingTilesetImageImport | null> => {
+      setIsLoading(true);
+      setError(null);
+      setPendingImport(null);
+      setMode("idle");
 
-    try {
-      const nextPendingImport = await createPendingTilesetImageImport(file);
-      setPendingImport(nextPendingImport);
-      setPlacementPosition(INITIAL_PLACEMENT_POSITION);
-      setMode("choice");
-      return true;
-    } catch (caughtError) {
-      console.error("[Tileset Image Import] Failed:", caughtError);
-      setError("Failed to load the selected image.");
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      try {
+        const nextPendingImport = await createPendingTilesetImageImport(file);
+        setPendingImport(nextPendingImport);
+        setPlacementPosition(INITIAL_PLACEMENT_POSITION);
+        setMode(options?.showChoiceDialog === false ? "idle" : "choice");
+        return nextPendingImport;
+      } catch (caughtError) {
+        console.error("[Tileset Image Import] Failed:", caughtError);
+        setError("Failed to load the selected image.");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   const beginPlacement = useCallback(() => {
     if (!pendingImport) return;

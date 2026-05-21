@@ -1,12 +1,12 @@
-Autotile Setup should not default to wang tiles
-Terrain Brush
+Lospec dialog
+  Should not download from API. Fetch directly from server. Cache Responses
+  Add Pagination
+  Tags should be clickable
+  Show all colors when clicking plus button
+  Colors should have tooltips
 
-Allow palette importing from Lospec: https://api.2dtiler.com/lospec_palettes
-  - https://lospec.com/palette-list/load?colorNumberFilterType=any&page=0&tag=&sortingType=newest
-
-Image Editor Crop should change the dimensions of the image
-Manage Tilesets
-Manage Maps
+Select Project Loading screen
+Better CI/CD Dev -> Prod workflow
 World View
 
 AI Asset Generation:
@@ -45,7 +45,6 @@ Text Layer custom fonts not working
 
 Royalty free packs
 Add tutorial video
-Add roadmap voting on home page
 Windows/Mac/Linux Apps
 Drive some traffic to it: 2dtiler.com
 First time start: Show example map with tutorial
