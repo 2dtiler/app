@@ -59,10 +59,10 @@ async function decodeImageBlob(blob: Blob): Promise<HTMLImageElement> {
 }
 
 function getDecodedImageDimensions(image: HTMLImageElement): AiImageDimensions {
-    return {
-      width: image.naturalWidth || image.width,
-      height: image.naturalHeight || image.height,
-    };
+  return {
+    width: image.naturalWidth || image.width,
+    height: image.naturalHeight || image.height,
+  };
 }
 
 function getNormalizedTargetDimensions(
@@ -117,7 +117,13 @@ async function scaleDecodedImageToBlob(
   }
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.drawImage(image, 0, 0, targetDimensions.width, targetDimensions.height);
+  context.drawImage(
+    image,
+    0,
+    0,
+    targetDimensions.width,
+    targetDimensions.height,
+  );
   return canvasToBlob(canvas, mimeType);
 }
 
@@ -129,7 +135,9 @@ export async function getImageDimensionsFromBlob(
 
 export async function imageSourceToProviderImage(
   source: string | Blob,
-  fallbackMimeTypeOrOptions: string | AiProviderImageSourceOptions = "image/png",
+  fallbackMimeTypeOrOptions:
+    | string
+    | AiProviderImageSourceOptions = "image/png",
   targetDimensions?: AiImageDimensions | null,
 ): Promise<AiProviderImage> {
   const options = getImageSourceOptions(

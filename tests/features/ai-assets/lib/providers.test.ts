@@ -302,11 +302,15 @@ test("generates Together and xAI images", async () => {
   assert.strictEqual(together.images[0]?.mimeType, "image/jpeg");
   assert.strictEqual(xai.images.length, 1);
   assert.match(
-    String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body),
+    String(
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body,
+    ),
     /"width":64/,
   );
   assert.notMatch(
-    String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]?.body),
+    String(
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]?.body,
+    ),
     /"width"/,
   );
 });
@@ -342,13 +346,18 @@ test("scales xAI output to requested dimensions after generation", async () => {
 
   assert.strictEqual(result.images[0]?.width, 128);
   assert.strictEqual(result.images[0]?.height, 32);
-  assert.deepEqual([...new Uint8Array(result.images[0]?.data ?? new ArrayBuffer(0))], [8]);
+  assert.deepEqual(
+    [...new Uint8Array(result.images[0]?.data ?? new ArrayBuffer(0))],
+    [8],
+  );
   assert.strictEqual(canvasMock.canvas.width, 128);
   assert.strictEqual(canvasMock.canvas.height, 32);
   assert.strictEqual(canvasMock.drawImage.mock.calls[0]?.[3], 128);
   assert.strictEqual(canvasMock.drawImage.mock.calls[0]?.[4], 32);
   assert.notMatch(
-    String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body),
+    String(
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body,
+    ),
     /"width"/,
   );
 });

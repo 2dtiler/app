@@ -62,9 +62,7 @@ function installCanvasMock(outputBytes = [4, 5, 6]) {
 test("normalizes base64 data URLs into provider images", async () => {
   installImageMock();
 
-  const image = await imageSourceToProviderImage(
-    "data:image/png;base64,AQID",
-  );
+  const image = await imageSourceToProviderImage("data:image/png;base64,AQID");
 
   assert.strictEqual(image.mimeType, "image/png");
   assert.strictEqual(image.width, 16);
@@ -91,10 +89,9 @@ test("scales generated images to requested dimensions", async () => {
   installImageMock(1024, 1024);
   const canvasMock = installCanvasMock();
 
-  const image = await imageSourceToProviderImage(
-    "data:image/png;base64,AQID",
-    { targetDimensions: { width: 32, height: 48 } },
-  );
+  const image = await imageSourceToProviderImage("data:image/png;base64,AQID", {
+    targetDimensions: { width: 32, height: 48 },
+  });
 
   assert.strictEqual(image.mimeType, "image/png");
   assert.strictEqual(image.width, 32);

@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock, KeyRound, Loader2, Play, RotateCcw, Square } from "lucide-react";
+import {
+  Clock,
+  KeyRound,
+  Loader2,
+  Play,
+  RotateCcw,
+  Square,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -190,9 +197,9 @@ export function Generator() {
   const [initImage, setInitImage] = useState<string | null>(null);
   const [history, setHistory] = useState<AiGeneratedImageRecord[]>([]);
   const [gallery, setGallery] = useState<AiGeneratedImageRecord[]>([]);
-  const [currentRecords, setCurrentRecords] = useState<AiGeneratedImageRecord[]>(
-    [],
-  );
+  const [currentRecords, setCurrentRecords] = useState<
+    AiGeneratedImageRecord[]
+  >([]);
   const [recordUrls, setRecordUrls] = useState<Record<string, string>>({});
   const [quota, setQuota] = useState<AiQuotaState>(UNKNOWN_QUOTA);
   const [scheduler, setScheduler] = useState<AiSchedulerState>({
@@ -312,13 +319,7 @@ export function Generator() {
         sprite: spriteCfg,
         vfx: vfxCfg,
       }),
-    [
-      assetType,
-      spriteCfg,
-      styleStack,
-      tilesetCfg,
-      vfxCfg,
-    ],
+    [assetType, spriteCfg, styleStack, tilesetCfg, vfxCfg],
   );
   const generationRatio =
     (targetDimensions

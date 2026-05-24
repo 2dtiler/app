@@ -91,7 +91,9 @@ export function getClosestAiAssetRatio(
     const closestDistance = Math.abs(
       Math.log(closest.w / closest.h / targetRatio),
     );
-    const candidateDistance = Math.abs(Math.log(ratio.w / ratio.h / targetRatio));
+    const candidateDistance = Math.abs(
+      Math.log(ratio.w / ratio.h / targetRatio),
+    );
     return candidateDistance < closestDistance ? ratio : closest;
   });
 }
