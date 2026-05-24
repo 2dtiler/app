@@ -4,6 +4,7 @@
 - Do not inline typescript types and interfaces - move them to types folder
 - When working on a file, and it is more than 1000 lines of code then refactor it into smaller, easier to test and maintain files. There are no exceptions to this. Always do this even if it is outside the scope of what was asked
 - Always run `bun run lint` and `bun run build` after making code changes to verify that the build succeeds and there are no linting issues
+- Be patient with `bun run build`. It can take minutes to run
 - Always use this folder structure:
 
 src/

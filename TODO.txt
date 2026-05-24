@@ -12,6 +12,7 @@ I want to make some changes to AI Assets Generator Tool:
 Settings dialog should have a scrollbar
 Map Management -> Edit Maps -> Allow editing map title 
 World View
+Tools -> MCP Server
 
 Ad Marketplace for selling/buying tilesets etc.
 Exploration:

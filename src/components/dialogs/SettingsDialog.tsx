@@ -7,6 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
 import { Switch } from "@/components/ui/Switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Label } from "@/components/ui/Label";
@@ -155,6 +162,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   });
   const [activeSection, setActiveSection] =
     useState<SettingsSectionId>("general");
+
   const handleSectionChange = (value: string) => {
     setActiveSection(value as SettingsSectionId);
   };
@@ -176,8 +184,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="grid h-[min(85vh,720px)] grid-rows-[auto,minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="gap-0">
+      <DialogContent className="flex h-[min(85vh,720px)] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 gap-0">
           <div className="border-b border-border-visible px-6 pt-6 pb-5">
             <DialogTitle>Settings</DialogTitle>
           </div>
@@ -189,12 +197,37 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           value={activeSection}
           onValueChange={handleSectionChange}
           orientation="vertical"
-          className="h-full min-h-0 flex-1 items-start gap-0 overflow-hidden sm:flex-row"
+          className="min-h-0 flex-1 flex-col items-stretch gap-0 overflow-hidden sm:flex-row"
         >
-          <aside className="border-b border-border-visible px-4 py-4 sm:w-56 sm:border-r sm:border-b-0 sm:px-3 sm:py-5">
+          <aside className="border-b border-border-visible px-4 py-4 sm:flex sm:h-full sm:w-56 sm:flex-col sm:self-stretch sm:border-r sm:border-b-0 sm:px-3 sm:py-5">
+            <div className="space-y-2 sm:hidden">
+              <Label htmlFor="settings-section-select" className="text-xs font-medium">
+                Section
+              </Label>
+              <Select
+                name="settings-section"
+                value={activeSection}
+                onValueChange={handleSectionChange}
+              >
+                <SelectTrigger
+                  id="settings-section-select"
+                  aria-label="Settings section"
+                  className="h-11 w-full rounded-xl px-3 text-left"
+                >
+                  <SelectValue placeholder="Select a section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SETTINGS_SECTIONS.map((section) => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <TabsList
               aria-label="Settings sections"
-              className="w-full items-stretch justify-start self-start gap-1 bg-transparent p-0"
+              className="hidden w-full items-stretch justify-start self-start gap-1 bg-transparent p-0 sm:flex sm:h-full"
               variant="line"
             >
               {SETTINGS_SECTIONS.map((section) => (
@@ -205,7 +238,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 >
                   <span className="flex min-w-0 flex-col items-start">
                     <span>{section.label}</span>
-                    <span className="text-[10px] leading-relaxed text-muted-foreground whitespace-normal break-words">
+                    <span className="text-[10px] leading-relaxed text-muted-foreground whitespace-normal wrap-break-word">
                       {section.description}
                     </span>
                   </span>
@@ -214,14 +247,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </TabsList>
           </aside>
 
-          <div className="min-h-0 flex-1 self-start overflow-y-auto px-6 py-5">
-            <div>
-              <TabsContent value="general" className="mt-0 space-y-5">
+          <div className="min-h-0 flex-1 overflow-hidden px-6 py-5">
+            <TabsContent
+              value="general"
+              className="mt-0 h-full overflow-y-auto"
+            >
+              <div className="space-y-5">
                 <div>
                   <h2 className="text-sm font-medium text-foreground">
                     General
                   </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">
                     Control how the app handles project saving.
                   </p>
                 </div>
@@ -255,14 +291,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     />
                   </div>
                 </section>
-              </TabsContent>
+              </div>
+            </TabsContent>
 
-              <TabsContent value="api-keys" className="mt-0 space-y-5">
+            <TabsContent
+              value="api-keys"
+              className="mt-0 h-full overflow-y-auto"
+            >
+              <div className="space-y-5">
                 <div>
                   <h2 className="text-sm font-medium text-foreground">
                     API Keys
                   </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">
                     Keys are obfuscated locally in your browser. They are never
                     sent to any server other than the provider&apos;s own API,
                     but any script running on this origin can still access them.
@@ -279,8 +320,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     />
                   ))}
                 </div>
-              </TabsContent>
-            </div>
+              </div>
+            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
