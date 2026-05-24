@@ -6,6 +6,20 @@ import type {
 
 export const MODELS: ModelDef[] = [
   {
+    id: "hf-flux-schnell",
+    label: "FLUX.1 Schnell (Hugging Face)",
+    provider: "huggingface",
+    apiModel: "black-forest-labs/FLUX.1-schnell",
+    supportsImg2Img: false,
+  },
+  {
+    id: "hf-z-image-turbo",
+    label: "Z-Image Turbo (HF / fal-ai)",
+    provider: "huggingface",
+    apiModel: "Tongyi-MAI/Z-Image-Turbo:fal-ai",
+    supportsImg2Img: false,
+  },
+  {
     id: "gpt-image-1.5",
     label: "GPT Image 1.5 (latest)",
     provider: "openai",
@@ -64,6 +78,7 @@ export const MODELS: ModelDef[] = [
 ];
 
 export const PROVIDER_LABELS: Record<string, string> = {
+  huggingface: "Hugging Face",
   openai: "OpenAI",
   gemini: "Google Gemini",
   xai: "xAI",

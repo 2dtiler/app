@@ -15,6 +15,16 @@ import type {
 export const LOSPEC_PALETTES_ENDPOINT =
   "https://api.2dtiler.com/lospec_palettes";
 
+class LospecPaletteRequestError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`Lospec palette request failed with ${status}`);
+    this.name = "LospecPaletteRequestError";
+    this.status = status;
+  }
+}
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -85,12 +95,66 @@ function normalizeLospecExamples(value: unknown): LospecPaletteExample[] {
   });
 }
 
+function decodeLospecHtmlEntities(value: string): string {
+  const entityMap: Record<string, string> = {
+    nbsp: " ",
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    "#39": "'",
+  };
+  return value.replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, (_, entity: string) => {
+    return entityMap[entity.toLowerCase()] ?? _;
+  });
+}
+
+function stripLospecHtmlTags(value: string): string {
+  let text = "";
+  let inTag = false;
+
+  for (const char of value) {
+    if (char === "<") {
+      inTag = true;
+      continue;
+    }
+    if (char === ">" && inTag) {
+      inTag = false;
+      continue;
+    }
+    if (!inTag) {
+      text += char;
+    }
+  }
+
+  return text;
+}
+
+function normalizeLospecDescription(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const decoded = decodeLospecHtmlEntities(value);
+  const withParagraphBreaks = decoded.replace(
+    /<\s*\/p\s*>\s*<\s*p\b[^>]*>/gi,
+    "\n\n",
+  );
+  return stripLospecHtmlTags(withParagraphBreaks).trim();
+}
+
 function getLospecErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }
 
   return "Lospec palettes could not be loaded.";
+}
+
+function getLospecErrorStatus(error: unknown): number | undefined {
+  return error instanceof LospecPaletteRequestError
+    ? error.status
+    : undefined;
 }
 
 function buildLospecPaletteSearchHaystack(
@@ -117,7 +181,7 @@ async function fetchLospecPalettePage(
 
   const response = await fetchImpl(url.toString());
   if (!response.ok) {
-    throw new Error(`Lospec palette request failed with ${response.status}`);
+    throw new LospecPaletteRequestError(response.status);
   }
 
   return normalizeLospecPalettePage(await response.json(), now());
@@ -134,8 +198,7 @@ export function normalizeLospecPaletteRecord(
   const id = typeof value.id === "string" ? value.id.trim() : "";
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const slug = typeof value.slug === "string" ? value.slug.trim() : "";
-  const description =
-    typeof value.description === "string" ? value.description : "";
+  const description = normalizeLospecDescription(value.description);
   const user = typeof value.user === "string" ? value.user.trim() : "";
   const publishedAt =
     typeof value.published_at === "string" ? value.published_at : "";
@@ -177,11 +240,15 @@ export function normalizeLospecPalettePage(
   value: unknown,
   cachedAt: number = Date.now(),
 ): LospecPaletteRecord[] {
-  if (!Array.isArray(value)) {
+  const records = isObjectRecord(value) && Array.isArray(value.items)
+    ? value.items
+    : value;
+
+  if (!Array.isArray(records)) {
     return [];
   }
 
-  return value.flatMap((entry) => {
+  return records.flatMap((entry) => {
     const palette = normalizeLospecPaletteRecord(entry, cachedAt);
     return palette ? [palette] : [];
   });
@@ -233,25 +300,44 @@ export async function syncLospecPaletteCatalog(
   const loadCache = dependencies.loadCache ?? loadLospecPaletteCache;
   const loadCacheIds = dependencies.loadCacheIds ?? loadLospecPaletteCacheIds;
   const saveCache = dependencies.saveCache ?? saveLospecPaletteCache;
+  const onProgress = dependencies.onProgress;
   const now = dependencies.now ?? Date.now;
+  const startPage = Math.max(0, Math.floor(dependencies.startPage ?? 0));
+  const stopAtKnownPalette = dependencies.stopAtKnownPalette ?? true;
   const knownIds = new Set(await loadCacheIds());
-  let page = 0;
+  const cachedPalettes = await loadCache();
+  let page = startPage;
   let addedCount = 0;
+  let fetchedPageCount = 0;
+  let reachedEnd = false;
+
+  if (cachedPalettes.length > 0) {
+    onProgress?.({
+      palettes: cachedPalettes,
+      addedCount,
+      fetchedPageCount,
+      page: null,
+      pageAddedCount: 0,
+      isInitialCache: true,
+    });
+  }
 
   try {
     while (page < LOSPEC_SYNC_MAX_PAGES) {
       const pagePalettes = await fetchLospecPalettePage(page, fetchImpl, now);
+      fetchedPageCount += 1;
       if (pagePalettes.length === 0) {
+        reachedEnd = true;
         break;
       }
 
-      const firstKnownIndex = pagePalettes.findIndex((palette) =>
-        knownIds.has(palette.id),
-      );
+      const firstKnownIndex = stopAtKnownPalette
+        ? pagePalettes.findIndex((palette) => knownIds.has(palette.id))
+        : -1;
       const palettesToSave =
         firstKnownIndex >= 0
           ? pagePalettes.slice(0, firstKnownIndex)
-          : pagePalettes;
+          : pagePalettes.filter((palette) => !knownIds.has(palette.id));
 
       if (palettesToSave.length > 0) {
         await saveCache(palettesToSave);
@@ -260,6 +346,15 @@ export async function syncLospecPaletteCatalog(
           knownIds.add(palette.id);
         }
       }
+
+      onProgress?.({
+        palettes: await loadCache(),
+        addedCount,
+        fetchedPageCount,
+        page,
+        pageAddedCount: palettesToSave.length,
+        isInitialCache: false,
+      });
 
       if (firstKnownIndex >= 0) {
         break;
@@ -272,8 +367,10 @@ export async function syncLospecPaletteCatalog(
       return {
         palettes: await loadCache(),
         addedCount,
+        fetchedPageCount,
         usedCache: false,
         status: "partial",
+        reachedEnd: false,
         errorMessage: `Reached Lospec sync cap (${LOSPEC_SYNC_MAX_PAGES} pages). Imported a partial catalog.`,
       };
     }
@@ -281,19 +378,25 @@ export async function syncLospecPaletteCatalog(
     return {
       palettes: await loadCache(),
       addedCount,
+      fetchedPageCount,
       usedCache: false,
       status: "synced",
+      reachedEnd,
     };
   } catch (error) {
     const palettes = await loadCache();
     const errorMessage = getLospecErrorMessage(error);
+    const errorStatus = getLospecErrorStatus(error);
 
     if (palettes.length > 0) {
       return {
         palettes,
         addedCount,
+        fetchedPageCount,
         usedCache: true,
         status: "cache-only",
+        retryPage: errorStatus === 429 ? page : undefined,
+        errorStatus,
         errorMessage,
       };
     }
@@ -301,8 +404,11 @@ export async function syncLospecPaletteCatalog(
     return {
       palettes: [],
       addedCount,
+      fetchedPageCount,
       usedCache: false,
       status: "error",
+      retryPage: errorStatus === 429 ? page : undefined,
+      errorStatus,
       errorMessage,
     };
   }

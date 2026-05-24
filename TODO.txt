@@ -1,21 +1,9 @@
-Lospec dialog
-  Should not download from API. Fetch directly from server. Cache Responses
-  Add Pagination
-  Tags should be clickable
-  Show all colors when clicking plus button
-  Colors should have tooltips
+Check all AI Asset generation
+-------------
 
-Select Project Loading screen
-Better CI/CD Dev -> Prod workflow
+Map Management -> Edit Maps -> Allow editing map title 
 World View
-
-AI Asset Generation:
-  Recheck out all native implementations work
-  History
-  Gallery
-  Scheduler
-  Add depleting progress bar to show remaining quota
-  Ability to download/add to tileset/open in image Editor
+Tools -> MCP Server
 
 Ad Marketplace for selling/buying tilesets etc.
 Exploration:

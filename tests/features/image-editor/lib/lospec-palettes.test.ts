@@ -35,6 +35,14 @@ function createFetchResponse(payload: unknown): Response {
   } as Response;
 }
 
+function createFetchErrorResponse(status: number): Response {
+  return {
+    ok: false,
+    status,
+    json: async () => ({}),
+  } as Response;
+}
+
 test("normalizeLospecPaletteRecord converts Lospec API data into cache records", () => {
   const palette = normalizeLospecPaletteRecord(
     {
@@ -72,6 +80,65 @@ test("normalizeLospecPaletteRecord converts Lospec API data into cache records",
   assert.strictEqual(palette?.cachedAt, 123);
 });
 
+test("normalizeLospecPaletteRecord strips HTML from descriptions while preserving paragraph breaks", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "html-description",
+    title: "HTML Description",
+    slug: "html-description",
+    description:
+      "<p>First <strong>paragraph</strong> &amp; intro.</p><p>Second <a href=\"#\">paragraph</a>.</p>",
+    tags: ["retro"],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.strictEqual(
+    palette?.description,
+    "First paragraph & intro.\n\nSecond paragraph.",
+  );
+});
+
+test("normalizeLospecPaletteRecord strips decoded script tags from descriptions", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "decoded-script-description",
+    title: "Decoded Script Description",
+    slug: "decoded-script-description",
+    description: "Before &lt;script&gt;alert(1)&lt;/script&gt; after",
+    tags: ["retro"],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.strictEqual(palette?.description, "Before alert(1) after");
+  assert.ok(!palette?.description.includes("<script"));
+});
+
+test("normalizeLospecPaletteRecord does not double-decode encoded entities", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "double-decode-description",
+    title: "Double Decode Description",
+    slug: "double-decode-description",
+    description: "Escaped &amp;lt;script&amp;gt;safe&amp;lt;/script&amp;gt;",
+    tags: ["retro"],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.strictEqual(
+    palette?.description,
+    "Escaped &lt;script&gt;safe&lt;/script&gt;",
+  );
+});
+
 test("normalizeLospecPalettePage drops invalid records", () => {
   const palettes = normalizeLospecPalettePage([
     {
@@ -98,6 +165,34 @@ test("normalizeLospecPalettePage drops invalid records", () => {
     palettes.map((palette) => palette.id),
     ["valid-palette"],
   );
+});
+
+test("normalizeLospecPalettePage accepts Lospec count and items responses", () => {
+  const palettes = normalizeLospecPalettePage(
+    {
+      count: 1,
+      items: [
+        {
+          id: "object-response-palette",
+          title: "Object Response Palette",
+          slug: "object-response-palette",
+          description: "Current proxy response shape",
+          tags: ["proxy"],
+          user: "user",
+          colors: ["123456"],
+          examples: [],
+          published_at: "2026-05-02T00:00:00.000Z",
+        },
+      ],
+    },
+    321,
+  );
+
+  assert.deepEqual(
+    palettes.map((palette) => palette.id),
+    ["object-response-palette"],
+  );
+  assert.strictEqual(palettes[0]?.cachedAt, 321);
 });
 
 test("normalizeLospecPaletteRecord deduplicates repeated tags", () => {
@@ -187,10 +282,84 @@ test("syncLospecPaletteCatalog saves new pages until it reaches a known palette 
 
   assert.strictEqual(fetchImpl.mock.calls.length, 2);
   assert.strictEqual(result.status, "synced");
+  assert.strictEqual(result.reachedEnd, false);
   assert.strictEqual(result.addedCount, 2);
   assert.deepEqual(
     result.palettes.map((palette) => palette.id),
     ["new-palette-1", "new-palette-2", "known-palette"],
+  );
+});
+
+test("syncLospecPaletteCatalog emits progress from an empty cache while fetching later pages", async () => {
+  const cachedPalettes: LospecPaletteRecord[] = [];
+  const progressEvents: string[][] = [];
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      createFetchResponse({
+        count: 2,
+        items: [
+          {
+            id: "first-page-palette",
+            title: "First Page Palette",
+            slug: "first-page-palette",
+            description: "Initial display",
+            tags: ["first"],
+            user: "artist-1",
+            colors: ["112233"],
+            examples: [],
+            published_at: "2026-05-07T00:00:00.000Z",
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(
+      createFetchResponse({
+        count: 2,
+        items: [
+          {
+            id: "second-page-palette",
+            title: "Second Page Palette",
+            slug: "second-page-palette",
+            description: "Background sync",
+            tags: ["second"],
+            user: "artist-2",
+            colors: ["445566"],
+            examples: [],
+            published_at: "2026-05-06T00:00:00.000Z",
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(createFetchResponse({ count: 2, items: [] }));
+
+  const result = await syncLospecPaletteCatalog({
+    fetchImpl,
+    loadCache: async () =>
+      [...cachedPalettes].sort(
+        (left, right) => right.publishedAtMs - left.publishedAtMs,
+      ),
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async (palettes) => {
+      cachedPalettes.push(...palettes);
+    },
+    onProgress: (progress) => {
+      progressEvents.push(progress.palettes.map((palette) => palette.id));
+    },
+    now: () => 999,
+  });
+
+  assert.strictEqual(result.status, "synced");
+  assert.strictEqual(result.reachedEnd, true);
+  assert.strictEqual(result.addedCount, 2);
+  assert.strictEqual(result.fetchedPageCount, 3);
+  assert.deepEqual(progressEvents, [
+    ["first-page-palette"],
+    ["first-page-palette", "second-page-palette"],
+  ]);
+  assert.deepEqual(
+    result.palettes.map((palette) => palette.id),
+    ["first-page-palette", "second-page-palette"],
   );
 });
 
@@ -216,6 +385,193 @@ test("syncLospecPaletteCatalog returns cached palettes when the network fails", 
   assert.strictEqual(result.usedCache, true);
   assert.strictEqual(result.errorMessage, "offline");
   assert.deepEqual(result.palettes, cachedPalettes);
+});
+
+test("syncLospecPaletteCatalog exposes Lospec request status codes", async () => {
+  const cachedPalettes = [
+    createLospecPaletteFixture({
+      id: "cached-rate-limited",
+      title: "Cached Rate Limited",
+      slug: "cached-rate-limited",
+      publishedAt: "2026-05-04T00:00:00.000Z",
+      publishedAtMs: Date.parse("2026-05-04T00:00:00.000Z"),
+    }),
+  ];
+
+  const result = await syncLospecPaletteCatalog({
+    fetchImpl: vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(createFetchErrorResponse(429)),
+    loadCache: async () => cachedPalettes,
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async () => undefined,
+  });
+
+  assert.strictEqual(result.status, "cache-only");
+  assert.strictEqual(result.errorStatus, 429);
+  assert.strictEqual(result.retryPage, 0);
+  assert.strictEqual(
+    result.errorMessage,
+    "Lospec palette request failed with 429",
+  );
+});
+
+test("syncLospecPaletteCatalog resumes from the provided start page after rate limiting", async () => {
+  const cachedPalettes = [
+    createLospecPaletteFixture({
+      id: "cached-rate-limited",
+      title: "Cached Rate Limited",
+      slug: "cached-rate-limited",
+      publishedAt: "2026-05-04T00:00:00.000Z",
+      publishedAtMs: Date.parse("2026-05-04T00:00:00.000Z"),
+    }),
+  ];
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(createFetchErrorResponse(429))
+    .mockResolvedValueOnce(
+      createFetchResponse({
+        count: 1,
+        items: [
+          {
+            id: "resumed-palette",
+            title: "Resumed Palette",
+            slug: "resumed-palette",
+            description: "Loaded after cooldown",
+            tags: ["resume"],
+            user: "artist",
+            colors: ["112233"],
+            examples: [],
+            published_at: "2026-05-08T00:00:00.000Z",
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(createFetchResponse({ count: 1, items: [] }));
+
+  const firstResult = await syncLospecPaletteCatalog({
+    fetchImpl,
+    loadCache: async () =>
+      [...cachedPalettes].sort(
+        (left, right) => right.publishedAtMs - left.publishedAtMs,
+      ),
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async (palettes) => {
+      cachedPalettes.push(...palettes);
+    },
+    startPage: 11,
+    now: () => 999,
+  });
+
+  assert.strictEqual(firstResult.status, "cache-only");
+  assert.strictEqual(firstResult.errorStatus, 429);
+  assert.strictEqual(firstResult.retryPage, 11);
+  assert.strictEqual(
+    new URL(fetchImpl.mock.calls[0]?.[0] as string).searchParams.get("page"),
+    "11",
+  );
+
+  const resumedResult = await syncLospecPaletteCatalog({
+    fetchImpl,
+    loadCache: async () =>
+      [...cachedPalettes].sort(
+        (left, right) => right.publishedAtMs - left.publishedAtMs,
+      ),
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async (palettes) => {
+      cachedPalettes.push(...palettes);
+    },
+    startPage: firstResult.retryPage,
+    now: () => 999,
+  });
+
+  assert.strictEqual(resumedResult.status, "synced");
+  assert.strictEqual(
+    new URL(fetchImpl.mock.calls[1]?.[0] as string).searchParams.get("page"),
+    "11",
+  );
+  assert.strictEqual(
+    new URL(fetchImpl.mock.calls[2]?.[0] as string).searchParams.get("page"),
+    "12",
+  );
+  assert.deepEqual(
+    resumedResult.palettes.map((palette) => palette.id),
+    ["resumed-palette", "cached-rate-limited"],
+  );
+  assert.strictEqual(resumedResult.reachedEnd, true);
+});
+
+test("syncLospecPaletteCatalog can continue through known palettes until an empty page is found", async () => {
+  const cachedPalettes = [
+    createLospecPaletteFixture({
+      id: "known-page-zero",
+      title: "Known Page Zero",
+      slug: "known-page-zero",
+      publishedAt: "2026-05-07T00:00:00.000Z",
+      publishedAtMs: Date.parse("2026-05-07T00:00:00.000Z"),
+    }),
+  ];
+  const fetchImpl = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      createFetchResponse({
+        count: 2,
+        items: [
+          {
+            id: "known-page-zero",
+            title: "Known Page Zero",
+            slug: "known-page-zero",
+            description: "Existing page zero palette",
+            tags: ["known"],
+            user: "artist-0",
+            colors: ["112233"],
+            examples: [],
+            published_at: "2026-05-07T00:00:00.000Z",
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(
+      createFetchResponse({
+        count: 2,
+        items: [
+          {
+            id: "missing-page-one",
+            title: "Missing Page One",
+            slug: "missing-page-one",
+            description: "Recovered historical palette",
+            tags: ["history"],
+            user: "artist-1",
+            colors: ["445566"],
+            examples: [],
+            published_at: "2026-05-06T00:00:00.000Z",
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(createFetchResponse({ count: 2, items: [] }));
+
+  const result = await syncLospecPaletteCatalog({
+    fetchImpl,
+    loadCache: async () =>
+      [...cachedPalettes].sort(
+        (left, right) => right.publishedAtMs - left.publishedAtMs,
+      ),
+    loadCacheIds: async () => cachedPalettes.map((palette) => palette.id),
+    saveCache: async (palettes) => {
+      cachedPalettes.push(...palettes);
+    },
+    stopAtKnownPalette: false,
+    now: () => 999,
+  });
+
+  assert.strictEqual(result.status, "synced");
+  assert.strictEqual(result.reachedEnd, true);
+  assert.strictEqual(fetchImpl.mock.calls.length, 3);
+  assert.deepEqual(
+    result.palettes.map((palette) => palette.id),
+    ["known-page-zero", "missing-page-one"],
+  );
 });
 
 test("syncLospecPaletteCatalog returns partial status when request cap is reached", async () => {

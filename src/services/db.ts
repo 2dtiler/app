@@ -9,6 +9,7 @@ import type {
 } from "@/types";
 import type {
   LospecPaletteRecord,
+  LospecPaletteSyncCheckpoint,
   Palette,
 } from "@/features/image-editor/types";
 import { normalizeProject } from "@/features/project-management/lib/project";
@@ -17,6 +18,7 @@ import type {
   ProjectPrefs,
   ProjectRecord,
 } from "@/features/import-export/types";
+import type { AiGeneratedImageRecord } from "@/types/integrations/ai-assets";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -29,6 +31,7 @@ class TilerDatabase extends Dexie {
   quickExportPreferences!: EntityTable<QuickExportPreferenceRecord, "id">;
   quickExportSaveTargets!: EntityTable<QuickExportSaveTargetRecord, "id">;
   lospecPalettes!: EntityTable<LospecPaletteRecord, "id">;
+  aiImages!: EntityTable<AiGeneratedImageRecord, "id">;
 
   constructor() {
     super("TilerDB");
@@ -59,6 +62,18 @@ class TilerDatabase extends Dexie {
       quickExportSaveTargets:
         "id, projectId, assetType, assetId, optionId, updatedAt",
       lospecPalettes: "id, slug, title, publishedAtMs, *tags, cachedAt",
+    });
+
+    this.version(4).stores({
+      projects: "id, name, updatedAt",
+      assets: "id, createdAt",
+      settings: "id",
+      history: "id",
+      quickExportPreferences: "id, projectId, assetType, assetId, updatedAt",
+      quickExportSaveTargets:
+        "id, projectId, assetType, assetId, optionId, updatedAt",
+      lospecPalettes: "id, slug, title, publishedAtMs, *tags, cachedAt",
+      aiImages: "id, createdAt, savedAt, provider, modelId",
     });
   }
 }
@@ -319,6 +334,8 @@ export function deleteProjectPrefs(projectId: string): void {
 // ---------------------------------------------------------------------------
 
 const LAST_PROJECT_KEY = "last-project-id";
+const LOSPEC_PALETTE_SYNC_STATE_KEY = "lospec-palette-sync-state";
+const LOSPEC_PALETTE_SYNC_ENABLED_KEY = "lospec-palette-sync-enabled";
 
 export function saveLastProjectId(projectId: string): void {
   try {
@@ -331,6 +348,52 @@ export function saveLastProjectId(projectId: string): void {
 export function loadLastProjectId(): string | null {
   try {
     return localStorage.getItem(LAST_PROJECT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLospecPaletteSyncEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(
+      LOSPEC_PALETTE_SYNC_ENABLED_KEY,
+      JSON.stringify(enabled),
+    );
+  } catch {
+    // Silently fail
+  }
+}
+
+export function loadLospecPaletteSyncEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(LOSPEC_PALETTE_SYNC_ENABLED_KEY);
+    return raw === null ? false : JSON.parse(raw) === true;
+  } catch {
+    return false;
+  }
+}
+
+export function saveLospecPaletteSyncCheckpoint(
+  checkpoint: LospecPaletteSyncCheckpoint,
+): void {
+  try {
+    localStorage.setItem(
+      LOSPEC_PALETTE_SYNC_STATE_KEY,
+      JSON.stringify(checkpoint),
+    );
+  } catch {
+    // Silently fail if localStorage is full or unavailable
+  }
+}
+
+export function loadLospecPaletteSyncCheckpoint(): LospecPaletteSyncCheckpoint | null {
+  try {
+    const raw = localStorage.getItem(LOSPEC_PALETTE_SYNC_STATE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as LospecPaletteSyncCheckpoint;
   } catch {
     return null;
   }

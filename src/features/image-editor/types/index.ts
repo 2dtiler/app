@@ -15,6 +15,7 @@ export * from "./image-editor-layer-tree";
 export * from "./image-editor-tools";
 export * from "./image-editor-ui";
 export * from "./lospec";
+export * from "./lospec-sync";
 
 // ---------------------------------------------------------------------------
 // Identifiers

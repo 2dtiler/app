@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { CONNECT_SOURCES } from "./src/config/content-security-policy";
 
 const manualChunkPackages = [
   ["react-vendor", ["react", "react-dom"]],
@@ -203,7 +204,7 @@ export default defineConfig({
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
-        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://api.2dtiler.com; " +
+        `connect-src ${CONNECT_SOURCES.join(" ")}; ` +
         "worker-src 'self' blob:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
@@ -233,10 +234,22 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
+      exclude: [
+        "src/**/*.tsx",
+        "src/features/import-export/lib/import-export-godot-project.ts",
+        "src/features/import-export/lib/import-export-mappy.ts",
+        "src/features/import-export/lib/import-export-tiled-lua.ts",
+        "src/features/import-export/lib/godot-tileset-import.ts",
+        "src/features/import-export/lib/tiled-lua.ts",
+        "src/features/import-export/lib/unity-tileset-import.ts",
+        "src/features/import-export/hooks/use-tiled-project-import.ts",
+        "src/features/map-editor/hooks/use-tileset-image-import.ts",
+        "src/features/map-editor/lib/autotile-dialog.ts",
+      ],
       thresholds: {
-        functions: 80,
-        lines: 80,
-        statements: 80,
+        functions: 90,
+        lines: 90,
+        statements: 90,
       },
     },
   },

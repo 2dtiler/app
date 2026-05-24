@@ -48,8 +48,12 @@ export type LospecPaletteSyncStatus =
 export interface LospecPaletteSyncResult {
   palettes: LospecPaletteRecord[];
   addedCount: number;
+  fetchedPageCount: number;
   usedCache: boolean;
   status: LospecPaletteSyncStatus;
+  reachedEnd?: boolean;
+  retryPage?: number;
+  errorStatus?: number;
   errorMessage?: string;
 }
 
@@ -63,5 +67,17 @@ export interface LospecPaletteSyncDependencies {
   loadCache?: () => Promise<LospecPaletteRecord[]>;
   loadCacheIds?: () => Promise<string[]>;
   saveCache?: (palettes: LospecPaletteRecord[]) => Promise<void>;
+  onProgress?: (progress: LospecPaletteSyncProgress) => void;
   now?: () => number;
+  startPage?: number;
+  stopAtKnownPalette?: boolean;
+}
+
+export interface LospecPaletteSyncProgress {
+  palettes: LospecPaletteRecord[];
+  addedCount: number;
+  fetchedPageCount: number;
+  page: number | null;
+  pageAddedCount: number;
+  isInitialCache: boolean;
 }
