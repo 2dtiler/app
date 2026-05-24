@@ -13,12 +13,14 @@ import {
   getProject,
   loadProjectPrefs,
   loadLastProjectId,
+  loadLospecPaletteSyncEnabled,
 } from "@/services/db";
 import {
   hydrateZoomStoreForProject,
   saveCurrentProjectPrefs,
 } from "@/features/project-management/lib/project-prefs";
 import { getActiveTilesetTileSize } from "@/features/project-management/lib/project";
+import { startLospecPaletteBackgroundSync } from "@/features/image-editor/lib/lospec-sync-controller";
 import { zoomStore } from "@/store/zoom-store";
 import type { ToolName } from "@/features/app-shell";
 import { Toaster } from "@/components/ui/Sonner";
@@ -50,6 +52,14 @@ function App() {
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolName | null>(null);
+
+  useEffect(() => {
+    if (!loadLospecPaletteSyncEnabled()) {
+      return;
+    }
+
+    void startLospecPaletteBackgroundSync();
+  }, []);
 
   useEffect(() => {
     if (storeInitStarted) return;

@@ -17,19 +17,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
-import {
-  filterAndSortLospecPalettes,
-  syncLospecPaletteCatalog,
-} from "@/features/image-editor/lib/lospec-palettes";
+import { filterAndSortLospecPalettes } from "@/features/image-editor/lib/lospec-palettes";
+import { startLospecPaletteBackgroundSync } from "@/features/image-editor/lib/lospec-sync-controller";
+import { useLospecPaletteSync } from "@/features/image-editor/hooks/use-lospec-palette-sync";
+import { saveLospecPaletteSyncEnabled } from "@/services/db";
 import type {
   LospecPaletteRecord,
   LospecPaletteSortOrder,
+  LospecPaletteSyncSnapshot,
 } from "@/features/image-editor/types";
 import type { LospecPaletteDialogProps } from "@/features/image-editor/types/image-editor-ui";
 
 const LOSPEC_DIALOG_PAGE_SIZE = 24;
 const LOSPEC_COLOR_PREVIEW_LIMIT = 12;
-const LOSPEC_RATE_LIMIT_RETRY_SECONDS = 60;
 
 function colorToCss(hex: string): string {
   return `#${hex}`;
@@ -48,143 +48,98 @@ function getPrimaryExampleImage(palette: LospecPaletteRecord): string | null {
   return palette.examples[0]?.image ?? null;
 }
 
+function getLospecSyncMessage(sync: LospecPaletteSyncSnapshot): string {
+  if (!sync.hasLoaded) {
+    return "Checking Lospec palette library...";
+  }
+
+  if (sync.status === "syncing") {
+    if (sync.fetchedPageCount === 0 && sync.palettes.length > 0) {
+      return `Loaded ${sync.palettes.length} cached Lospec palettes. Syncing historical Lospec pages...`;
+    }
+
+    return sync.addedCount > 0
+      ? `Imported ${sync.addedCount} new Lospec palettes. Syncing page ${sync.nextPage}...`
+      : `Checked ${sync.fetchedPageCount} Lospec pages. Syncing page ${sync.nextPage}...`;
+  }
+
+  if (sync.status === "rate-limited") {
+    return "Lospec sync is waiting for the rate limit window to clear.";
+  }
+
+  if (sync.status === "error") {
+    return sync.errorMessage ?? "Lospec palettes could not be loaded.";
+  }
+
+  if (sync.status === "complete") {
+    return sync.addedCount > 0
+      ? `Imported ${sync.addedCount} Lospec palettes into local IndexedDB.`
+      : sync.palettes.length > 0
+        ? "Lospec palette library is ready."
+        : "No Lospec palettes were found.";
+  }
+
+  return sync.palettes.length > 0
+    ? `Loaded ${sync.palettes.length} Lospec palettes.`
+    : "Checking Lospec palette library...";
+}
+
 export function LospecPaletteDialog({
   open,
   onOpenChange,
   onImportPalette,
 }: LospecPaletteDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [palettes, setPalettes] = useState<LospecPaletteRecord[]>([]);
+  const sync = useLospecPaletteSync();
+  const resultsScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<LospecPaletteSortOrder>("newest");
-  const [syncMessage, setSyncMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [hiddenExampleIds, setHiddenExampleIds] = useState<string[]>([]);
   const [expandedColorPaletteIds, setExpandedColorPaletteIds] = useState<
     string[]
   >([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
-  const [retryAttempt, setRetryAttempt] = useState(0);
-  const paletteCountRef = useRef(0);
-
-  useEffect(() => {
-    paletteCountRef.current = palettes.length;
-  });
+  const [retryNowMs, setRetryNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    let isCurrent = true;
-    let retryIntervalId: number | null = null;
-    let retryTimeoutId: number | null = null;
-
-    setIsLoading(paletteCountRef.current === 0);
-    setIsSyncing(true);
-    setErrorMessage(null);
-    setRetrySeconds(null);
-    setSyncMessage("Checking Lospec palette library...");
+    saveLospecPaletteSyncEnabled(true);
+    void startLospecPaletteBackgroundSync();
     setHiddenExampleIds([]);
     setExpandedColorPaletteIds([]);
     setCurrentPage(1);
+  }, [open]);
 
-    const scheduleRateLimitRetry = () => {
-      setRetrySeconds(LOSPEC_RATE_LIMIT_RETRY_SECONDS);
-      retryIntervalId = window.setInterval(() => {
-        setRetrySeconds((seconds) =>
-          seconds === null ? seconds : Math.max(0, seconds - 1),
-        );
-      }, 1000);
-      retryTimeoutId = window.setTimeout(() => {
-        if (isCurrent) {
-          setRetryAttempt((attempt) => attempt + 1);
-        }
-      }, LOSPEC_RATE_LIMIT_RETRY_SECONDS * 1000);
-    };
+  useEffect(() => {
+    if (!open || sync.retryAtMs === null) {
+      return;
+    }
 
-    void (async () => {
-      const result = await syncLospecPaletteCatalog({
-        onProgress: (progress) => {
-          if (!isCurrent) {
-            return;
-          }
-
-          setPalettes(progress.palettes);
-          setIsLoading(false);
-
-          if (progress.isInitialCache) {
-            setSyncMessage(
-              `Loaded ${progress.palettes.length} cached Lospec palettes. Syncing latest palettes...`,
-            );
-            return;
-          }
-
-          setSyncMessage(
-            progress.addedCount > 0
-              ? `Imported ${progress.addedCount} new Lospec palettes. Syncing page ${progress.fetchedPageCount}...`
-              : `Checked ${progress.fetchedPageCount} Lospec pages. Syncing latest palettes...`,
-          );
-        },
-      });
-      if (!isCurrent) {
-        return;
-      }
-
-      setPalettes(result.palettes);
-      setIsLoading(false);
-      setIsSyncing(false);
-
-      if (result.status === "cache-only") {
-        const message = result.errorMessage
-          ? `Showing cached Lospec palettes. ${result.errorMessage}`
-          : "Showing cached Lospec palettes.";
-        setSyncMessage(message);
-        if (result.errorStatus === 429) {
-          scheduleRateLimitRetry();
-        }
-        toast(message);
-        return;
-      }
-
-      if (result.status === "error") {
-        const message =
-          result.errorMessage ?? "Lospec palettes could not be loaded.";
-        setErrorMessage(message);
-        toast.error(message);
-        return;
-      }
-
-      if (result.status === "partial") {
-        const message =
-          result.errorMessage ??
-          "Lospec sync reached its request cap and imported a partial catalog.";
-        setSyncMessage(message);
-        toast(message);
-        return;
-      }
-
-      setSyncMessage(
-        result.addedCount > 0
-          ? `Imported ${result.addedCount} new Lospec palettes into local IndexedDB.`
-          : result.palettes.length > 0
-            ? "Lospec palette library is already up to date."
-            : "No Lospec palettes were found.",
-      );
-    })();
+    setRetryNowMs(Date.now());
+    const retryIntervalId = window.setInterval(() => {
+      setRetryNowMs(Date.now());
+    }, 1000);
 
     return () => {
-      isCurrent = false;
-      if (retryIntervalId !== null) {
-        window.clearInterval(retryIntervalId);
-      }
-      if (retryTimeoutId !== null) {
-        window.clearTimeout(retryTimeoutId);
-      }
+      window.clearInterval(retryIntervalId);
     };
-  }, [open, retryAttempt]);
+  }, [open, sync.retryAtMs]);
+
+  const palettes = sync.palettes;
+  const isSyncing = sync.status === "syncing";
+  const isLoading =
+    !sync.hasLoaded || (sync.status === "syncing" && palettes.length === 0);
+  const errorMessage =
+    sync.status === "error"
+      ? sync.errorMessage ?? "Lospec palettes could not be loaded."
+      : null;
+  const syncMessage = getLospecSyncMessage(sync);
+  const retrySeconds =
+    sync.retryAtMs === null
+      ? null
+      : Math.max(0, Math.ceil((sync.retryAtMs - retryNowMs) / 1000));
 
   const filteredPalettes = filterAndSortLospecPalettes(palettes, {
     query,
@@ -230,6 +185,27 @@ export function LospecPaletteDialog({
     setExpandedColorPaletteIds((current) =>
       current.includes(paletteId) ? current : [...current, paletteId],
     );
+  };
+
+  const scrollResultsToTop = () => {
+    const viewport = resultsScrollAreaRef.current?.querySelector(
+      '[data-slot="scroll-area-viewport"]',
+    );
+    if (!(viewport instanceof HTMLDivElement)) {
+      return;
+    }
+
+    viewport.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((page) => Math.max(1, page - 1));
+    scrollResultsToTop();
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((page) => Math.min(totalPages, page + 1));
+    scrollResultsToTop();
   };
 
   const handleCopyColor = async (hex: string) => {
@@ -322,7 +298,10 @@ export function LospecPaletteDialog({
                   </div>
                 </div>
 
-                <ScrollArea className="min-h-0 flex-1">
+                <ScrollArea
+                  ref={resultsScrollAreaRef}
+                  className="min-h-0 flex-1"
+                >
                   <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
                     {paginatedPalettes.map((palette) => {
                       const exampleImage = getPrimaryExampleImage(palette);
@@ -380,7 +359,7 @@ export function LospecPaletteDialog({
                             </div>
 
                             {palette.description ? (
-                              <p className="text-xs leading-5 text-muted-foreground">
+                              <p className="text-xs leading-5 whitespace-pre-line text-muted-foreground">
                                 {palette.description}
                               </p>
                             ) : null}
@@ -466,9 +445,7 @@ export function LospecPaletteDialog({
                       size="icon-xs"
                       aria-label="Previous Lospec palette page"
                       disabled={safeCurrentPage <= 1}
-                      onClick={() =>
-                        setCurrentPage((page) => Math.max(1, page - 1))
-                      }
+                      onClick={handlePreviousPage}
                     >
                       <ChevronLeft />
                     </Button>
@@ -478,9 +455,7 @@ export function LospecPaletteDialog({
                       size="icon-xs"
                       aria-label="Next Lospec palette page"
                       disabled={safeCurrentPage >= totalPages}
-                      onClick={() =>
-                        setCurrentPage((page) => Math.min(totalPages, page + 1))
-                      }
+                      onClick={handleNextPage}
                     >
                       <ChevronRight />
                     </Button>

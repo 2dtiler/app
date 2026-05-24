@@ -1,12 +1,3 @@
-I want to make some changes to the Lospec dialog:
-  1. Currently when the indexedb TilerDB.lospecPalettes table is empty, and you open the dialog, then it shows: "Lospec palette library is already up to date." It should fetch the first page, display it, and then paginate through all the pages in the background to populate the table 
-  2. Add Pagination
-  3. Tags should be clickable
-  4. Show all colors when clicking plus button
-  5. Colors should have selectable tooltips
-
-----------------
-
 I want to make some changes to AI Assets Generator Tool:
   1. Recheck that all native implementations work
   2. Add Hugging Face as a provider (first option)
@@ -18,9 +9,8 @@ I want to make some changes to AI Assets Generator Tool:
   
 -------------
 
-
+Settings dialog should have a scrollbar
 Map Management -> Edit Maps -> Allow editing map title 
-Select Project Loading screen
 World View
 
 Ad Marketplace for selling/buying tilesets etc.

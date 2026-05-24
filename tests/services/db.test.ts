@@ -1,6 +1,7 @@
 import { afterEach, assert, beforeEach, test, vi } from "vitest";
 import type {
   LospecPaletteRecord,
+  LospecPaletteSyncCheckpoint,
   Palette,
 } from "@/features/image-editor/types";
 import {
@@ -20,6 +21,8 @@ import {
   listProjects,
   loadLospecPaletteCache,
   loadLospecPaletteCacheIds,
+  loadLospecPaletteSyncEnabled,
+  loadLospecPaletteSyncCheckpoint,
   loadLastProjectId,
   loadPaletteLibrary,
   loadProjectPrefs,
@@ -28,6 +31,8 @@ import {
   saveAsset,
   saveLastProjectId,
   saveLospecPaletteCache,
+  saveLospecPaletteSyncEnabled,
+  saveLospecPaletteSyncCheckpoint,
   savePaletteLibrary,
   saveProject,
   saveProjectPrefs,
@@ -692,6 +697,16 @@ test("localStorage-backed helpers read, write, and tolerate storage failures", a
       colors: [{ r: 0, g: 0, b: 0, a: 255 }],
     },
   ];
+  const checkpoint: LospecPaletteSyncCheckpoint = {
+    status: "rate-limited",
+    nextPage: 12,
+    retryAtMs: 123_000,
+    fetchedPageCount: 12,
+    addedCount: 144,
+    updatedAt: 456_000,
+    errorStatus: 429,
+    errorMessage: "Lospec palette request failed with 429",
+  };
 
   saveProjectPrefs("project-1", { sidebarOpen: true });
   assert.deepEqual(loadProjectPrefs("project-1"), { sidebarOpen: true });
@@ -705,6 +720,12 @@ test("localStorage-backed helpers read, write, and tolerate storage failures", a
   assert.deepEqual(loadPaletteLibrary("project-3"), palettes);
   deletePaletteLibrary("project-3");
   assert.strictEqual(loadPaletteLibrary("project-3"), null);
+
+  saveLospecPaletteSyncEnabled(true);
+  assert.strictEqual(loadLospecPaletteSyncEnabled(), true);
+
+  saveLospecPaletteSyncCheckpoint(checkpoint);
+  assert.deepEqual(loadLospecPaletteSyncCheckpoint(), checkpoint);
 
   Object.assign(globalThis, {
     localStorage: {
@@ -723,11 +744,15 @@ test("localStorage-backed helpers read, write, and tolerate storage failures", a
   saveProjectPrefs("project-4", { sidebarOpen: false });
   saveLastProjectId("project-4");
   savePaletteLibrary("project-4", palettes);
+  saveLospecPaletteSyncEnabled(true);
+  saveLospecPaletteSyncCheckpoint(checkpoint);
   deleteProjectPrefs("project-4");
   deletePaletteLibrary("project-4");
   assert.strictEqual(loadProjectPrefs("project-4"), null);
   assert.strictEqual(loadLastProjectId(), null);
   assert.strictEqual(loadPaletteLibrary("project-4"), null);
+  assert.strictEqual(loadLospecPaletteSyncEnabled(), false);
+  assert.strictEqual(loadLospecPaletteSyncCheckpoint(), null);
 
   Object.assign(globalThis, { localStorage: localStorageMock });
 });

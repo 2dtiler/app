@@ -95,6 +95,31 @@ function normalizeLospecExamples(value: unknown): LospecPaletteExample[] {
   });
 }
 
+function decodeLospecHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function normalizeLospecDescription(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return decodeLospecHtmlEntities(
+    value
+      .replace(/<\s*\/p\s*>\s*<\s*p\b[^>]*>/gi, "\n\n")
+      .replace(/<\s*p\b[^>]*>/gi, "")
+      .replace(/<\s*\/p\s*>/gi, "")
+      .replace(/<[^>]+>/g, "")
+      .trim(),
+  );
+}
+
 function getLospecErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
@@ -150,8 +175,7 @@ export function normalizeLospecPaletteRecord(
   const id = typeof value.id === "string" ? value.id.trim() : "";
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const slug = typeof value.slug === "string" ? value.slug.trim() : "";
-  const description =
-    typeof value.description === "string" ? value.description : "";
+  const description = normalizeLospecDescription(value.description);
   const user = typeof value.user === "string" ? value.user.trim() : "";
   const publishedAt =
     typeof value.published_at === "string" ? value.published_at : "";
@@ -255,11 +279,14 @@ export async function syncLospecPaletteCatalog(
   const saveCache = dependencies.saveCache ?? saveLospecPaletteCache;
   const onProgress = dependencies.onProgress;
   const now = dependencies.now ?? Date.now;
+  const startPage = Math.max(0, Math.floor(dependencies.startPage ?? 0));
+  const stopAtKnownPalette = dependencies.stopAtKnownPalette ?? true;
   const knownIds = new Set(await loadCacheIds());
   const cachedPalettes = await loadCache();
-  let page = 0;
+  let page = startPage;
   let addedCount = 0;
   let fetchedPageCount = 0;
+  let reachedEnd = false;
 
   if (cachedPalettes.length > 0) {
     onProgress?.({
@@ -277,16 +304,17 @@ export async function syncLospecPaletteCatalog(
       const pagePalettes = await fetchLospecPalettePage(page, fetchImpl, now);
       fetchedPageCount += 1;
       if (pagePalettes.length === 0) {
+        reachedEnd = true;
         break;
       }
 
-      const firstKnownIndex = pagePalettes.findIndex((palette) =>
-        knownIds.has(palette.id),
-      );
+      const firstKnownIndex = stopAtKnownPalette
+        ? pagePalettes.findIndex((palette) => knownIds.has(palette.id))
+        : -1;
       const palettesToSave =
         firstKnownIndex >= 0
           ? pagePalettes.slice(0, firstKnownIndex)
-          : pagePalettes;
+          : pagePalettes.filter((palette) => !knownIds.has(palette.id));
 
       if (palettesToSave.length > 0) {
         await saveCache(palettesToSave);
@@ -319,6 +347,7 @@ export async function syncLospecPaletteCatalog(
         fetchedPageCount,
         usedCache: false,
         status: "partial",
+        reachedEnd: false,
         errorMessage: `Reached Lospec sync cap (${LOSPEC_SYNC_MAX_PAGES} pages). Imported a partial catalog.`,
       };
     }
@@ -329,6 +358,7 @@ export async function syncLospecPaletteCatalog(
       fetchedPageCount,
       usedCache: false,
       status: "synced",
+      reachedEnd,
     };
   } catch (error) {
     const palettes = await loadCache();
@@ -342,6 +372,7 @@ export async function syncLospecPaletteCatalog(
         fetchedPageCount,
         usedCache: true,
         status: "cache-only",
+        retryPage: errorStatus === 429 ? page : undefined,
         errorStatus,
         errorMessage,
       };
@@ -353,6 +384,7 @@ export async function syncLospecPaletteCatalog(
       fetchedPageCount,
       usedCache: false,
       status: "error",
+      retryPage: errorStatus === 429 ? page : undefined,
       errorStatus,
       errorMessage,
     };
