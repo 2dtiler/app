@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, RotateCcw, KeyRound } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Clock, KeyRound, Loader2, Play, RotateCcw, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -13,250 +13,125 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-
-import type {
-  AssetType,
-  StyleStack,
-  TilesetConfig,
-  SpriteConfig,
-  BackgroundConfig,
-  IconConfig,
-  UIConfig,
-  VFXConfig,
-  ImageState,
-  Ratio,
-} from "@/types/integrations/ai-assets";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { loadApiKey, loadAllApiKeys } from "@/config/api-keys";
+import { useEditorStore } from "@/hooks/use-editor-store";
+import { saveBlobFile } from "@/services/file-system";
+import { generateWithProvider } from "@/features/ai-assets/lib/providers";
+import { UNKNOWN_QUOTA } from "@/features/ai-assets/lib/quota";
+import { arrayBufferToDataUrl } from "@/features/ai-assets/lib/provider-utils";
 import {
-  MODELS,
-  PROVIDER_LABELS,
-  ALL_RATIOS,
-  COUNT_OPTIONS,
-  ASSET_TYPE_DEFS,
-  ART_STYLES,
-  COLOR_PALETTES,
-  SPRITE_SIZES,
-} from "../lib/constants";
+  createAiImageRecord,
+  deleteAiImageRecord,
+  listAiImageHistory,
+  listSavedAiImages,
+  saveAiImageRecord,
+  setAiImageSaved,
+} from "@/features/ai-assets/lib/persistence";
+import {
+  appendGeneratedImageTileset,
+  createGeneratedTilesetId,
+  saveGeneratedImageAsset,
+} from "@/features/ai-assets/lib/tileset-actions";
+import { setStandaloneAiImageEditorContext } from "@/features/ai-assets/lib/standalone-editor-context";
 import { buildPrompt } from "../lib/prompt-builder";
 import {
-  TilesetConfigForm,
-  SpriteConfigForm,
+  ALL_RATIOS,
+  ART_STYLES,
+  ASSET_TYPE_DEFS,
+  COLOR_PALETTES,
+  COUNT_OPTIONS,
+  MODELS,
+  PROVIDER_LABELS,
+  SPRITE_SIZES,
+} from "../lib/constants";
+import { parseDataUrl } from "../lib/image-utils";
+import {
   BackgroundConfigForm,
   IconConfigForm,
+  SpriteConfigForm,
+  TilesetConfigForm,
   UIConfigForm,
   VFXConfigForm,
 } from "./ConfigForms";
-import { ImageUpload } from "./ImageUpload";
-import { parseDataUrl } from "../lib/image-utils";
 import { ImageCell } from "./ImageCell";
-import { loadApiKey, loadAllApiKeys } from "@/config/api-keys";
+import { ImageUpload } from "./ImageUpload";
+import type {
+  AiGeneratedImageRecord,
+  AiQuotaState,
+  AiSchedulerState,
+  AssetType,
+  BackgroundConfig,
+  IconConfig,
+  ImageState,
+  Ratio,
+  SpriteConfig,
+  StyleStack,
+  TilesetConfig,
+  UIConfig,
+  VFXConfig,
+} from "@/types/integrations/ai-assets";
+import type {
+  AiImageActionHandlers,
+  AiRecordsGridProps,
+} from "@/features/ai-assets/types";
 
-async function generateOpenAI(
-  apiKey: string,
-  model: string,
-  prompt: string,
-  count: number,
-  size: string,
-  initImageB64: string | null,
-  initImageMime: string | null,
-): Promise<string[]> {
-  if (initImageB64 && initImageMime) {
-    const results: string[] = [];
-    await Promise.all(
-      Array.from({ length: count }, async () => {
-        const form = new FormData();
-        const byteStr = atob(initImageB64);
-        const bytes = new Uint8Array(byteStr.length);
-        for (let index = 0; index < byteStr.length; index += 1) {
-          bytes[index] = byteStr.charCodeAt(index);
-        }
-        const blob = new Blob([bytes], { type: initImageMime });
-        form.append("image", blob, "reference.png");
-        form.append("prompt", prompt);
-        form.append("model", model);
-        form.append("n", "1");
-        form.append("response_format", "b64_json");
-        const response = await fetch("https://api.openai.com/v1/images/edits", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: form,
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(
-            (error as { error?: { message?: string } }).error?.message ??
-              `OpenAI error ${response.status}`,
-          );
-        }
-        const data = (await response.json()) as {
-          data: { b64_json: string }[];
-        };
-        for (const image of data.data) {
-          results.push(`data:image/png;base64,${image.b64_json}`);
-        }
-      }),
-    );
-    return results;
-  }
-
-  const body: Record<string, unknown> = {
-    model,
-    prompt,
-    n: count,
-    size,
-    response_format: "b64_json",
-  };
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: { message?: string } }).error?.message ??
-        `OpenAI error ${response.status}`,
-    );
-  }
-  const data = (await response.json()) as { data: { b64_json: string }[] };
-  return data.data.map((image) => `data:image/png;base64,${image.b64_json}`);
+function createRecordId(): string {
+  return crypto.randomUUID();
 }
 
-async function generateGemini(
-  apiKey: string,
-  model: string,
-  prompt: string,
-  aspectRatio: string,
-  initImageB64: string | null,
-  initImageMime: string | null,
-): Promise<string> {
-  const parts: unknown[] = [];
-  if (initImageB64 && initImageMime) {
-    parts.push({
-      inline_data: { mime_type: initImageMime, data: initImageB64 },
-    });
+function getQuotaPercent(quota: AiQuotaState): number | null {
+  if (
+    quota.limit === null ||
+    quota.remaining === null ||
+    quota.limit <= 0 ||
+    quota.remaining < 0
+  ) {
+    return null;
   }
-  parts.push({ text: prompt });
-
-  const body = {
-    contents: [{ role: "user", parts }],
-    generationConfig: {
-      responseModalities: ["IMAGE"],
-      imageConfig: { aspectRatio },
-    },
-  };
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: { message?: string } }).error?.message ??
-        `Gemini error ${response.status}`,
-    );
-  }
-
-  const data = (await response.json()) as {
-    candidates?: {
-      content?: {
-        parts?: {
-          inlineData?: { data: string; mimeType: string };
-          thought?: boolean;
-        }[];
-      };
-    }[];
-  };
-
-  const imagePart = data.candidates
-    ?.flatMap((candidate) => candidate.content?.parts ?? [])
-    .find((part) => part.inlineData && !part.thought);
-
-  if (!imagePart?.inlineData) {
-    throw new Error("Gemini returned no image");
-  }
-  const { data: b64, mimeType } = imagePart.inlineData;
-  return `data:${mimeType};base64,${b64}`;
+  return Math.max(0, Math.min(100, (quota.remaining / quota.limit) * 100));
 }
 
-async function generateTogether(
-  apiKey: string,
-  model: string,
-  prompt: string,
-  count: number,
-  width: number,
-  height: number,
-): Promise<string[]> {
-  const body = {
-    model,
-    prompt,
-    n: count,
-    width,
-    height,
-    response_format: "base64",
-  };
-  const response = await fetch(
-    "https://api.together.xyz/v1/images/generations",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: { message?: string } }).error?.message ??
-        `Together AI error ${response.status}`,
-    );
-  }
-  const data = (await response.json()) as {
-    data: { b64_json?: string; url?: string }[];
-  };
-  return data.data.map((image) =>
-    image.b64_json
-      ? `data:image/jpeg;base64,${image.b64_json}`
-      : (image.url ?? ""),
-  );
+function getRecordFilename(record: AiGeneratedImageRecord): string {
+  const extension = record.mimeType.includes("jpeg")
+    ? "jpg"
+    : record.mimeType.includes("webp")
+      ? "webp"
+      : "png";
+  return `ai-${record.provider}-${record.createdAt}.${extension}`;
 }
 
-async function generateXAI(
-  apiKey: string,
-  model: string,
-  prompt: string,
-  count: number,
-): Promise<string[]> {
-  const body = { model, prompt, n: count };
-  const response = await fetch("https://api.x.ai/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: { message?: string } }).error?.message ??
-        `xAI error ${response.status}`,
+function RecordsGrid({
+  records,
+  urls,
+  actions,
+  emptyLabel,
+}: AiRecordsGridProps) {
+  if (records.length === 0) {
+    return (
+      <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
+        {emptyLabel}
+      </div>
     );
   }
-  const data = (await response.json()) as { data: { url: string }[] };
-  return data.data.map((image) => image.url);
+
+  return (
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+      {records.map((record, index) => (
+        <ImageCell
+          key={record.id}
+          index={index}
+          record={record}
+          url={urls[record.id] ?? null}
+          actions={actions}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function Generator() {
+  const { setState } = useEditorStore();
   const [assetType, setAssetType] = useState<AssetType>("tileset");
   const [tilesetCfg, setTilesetCfg] = useState<TilesetConfig>({
     tileType: "Ground",
@@ -309,6 +184,20 @@ export function Generator() {
   const [images, setImages] = useState<ImageState[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [initImage, setInitImage] = useState<string | null>(null);
+  const [history, setHistory] = useState<AiGeneratedImageRecord[]>([]);
+  const [gallery, setGallery] = useState<AiGeneratedImageRecord[]>([]);
+  const [currentRecords, setCurrentRecords] = useState<AiGeneratedImageRecord[]>(
+    [],
+  );
+  const [recordUrls, setRecordUrls] = useState<Record<string, string>>({});
+  const [quota, setQuota] = useState<AiQuotaState>(UNKNOWN_QUOTA);
+  const [scheduler, setScheduler] = useState<AiSchedulerState>({
+    intervalSeconds: 60,
+    running: false,
+    nextRunAt: null,
+  });
+  const [now, setNow] = useState(Date.now());
+  const isGeneratingRef = useRef(false);
 
   const refreshModels = useCallback(async () => {
     const keys = await loadAllApiKeys();
@@ -320,17 +209,48 @@ export function Generator() {
     });
   }, []);
 
+  const refreshRecords = useCallback(async () => {
+    const [nextHistory, nextGallery] = await Promise.all([
+      listAiImageHistory(),
+      listSavedAiImages(),
+    ]);
+    setHistory(nextHistory);
+    setGallery(nextGallery);
+  }, []);
+
   useEffect(() => {
     void refreshModels();
+    void refreshRecords();
     const handler = () => void refreshModels();
     window.addEventListener("ai-keys-changed", handler);
     return () => window.removeEventListener("ai-keys-changed", handler);
-  }, [refreshModels]);
+  }, [refreshModels, refreshRecords]);
+
+  useEffect(() => {
+    const nextUrls: Record<string, string> = {};
+    for (const record of history) {
+      nextUrls[record.id] = URL.createObjectURL(
+        new Blob([record.data], { type: record.mimeType }),
+      );
+    }
+    setRecordUrls((previous) => {
+      for (const url of Object.values(previous)) {
+        URL.revokeObjectURL(url);
+      }
+      return nextUrls;
+    });
+    return () => {
+      for (const url of Object.values(nextUrls)) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [history]);
 
   const selectedModel =
     availableModels.find((model) => model.id === selectedId) ??
     availableModels[0] ??
     null;
+  const isHuggingFaceSelected = selectedModel?.provider === "huggingface";
 
   const autoPrompt = useCallback(
     () =>
@@ -347,14 +267,14 @@ export function Generator() {
       ),
     [
       assetType,
-      tilesetCfg,
-      spriteCfg,
       bgCfg,
       iconCfg,
+      spriteCfg,
+      styleStack,
+      tilesetCfg,
+      transparent,
       uiCfg,
       vfxCfg,
-      styleStack,
-      transparent,
     ],
   );
 
@@ -379,138 +299,223 @@ export function Generator() {
     availableRatios.find((ratio) => ratio.value === "1:1") ??
     availableRatios[0] ??
     ALL_RATIOS[0];
-
   const canGenerate =
     !isGenerating && !!selectedModel && generatedPrompt.trim().length > 0;
 
-  const generate = async () => {
-    if (!canGenerate || !selectedModel) return;
+  const generate = useCallback(
+    async (source: "manual" | "scheduler" = "manual") => {
+      if (!canGenerate || !selectedModel || isGeneratingRef.current) {
+        return false;
+      }
 
-    const finalPrompt = generatedPrompt.trim();
-    let initImgB64: string | null = null;
-    let initImgMime: string | null = null;
+      const finalPrompt = generatedPrompt.trim();
+      const apiKey = await loadApiKey(selectedModel.provider);
+      if (!apiKey) {
+        toast.error(
+          `No API key found for ${PROVIDER_LABELS[selectedModel.provider] ?? selectedModel.provider}. Add one in Settings.`,
+        );
+        return false;
+      }
 
-    if (initImage && selectedModel.supportsImg2Img) {
-      const parsed = parseDataUrl(initImage);
-      initImgB64 = parsed.b64;
-      initImgMime = parsed.mime;
-    }
+      let initImgB64: string | null = null;
+      let initImgMime: string | null = null;
+      if (initImage && selectedModel.supportsImg2Img) {
+        const parsed = parseDataUrl(initImage);
+        initImgB64 = parsed.b64;
+        initImgMime = parsed.mime;
+      }
 
-    const apiKey = await loadApiKey(selectedModel.provider);
-    if (!apiKey) {
-      toast.error(
-        `No API key found for ${PROVIDER_LABELS[selectedModel.provider] ?? selectedModel.provider}. Add one in Settings.`,
+      isGeneratingRef.current = true;
+      setIsGenerating(true);
+      setImages(
+        Array.from({ length: count }, () => ({ status: "loading" as const })),
       );
+
+      try {
+        const result = await generateWithProvider(selectedModel.provider, {
+          apiKey,
+          model: selectedModel.apiModel,
+          prompt: finalPrompt,
+          count,
+          width: effectiveRatio.w,
+          height: effectiveRatio.h,
+          ratio: effectiveRatio.value,
+          initImageB64: initImgB64,
+          initImageMime: initImgMime,
+        });
+        setQuota(result.quota);
+
+        const records = result.images.map((image) =>
+          createAiImageRecord(
+            {
+              ...image,
+              prompt: finalPrompt,
+              provider: selectedModel.provider,
+              modelId: selectedModel.apiModel,
+              modelLabel: selectedModel.label,
+            },
+            createRecordId(),
+          ),
+        );
+        await Promise.all(records.map(saveAiImageRecord));
+        setCurrentRecords(records);
+        setImages(
+          records.map((record) => ({
+            status: "done" as const,
+            url: arrayBufferToDataUrl(record.data, record.mimeType),
+            recordId: record.id,
+          })),
+        );
+        await refreshRecords();
+        if (source === "scheduler") {
+          toast.success("Scheduled image generated");
+        }
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred.";
+        setImages([{ status: "error", message }]);
+        const lowerMessage = message.toLowerCase();
+        if (
+          isHuggingFaceSelected &&
+          (message.includes("401") ||
+            message.includes("403") ||
+            message.includes("429") ||
+            lowerMessage.includes("token") ||
+            lowerMessage.includes("rate") ||
+            lowerMessage.includes("quota"))
+        ) {
+          setScheduler((previous) => ({
+            ...previous,
+            running: false,
+            nextRunAt: null,
+          }));
+        }
+        toast.error(message);
+        return false;
+      } finally {
+        isGeneratingRef.current = false;
+        setIsGenerating(false);
+      }
+    },
+    [
+      canGenerate,
+      count,
+      effectiveRatio.h,
+      effectiveRatio.value,
+      effectiveRatio.w,
+      generatedPrompt,
+      initImage,
+      isHuggingFaceSelected,
+      refreshRecords,
+      selectedModel,
+    ],
+  );
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!scheduler.running || !isHuggingFaceSelected) return;
+    if (!scheduler.nextRunAt) {
+      setScheduler((previous) => ({
+        ...previous,
+        nextRunAt: Date.now() + previous.intervalSeconds * 1000,
+      }));
       return;
     }
+    if (now < scheduler.nextRunAt || isGeneratingRef.current) return;
 
-    setIsGenerating(true);
-    setImages(
-      Array.from({ length: count }, () => ({ status: "loading" as const })),
-    );
-
-    const results = await Promise.all(
-      Array.from({ length: count }, async (_, index) => {
-        try {
-          let urls: string[];
-
-          switch (selectedModel.provider) {
-            case "openai": {
-              const size = `${effectiveRatio.w}x${effectiveRatio.h}`;
-              urls = await generateOpenAI(
-                apiKey,
-                selectedModel.apiModel,
-                finalPrompt,
-                1,
-                size,
-                initImgB64,
-                initImgMime,
-              );
-              break;
-            }
-            case "gemini": {
-              const url = await generateGemini(
-                apiKey,
-                selectedModel.apiModel,
-                finalPrompt,
-                effectiveRatio.value,
-                initImgB64,
-                initImgMime,
-              );
-              urls = [url];
-              break;
-            }
-            case "together": {
-              if (index === 0) {
-                urls = await generateTogether(
-                  apiKey,
-                  selectedModel.apiModel,
-                  finalPrompt,
-                  count,
-                  effectiveRatio.w,
-                  effectiveRatio.h,
-                );
-              } else {
-                return null;
-              }
-              break;
-            }
-            case "xai": {
-              if (index === 0) {
-                urls = await generateXAI(
-                  apiKey,
-                  selectedModel.apiModel,
-                  finalPrompt,
-                  count,
-                );
-              } else {
-                return null;
-              }
-              break;
-            }
-            default:
-              throw new Error(`Unknown provider: ${selectedModel.provider}`);
-          }
-
-          return { index, urls };
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Unknown error occurred.";
-          const isAuthError =
-            message.includes("401") ||
-            message.includes("403") ||
-            message.toLowerCase().includes("invalid") ||
-            message.toLowerCase().includes("api key");
-          if (isAuthError) {
-            toast.error(
-              `Invalid API key for ${PROVIDER_LABELS[selectedModel.provider] ?? selectedModel.provider}`,
-            );
-          }
-          return { index, error: message };
-        }
-      }),
-    );
-
-    setImages((previous) => {
-      const next = [...previous];
-      for (const result of results) {
-        if (!result) continue;
-        if ("error" in result) {
-          next[result.index] = {
-            status: "error",
-            message: result.error ?? "Unknown error occurred.",
-          };
-          continue;
-        }
-        for (const [offset, url] of result.urls.entries()) {
-          next[result.index + offset] = { status: "done", url };
-        }
-      }
-      return next;
+    void generate("scheduler").then((didGenerate) => {
+      if (!didGenerate) return;
+      setScheduler((previous) => ({
+        ...previous,
+        nextRunAt: Date.now() + previous.intervalSeconds * 1000,
+      }));
     });
+  }, [
+    generate,
+    isHuggingFaceSelected,
+    now,
+    scheduler.nextRunAt,
+    scheduler.running,
+  ]);
 
-    setIsGenerating(false);
-  };
+  useEffect(() => {
+    if (!isHuggingFaceSelected && scheduler.running) {
+      setScheduler((previous) => ({
+        ...previous,
+        running: false,
+        nextRunAt: null,
+      }));
+    }
+  }, [isHuggingFaceSelected, scheduler.running]);
+
+  const actions = useMemo<AiImageActionHandlers>(
+    () => ({
+      onDownload(record) {
+        void saveBlobFile(
+          new Blob([record.data], { type: record.mimeType }),
+          getRecordFilename(record),
+        );
+      },
+      onToggleSaved(record) {
+        void setAiImageSaved(record.id, record.savedAt === null).then(
+          refreshRecords,
+        );
+      },
+      async onAddToTileset(record) {
+        try {
+          const assetId = await saveGeneratedImageAsset(record);
+          const tilesetId = createGeneratedTilesetId();
+          let added = false;
+          setState((draft) => {
+            added = appendGeneratedImageTileset(
+              draft,
+              record,
+              assetId,
+              tilesetId,
+            );
+          });
+          if (added) {
+            toast.success("Added generated image as a tileset");
+          } else {
+            toast.error("Create or open a project with a tileset group first.");
+          }
+        } catch {
+          toast.error("Failed to add generated image to tileset");
+        }
+      },
+      onOpenInEditor(record) {
+        setStandaloneAiImageEditorContext({
+          id: record.id,
+          data: record.data,
+          mimeType: record.mimeType,
+          width: record.width,
+          height: record.height,
+          name: getRecordFilename(record),
+        });
+        window.dispatchEvent(new CustomEvent("open-image-editor"));
+      },
+      onDelete(record) {
+        void deleteAiImageRecord(record.id).then(async () => {
+          setCurrentRecords((previous) =>
+            previous.filter((candidate) => candidate.id !== record.id),
+          );
+          await refreshRecords();
+        });
+      },
+    }),
+    [refreshRecords, setState],
+  );
+
+  const quotaPercent = getQuotaPercent(quota);
+  const secondsUntilNext =
+    scheduler.nextRunAt !== null
+      ? Math.max(0, Math.ceil((scheduler.nextRunAt - now) / 1000))
+      : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -790,43 +795,176 @@ export function Generator() {
 
         <div className="min-h-0 overflow-y-auto">
           <div className="space-y-4 p-4">
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <KeyRound className="h-4 w-4 text-muted-foreground" />
-                  {selectedModel ? selectedModel.label : "No model available"}
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <KeyRound className="h-4 w-4 text-muted-foreground" />
+                    {selectedModel ? selectedModel.label : "No model available"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedModel
+                      ? "Models are filtered to providers with configured API keys."
+                      : "Add an API key in Settings to enable generation."}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {selectedModel
-                    ? "Models are filtered to providers with configured API keys."
-                    : "Add an API key in Settings to enable generation."}
-                </p>
+                <Button
+                  type="button"
+                  onClick={() => void generate()}
+                  disabled={!canGenerate}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating
+                    </>
+                  ) : (
+                    "Generate"
+                  )}
+                </Button>
               </div>
-              <Button
-                type="button"
-                onClick={() => void generate()}
-                disabled={!canGenerate}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating
-                  </>
-                ) : (
-                  "Generate"
-                )}
-              </Button>
+
+              {isHuggingFaceSelected && (
+                <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium">Hugging Face quota</span>
+                    <span className="text-muted-foreground">
+                      {quota.remaining !== null && quota.limit !== null
+                        ? `${quota.remaining} / ${quota.limit}`
+                        : "Unknown"}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label="Hugging Face remaining quota"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={quotaPercent ?? undefined}
+                  >
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${quotaPercent ?? 100}%` }}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ai-assets-scheduler-interval">
+                        Scheduler Interval
+                      </Label>
+                      <input
+                        id="ai-assets-scheduler-interval"
+                        name="ai-assets-scheduler-interval"
+                        type="number"
+                        min={10}
+                        max={86400}
+                        value={scheduler.intervalSeconds}
+                        onChange={(event) =>
+                          setScheduler((previous) => ({
+                            ...previous,
+                            intervalSeconds: Math.max(
+                              10,
+                              Number(event.target.value) || 10,
+                            ),
+                          }))
+                        }
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant={scheduler.running ? "secondary" : "outline"}
+                      className="self-end"
+                      disabled={!canGenerate && !scheduler.running}
+                      onClick={() =>
+                        setScheduler((previous) => ({
+                          ...previous,
+                          running: !previous.running,
+                          nextRunAt: !previous.running
+                            ? Date.now() + previous.intervalSeconds * 1000
+                            : null,
+                        }))
+                      }
+                    >
+                      {scheduler.running ? (
+                        <>
+                          <Square className="mr-2 h-3.5 w-3.5" />
+                          Stop
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-2 h-3.5 w-3.5" />
+                          Start
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    {scheduler.running && secondsUntilNext !== null
+                      ? `Next generation in ${secondsUntilNext}s`
+                      : "Scheduler paused"}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-              {Array.from({ length: count }, (_, index) => (
-                <ImageCell
-                  key={`${index}-${images[index]?.status ?? "idle"}`}
-                  index={index}
-                  state={images[index] ?? { status: "idle" }}
+            <Tabs defaultValue="current" className="min-h-0">
+              <TabsList variant="line" className="w-full justify-start">
+                <TabsTrigger value="current">Current</TabsTrigger>
+                <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="gallery">Gallery</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="current" className="pt-3">
+                {isGenerating ? (
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                    {Array.from({ length: count }, (_, index) => (
+                      <ImageCell
+                        key={`loading-${index}`}
+                        index={index}
+                        state={images[index] ?? { status: "loading" }}
+                      />
+                    ))}
+                  </div>
+                ) : currentRecords.length > 0 ? (
+                  <RecordsGrid
+                    records={currentRecords}
+                    urls={recordUrls}
+                    actions={actions}
+                    emptyLabel="No current images"
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                    {Array.from({ length: count }, (_, index) => (
+                      <ImageCell
+                        key={`idle-${index}`}
+                        index={index}
+                        state={images[index] ?? { status: "idle" }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="pt-3">
+                <RecordsGrid
+                  records={history}
+                  urls={recordUrls}
+                  actions={actions}
+                  emptyLabel="Generated images will appear here."
                 />
-              ))}
-            </div>
+              </TabsContent>
+
+              <TabsContent value="gallery" className="pt-3">
+                <RecordsGrid
+                  records={gallery}
+                  urls={recordUrls}
+                  actions={actions}
+                  emptyLabel="Saved images will appear here."
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>

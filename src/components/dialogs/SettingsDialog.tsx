@@ -177,6 +177,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </Label>
                 <Switch
                   id="autosave"
+                  name="autosave"
                   checked={settings.autoSaveEnabled}
                   onCheckedChange={handleToggleAutoSave}
                 />

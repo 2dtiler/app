@@ -1,21 +1,27 @@
-Lospec dialog
-  Should not download from API. Fetch directly from server. Cache Responses
-  Add Pagination
-  Tags should be clickable
-  Show all colors when clicking plus button
-  Colors should have tooltips
+I want to make some changes to the Lospec dialog:
+  1. Currently when the indexedb TilerDB.lospecPalettes table is empty, and you open the dialog, then it shows: "Lospec palette library is already up to date." It should fetch the first page, display it, and then paginate through all the pages in the background to populate the table 
+  2. Add Pagination
+  3. Tags should be clickable
+  4. Show all colors when clicking plus button
+  5. Colors should have selectable tooltips
 
+----------------
+
+I want to make some changes to AI Assets Generator Tool:
+  1. Recheck that all native implementations work
+  2. Add Hugging Face as a provider (first option)
+  3. Show a history of generated images
+  4. Gallery for saved images
+  5. Scheduler to automatically generate a prompt every x seconds based on quota limits from the provider for HuggingFace
+  6. Show depleting progress bar to show remaining quota
+  7. Ability to Download, add to tileset, or open in image Editor
+  
+-------------
+
+
+Map Management -> Edit Maps -> Allow editing map title 
 Select Project Loading screen
-Better CI/CD Dev -> Prod workflow
 World View
-
-AI Asset Generation:
-  Recheck out all native implementations work
-  History
-  Gallery
-  Scheduler
-  Add depleting progress bar to show remaining quota
-  Ability to download/add to tileset/open in image Editor
 
 Ad Marketplace for selling/buying tilesets etc.
 Exploration:

@@ -5,6 +5,10 @@ import {
   getPendingImageLayerEditorRequest,
 } from "@/features/image-editor/lib/image-layer-editor-context";
 import {
+  clearStandaloneAiImageEditorContext,
+  getPendingStandaloneAiImageEditorRequest,
+} from "@/features/ai-assets/lib/standalone-editor-context";
+import {
   imageLayerImageCache,
   loadImageLayerImage,
   loadTilesetImage,
@@ -187,14 +191,85 @@ export function useImageEditorRequestLoader(
     setActiveImageLayerCtx(ctx);
   }, [editor, onRequestLoaded, projectId]);
 
+  const loadPendingStandaloneAiImageRequest = useCallback(async () => {
+    const pendingRequest = getPendingStandaloneAiImageEditorRequest();
+    if (!pendingRequest) {
+      return;
+    }
+
+    const { requestId, context: ctx } = pendingRequest;
+    const runId = ++loadRunIdRef.current;
+    const isCurrentRun = () =>
+      isMountedRef.current && loadRunIdRef.current === runId;
+
+    const objectUrl = URL.createObjectURL(
+      new Blob([ctx.data], { type: ctx.mimeType }),
+    );
+
+    try {
+      const image = new Image();
+      image.src = objectUrl;
+      if (typeof image.decode === "function") {
+        await image.decode();
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error("Failed to decode image."));
+        });
+      }
+      if (!isCurrentRun()) return;
+
+      const width = ctx.width || image.naturalWidth || image.width;
+      const height = ctx.height || image.naturalHeight || image.height;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context || !isCurrentRun()) return;
+
+      context.imageSmoothingEnabled = false;
+      context.drawImage(image, 0, 0, width, height);
+      const imageData = context.getImageData(0, 0, width, height);
+      if (!isCurrentRun()) return;
+
+      const savedPalettes = projectId ? loadPaletteLibrary(projectId) : null;
+      editor.initProject(width, height, savedPalettes ?? undefined);
+      if (!isCurrentRun()) return;
+
+      if (isImageEditorStoreReady()) {
+        const state = getImageEditorStore().getState();
+        if (state.frames.length > 0) {
+          editor.setFrameData(state.frames[0].id, imageData);
+          editor.markSavePoint();
+        }
+      }
+
+      clearStandaloneAiImageEditorContext(requestId);
+      onRequestLoaded();
+      setActiveTileCtx(null);
+      setActiveImageLayerCtx(null);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }, [editor, onRequestLoaded, projectId]);
+
   const loadPendingEditorRequest = useCallback(async () => {
+    if (getPendingStandaloneAiImageEditorRequest()) {
+      await loadPendingStandaloneAiImageRequest();
+      return;
+    }
+
     if (getPendingImageLayerEditorRequest()) {
       await loadPendingImageLayerRequest();
       return;
     }
 
     await loadPendingTileRequest();
-  }, [loadPendingImageLayerRequest, loadPendingTileRequest]);
+  }, [
+    loadPendingImageLayerRequest,
+    loadPendingStandaloneAiImageRequest,
+    loadPendingTileRequest,
+  ]);
 
   useEffect(() => {
     isMountedRef.current = true;

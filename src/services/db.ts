@@ -17,6 +17,7 @@ import type {
   ProjectPrefs,
   ProjectRecord,
 } from "@/features/import-export/types";
+import type { AiGeneratedImageRecord } from "@/types/integrations/ai-assets";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -29,6 +30,7 @@ class TilerDatabase extends Dexie {
   quickExportPreferences!: EntityTable<QuickExportPreferenceRecord, "id">;
   quickExportSaveTargets!: EntityTable<QuickExportSaveTargetRecord, "id">;
   lospecPalettes!: EntityTable<LospecPaletteRecord, "id">;
+  aiImages!: EntityTable<AiGeneratedImageRecord, "id">;
 
   constructor() {
     super("TilerDB");
@@ -59,6 +61,18 @@ class TilerDatabase extends Dexie {
       quickExportSaveTargets:
         "id, projectId, assetType, assetId, optionId, updatedAt",
       lospecPalettes: "id, slug, title, publishedAtMs, *tags, cachedAt",
+    });
+
+    this.version(4).stores({
+      projects: "id, name, updatedAt",
+      assets: "id, createdAt",
+      settings: "id",
+      history: "id",
+      quickExportPreferences: "id, projectId, assetType, assetId, updatedAt",
+      quickExportSaveTargets:
+        "id, projectId, assetType, assetId, optionId, updatedAt",
+      lospecPalettes: "id, slug, title, publishedAtMs, *tags, cachedAt",
+      aiImages: "id, createdAt, savedAt, provider, modelId",
     });
   }
 }

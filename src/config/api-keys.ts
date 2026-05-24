@@ -15,6 +15,12 @@ import type { ApiKeyProvider } from "@/types/integrations/api-keys";
 
 export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {
+    id: "huggingface",
+    label: "Hugging Face",
+    url: "https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained",
+    placeholder: "hf_...",
+  },
+  {
     id: "openai",
     label: "OpenAI",
     url: "https://platform.openai.com/api-keys",

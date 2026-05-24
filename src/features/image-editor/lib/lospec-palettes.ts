@@ -15,6 +15,16 @@ import type {
 export const LOSPEC_PALETTES_ENDPOINT =
   "https://api.2dtiler.com/lospec_palettes";
 
+class LospecPaletteRequestError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`Lospec palette request failed with ${status}`);
+    this.name = "LospecPaletteRequestError";
+    this.status = status;
+  }
+}
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -93,6 +103,12 @@ function getLospecErrorMessage(error: unknown): string {
   return "Lospec palettes could not be loaded.";
 }
 
+function getLospecErrorStatus(error: unknown): number | undefined {
+  return error instanceof LospecPaletteRequestError
+    ? error.status
+    : undefined;
+}
+
 function buildLospecPaletteSearchHaystack(
   palette: LospecPaletteRecord,
 ): string {
@@ -117,7 +133,7 @@ async function fetchLospecPalettePage(
 
   const response = await fetchImpl(url.toString());
   if (!response.ok) {
-    throw new Error(`Lospec palette request failed with ${response.status}`);
+    throw new LospecPaletteRequestError(response.status);
   }
 
   return normalizeLospecPalettePage(await response.json(), now());
@@ -177,11 +193,15 @@ export function normalizeLospecPalettePage(
   value: unknown,
   cachedAt: number = Date.now(),
 ): LospecPaletteRecord[] {
-  if (!Array.isArray(value)) {
+  const records = isObjectRecord(value) && Array.isArray(value.items)
+    ? value.items
+    : value;
+
+  if (!Array.isArray(records)) {
     return [];
   }
 
-  return value.flatMap((entry) => {
+  return records.flatMap((entry) => {
     const palette = normalizeLospecPaletteRecord(entry, cachedAt);
     return palette ? [palette] : [];
   });
@@ -233,14 +253,29 @@ export async function syncLospecPaletteCatalog(
   const loadCache = dependencies.loadCache ?? loadLospecPaletteCache;
   const loadCacheIds = dependencies.loadCacheIds ?? loadLospecPaletteCacheIds;
   const saveCache = dependencies.saveCache ?? saveLospecPaletteCache;
+  const onProgress = dependencies.onProgress;
   const now = dependencies.now ?? Date.now;
   const knownIds = new Set(await loadCacheIds());
+  const cachedPalettes = await loadCache();
   let page = 0;
   let addedCount = 0;
+  let fetchedPageCount = 0;
+
+  if (cachedPalettes.length > 0) {
+    onProgress?.({
+      palettes: cachedPalettes,
+      addedCount,
+      fetchedPageCount,
+      page: null,
+      pageAddedCount: 0,
+      isInitialCache: true,
+    });
+  }
 
   try {
     while (page < LOSPEC_SYNC_MAX_PAGES) {
       const pagePalettes = await fetchLospecPalettePage(page, fetchImpl, now);
+      fetchedPageCount += 1;
       if (pagePalettes.length === 0) {
         break;
       }
@@ -261,6 +296,15 @@ export async function syncLospecPaletteCatalog(
         }
       }
 
+      onProgress?.({
+        palettes: await loadCache(),
+        addedCount,
+        fetchedPageCount,
+        page,
+        pageAddedCount: palettesToSave.length,
+        isInitialCache: false,
+      });
+
       if (firstKnownIndex >= 0) {
         break;
       }
@@ -272,6 +316,7 @@ export async function syncLospecPaletteCatalog(
       return {
         palettes: await loadCache(),
         addedCount,
+        fetchedPageCount,
         usedCache: false,
         status: "partial",
         errorMessage: `Reached Lospec sync cap (${LOSPEC_SYNC_MAX_PAGES} pages). Imported a partial catalog.`,
@@ -281,19 +326,23 @@ export async function syncLospecPaletteCatalog(
     return {
       palettes: await loadCache(),
       addedCount,
+      fetchedPageCount,
       usedCache: false,
       status: "synced",
     };
   } catch (error) {
     const palettes = await loadCache();
     const errorMessage = getLospecErrorMessage(error);
+    const errorStatus = getLospecErrorStatus(error);
 
     if (palettes.length > 0) {
       return {
         palettes,
         addedCount,
+        fetchedPageCount,
         usedCache: true,
         status: "cache-only",
+        errorStatus,
         errorMessage,
       };
     }
@@ -301,8 +350,10 @@ export async function syncLospecPaletteCatalog(
     return {
       palettes: [],
       addedCount,
+      fetchedPageCount,
       usedCache: false,
       status: "error",
+      errorStatus,
       errorMessage,
     };
   }
