@@ -80,6 +80,34 @@ export interface RatioDef {
   h: number;
 }
 
+export interface AiImageDimensions {
+  width: number;
+  height: number;
+}
+
+export interface AiImageGridDimensions {
+  columns: number;
+  rows: number;
+}
+
+export interface AiAssetTargetDimensionInput {
+  assetType: AssetType;
+  style: StyleStack;
+  tileset: TilesetConfig;
+  sprite: SpriteConfig;
+  vfx: VFXConfig;
+}
+
+export interface AiImageDataUrlParts {
+  mimeType: string;
+  base64: string;
+}
+
+export interface AiProviderImageSourceOptions {
+  fallbackMimeType?: string;
+  targetDimensions?: AiImageDimensions | null;
+}
+
 export type ImageState =
   | { status: "idle" }
   | { status: "loading" }

@@ -36,6 +36,10 @@ import {
 import { setStandaloneAiImageEditorContext } from "@/features/ai-assets/lib/standalone-editor-context";
 import { buildPrompt } from "../lib/prompt-builder";
 import {
+  getAiAssetTargetDimensions,
+  getClosestAiAssetRatio,
+} from "../lib/dimensions";
+import {
   ALL_RATIOS,
   ART_STYLES,
   ASSET_TYPE_DEFS,
@@ -299,6 +303,29 @@ export function Generator() {
     availableRatios.find((ratio) => ratio.value === "1:1") ??
     availableRatios[0] ??
     ALL_RATIOS[0];
+  const targetDimensions = useMemo(
+    () =>
+      getAiAssetTargetDimensions({
+        assetType,
+        style: styleStack,
+        tileset: tilesetCfg,
+        sprite: spriteCfg,
+        vfx: vfxCfg,
+      }),
+    [
+      assetType,
+      spriteCfg,
+      styleStack,
+      tilesetCfg,
+      vfxCfg,
+    ],
+  );
+  const generationRatio =
+    (targetDimensions
+      ? getClosestAiAssetRatio(targetDimensions, availableRatios)
+      : null) ?? effectiveRatio;
+  const generationWidth = targetDimensions?.width ?? effectiveRatio.w;
+  const generationHeight = targetDimensions?.height ?? effectiveRatio.h;
   const canGenerate =
     !isGenerating && !!selectedModel && generatedPrompt.trim().length > 0;
 
@@ -337,9 +364,9 @@ export function Generator() {
           model: selectedModel.apiModel,
           prompt: finalPrompt,
           count,
-          width: effectiveRatio.w,
-          height: effectiveRatio.h,
-          ratio: effectiveRatio.value,
+          width: generationWidth,
+          height: generationHeight,
+          ratio: generationRatio.value,
           initImageB64: initImgB64,
           initImageMime: initImgMime,
         });
@@ -401,9 +428,9 @@ export function Generator() {
     [
       canGenerate,
       count,
-      effectiveRatio.h,
-      effectiveRatio.value,
-      effectiveRatio.w,
+      generationHeight,
+      generationRatio.value,
+      generationWidth,
       generatedPrompt,
       initImage,
       isHuggingFaceSelected,
@@ -747,7 +774,7 @@ export function Generator() {
               <div className="space-y-1.5">
                 <Label htmlFor="ai-assets-ratio">Aspect Ratio</Label>
                 <Select
-                  value={effectiveRatio.value}
+                  value={generationRatio.value}
                   onValueChange={() => undefined}
                 >
                   <SelectTrigger

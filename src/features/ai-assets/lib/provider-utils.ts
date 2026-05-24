@@ -1,11 +1,11 @@
-import type { AiProviderImage } from "@/types/integrations/ai-assets";
+import type {
+  AiImageDataUrlParts,
+  AiImageDimensions,
+  AiProviderImage,
+  AiProviderImageSourceOptions,
+} from "@/types/integrations/ai-assets";
 
-interface DataUrlParts {
-  mimeType: string;
-  base64: string;
-}
-
-function parseImageDataUrl(dataUrl: string): DataUrlParts | null {
+function parseImageDataUrl(dataUrl: string): AiImageDataUrlParts | null {
   const match = /^data:([^;,]+);base64,(.*)$/i.exec(dataUrl);
   if (!match) return null;
   return {
@@ -39,10 +39,7 @@ export function arrayBufferToDataUrl(
   return `data:${mimeType};base64,${arrayBufferToBase64(data)}`;
 }
 
-export async function getImageDimensionsFromBlob(blob: Blob): Promise<{
-  width: number;
-  height: number;
-}> {
+async function decodeImageBlob(blob: Blob): Promise<HTMLImageElement> {
   const objectUrl = URL.createObjectURL(blob);
   try {
     const image = new Image();
@@ -55,19 +52,94 @@ export async function getImageDimensionsFromBlob(blob: Blob): Promise<{
         image.onerror = () => reject(new Error("Failed to decode image."));
       });
     }
-    return {
-      width: image.naturalWidth || image.width,
-      height: image.naturalHeight || image.height,
-    };
+    return image;
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
 }
 
+function getDecodedImageDimensions(image: HTMLImageElement): AiImageDimensions {
+    return {
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+    };
+}
+
+function getNormalizedTargetDimensions(
+  dimensions: AiImageDimensions | null | undefined,
+): AiImageDimensions | null {
+  if (!dimensions) return null;
+  const width = Math.round(dimensions.width);
+  const height = Math.round(dimensions.height);
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
+function getImageSourceOptions(
+  fallbackMimeTypeOrOptions: string | AiProviderImageSourceOptions,
+  targetDimensions: AiImageDimensions | null | undefined,
+): AiProviderImageSourceOptions {
+  if (typeof fallbackMimeTypeOrOptions === "string") {
+    return {
+      fallbackMimeType: fallbackMimeTypeOrOptions,
+      targetDimensions,
+    };
+  }
+  return fallbackMimeTypeOrOptions;
+}
+
+async function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Failed to scale generated image."));
+        return;
+      }
+      resolve(blob);
+    }, mimeType);
+  });
+}
+
+async function scaleDecodedImageToBlob(
+  image: HTMLImageElement,
+  targetDimensions: AiImageDimensions,
+  mimeType: string,
+): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = targetDimensions.width;
+  canvas.height = targetDimensions.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("No canvas context available for generated image scaling.");
+  }
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, targetDimensions.width, targetDimensions.height);
+  return canvasToBlob(canvas, mimeType);
+}
+
+export async function getImageDimensionsFromBlob(
+  blob: Blob,
+): Promise<AiImageDimensions> {
+  return getDecodedImageDimensions(await decodeImageBlob(blob));
+}
+
 export async function imageSourceToProviderImage(
   source: string | Blob,
-  fallbackMimeType = "image/png",
+  fallbackMimeTypeOrOptions: string | AiProviderImageSourceOptions = "image/png",
+  targetDimensions?: AiImageDimensions | null,
 ): Promise<AiProviderImage> {
+  const options = getImageSourceOptions(
+    fallbackMimeTypeOrOptions,
+    targetDimensions,
+  );
+  const fallbackMimeType = options.fallbackMimeType ?? "image/png";
+  const requestedDimensions = getNormalizedTargetDimensions(
+    options.targetDimensions,
+  );
   let blob: Blob;
 
   if (source instanceof Blob) {
@@ -87,11 +159,24 @@ export async function imageSourceToProviderImage(
     }
   }
 
-  const dimensions = await getImageDimensionsFromBlob(blob);
+  const image = await decodeImageBlob(blob);
+  const dimensions = getDecodedImageDimensions(image);
+  const outputBlob =
+    requestedDimensions &&
+    (dimensions.width !== requestedDimensions.width ||
+      dimensions.height !== requestedDimensions.height)
+      ? await scaleDecodedImageToBlob(
+          image,
+          requestedDimensions,
+          blob.type || fallbackMimeType,
+        )
+      : blob;
+  const outputDimensions = requestedDimensions ?? dimensions;
+
   return {
-    data: await blob.arrayBuffer(),
-    mimeType: blob.type || fallbackMimeType,
-    width: dimensions.width,
-    height: dimensions.height,
+    data: await outputBlob.arrayBuffer(),
+    mimeType: outputBlob.type || blob.type || fallbackMimeType,
+    width: outputDimensions.width,
+    height: outputDimensions.height,
   };
 }
