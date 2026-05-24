@@ -201,7 +201,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         >
           <aside className="border-b border-border-visible px-4 py-4 sm:flex sm:h-full sm:w-56 sm:flex-col sm:self-stretch sm:border-r sm:border-b-0 sm:px-3 sm:py-5">
             <div className="space-y-2 sm:hidden">
-              <Label htmlFor="settings-section-select" className="text-xs font-medium">
+              <Label
+                htmlFor="settings-section-select"
+                className="text-xs font-medium"
+              >
                 Section
               </Label>
               <Select
