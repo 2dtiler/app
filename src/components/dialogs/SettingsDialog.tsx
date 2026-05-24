@@ -7,13 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/Accordion";
 import { Switch } from "@/components/ui/Switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
 import { getSettings, saveSettings } from "@/services/db";
@@ -26,8 +21,23 @@ import {
 import type {
   SettingsDialogProps,
   SettingsKeyRowProps as KeyRowProps,
+  SettingsSection,
+  SettingsSectionId,
 } from "@/features/app-shell";
 import type { AppSettings } from "@/types";
+
+const SETTINGS_SECTIONS: SettingsSection[] = [
+  {
+    id: "general",
+    label: "General",
+    description: "Project behavior and application defaults.",
+  },
+  {
+    id: "api-keys",
+    label: "API Keys",
+    description: "Provider credentials used for AI image generation.",
+  },
+];
 
 function ApiKeyRow({ id, label, url, placeholder }: KeyRowProps) {
   const [value, setValue] = useState("");
@@ -143,9 +153,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings>({
     autoSaveEnabled: true,
   });
+  const [activeSection, setActiveSection] =
+    useState<SettingsSectionId>("general");
+  const handleSectionChange = (value: string) => {
+    setActiveSection(value as SettingsSectionId);
+  };
 
   useEffect(() => {
     if (open) {
+      setActiveSection("general");
       getSettings().then((newSettings) => {
         setSettings(newSettings);
       });
@@ -160,53 +176,113 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+      <DialogContent className="grid h-[min(85vh,720px)] grid-rows-[auto,minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="gap-0">
+          <div className="border-b border-border-visible px-6 pt-6 pb-5">
+            <DialogTitle>Settings</DialogTitle>
+          </div>
           <DialogDescription className="sr-only">
             Application settings
           </DialogDescription>
         </DialogHeader>
-        <Accordion type="multiple" defaultValue={["general"]}>
-          <AccordionItem value="general">
-            <AccordionTrigger>General</AccordionTrigger>
-            <AccordionContent>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autosave" className="text-sm">
-                  Save project every minute
-                </Label>
-                <Switch
-                  id="autosave"
-                  name="autosave"
-                  checked={settings.autoSaveEnabled}
-                  onCheckedChange={handleToggleAutoSave}
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+        <Tabs
+          value={activeSection}
+          onValueChange={handleSectionChange}
+          orientation="vertical"
+          className="h-full min-h-0 flex-1 items-start gap-0 overflow-hidden sm:flex-row"
+        >
+          <aside className="border-b border-border-visible px-4 py-4 sm:w-56 sm:border-r sm:border-b-0 sm:px-3 sm:py-5">
+            <TabsList
+              aria-label="Settings sections"
+              className="w-full items-stretch justify-start self-start gap-1 bg-transparent p-0"
+              variant="line"
+            >
+              {SETTINGS_SECTIONS.map((section) => (
+                <TabsTrigger
+                  key={section.id}
+                  value={section.id}
+                  className="min-h-11 rounded-xl px-3 py-2 text-left whitespace-normal after:hidden"
+                >
+                  <span className="flex min-w-0 flex-col items-start">
+                    <span>{section.label}</span>
+                    <span className="text-[10px] leading-relaxed text-muted-foreground whitespace-normal break-words">
+                      {section.description}
+                    </span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </aside>
 
-          <AccordionItem value="ai-keys">
-            <AccordionTrigger>AI API Keys</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Keys are obfuscated locally in your browser. They are never
-                  sent to any server other than the provider&apos;s own API, but
-                  any script running on this origin can still access them.
-                </p>
-                {API_KEY_PROVIDERS.map((p) => (
-                  <ApiKeyRow
-                    key={p.id}
-                    id={p.id}
-                    label={p.label}
-                    url={p.url}
-                    placeholder={p.placeholder}
-                  />
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+          <div className="min-h-0 flex-1 self-start overflow-y-auto px-6 py-5">
+            <div>
+              <TabsContent value="general" className="mt-0 space-y-5">
+                <div>
+                  <h2 className="text-sm font-medium text-foreground">
+                    General
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Control how the app handles project saving.
+                  </p>
+                </div>
+                <section
+                  aria-labelledby="settings-general-autosave-label"
+                  className="rounded-xl border border-border-visible p-4"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label
+                        id="settings-general-autosave-label"
+                        htmlFor="autosave"
+                        className="text-sm"
+                      >
+                        Save project every minute
+                      </Label>
+                      <p
+                        id="settings-general-autosave-description"
+                        className="text-xs leading-relaxed text-muted-foreground"
+                      >
+                        Automatically persists your current project in the
+                        background.
+                      </p>
+                    </div>
+                    <Switch
+                      id="autosave"
+                      name="autosave"
+                      checked={settings.autoSaveEnabled}
+                      onCheckedChange={handleToggleAutoSave}
+                      aria-describedby="settings-general-autosave-description"
+                    />
+                  </div>
+                </section>
+              </TabsContent>
+
+              <TabsContent value="api-keys" className="mt-0 space-y-5">
+                <div>
+                  <h2 className="text-sm font-medium text-foreground">
+                    API Keys
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Keys are obfuscated locally in your browser. They are never
+                    sent to any server other than the provider&apos;s own API,
+                    but any script running on this origin can still access them.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {API_KEY_PROVIDERS.map((p) => (
+                    <ApiKeyRow
+                      key={p.id}
+                      id={p.id}
+                      label={p.label}
+                      url={p.url}
+                      placeholder={p.placeholder}
+                    />
+                  ))}
+                </div>
+              </TabsContent>
+            </div>
+          </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

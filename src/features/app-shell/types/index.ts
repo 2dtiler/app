@@ -70,3 +70,5 @@ export interface ToolDrawerProps {
   activeTool: ToolName | null;
   onClose: () => void;
 }
+
+export * from "./settings-dialog";
