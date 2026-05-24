@@ -1,4 +1,4 @@
-import { assert, test } from "vitest";
+import { assert, expect, test } from "vitest";
 import {
   buildUnityBundleManifestPath,
   buildUnityGenericMetaFile,
@@ -266,4 +266,202 @@ test("prepareUnityMapImport prefers prefab and texture metadata over manifest ma
     },
     { width: 32, height: 32 },
   );
+});
+
+test("prepareUnityMapImport imports manifest-only bundles", async () => {
+  await withStubbedUnityImportEnvironment(
+    async () => {
+      const prefabPath = "ManifestOnly.prefab";
+      const manifest: UnityBundleManifest = {
+        version: 1,
+        source: "2dtiler",
+        map: {
+          name: "Manifest Only",
+          widthInTiles: 2,
+          heightInTiles: 2,
+          tileSize: 16,
+          orientation: "orthogonal",
+        },
+        sourceTilesets: [
+          {
+            id: "tileset-1" as never,
+            name: "terrain",
+            imagePath: "images/terrain.png",
+            tileSize: 16,
+            imageWidth: 32,
+            imageHeight: 32,
+            createdAt: 5,
+          },
+        ],
+        layers: [
+          {
+            exportId: "layer-ground",
+            name: "Ground",
+            visible: false,
+            locked: true,
+            cells: [
+              {
+                coordinate: "1,0",
+                tilesetId: "tileset-1" as never,
+                sx: 16,
+                sy: 0,
+                sw: 16,
+                sh: 16,
+                rotation: 90,
+                flipX: true,
+                flipY: false,
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = await prepareUnityMapImport(prefabPath, [
+        {
+          path: prefabPath,
+          data: encodeUnityTextFile("not a parseable prefab"),
+        },
+        {
+          path: buildUnityBundleManifestPath(prefabPath),
+          data: encodeUnityBundleManifest(manifest),
+        },
+        {
+          path: "images/terrain.png",
+          data: new Uint8Array([1, 2, 3]),
+        },
+      ]);
+
+      assert.strictEqual(result.status, "ready");
+      if (result.status !== "ready") {
+        return;
+      }
+
+      assert.strictEqual(result.result.map.name, "Manifest Only");
+      assert.strictEqual(result.result.layers[0]?.visible, false);
+      assert.strictEqual(result.result.layers[0]?.locked, true);
+      assert.deepEqual(result.result.layers[0]?.tiles["1,0"], {
+        tilesetId: "tileset-1",
+        sx: 16,
+        sy: 0,
+        sw: 16,
+        sh: 16,
+        rotation: 90,
+        flipX: true,
+        flipY: false,
+      });
+      assert.strictEqual(result.result.tilesets[0]?.name, "terrain");
+    },
+    { width: 32, height: 32 },
+  );
+});
+
+test("prepareUnityMapImport reports missing manifest and prefab resources", async () => {
+  const missingManifest = await prepareUnityMapImport("Missing.prefab", [
+    {
+      path: "Missing.prefab",
+      data: encodeUnityTextFile("not a parseable prefab"),
+    },
+  ]);
+
+  assert.strictEqual(missingManifest.status, "missing-resources");
+  if (missingManifest.status !== "missing-resources") {
+    return;
+  }
+  assert.strictEqual(missingManifest.missingResources[0]?.kind, "json");
+
+  const tileAssetGuid = "cccccccccccccccccccccccccccccccc";
+  const textureGuid = "dddddddddddddddddddddddddddddddd";
+  const prefabPath = "MissingAssets.prefab";
+  const manifest: UnityBundleManifest = {
+    version: 1,
+    source: "2dtiler",
+    map: {
+      name: "Missing Assets",
+      widthInTiles: 1,
+      heightInTiles: 1,
+      tileSize: 16,
+      orientation: "orthogonal",
+    },
+    sourceTilesets: [],
+    layers: [],
+  };
+  const missingPrefabAssets = await prepareUnityMapImport(prefabPath, [
+    {
+      path: prefabPath,
+      data: buildUnityPrefabBundleFixture(tileAssetGuid),
+    },
+    {
+      path: buildUnityBundleManifestPath(prefabPath),
+      data: encodeUnityBundleManifest(manifest),
+    },
+    {
+      path: "tiles/missing.asset",
+      data: encodeUnityTextFile(buildUnityTileAssetFile("missing", textureGuid)),
+    },
+    {
+      path: "tiles/missing.asset.meta",
+      data: encodeUnityTextFile(buildUnityGenericMetaFile(tileAssetGuid)),
+    },
+  ]);
+
+  assert.strictEqual(missingPrefabAssets.status, "missing-resources");
+  if (missingPrefabAssets.status !== "missing-resources") {
+    return;
+  }
+  assert.deepEqual(
+    missingPrefabAssets.missingResources.map((resource) => resource.kind),
+    ["meta", "image"],
+  );
+});
+
+test("prepareUnityMapImport validates input and unsupported tile metadata", async () => {
+  await expect(prepareUnityMapImport("Scene.unity", [])).rejects.toThrow(
+    /prefab file/,
+  );
+
+  const prefabPath = "BadTile.prefab";
+  const textureGuid = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+  const tileAssetGuid = "ffffffffffffffffffffffffffffffff";
+  const manifest: UnityBundleManifest = {
+    version: 1,
+    source: "2dtiler",
+    map: {
+      name: "Bad Tile",
+      widthInTiles: 1,
+      heightInTiles: 1,
+      tileSize: 16,
+      orientation: "orthogonal",
+    },
+    sourceTilesets: [],
+    layers: [],
+  };
+
+  await expect(
+    prepareUnityMapImport(prefabPath, [
+        {
+          path: prefabPath,
+          data: buildUnityPrefabBundleFixture(tileAssetGuid),
+        },
+        {
+          path: buildUnityBundleManifestPath(prefabPath),
+          data: encodeUnityBundleManifest(manifest),
+        },
+        {
+          path: "tiles/bad.asset",
+          data: encodeUnityTextFile(buildUnityTileAssetFile("bad", textureGuid)),
+        },
+        {
+          path: "tiles/bad.asset.meta",
+          data: encodeUnityTextFile(buildUnityGenericMetaFile(tileAssetGuid)),
+        },
+        {
+          path: "tiles/bad.png",
+          data: new Uint8Array([1, 2, 3]),
+        },
+        {
+          path: "tiles/bad.png.meta",
+          data: encodeUnityTextFile(buildUnityGenericMetaFile(textureGuid)),
+        },
+      ]),
+  ).rejects.toThrow(/missing tile slicing/);
 });
