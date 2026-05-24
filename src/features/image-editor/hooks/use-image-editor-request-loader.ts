@@ -248,6 +248,8 @@ export function useImageEditorRequestLoader(
       onRequestLoaded();
       setActiveTileCtx(null);
       setActiveImageLayerCtx(null);
+    } catch {
+      clearStandaloneAiImageEditorContext(requestId);
     } finally {
       URL.revokeObjectURL(objectUrl);
     }

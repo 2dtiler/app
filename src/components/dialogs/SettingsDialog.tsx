@@ -241,7 +241,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 >
                   <span className="flex min-w-0 flex-col items-start">
                     <span>{section.label}</span>
-                    <span className="text-[10px] leading-relaxed text-muted-foreground whitespace-normal wrap-break-word">
+                    <span className="text-[10px] leading-relaxed text-muted-foreground whitespace-normal break-words">
                       {section.description}
                     </span>
                   </span>

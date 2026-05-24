@@ -240,3 +240,29 @@ test("Lospec background sync does not replay expired rate-limit state before ret
 
   controller.dispose();
 });
+
+test("Lospec background sync start resolves when sync throws unexpectedly", async () => {
+  let checkpoint: LospecPaletteSyncCheckpoint | null = null;
+  const controller = createLospecPaletteSyncController({
+    loadCache: async () => [],
+    loadCheckpoint: () => checkpoint,
+    saveCheckpoint: (nextCheckpoint) => {
+      checkpoint = nextCheckpoint;
+    },
+    now: () => 42,
+    setTimeoutImpl: setTimeout,
+    clearTimeoutImpl: clearTimeout,
+    syncCatalog: async () => {
+      throw new Error("sync exploded");
+    },
+  });
+
+  await controller.start();
+
+  assert.strictEqual(controller.getSnapshot().status, "error");
+  assert.strictEqual(controller.getSnapshot().errorMessage, "sync exploded");
+  assert.strictEqual(checkpoint?.status, "error");
+  assert.strictEqual(checkpoint?.errorMessage, "sync exploded");
+
+  controller.dispose();
+});

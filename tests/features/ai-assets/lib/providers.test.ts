@@ -182,6 +182,50 @@ test("generates OpenAI edits with multipart requests", async () => {
   assert.strictEqual(result.images[0]?.mimeType, "image/png");
 });
 
+test("preserves OpenAI edit image order across concurrent requests", async () => {
+  installImageMock();
+  const firstImageBytes = new TextEncoder().encode("first-image");
+  const secondImageBytes = new TextEncoder().encode("second-image");
+  let callIndex = 0;
+  globalThis.fetch = vi.fn(async () => {
+    const currentCallIndex = callIndex++;
+    await new Promise((resolve) =>
+      setTimeout(resolve, currentCallIndex === 0 ? 10 : 0),
+    );
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            b64_json:
+              currentCallIndex === 0
+                ? btoa(String.fromCharCode(...firstImageBytes))
+                : btoa(String.fromCharCode(...secondImageBytes)),
+          },
+        ],
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }) as typeof fetch;
+
+  const result = await generateWithProvider("openai", {
+    apiKey: "openai_test",
+    model: "gpt-image-1",
+    prompt: "ordered edits",
+    count: 2,
+    width: 64,
+    height: 64,
+    ratio: "1:1",
+    initImageB64: "AQID",
+    initImageMime: "image/png",
+  });
+
+  assert.strictEqual(result.images.length, 2);
+  assert.deepEqual(new Uint8Array(result.images[0]?.data ?? new ArrayBuffer(0)), firstImageBytes);
+  assert.deepEqual(new Uint8Array(result.images[1]?.data ?? new ArrayBuffer(0)), secondImageBytes);
+});
+
 test("generates Gemini images with text and optional image parts", async () => {
   installImageMock();
   const fetchMock = vi.fn(
@@ -388,4 +432,28 @@ test("uses Hugging Face provider routes and error payloads", async () => {
     String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]),
     /replicate\/models\/org\/model/,
   );
+});
+
+test("reads Hugging Face plain-text error bodies safely", async () => {
+  globalThis.fetch = vi.fn(
+    async () =>
+      new Response("gateway timeout", {
+        status: 504,
+        headers: { "Content-Type": "text/plain" },
+      }),
+  ) as typeof fetch;
+
+  await expect(
+    generateWithProvider("huggingface", {
+      apiKey: "hf_bad",
+      model: "black-forest-labs/FLUX.1-schnell",
+      prompt: "grass tile",
+      count: 1,
+      width: 64,
+      height: 64,
+      ratio: "1:1",
+      initImageB64: null,
+      initImageMime: null,
+    }),
+  ).rejects.toThrow(/gateway timeout/);
 });

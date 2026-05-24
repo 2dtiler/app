@@ -39,7 +39,7 @@ async function generateOpenAI({
   const targetDimensions = { width, height };
 
   if (initImageB64 && initImageMime) {
-    await Promise.all(
+    const editDataUrls = await Promise.all(
       Array.from({ length: count }, async () => {
         const form = new FormData();
         const byteStr = atob(initImageB64);
@@ -68,13 +68,10 @@ async function generateOpenAI({
         const data = (await response.json()) as {
           data: { b64_json: string }[];
         };
-        dataUrls.push(
-          ...data.data.map(
-            (image) => `data:image/png;base64,${image.b64_json}`,
-          ),
-        );
+        return data.data.map((image) => `data:image/png;base64,${image.b64_json}`);
       }),
     );
+    dataUrls.push(...editDataUrls.flat());
   } else {
     const response = await fetch(
       "https://api.openai.com/v1/images/generations",
@@ -310,9 +307,15 @@ async function generateHuggingFace({
     });
     quota = parseQuotaHeaders(response.headers);
     if (!response.ok) {
-      const error = await response.json().catch(async () => ({
-        message: await response.text().catch(() => ""),
-      }));
+      const errorText = await response.text().catch(() => "");
+      const error = (() => {
+        if (!errorText) return null;
+        try {
+          return JSON.parse(errorText) as unknown;
+        } catch {
+          return { message: errorText };
+        }
+      })();
       throw new Error(
         getApiErrorMessage(`Hugging Face error ${response.status}`, error),
       );

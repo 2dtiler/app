@@ -122,6 +122,13 @@ export function createLospecPaletteSyncController(
     retryTimeoutId = null;
   };
 
+  const getUnexpectedErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+    return "Lospec palettes could not be loaded.";
+  };
+
   const scheduleRetry = (retryAtMs: number) => {
     clearRetry();
 
@@ -167,7 +174,22 @@ export function createLospecPaletteSyncController(
       return;
     }
 
-    await ensureInitialized();
+    try {
+      await ensureInitialized();
+    } catch (error) {
+      if (disposed) {
+        return;
+      }
+      commit({
+        ...snapshot,
+        status: "error",
+        retryAtMs: null,
+        updatedAt: dependencies.now(),
+        errorStatus: undefined,
+        errorMessage: getUnexpectedErrorMessage(error),
+      });
+      return;
+    }
 
     if (disposed || runPromise || snapshot.status === "complete") {
       return;
@@ -194,82 +216,96 @@ export function createLospecPaletteSyncController(
     });
 
     runPromise = (async () => {
-      const result = await dependencies.syncCatalog({
-        startPage: runStartPage,
-        stopAtKnownPalette: false,
-        onProgress: (progress) => {
-          if (disposed) {
-            return;
-          }
+      try {
+        const result = await dependencies.syncCatalog({
+          startPage: runStartPage,
+          stopAtKnownPalette: false,
+          onProgress: (progress) => {
+            if (disposed) {
+              return;
+            }
 
+            commit({
+              ...snapshot,
+              palettes: progress.palettes,
+              status: "syncing",
+              nextPage: progress.page === null ? runStartPage : progress.page + 1,
+              retryAtMs: null,
+              fetchedPageCount: baseFetchedPageCount + progress.fetchedPageCount,
+              addedCount: baseAddedCount + progress.addedCount,
+              updatedAt: dependencies.now(),
+              errorStatus: undefined,
+              errorMessage: undefined,
+            });
+          },
+        });
+
+        if (disposed) {
+          return;
+        }
+
+        const nextFetchedPageCount =
+          baseFetchedPageCount + result.fetchedPageCount;
+        const nextAddedCount = baseAddedCount + result.addedCount;
+
+        if (result.status === "synced") {
           commit({
             ...snapshot,
-            palettes: progress.palettes,
-            status: "syncing",
-            nextPage: progress.page === null ? runStartPage : progress.page + 1,
+            palettes: result.palettes,
+            status: result.reachedEnd ? "complete" : "idle",
+            nextPage: runStartPage + result.fetchedPageCount,
             retryAtMs: null,
-            fetchedPageCount: baseFetchedPageCount + progress.fetchedPageCount,
-            addedCount: baseAddedCount + progress.addedCount,
+            fetchedPageCount: nextFetchedPageCount,
+            addedCount: nextAddedCount,
             updatedAt: dependencies.now(),
             errorStatus: undefined,
             errorMessage: undefined,
           });
-        },
-      });
+          return;
+        }
 
-      if (disposed) {
-        return;
-      }
+        if (result.status === "cache-only" && result.errorStatus === 429) {
+          const retryAtMs = dependencies.now() + LOSPEC_RATE_LIMIT_RETRY_MS;
+          commit({
+            ...snapshot,
+            palettes: result.palettes,
+            status: "rate-limited",
+            nextPage: result.retryPage ?? runStartPage,
+            retryAtMs,
+            fetchedPageCount: nextFetchedPageCount,
+            addedCount: nextAddedCount,
+            updatedAt: dependencies.now(),
+            errorStatus: result.errorStatus,
+            errorMessage: result.errorMessage,
+          });
+          scheduleRetry(retryAtMs);
+          return;
+        }
 
-      const nextFetchedPageCount =
-        baseFetchedPageCount + result.fetchedPageCount;
-      const nextAddedCount = baseAddedCount + result.addedCount;
-
-      if (result.status === "synced") {
         commit({
           ...snapshot,
           palettes: result.palettes,
-          status: result.reachedEnd ? "complete" : "idle",
-          nextPage: runStartPage + result.fetchedPageCount,
+          status: "error",
           retryAtMs: null,
-          fetchedPageCount: nextFetchedPageCount,
-          addedCount: nextAddedCount,
-          updatedAt: dependencies.now(),
-          errorStatus: undefined,
-          errorMessage: undefined,
-        });
-        return;
-      }
-
-      if (result.status === "cache-only" && result.errorStatus === 429) {
-        const retryAtMs = dependencies.now() + LOSPEC_RATE_LIMIT_RETRY_MS;
-        commit({
-          ...snapshot,
-          palettes: result.palettes,
-          status: "rate-limited",
-          nextPage: result.retryPage ?? runStartPage,
-          retryAtMs,
           fetchedPageCount: nextFetchedPageCount,
           addedCount: nextAddedCount,
           updatedAt: dependencies.now(),
           errorStatus: result.errorStatus,
           errorMessage: result.errorMessage,
         });
-        scheduleRetry(retryAtMs);
-        return;
+      } catch (error) {
+        if (disposed) {
+          return;
+        }
+        commit({
+          ...snapshot,
+          status: "error",
+          retryAtMs: null,
+          updatedAt: dependencies.now(),
+          errorStatus: undefined,
+          errorMessage: getUnexpectedErrorMessage(error),
+        });
       }
-
-      commit({
-        ...snapshot,
-        palettes: result.palettes,
-        status: "error",
-        retryAtMs: null,
-        fetchedPageCount: nextFetchedPageCount,
-        addedCount: nextAddedCount,
-        updatedAt: dependencies.now(),
-        errorStatus: result.errorStatus,
-        errorMessage: result.errorMessage,
-      });
     })().finally(() => {
       runPromise = null;
     });

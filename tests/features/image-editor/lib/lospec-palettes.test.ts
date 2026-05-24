@@ -101,6 +101,44 @@ test("normalizeLospecPaletteRecord strips HTML from descriptions while preservin
   );
 });
 
+test("normalizeLospecPaletteRecord strips decoded script tags from descriptions", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "decoded-script-description",
+    title: "Decoded Script Description",
+    slug: "decoded-script-description",
+    description: "Before &lt;script&gt;alert(1)&lt;/script&gt; after",
+    tags: ["retro"],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.strictEqual(palette?.description, "Before alert(1) after");
+  assert.ok(!palette?.description.includes("<script"));
+});
+
+test("normalizeLospecPaletteRecord does not double-decode encoded entities", () => {
+  const palette = normalizeLospecPaletteRecord({
+    id: "double-decode-description",
+    title: "Double Decode Description",
+    slug: "double-decode-description",
+    description: "Escaped &amp;lt;script&amp;gt;safe&amp;lt;/script&amp;gt;",
+    tags: ["retro"],
+    user: "user",
+    colors: ["abcdef"],
+    examples: [],
+    published_at: "2026-05-02T00:00:00.000Z",
+  });
+
+  assert.ok(palette);
+  assert.strictEqual(
+    palette?.description,
+    "Escaped &lt;script&gt;safe&lt;/script&gt;",
+  );
+});
+
 test("normalizeLospecPalettePage drops invalid records", () => {
   const palettes = normalizeLospecPalettePage([
     {

@@ -96,13 +96,38 @@ function normalizeLospecExamples(value: unknown): LospecPaletteExample[] {
 }
 
 function decodeLospecHtmlEntities(value: string): string {
-  return value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+  const entityMap: Record<string, string> = {
+    nbsp: " ",
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    "#39": "'",
+  };
+  return value.replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, (_, entity: string) => {
+    return entityMap[entity.toLowerCase()] ?? _;
+  });
+}
+
+function stripLospecHtmlTags(value: string): string {
+  let text = "";
+  let inTag = false;
+
+  for (const char of value) {
+    if (char === "<") {
+      inTag = true;
+      continue;
+    }
+    if (char === ">" && inTag) {
+      inTag = false;
+      continue;
+    }
+    if (!inTag) {
+      text += char;
+    }
+  }
+
+  return text;
 }
 
 function normalizeLospecDescription(value: unknown): string {
@@ -110,14 +135,12 @@ function normalizeLospecDescription(value: unknown): string {
     return "";
   }
 
-  return decodeLospecHtmlEntities(
-    value
-      .replace(/<\s*\/p\s*>\s*<\s*p\b[^>]*>/gi, "\n\n")
-      .replace(/<\s*p\b[^>]*>/gi, "")
-      .replace(/<\s*\/p\s*>/gi, "")
-      .replace(/<[^>]+>/g, "")
-      .trim(),
+  const decoded = decodeLospecHtmlEntities(value);
+  const withParagraphBreaks = decoded.replace(
+    /<\s*\/p\s*>\s*<\s*p\b[^>]*>/gi,
+    "\n\n",
   );
+  return stripLospecHtmlTags(withParagraphBreaks).trim();
 }
 
 function getLospecErrorMessage(error: unknown): string {
