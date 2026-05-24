@@ -23,11 +23,11 @@
   # style-src:   unsafe-inline required for Radix UI / Tailwind inline styles
   # img-src:     data: / blob: for canvas exports; https: for remote images
   # font-src:    self-hosted app fonts + data: URIs
-  # connect-src: Sentry ingest + Cloudflare Insights RUM endpoint + app APIs
+  # connect-src: Sentry ingest + analytics + app APIs + browser-side AI providers
   # worker-src:  blob: for Vite-generated web workers
   # object-src:  none (no Flash / plugins)
   # base-uri:    self (prevent base-tag injection)
   # form-action: self (no external form submissions)
   # frame-ancestors: none (blocks clickjacking; supersedes X-Frame-Options)
   # upgrade-insecure-requests: force HTTP→HTTPS for sub-resources
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://api.2dtiler.com https://api.openai.com https://api.together.xyz https://api.x.ai; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://api.2dtiler.com https://api.openai.com https://generativelanguage.googleapis.com https://api.together.xyz https://api.x.ai https://router.huggingface.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

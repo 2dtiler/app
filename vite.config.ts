@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { CONNECT_SOURCES } from "./src/config/content-security-policy";
 
 const manualChunkPackages = [
   ["react-vendor", ["react", "react-dom"]],
@@ -203,7 +204,7 @@ export default defineConfig({
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob: https:; " +
         "font-src 'self' data:; " +
-        "connect-src 'self' https://o4510891797250048.ingest.us.sentry.io https://*.sentry.io https://cloudflareinsights.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://api.2dtiler.com; " +
+        `connect-src ${CONNECT_SOURCES.join(" ")}; ` +
         "worker-src 'self' blob:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
