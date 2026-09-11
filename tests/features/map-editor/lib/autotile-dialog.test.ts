@@ -1,5 +1,6 @@
 import { assert, test } from "vitest";
 import {
+  applyBlobsmith8x6Layout,
   assignTileToSelectionTarget,
   cloneAutotileConfig,
   countConfiguredAssignments,
@@ -8,7 +9,12 @@ import {
   getAutotileAssignmentGroups,
   getSelectionInstructions,
 } from "@/features/map-editor/lib/autotile-dialog";
-import type { AutotileConfig, AutotileWangSetId } from "@/types";
+import type {
+  AutotileConfig,
+  AutotilePatternSlotId,
+  AutotileTerrain,
+  AutotileWangSetId,
+} from "@/types";
 
 const wangSetId = "wang-set-1" as AutotileWangSetId;
 
@@ -342,4 +348,68 @@ test("getSelectionInstructions requires selecting a target before the tileset", 
     }),
     "Click a tile to use as the paint tile for Land to Water.",
   );
+});
+
+test("applyBlobsmith8x6Layout returns null when slot count is not 47", () => {
+  const terrain: AutotileTerrain = {
+    id: "terrain-land",
+    name: "Land",
+    paletteTile: null,
+    patternTiles: {},
+  };
+
+  assert.strictEqual(
+    applyBlobsmith8x6Layout(terrain, ["blob-00"] as AutotilePatternSlotId[], 16),
+    null,
+  );
+});
+
+test("applyBlobsmith8x6Layout binds 8×6 grid cells in index order", () => {
+  const slotIds = Array.from(
+    { length: 47 },
+    (_, index) => `blob-${index}` as AutotilePatternSlotId,
+  );
+  const terrain: AutotileTerrain = {
+    id: "terrain-land",
+    name: "Land",
+    paletteTile: null,
+    patternTiles: {
+      "blob-0": { sx: 999, sy: 999, sw: 16, sh: 16 },
+    },
+  };
+
+  const result = applyBlobsmith8x6Layout(terrain, slotIds, 16);
+
+  assert.ok(result);
+  assert.deepEqual(result.patternTiles?.["blob-0"], {
+    sx: 0,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["blob-7"], {
+    sx: 112,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["blob-8"], {
+    sx: 0,
+    sy: 16,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["blob-46"], {
+    sx: 96,
+    sy: 80,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.paletteTile, {
+    sx: 96,
+    sy: 80,
+    sw: 16,
+    sh: 16,
+  });
+  assert.strictEqual(Object.keys(result.patternTiles ?? {}).length, 47);
 });

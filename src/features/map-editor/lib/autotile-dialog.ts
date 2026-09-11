@@ -443,3 +443,55 @@ export function getSelectionInstructions(
 export function hasPatternAssignments(terrain: AutotileTerrain): boolean {
   return Object.values(terrain.patternTiles ?? {}).some(Boolean);
 }
+
+const BLOBSMITH_8X6_PATTERN_COUNT = 47;
+
+/**
+ * Bind Blobsmith standard 8×6 atlas cells (index 0–46) onto the given
+ * pattern slot list in order. Returns null when slot count is not 47.
+ */
+export function applyBlobsmith8x6Layout(
+  terrain: AutotileTerrain,
+  slotIds: readonly AutotilePatternSlotId[],
+  tileSize: number,
+): AutotileTerrain | null {
+  if (slotIds.length !== BLOBSMITH_8X6_PATTERN_COUNT) {
+    return null;
+  }
+
+  const patternTiles: NonNullable<AutotileTerrain["patternTiles"]> = {
+    ...(terrain.patternTiles ?? {}),
+  };
+
+  for (let i = 0; i < BLOBSMITH_8X6_PATTERN_COUNT; i++) {
+    const col = i % 8;
+    const row = Math.floor(i / 8);
+    const slotId = slotIds[i];
+
+    if (slotId === undefined) {
+      return null;
+    }
+
+    patternTiles[slotId] = {
+      sx: col * tileSize,
+      sy: row * tileSize,
+      sw: tileSize,
+      sh: tileSize,
+    };
+  }
+
+  // Blobsmith atlases put the solid/base fill tile in the last cell (index 46).
+  const lastIndex = BLOBSMITH_8X6_PATTERN_COUNT - 1;
+  const paletteTile = {
+    sx: (lastIndex % 8) * tileSize,
+    sy: Math.floor(lastIndex / 8) * tileSize,
+    sw: tileSize,
+    sh: tileSize,
+  };
+
+  return {
+    ...terrain,
+    paletteTile,
+    patternTiles,
+  };
+}

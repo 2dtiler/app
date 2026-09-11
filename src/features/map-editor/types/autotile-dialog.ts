@@ -174,3 +174,11 @@ export interface UseAutotileNamedWangEditorOptions {
   onSelectTarget: (target: AutotileSelectionTarget) => void;
   onClearSelectionTarget: () => void;
 }
+
+export interface AutotileBlobsmithImportButtonProps {
+  enabled: boolean;
+  slotIds: readonly AutotilePatternSlotId[];
+  tileSize: number;
+  terrain: AutotileTerrain | null;
+  onApply: (terrain: AutotileTerrain) => void;
+}

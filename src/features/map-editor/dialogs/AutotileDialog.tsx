@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { AutotilePatternGroupCard } from "@/features/map-editor/components/autotile/AutotilePatternGroupCard";
 import { AutotilePatternTileCard } from "@/features/map-editor/components/autotile/AutotilePatternTileCard";
+import { AutotileBlobsmithImportButton } from "@/features/map-editor/components/autotile/AutotileBlobsmithImportButton";
 import { AutotileTerrainSidebar } from "@/features/map-editor/components/autotile/AutotileTerrainSidebar";
 import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
 import { AutotileNamedWangEditor } from "@/features/map-editor/components/autotile/AutotileNamedWangEditor";
@@ -402,6 +403,18 @@ export function AutotileDialog({
     [activeTerrainId],
   );
 
+  const handleBlobsmithImportApply = useCallback(
+    (appliedTerrain: AutotileTerrain) => {
+      setDraft((current) => ({
+        ...current,
+        terrains: current.terrains.map((candidate) =>
+          candidate.id === appliedTerrain.id ? appliedTerrain : candidate,
+        ),
+      }));
+    },
+    [],
+  );
+
   const handleSave = useCallback(() => {
     const compiledRules = isNamedWangPreset
       ? []
@@ -689,6 +702,14 @@ export function AutotileDialog({
                               );
                             })}
                           </div>
+
+                          <AutotileBlobsmithImportButton
+                            enabled={draft.preset === "blob-47"}
+                            slotIds={presetDefinition.requiredSlots}
+                            tileSize={tileset.tileSize}
+                            terrain={activeTerrain}
+                            onApply={handleBlobsmithImportApply}
+                          />
 
                           {presetDefinition.editorLayout === "grid" ? (
                             <div className="space-y-4">
