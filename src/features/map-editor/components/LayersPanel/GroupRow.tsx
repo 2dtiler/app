@@ -163,7 +163,7 @@ export const GroupRow = memo(function GroupRow({
               className="h-10 min-w-0 w-full rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
-              onBlur={onCommitRename}
+              onBlur={() => onCommitRename()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") onCommitRename();
                 if (e.key === "Escape") onCancelRename();

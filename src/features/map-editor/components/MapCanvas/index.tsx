@@ -239,6 +239,8 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
     scaledTile,
     usesPolygonCells,
     zoom,
+    layers.find((layer) => layer.id === activeLayerId)?.tilingMode ===
+      "dual-grid",
   );
 
   // ---------------------------------------------------------------------------

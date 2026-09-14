@@ -12,11 +12,13 @@ import type {
   Palette,
 } from "@/features/image-editor/types";
 import { normalizeProject } from "@/features/project-management/lib/project";
+import { sanitizeProjectForPersistence } from "@/features/project-management/lib/project-serialization";
 import type {
   AssetRecord,
   ProjectPrefs,
   ProjectRecord,
 } from "@/features/import-export/types";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -178,10 +180,26 @@ export async function saveProject(
 ): Promise<void> {
   if (!silent) window.dispatchEvent(new CustomEvent("project-save-start"));
   try {
+    const { project: plainProject, badPath } =
+      sanitizeProjectForPersistence(project);
+
+    if (badPath) {
+      console.error(
+        "[Save Project] Project contains non-serializable data at",
+        badPath,
+      );
+      if (!silent) {
+        toast.warning(
+          `Removed invalid data at ${badPath} so the project could be saved.`,
+        );
+      }
+    }
+
     await db.projects.put({
-      id: project.id,
-      name: project.name,
-      data: JSON.stringify(project),
+      id: plainProject.id,
+      name:
+        typeof plainProject.name === "string" ? plainProject.name : "Untitled",
+      data: JSON.stringify(plainProject),
       updatedAt: Date.now(),
     });
     if (!silent) window.dispatchEvent(new CustomEvent("project-save-success"));

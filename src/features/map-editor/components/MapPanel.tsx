@@ -13,6 +13,11 @@ import { useMapCanvasContextMenu } from "./MapPanel/use-map-canvas-context-menu"
 import { useMapPanelCanvasActions } from "./MapPanel/use-map-panel-canvas-actions";
 import { useMapPanelClipboardActions } from "./MapPanel/use-map-panel-clipboard-actions";
 import { createMapPanelMapManagement } from "@/features/map-editor/lib/map-panel-map-management";
+import { ensureDualGridForDualTileset } from "@/features/map-editor/lib/dual-grid";
+import {
+  EMPTY_SYNC_ACTIVE_TILESET_RESULT,
+  notifySyncActiveTilesetResult,
+} from "@/features/map-editor/lib/tileset-panel-state";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { useTextObjectEditing } from "@/features/map-editor/hooks/use-text-object-editing";
 import { useCanvasNavigation } from "@/hooks/use-canvas-navigation";
@@ -516,6 +521,7 @@ export function MapPanel({
     terrainId: NonNullable<EditorState["selectedAutotileTerrain"]>["terrainId"],
     size: EditorState["brushSize"],
   ) {
+    let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
     setState((draft) => {
       if (!draft.activeTilesetId) {
         return;
@@ -527,7 +533,18 @@ export function MapPanel({
         tilesetId: draft.activeTilesetId,
         terrainId,
       };
+
+      const autoEnable = ensureDualGridForDualTileset(
+        draft,
+        draft.activeTilesetId,
+      );
+      syncResult = {
+        autoEnabledDualGrid: autoEnable.enabled,
+        clearedLayerTiles: autoEnable.clearedTiles,
+        layerName: autoEnable.layerName,
+      };
     });
+    notifySyncActiveTilesetResult(syncResult);
   }
 
   function handleSelectFillMode(mode: EditorState["fillMode"]) {

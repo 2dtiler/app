@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ZoomIn, ZoomOut } from "lucide-react";
+import { toast } from "sonner";
 import {
   AUTOTILE_CONFIG_VERSION,
   type AutotileConfig,
@@ -16,26 +17,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { AutotilePatternGroupCard } from "@/features/map-editor/components/autotile/AutotilePatternGroupCard";
-import { AutotilePatternTileCard } from "@/features/map-editor/components/autotile/AutotilePatternTileCard";
+import { AutotileBlobPatternEditor } from "@/features/map-editor/components/autotile/AutotileBlobPatternEditor";
 import { AutotileBlobsmithImportButton } from "@/features/map-editor/components/autotile/AutotileBlobsmithImportButton";
+import { AutotileDualGridSetupPanel } from "@/features/map-editor/components/autotile/AutotileDualGridSetupPanel";
+import { AutotilePatternGroupCard } from "@/features/map-editor/components/autotile/AutotilePatternGroupCard";
 import { AutotileTerrainSidebar } from "@/features/map-editor/components/autotile/AutotileTerrainSidebar";
-import { AutotileTilePreview } from "@/features/map-editor/components/autotile/AutotileTilePreview";
 import { AutotileNamedWangEditor } from "@/features/map-editor/components/autotile/AutotileNamedWangEditor";
 import { AutotileWangPatternEditor } from "@/features/map-editor/components/autotile/AutotileWangPatternEditor";
 import { TilesetCanvas } from "@/features/map-editor/components/TilesetCanvas";
 import { useAssetImage } from "@/features/map-editor/hooks/use-asset-image";
 import {
+  applyTileMapDual4x4Layout,
+  applyTileMapDual4x4LayoutToTerrains,
   assignTileToSelectionTarget,
+  canApplyTileMapDual4x4Layout,
   cloneAutotileConfig,
   countConfiguredAssignments,
   createDefaultWangSet,
@@ -45,6 +43,8 @@ import {
   getSelectionInstructions,
   getTargetTile,
   hasPatternAssignments,
+  isTileMapDual4x4LayoutApplied,
+  TILEMAP_DUAL_4X4_TOO_SMALL_MESSAGE,
 } from "@/features/map-editor/lib/autotile-dialog";
 import { useAutotileNamedWangEditor } from "@/features/map-editor/hooks/use-autotile-named-wang-editor";
 import {
@@ -94,6 +94,8 @@ export function AutotileDialog({
   );
 
   const isNamedWangPreset = presetDefinition.editorLayout === "wang-named";
+  const isDualGridPreset = draft.preset === "dual-grid-15";
+  const dualGridAtlasTooSmallWarnedRef = useRef(false);
 
   const activePatternSlotIds = useMemo(
     () => getAutotileActiveSlotIds(draft.preset),
@@ -234,7 +236,7 @@ export function AutotileDialog({
 
   const handleCanvasTileSelect = useCallback(
     (tile: AutotileTileRegion) => {
-      if (!selectionTarget) {
+      if (!selectionTarget || draft.preset === "dual-grid-15") {
         return;
       }
 
@@ -242,27 +244,44 @@ export function AutotileDialog({
         ...assignTileToSelectionTarget(current, selectionTarget, tile),
       }));
     },
-    [selectionTarget],
+    [draft.preset, selectionTarget],
   );
 
   const handleAddTerrain = useCallback(() => {
     const terrainId = generateAutotileTerrainId();
 
-    setDraft((current) => ({
-      ...current,
-      terrains: [
-        ...current.terrains,
-        {
-          id: terrainId,
-          name: `Terrain ${current.terrains.length + 1}`,
-          paletteTile: null,
-          patternTiles: {},
-        },
-      ],
-    }));
+    setDraft((current) => {
+      let terrain: AutotileTerrain = {
+        id: terrainId,
+        name: `Terrain ${current.terrains.length + 1}`,
+        paletteTile: null,
+        patternTiles: {},
+      };
+
+      if (
+        current.preset === "dual-grid-15" &&
+        tilesetImage &&
+        canApplyTileMapDual4x4Layout(
+          tilesetImage.naturalWidth || tilesetImage.width,
+          tilesetImage.naturalHeight || tilesetImage.height,
+          tileset.tileSize,
+        )
+      ) {
+        terrain = applyTileMapDual4x4Layout(terrain, tileset.tileSize);
+      }
+
+      return {
+        ...current,
+        terrains: [...current.terrains, terrain],
+      };
+    });
     setActiveTerrainId(terrainId);
-    setSelectionTarget({ type: "terrain", terrainId });
-  }, []);
+    setSelectionTarget(
+      draft.preset === "dual-grid-15"
+        ? null
+        : { type: "terrain", terrainId },
+    );
+  }, [draft.preset, tileset.tileSize, tilesetImage]);
 
   const handleRemoveTerrain = useCallback(
     (terrainId: AutotileTerrain["id"]) => {
@@ -306,23 +325,94 @@ export function AutotileDialog({
           ? createDefaultWangSet(1)
           : null;
 
-      setDraft((current) => ({
-        ...current,
-        preset,
-        wangSets:
-          preset === "wang-named-colors"
-            ? defaultWangSet
-              ? [defaultWangSet]
-              : current.wangSets
-            : undefined,
-      }));
+      if (preset === "dual-grid-15") {
+        dualGridAtlasTooSmallWarnedRef.current = false;
+      }
+
+      setDraft((current) => {
+        let terrains = current.terrains;
+
+        if (preset === "dual-grid-15") {
+          if (
+            tilesetImage &&
+            canApplyTileMapDual4x4Layout(
+              tilesetImage.naturalWidth || tilesetImage.width,
+              tilesetImage.naturalHeight || tilesetImage.height,
+              tileset.tileSize,
+            )
+          ) {
+            terrains = applyTileMapDual4x4LayoutToTerrains(
+              current.terrains,
+              tileset.tileSize,
+            );
+          } else if (tilesetImage) {
+            toast.error(TILEMAP_DUAL_4X4_TOO_SMALL_MESSAGE);
+            dualGridAtlasTooSmallWarnedRef.current = true;
+          }
+        }
+
+        return {
+          ...current,
+          preset,
+          terrains,
+          wangSets:
+            preset === "wang-named-colors"
+              ? defaultWangSet
+                ? [defaultWangSet]
+                : current.wangSets
+              : undefined,
+        };
+      });
       if (defaultWangSet) {
         setActiveWangSetId(defaultWangSet.id);
       }
       setSelectionTarget(null);
     },
-    [draft.wangSets?.length, setActiveWangSetId],
+    [draft.wangSets?.length, setActiveWangSetId, tileset.tileSize, tilesetImage],
   );
+
+  useEffect(() => {
+    if (draft.preset !== "dual-grid-15" || draft.terrains.length === 0) {
+      return;
+    }
+
+    if (!tilesetImage) {
+      return;
+    }
+
+    const imageWidth = tilesetImage.naturalWidth || tilesetImage.width;
+    const imageHeight = tilesetImage.naturalHeight || tilesetImage.height;
+
+    if (!canApplyTileMapDual4x4Layout(imageWidth, imageHeight, tileset.tileSize)) {
+      if (!dualGridAtlasTooSmallWarnedRef.current) {
+        dualGridAtlasTooSmallWarnedRef.current = true;
+        toast.error(TILEMAP_DUAL_4X4_TOO_SMALL_MESSAGE);
+      }
+      return;
+    }
+
+    if (
+      draft.terrains.every((terrain) =>
+        isTileMapDual4x4LayoutApplied(terrain, tileset.tileSize),
+      )
+    ) {
+      return;
+    }
+
+    setDraft((current) => {
+      if (current.preset !== "dual-grid-15") {
+        return current;
+      }
+
+      return {
+        ...current,
+        terrains: applyTileMapDual4x4LayoutToTerrains(
+          current.terrains,
+          tileset.tileSize,
+        ),
+      };
+    });
+  }, [draft.preset, draft.terrains, tileset.tileSize, tilesetImage]);
 
   const handleSelectRule = useCallback((terrainId: AutotileTerrain["id"]) => {
     setActiveTerrainId(terrainId);
@@ -440,7 +530,9 @@ export function AutotileDialog({
           <DialogDescription>
             {isNamedWangPreset
               ? "Configure Tiled-compatible Wang sets with named colors, palette tiles, and tile assignments."
-              : "Build autotiles visually. Create a rule, choose its paint tile, then assign the pattern tiles that should appear around that terrain."}
+              : isDualGridPreset
+                ? "Dual Grid binds a 4×4 Godot TileMapDual atlas automatically. Create a terrain, then save."
+                : "Build autotiles visually. Create a rule, choose its paint tile, then assign the pattern tiles that should appear around that terrain."}
           </DialogDescription>
         </DialogHeader>
 
@@ -751,195 +843,32 @@ export function AutotileDialog({
                               }
                               onClearPaintTile={handleClearPaintTile}
                             />
+                          ) : isDualGridPreset ? (
+                            <AutotileDualGridSetupPanel
+                              terrain={activeTerrain}
+                              tilesetImage={tilesetImage}
+                            />
                           ) : (
-                            <div className="space-y-4">
-                              <section role="region" aria-label="Paint tile">
-                                <div className="mb-3 space-y-1">
-                                  <h5 className="text-xs font-medium text-foreground">
-                                    Paint Tile
-                                  </h5>
-                                  <p className="text-xs text-muted-foreground">
-                                    Choose the base terrain tile, then assign
-                                    the 47 blob patterns below.
-                                  </p>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-background/70 p-3">
-                                  <button
-                                    type="button"
-                                    id={`autotile-pattern-group-${activeTerrain.id}-paint`}
-                                    name={`autotile-pattern-group-${activeTerrain.id}-paint`}
-                                    aria-label={`Assign paint tile for ${activeTerrain.name}`}
-                                    aria-pressed={
-                                      selectionTarget?.type === "terrain" &&
-                                      selectionTarget.terrainId ===
-                                        activeTerrain.id
-                                    }
-                                    className={cn(
-                                      "flex min-h-26 w-full max-w-44 flex-col items-center justify-center rounded-xl border p-3 text-center transition-colors",
-                                      selectionTarget?.type === "terrain" &&
-                                        selectionTarget.terrainId ===
-                                          activeTerrain.id
-                                        ? "border-foreground bg-secondary"
-                                        : "border-border bg-background hover:border-border-visible hover:bg-muted/20",
-                                    )}
-                                    onMouseDown={() =>
-                                      handleSelectTarget({
-                                        type: "terrain",
-                                        terrainId: activeTerrain.id,
-                                      })
-                                    }
-                                  >
-                                    <AutotileTilePreview
-                                      image={tilesetImage}
-                                      region={activeTerrain.paletteTile}
-                                      size={60}
-                                      emptyLabel="Paint"
-                                      className="h-15 w-15"
-                                    />
-                                    <span className="mt-2 text-[11px] font-medium leading-tight text-foreground">
-                                      Paint Tile
-                                    </span>
-                                  </button>
-
-                                  <div className="min-w-0 flex-1 space-y-1">
-                                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                                      Assigned Tile
-                                    </p>
-                                    <p className="text-xs text-foreground">
-                                      {activeTerrain.paletteTile
-                                        ? `Pixel origin (${activeTerrain.paletteTile.sx}, ${activeTerrain.paletteTile.sy})`
-                                        : "No tile assigned yet"}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      Blob rules fall back to this tile when no
-                                      assigned pattern matches.
-                                    </p>
-                                  </div>
-
-                                  {activeTerrain.paletteTile && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="xs"
-                                      onMouseDown={handleClearPaintTile}
-                                    >
-                                      Clear
-                                    </Button>
-                                  )}
-                                </div>
-                              </section>
-
-                              <section
-                                role="region"
-                                aria-label="Blob pattern tiles"
-                              >
-                                <div className="mb-3 space-y-1">
-                                  <h5 className="text-xs font-medium text-foreground">
-                                    Blob Patterns
-                                  </h5>
-                                  <p className="text-xs text-muted-foreground">
-                                    The 47 valid gated 8-neighbor masks are
-                                    grouped by shape so you can work through
-                                    large tilesets faster.
-                                  </p>
-                                </div>
-
-                                <Accordion
-                                  key={`${draft.preset}-${activeTerrain.id}`}
-                                  type="multiple"
-                                  defaultValue={defaultOpenPatternCardGroupIds}
-                                  className="rounded-xl border border-border bg-background/70 px-3"
-                                >
-                                  {activePatternCardGroups.map((group) => {
-                                    const groupAssignedCount =
-                                      countConfiguredAssignments(
-                                        activeTerrain,
-                                        group.slotIds,
-                                      );
-
-                                    return (
-                                      <AccordionItem
-                                        key={group.id}
-                                        value={group.id}
-                                      >
-                                        <AccordionTrigger className="gap-3 py-4 text-left hover:no-underline">
-                                          <div className="flex min-w-0 flex-1 items-start justify-between gap-3 pr-2">
-                                            <div className="min-w-0 space-y-1">
-                                              <h6 className="text-xs font-medium text-foreground">
-                                                {group.title}
-                                              </h6>
-                                              <p className="text-xs text-muted-foreground">
-                                                {group.description}
-                                              </p>
-                                            </div>
-
-                                            <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">
-                                              {groupAssignedCount}/
-                                              {group.slotIds.length}
-                                            </span>
-                                          </div>
-                                        </AccordionTrigger>
-
-                                        <AccordionContent>
-                                          <div className="grid gap-3 xl:grid-cols-2">
-                                            {group.slotIds.map((slotId) => {
-                                              const definition =
-                                                activePatternDefinitionMap.get(
-                                                  slotId,
-                                                );
-
-                                              if (!definition) {
-                                                return null;
-                                              }
-
-                                              const tile =
-                                                activeTerrain.patternTiles?.[
-                                                  definition.id
-                                                ] ?? null;
-                                              const isSelected =
-                                                selectionTarget?.type ===
-                                                  "pattern" &&
-                                                selectionTarget.terrainId ===
-                                                  activeTerrain.id &&
-                                                selectionTarget.slotId ===
-                                                  definition.id;
-
-                                              return (
-                                                <AutotilePatternTileCard
-                                                  key={`${activeTerrain.id}-${definition.id}`}
-                                                  buttonId={`autotile-pattern-card-${activeTerrain.id}-${definition.id}`}
-                                                  definition={definition}
-                                                  image={tilesetImage}
-                                                  isRequired={presetDefinition.requiredSlots.includes(
-                                                    definition.id,
-                                                  )}
-                                                  isSelected={isSelected}
-                                                  onClear={
-                                                    tile
-                                                      ? () =>
-                                                          handleClearPatternSlot(
-                                                            definition.id,
-                                                          )
-                                                      : undefined
-                                                  }
-                                                  tile={tile}
-                                                  onPick={() =>
-                                                    handleSelectPatternSlot(
-                                                      definition.id,
-                                                    )
-                                                  }
-                                                />
-                                              );
-                                            })}
-                                          </div>
-                                        </AccordionContent>
-                                      </AccordionItem>
-                                    );
-                                  })}
-                                </Accordion>
-                              </section>
-                            </div>
+                            <AutotileBlobPatternEditor
+                              terrain={activeTerrain}
+                              tilesetImage={tilesetImage}
+                              cardGroups={activePatternCardGroups}
+                              definitionMap={activePatternDefinitionMap}
+                              requiredSlotIds={presetDefinition.requiredSlots}
+                              selectionTarget={selectionTarget}
+                              defaultOpenGroupIds={
+                                defaultOpenPatternCardGroupIds
+                              }
+                              onSelectPaintTile={() =>
+                                handleSelectTarget({
+                                  type: "terrain",
+                                  terrainId: activeTerrain.id,
+                                })
+                              }
+                              onClearPaintTile={handleClearPaintTile}
+                              onSelectSlot={handleSelectPatternSlot}
+                              onClearSlot={handleClearPatternSlot}
+                            />
                           )}
                         </div>
                       )}

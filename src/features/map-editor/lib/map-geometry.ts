@@ -152,6 +152,21 @@ export function getMapCellOrigin(
   };
 }
 
+export function getDualDisplayOrigin(
+  map: TileMapGeometryLike,
+  zoom: number,
+  x: number,
+  y: number,
+): MapPoint {
+  const origin = getMapCellOrigin(map, zoom, x, y);
+  const halfTile = map.tileSize * zoom * HALF_TILE_RATIO;
+
+  return {
+    x: origin.x - halfTile,
+    y: origin.y - halfTile,
+  };
+}
+
 export function getMapCellBounds(
   map: TileMapGeometryLike,
   zoom: number,

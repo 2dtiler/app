@@ -1,13 +1,16 @@
 import { assert, test } from "vitest";
 import {
   applyBlobsmith8x6Layout,
+  applyTileMapDual4x4Layout,
   assignTileToSelectionTarget,
+  canApplyTileMapDual4x4Layout,
   cloneAutotileConfig,
   countConfiguredAssignments,
   deleteWangSetFromAutotileConfig,
   getAutotileActiveSlotIds,
   getAutotileAssignmentGroups,
   getSelectionInstructions,
+  isTileMapDual4x4LayoutApplied,
 } from "@/features/map-editor/lib/autotile-dialog";
 import type {
   AutotileConfig,
@@ -412,4 +415,83 @@ test("applyBlobsmith8x6Layout binds 8×6 grid cells in index order", () => {
     sh: 16,
   });
   assert.strictEqual(Object.keys(result.patternTiles ?? {}).length, 47);
+});
+
+test("applyTileMapDual4x4Layout binds Godot TileMapDual cells by editor mask", () => {
+  const terrain: AutotileTerrain = {
+    id: "terrain-land",
+    name: "Land",
+    paletteTile: null,
+    patternTiles: {
+      leftover: { sx: 999, sy: 999, sw: 16, sh: 16 },
+    },
+  };
+
+  const result = applyTileMapDual4x4Layout(terrain, 16);
+
+  assert.deepEqual(result.patternTiles?.["dual-01"], {
+    sx: 48,
+    sy: 48,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["dual-04"], {
+    sx: 0,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["dual-0a"], {
+    sx: 16,
+    sy: 0,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.patternTiles?.["dual-0f"], {
+    sx: 32,
+    sy: 16,
+    sw: 16,
+    sh: 16,
+  });
+  assert.deepEqual(result.paletteTile, {
+    sx: 32,
+    sy: 16,
+    sw: 16,
+    sh: 16,
+  });
+  assert.strictEqual(result.patternTiles?.leftover, undefined);
+  assert.strictEqual(Object.keys(result.patternTiles ?? {}).length, 15);
+  assert.strictEqual(isTileMapDual4x4LayoutApplied(result, 16), true);
+});
+
+test("applyTileMapDual4x4Layout scales cells by tile size", () => {
+  const result = applyTileMapDual4x4Layout(
+    {
+      id: "terrain-land",
+      name: "Land",
+      paletteTile: null,
+      patternTiles: {},
+    },
+    32,
+  );
+
+  assert.deepEqual(result.paletteTile, {
+    sx: 64,
+    sy: 32,
+    sw: 32,
+    sh: 32,
+  });
+  assert.deepEqual(result.patternTiles?.["dual-08"], {
+    sx: 32,
+    sy: 96,
+    sw: 32,
+    sh: 32,
+  });
+});
+
+test("canApplyTileMapDual4x4Layout requires a 4 by 4 atlas", () => {
+  assert.strictEqual(canApplyTileMapDual4x4Layout(64, 64, 16), true);
+  assert.strictEqual(canApplyTileMapDual4x4Layout(48, 64, 16), false);
+  assert.strictEqual(canApplyTileMapDual4x4Layout(64, 48, 16), false);
+  assert.strictEqual(canApplyTileMapDual4x4Layout(128, 128, 16), true);
 });

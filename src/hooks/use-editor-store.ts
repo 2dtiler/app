@@ -19,7 +19,18 @@ export function useEditorStore() {
 
   const state = useSyncExternalStore(subscribe, getSnapshot);
 
-  const setState = useMemo(() => store.setState.bind(store), [store]);
+  const setState = useMemo(() => {
+    return (recipe: (draft: EditorState) => void) => {
+      if (typeof recipe !== "function") {
+        console.error(
+          "[EditorStore] setState requires a recipe function. Ignoring non-function update that would corrupt editor state:",
+          recipe,
+        );
+        return;
+      }
+      store.setState(recipe);
+    };
+  }, [store]);
   const controls = store.getControls();
 
   return { state, setState, controls };

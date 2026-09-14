@@ -59,30 +59,36 @@ export const Toolbar = memo(function Toolbar({
         <MenubarMenu>
           <MenubarTrigger>File</MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onMouseDown={onNewProject} className="cursor-pointer">
+            <MenubarItem
+              onMouseDown={() => onNewProject()}
+              className="cursor-pointer"
+            >
               Manage Projects
               <MenubarShortcut>⌘N</MenubarShortcut>
             </MenubarItem>
-            <MenubarItem onMouseDown={onSaveProject} className="cursor-pointer">
+            <MenubarItem
+              onMouseDown={() => onSaveProject()}
+              className="cursor-pointer"
+            >
               Save Project
               <MenubarShortcut>⌘S</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
-              onMouseDown={onOpenImportDialog}
+              onMouseDown={() => onOpenImportDialog()}
               className="cursor-pointer"
             >
               Import
             </MenubarItem>
             <MenubarItem
-              onMouseDown={onOpenExportDialog}
+              onMouseDown={() => onOpenExportDialog()}
               className="cursor-pointer"
             >
               Export
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
-              onMouseDown={onOpenSettings}
+              onMouseDown={() => onOpenSettings()}
               className="cursor-pointer"
             >
               Settings
@@ -109,7 +115,10 @@ export const Toolbar = memo(function Toolbar({
               <MenubarShortcut>⇧⌘Z</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onMouseDown={onFindReplace} className="cursor-pointer">
+            <MenubarItem
+              onMouseDown={() => onFindReplace()}
+              className="cursor-pointer"
+            >
               Find and Replace
               <MenubarShortcut>⌘H</MenubarShortcut>
             </MenubarItem>
@@ -151,17 +160,23 @@ export const Toolbar = memo(function Toolbar({
         <MenubarMenu>
           <MenubarTrigger>Help</MenubarTrigger>
           <MenubarContent className="min-w-45">
-            <MenubarItem onMouseDown={onAbout} className="cursor-pointer">
+            <MenubarItem
+              onMouseDown={() => onAbout()}
+              className="cursor-pointer"
+            >
               About
             </MenubarItem>
             <MenubarItem
-              onMouseDown={onKeyboardShortcuts}
+              onMouseDown={() => onKeyboardShortcuts()}
               className="cursor-pointer"
             >
               Keyboard Shortcuts
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onMouseDown={onSubmitBug} className="cursor-pointer">
+            <MenubarItem
+              onMouseDown={() => onSubmitBug()}
+              className="cursor-pointer"
+            >
               Submit Bug/Feature
             </MenubarItem>
           </MenubarContent>

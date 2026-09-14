@@ -125,7 +125,7 @@ export function TilesetPanelTabs({
                       aria-label={`Rename tileset ${tileset.name}`}
                       className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
                       value={renameValue}
-                      onBlur={onCommitRename}
+                      onBlur={() => onCommitRename()}
                       onChange={(event) => setRenameValue(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {

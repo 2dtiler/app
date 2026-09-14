@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { generateObjectId } from "@/utils/ids";
 import {
   areTileRefsEqual,
@@ -24,7 +25,26 @@ import { setImageLayerEditorContext } from "@/features/image-editor/lib/image-la
 import { setTileEditorContext } from "@/features/map-editor/lib/tile-editor-context";
 import { isLayerEffectivelyLocked } from "@/features/map-editor/lib/layers";
 import type { MapCanvasProps } from "@/features/map-editor/types/map-canvas";
-import type { MapObject, ObjectType, TileRef } from "@/types";
+import {
+  applyDualGridTileWrites,
+  createTileKey,
+  ensureDualGridForDualTileset,
+  isDualGridLayer,
+  isDualGridTileset,
+  resolveDualGridWrites,
+} from "@/features/map-editor/lib/dual-grid";
+import {
+  mergePendingLogicalTerrains,
+  paintDualGridLayer,
+} from "@/features/map-editor/lib/dual-grid-paint";
+import { notifySyncActiveTilesetResult } from "@/features/map-editor/lib/tileset-panel-state";
+import { getEditorStore } from "@/store/editor-store";
+import type {
+  AutotileTerrainId,
+  MapObject,
+  ObjectType,
+  TileRef,
+} from "@/types";
 import type { TilesetAnimationDragPayload } from "@/features/map-editor/types/animations";
 import { TEXT_OBJECT_DEFAULTS as textObjectDefaults } from "@/types";
 import type {
@@ -47,6 +67,14 @@ export function useMapPanelCanvasActions({
   state,
   textObjectEditing,
 }: MapPanelCanvasActionParams): MapPanelCanvasActionResult {
+  const pendingLogicalWritesRef = useRef(
+    new Map<string, AutotileTerrainId | null>(),
+  );
+  const dualGridSetupWarnedRef = useRef(false);
+
+  useEffect(() => {
+    dualGridSetupWarnedRef.current = false;
+  }, [state.activeTilesetId, state.selectedAutotileTerrain]);
   const getAnimationStamp = useCallback(
     (payload?: TilesetAnimationDragPayload) => {
       return resolveAnimationPlacementStamp(
@@ -123,6 +151,115 @@ export function useMapPanelCanvasActions({
           mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
         }
       };
+
+      const activeTileset = project?.tilesets.find(
+        (tileset) => tileset.id === state.activeTilesetId,
+      );
+      const selectedAutotileTilesetForDual = state.selectedAutotileTerrain
+        ? project?.tilesets.find(
+            (tileset) =>
+              tileset.id === state.selectedAutotileTerrain?.tilesetId,
+          )
+        : null;
+      const shouldUseDualGrid =
+        isDualGridLayer(activeLayer) ||
+        isDualGridTileset(activeTileset) ||
+        isDualGridTileset(selectedAutotileTilesetForDual);
+
+      let paintLayer = activeLayer;
+      if (shouldUseDualGrid && !isDualGridLayer(activeLayer)) {
+        let enableResult = {
+          enabled: false,
+          clearedTiles: false,
+          layerName: null as string | null,
+        };
+        setState((draft) => {
+          enableResult = ensureDualGridForDualTileset(
+            draft,
+            state.activeTilesetId,
+          );
+        });
+        if (enableResult.enabled) {
+          notifySyncActiveTilesetResult({
+            autoEnabledDualGrid: true,
+            clearedLayerTiles: enableResult.clearedTiles,
+            layerName: enableResult.layerName,
+          });
+          const refreshed = getEditorStore()
+            .getState()
+            .project?.layers.find((layer) => layer.id === activeLayer.id);
+          if (refreshed) {
+            paintLayer = refreshed;
+          }
+        }
+      }
+
+      if (isDualGridLayer(paintLayer)) {
+        paintDualGridLayer({
+          brushSize: state.brushSize,
+          currentTool: state.currentTool,
+          fill: (logicalTerrains, tiles) => {
+            setState((draft) => {
+              const layer = draft.project?.layers.find(
+                (candidate) => candidate.id === state.activeLayerId,
+              );
+              if (!layer) {
+                return;
+              }
+
+              layer.logicalTerrains = logicalTerrains;
+              applyDualGridTileWrites(layer, tiles);
+            });
+          },
+          gx,
+          gy,
+          layer: paintLayer,
+          map: activeMap,
+          mapHeight: activeMap.heightInTiles,
+          mapWidth: activeMap.widthInTiles,
+          onMissingSetup: () => {
+            if (dualGridSetupWarnedRef.current) {
+              return;
+            }
+
+            dualGridSetupWarnedRef.current = true;
+            toast.error(
+              "Dual grid painting needs a Dual Grid (15) autotile terrain. Configure it in Autotile Setup first.",
+            );
+          },
+          pendingLogicalWrites: pendingLogicalWritesRef.current,
+          preferredTilesetId: state.activeTilesetId,
+          selectedTerrainId: state.selectedAutotileTerrain?.terrainId,
+          stroke: (writes, terrain, tilesetId) => {
+            if (writes.length === 0) {
+              return;
+            }
+
+            const resolved = resolveDualGridWrites({
+              mapWidth: activeMap.widthInTiles,
+              mapHeight: activeMap.heightInTiles,
+              logicalTerrains: mergePendingLogicalTerrains(
+                paintLayer.logicalTerrains,
+                pendingLogicalWritesRef.current,
+              ),
+              terrain,
+              tilesetId,
+              writes,
+            });
+
+            for (const write of writes) {
+              pendingLogicalWritesRef.current.set(
+                createTileKey(write.x, write.y),
+                write.terrainId,
+              );
+            }
+
+            applyResolvedWrites(resolved.tiles);
+          },
+          tilesets: project?.tilesets ?? [],
+        });
+        return;
+      }
 
       if (state.currentTool === "autotile") {
         const autotile = selectedAutotileTileset?.autotile;
@@ -472,6 +609,7 @@ export function useMapPanelCanvasActions({
       state.activeFillTerrain,
       state.activeLayerId,
       state.activePaintTerrain,
+      state.activeTilesetId,
       state.brushSize,
       state.currentTool,
       state.fillMode,
@@ -517,7 +655,11 @@ export function useMapPanelCanvasActions({
   );
 
   const handlePaintEnd = useCallback(() => {
-    if (paintBuffer.size === 0) return;
+    const logicalEntries = Array.from(pendingLogicalWritesRef.current.entries());
+    pendingLogicalWritesRef.current.clear();
+    dualGridSetupWarnedRef.current = false;
+
+    if (paintBuffer.size === 0 && logicalEntries.length === 0) return;
 
     const entries = Array.from(paintBuffer.entries());
     paintBuffer.clear();
@@ -534,6 +676,18 @@ export function useMapPanelCanvasActions({
         } else {
           layer.tiles[key] = ref;
         }
+      }
+
+      if (logicalEntries.length > 0) {
+        const nextLogical = { ...(layer.logicalTerrains ?? {}) };
+        for (const [key, terrainId] of logicalEntries) {
+          if (terrainId === null) {
+            delete nextLogical[key];
+          } else {
+            nextLogical[key] = terrainId;
+          }
+        }
+        layer.logicalTerrains = nextLogical;
       }
     });
 

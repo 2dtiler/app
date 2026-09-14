@@ -38,6 +38,7 @@ export type AutotilePresetId =
   | "edges-corners"
   | "full-corners"
   | "blob-47"
+  | "dual-grid-15"
   | "wang-tiles"
   | "wang-named-colors";
 

@@ -27,7 +27,15 @@ import {
   shouldAutoCreateTilesetImport,
 } from "@/features/map-editor/lib/tileset-manager-dialog";
 import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
-import { syncActiveTilesetState } from "@/features/map-editor/lib/tileset-panel-state";
+import {
+  findFirstDualGridTerrainSource,
+  tryAutoEnableDualGridOnActiveLayer,
+} from "@/features/map-editor/lib/dual-grid";
+import {
+  EMPTY_SYNC_ACTIVE_TILESET_RESULT,
+  notifySyncActiveTilesetResult,
+  syncActiveTilesetState,
+} from "@/features/map-editor/lib/tileset-panel-state";
 import { isTilesetImageFile } from "@/features/map-editor/lib/tileset-image-import";
 import {
   getTilesetPlacementCanvasSize,
@@ -258,6 +266,7 @@ export function TilesetPanel({
 
       const tilesetId = generateTilesetId();
       const name = importToCreate.name;
+      let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
 
       setState((draft) => {
         if (!draft.project) return;
@@ -273,8 +282,10 @@ export function TilesetPanel({
         };
         draft.project.tilesets.push(tileset);
         draft.activeTilesetGroupId = targetGroupId;
-        syncActiveTilesetState(draft, tilesetId);
+        syncResult = syncActiveTilesetState(draft, tilesetId);
       });
+
+      notifySyncActiveTilesetResult(syncResult);
       handleResetImageImport();
       setManageTilesetsSelectedGroupId(targetGroupId);
     } catch (caughtError) {
@@ -313,6 +324,8 @@ export function TilesetPanel({
       });
 
       evictTileset(activeTileset.id);
+      let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
       setState((draft) => {
         const tileset = draft.project?.tilesets.find(
           (candidate) => candidate.id === activeTileset.id,
@@ -322,8 +335,10 @@ export function TilesetPanel({
         tileset.assetId = result.assetId;
         tileset.imageWidth = result.width;
         tileset.imageHeight = result.height;
-        syncActiveTilesetState(draft, activeTileset.id);
+        syncResult = syncActiveTilesetState(draft, activeTileset.id);
       });
+
+      notifySyncActiveTilesetResult(syncResult);
       handleResetImageImport();
     } catch (caughtError) {
       console.error("[Tileset Image Merge] Failed:", caughtError);
@@ -405,13 +420,17 @@ export function TilesetPanel({
     } else if (value === "__manage__") {
       openManageTilesetsDialog();
     } else {
+      let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
       setState((draft) => {
         draft.activeTilesetGroupId = value as TilesetGroupId;
         const firstInGroup = draft.project?.tilesets.find(
           (t) => t.groupId === value,
         );
-        syncActiveTilesetState(draft, firstInGroup?.id ?? null);
+        syncResult = syncActiveTilesetState(draft, firstInGroup?.id ?? null);
       });
+
+      notifySyncActiveTilesetResult(syncResult);
     }
   }
 
@@ -419,6 +438,8 @@ export function TilesetPanel({
     const name = newGroupName.trim();
     if (!name) return;
     const id = generateTilesetGroupId();
+    let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
     setState((draft) => {
       if (!draft.project) return;
       const group: TilesetGroup = {
@@ -429,8 +450,10 @@ export function TilesetPanel({
       draft.project.tilesetGroups.push(group);
       reindexOrderedGroups(draft.project.tilesetGroups);
       draft.activeTilesetGroupId = id;
-      syncActiveTilesetState(draft, null);
+      syncResult = syncActiveTilesetState(draft, null);
     });
+
+    notifySyncActiveTilesetResult(syncResult);
     setAddGroupOpen(false);
     setManageTilesetsSelectedGroupId(id);
   }
@@ -469,6 +492,8 @@ export function TilesetPanel({
       remainingGroups[0]?.id ??
       null;
 
+    let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
     setState((draft) => {
       if (!draft.project) return;
       if (draft.project.tilesetGroups.length <= 1) return;
@@ -487,9 +512,11 @@ export function TilesetPanel({
               (tileset) => tileset.groupId === fallbackGroupId,
             )
           : null;
-        syncActiveTilesetState(draft, firstInGroup?.id ?? null);
+        syncResult = syncActiveTilesetState(draft, firstInGroup?.id ?? null);
       }
     });
+
+    notifySyncActiveTilesetResult(syncResult);
 
     setManageTilesetsSelectedGroupId(fallbackGroupId as TilesetGroupId | null);
   }
@@ -576,13 +603,14 @@ export function TilesetPanel({
       if (tileset) {
         void deleteAsset(tileset.assetId);
       }
+      let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
       setState((draft) => {
         if (!draft.project) return;
         draft.project.tilesets = draft.project.tilesets.filter(
           (t) => t.id !== deleteTarget.id,
         );
         if (draft.activeTilesetId === deleteTarget.id) {
-          syncActiveTilesetState(draft, nextTilesetId as TilesetId | null);
+          syncResult = syncActiveTilesetState(draft, nextTilesetId as TilesetId | null);
         }
         if (draft.selectedTile?.tilesetId === deleteTarget.id) {
           draft.selectedTile = null;
@@ -594,6 +622,8 @@ export function TilesetPanel({
           draft.selectedAnimation = null;
         }
       });
+
+      notifySyncActiveTilesetResult(syncResult);
     } else {
       // Clean up assets for all tilesets in the group
       const tilesetsInGroup =
@@ -601,6 +631,8 @@ export function TilesetPanel({
       for (const ts of tilesetsInGroup) {
         void deleteAsset(ts.assetId);
       }
+      let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
       setState((draft) => {
         if (!draft.project) return;
         draft.project.tilesetGroups = draft.project.tilesetGroups.filter(
@@ -618,9 +650,11 @@ export function TilesetPanel({
                 (tileset) => tileset.groupId === draft.activeTilesetGroupId,
               )
             : null;
-          syncActiveTilesetState(draft, firstInGroup?.id ?? null);
+          syncResult = syncActiveTilesetState(draft, firstInGroup?.id ?? null);
         }
       });
+
+      notifySyncActiveTilesetResult(syncResult);
     }
     setDeleteTarget(null);
   }
@@ -648,6 +682,8 @@ export function TilesetPanel({
     await saveAsset(newAssetId, asset.data, asset.mimeType);
 
     const newTilesetId = generateTilesetId();
+    let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+
     setState((draft) => {
       if (!draft.project) return;
       const tileset: Tileset = {
@@ -669,8 +705,10 @@ export function TilesetPanel({
         createdAt: Date.now(),
       };
       draft.project.tilesets.push(tileset);
-      syncActiveTilesetState(draft, newTilesetId);
+      syncResult = syncActiveTilesetState(draft, newTilesetId);
     });
+
+    notifySyncActiveTilesetResult(syncResult);
   }
 
   function handleTileSizeChange(value: string) {
@@ -699,6 +737,7 @@ export function TilesetPanel({
       return;
     }
 
+    let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
     setState((draft) => {
       const tileset = draft.project?.tilesets.find(
         (candidate) => candidate.id === activeTileset.id,
@@ -708,6 +747,25 @@ export function TilesetPanel({
       }
 
       tileset.autotile = autotile;
+
+      const dualGridSource = findFirstDualGridTerrainSource(
+        [tileset],
+        tileset.id,
+      );
+      if (dualGridSource) {
+        draft.selectedAutotileTerrain = {
+          tilesetId: dualGridSource.tilesetId,
+          terrainId: dualGridSource.terrain.id,
+        };
+        const autoEnable = tryAutoEnableDualGridOnActiveLayer(draft);
+        syncResult = {
+          autoEnabledDualGrid: autoEnable.enabled,
+          clearedLayerTiles: autoEnable.clearedTiles,
+          layerName: autoEnable.layerName,
+        };
+        return;
+      }
+
       if (
         draft.selectedAutotileTerrain?.tilesetId === activeTileset.id &&
         !getPaintableAutotileTerrainById(
@@ -718,6 +776,7 @@ export function TilesetPanel({
         draft.selectedAutotileTerrain = null;
       }
     });
+    notifySyncActiveTilesetResult(syncResult);
   }
 
   function handleOpenNewAnimation() {
@@ -838,11 +897,16 @@ export function TilesetPanel({
         }}
         onGroupChange={handleGroupChange}
         onRequestDeleteTarget={setDeleteTarget}
-        onSelectTileset={(tilesetId) =>
+        onSelectTileset={(tilesetId) => {
+          let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
           setState((draft) => {
-            syncActiveTilesetState(draft, tilesetId as TilesetId);
-          })
-        }
+            syncResult = syncActiveTilesetState(
+              draft,
+              tilesetId as TilesetId,
+            );
+          });
+          notifySyncActiveTilesetResult(syncResult);
+        }}
         onStartRenamingTab={handleTabDoubleClick}
         project={project}
         renameInputRef={renameInputRef}

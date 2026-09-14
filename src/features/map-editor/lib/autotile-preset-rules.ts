@@ -593,11 +593,105 @@ const BLOB_PATTERN_CARD_GROUPS = BLOB_PATTERN_CARD_GROUP_META.map((group) => ({
   }).map((definition) => definition.id),
 })) satisfies readonly AutotilePatternCardGroupDefinition[];
 
+function formatDualGridMask(mask: number): string {
+  return mask.toString(16).toUpperCase().padStart(2, "0");
+}
+
+export function createDualGridSlotId(mask: number): AutotilePatternSlotId {
+  return `dual-${formatDualGridMask(mask).toLowerCase()}`;
+}
+
+export function parseDualGridMask(slotId: AutotilePatternSlotId): number | null {
+  if (!slotId.startsWith("dual-")) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(slotId.slice(5), 16);
+  return Number.isNaN(parsed) || parsed < 1 || parsed > 15 ? null : parsed;
+}
+
+function createDualGridPatternDefinition(
+  mask: number,
+): AutotilePatternSlotDefinition {
+  return {
+    id: createDualGridSlotId(mask),
+    label: `Dual 0x${formatDualGridMask(mask)}`,
+    shortLabel: `0x${formatDualGridMask(mask)}`,
+    description: "",
+    priority: 300 + mask,
+    neighbors: {
+      northWest: mask & 1 ? "same" : "different",
+      north: "ignore",
+      northEast: mask & 2 ? "same" : "different",
+      west: "ignore",
+      east: "ignore",
+      southWest: mask & 4 ? "same" : "different",
+      south: "ignore",
+      southEast: mask & 8 ? "same" : "different",
+    },
+  };
+}
+
+const DUAL_GRID_PATTERN_DEFINITIONS = Array.from({ length: 15 }, (_, index) =>
+  createDualGridPatternDefinition(index + 1),
+);
+
+function getDualGridCardGroupId(mask: number): string {
+  const cornerCount =
+    (mask & 1 ? 1 : 0) +
+    (mask & 2 ? 1 : 0) +
+    (mask & 4 ? 1 : 0) +
+    (mask & 8 ? 1 : 0);
+
+  if (cornerCount <= 1) {
+    return "dual-one-corner";
+  }
+  if (cornerCount === 2) {
+    return "dual-two-corners";
+  }
+  if (cornerCount === 3) {
+    return "dual-three-corners";
+  }
+  return "dual-solid";
+}
+
+const DUAL_GRID_CARD_GROUP_META = [
+  {
+    id: "dual-one-corner",
+    title: "Single Corners",
+    description: "One of the four logical corners is filled.",
+  },
+  {
+    id: "dual-two-corners",
+    title: "Two Corners",
+    description: "Two logical corners are filled.",
+  },
+  {
+    id: "dual-three-corners",
+    title: "Three Corners",
+    description: "Three logical corners are filled.",
+  },
+  {
+    id: "dual-solid",
+    title: "Fully Filled",
+    description: "All four logical corners are filled. Used as the paint tile.",
+  },
+] as const;
+
+const DUAL_GRID_CARD_GROUPS = DUAL_GRID_CARD_GROUP_META.map((group) => ({
+  ...group,
+  slotIds: DUAL_GRID_PATTERN_DEFINITIONS.filter((definition) => {
+    const mask = parseDualGridMask(definition.id);
+    return mask !== null && getDualGridCardGroupId(mask) === group.id;
+  }).map((definition) => definition.id),
+})) satisfies readonly AutotilePatternCardGroupDefinition[];
+
 export const AUTOTILE_PATTERN_SLOTS = Object.fromEntries(
   [
     ...PATTERN_SLOT_DEFINITIONS,
     ...BLOB_PATTERN_DEFINITIONS,
     ...WANG_PATTERN_DEFINITIONS,
+    ...DUAL_GRID_PATTERN_DEFINITIONS,
   ].map((definition) => [definition.id, definition]),
 ) as Record<AutotilePatternSlotId, AutotilePatternSlotDefinition>;
 
@@ -659,6 +753,17 @@ export const AUTOTILE_PRESET_DEFINITIONS = [
     editorLayout: "cards",
     requiredSlots: BLOB_PATTERN_DEFINITIONS.map((definition) => definition.id),
     optionalSlots: [...OPTIONAL_PATTERN_SLOTS],
+  },
+  {
+    id: "dual-grid-15",
+    label: "Dual Grid (15)",
+    description:
+      "Uses a 4×4 Godot TileMapDual atlas from the top-left cell. The 15 corner tiles and paint tile are assigned automatically.",
+    editorLayout: "cards",
+    requiredSlots: DUAL_GRID_PATTERN_DEFINITIONS.map(
+      (definition) => definition.id,
+    ),
+    optionalSlots: [],
   },
   {
     id: "wang-tiles",
@@ -835,7 +940,8 @@ export function buildPresetAutotileRules(
           name: buildRuleName(terrain, slot),
           centerTerrainId: terrain.id,
           neighbors: buildPatternNeighbors(terrain, slot),
-          output,
+          // Clone so rules do not share mutable TileRegion refs with patternTiles.
+          output: { ...output },
         },
       ];
     }),
@@ -861,6 +967,10 @@ export function getAutotilePresetCardGroups(
 
   if (preset.id === "blob-47") {
     return [...BLOB_PATTERN_CARD_GROUPS];
+  }
+
+  if (preset.id === "dual-grid-15") {
+    return [...DUAL_GRID_CARD_GROUPS];
   }
 
   if (preset.id === "wang-tiles") {

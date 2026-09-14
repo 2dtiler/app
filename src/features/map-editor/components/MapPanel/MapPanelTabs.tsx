@@ -127,7 +127,7 @@ export function MapPanelTabs({
                       className="mx-1 h-6 w-28 rounded border border-primary bg-background px-1 text-xs"
                       value={renameValue}
                       onChange={(event) => setRenameValue(event.target.value)}
-                      onBlur={onCommitRename}
+                      onBlur={() => onCommitRename()}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") onCommitRename();
                         if (event.key === "Escape") onCancelRename();

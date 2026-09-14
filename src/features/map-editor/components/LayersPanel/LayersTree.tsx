@@ -21,6 +21,8 @@ export function LayersTree({
   onDeleteTarget,
   onDuplicateLayer,
   onDuplicateGroup,
+  canEnableDualGrid,
+  onRequestToggleDualGrid,
   onDragStart,
   onDragEnd,
   onDragOverRow,
@@ -85,6 +87,13 @@ export function LayersTree({
               onDeleteTarget({ id, name, isGroup: false })
             }
             onDuplicate={onDuplicateLayer}
+            dualGridEnabled={
+              node.type === "layer" && node.layer.tilingMode === "dual-grid"
+            }
+            canEnableDualGrid={node.type === "layer" && canEnableDualGrid}
+            onRequestToggleDualGrid={
+              node.type === "layer" ? onRequestToggleDualGrid : undefined
+            }
             isDragging={dragId === node.layer.id}
             dropIndicator={
               dropIndicator?.targetId === node.layer.id

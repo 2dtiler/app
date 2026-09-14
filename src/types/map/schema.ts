@@ -104,6 +104,8 @@ export interface MapGroup {
 
 export type LayerType = "tile" | "image" | "object";
 
+export type LayerTilingMode = "standard" | "dual-grid";
+
 export interface TileLayer {
   id: LayerId;
   mapId: MapId;
@@ -112,8 +114,18 @@ export interface TileLayer {
   visible: boolean;
   locked: boolean;
   /**
+   * Dual-grid layers paint logical terrains and store derived display tiles
+   * at vertex coordinates. Omitted or "standard" is a normal tile layer.
+   */
+  tilingMode?: LayerTilingMode;
+  /**
+   * Sparse logical terrain occupancy for dual-grid layers. Key = "x,y".
+   */
+  logicalTerrains?: Record<string, AutotileTerrainId>;
+  /**
    * Sparse tile data: key = "x,y", value = tile reference.
    * Using a Record instead of a 2D array for memory efficiency with sparse maps.
+   * Dual-grid layers use vertex coordinates as keys.
    */
   tiles: Record<string, TileRef>;
 }

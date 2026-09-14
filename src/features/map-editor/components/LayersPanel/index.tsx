@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import { AddLayerDialog } from "@/features/map-editor/dialogs/AddLayerDialog";
+import { useDualGridLayerToggle } from "@/features/map-editor/hooks/use-dual-grid-layer-toggle";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import {
   generateLayerId,
@@ -32,8 +32,8 @@ import type {
   LayerType,
   MapObject,
 } from "@/types";
+import { LayersPanelDialogs } from "./LayersPanelDialogs";
 import { LayersTree } from "./LayersTree";
-import { DeleteLayerDialog } from "./DeleteLayerDialog";
 import type {
   LayerDropIndicator,
   LayersPanelDeleteTarget,
@@ -42,17 +42,19 @@ import type {
 export function LayersPanel() {
   const { state, setState } = useEditorStore();
   const project = state.project;
+  const {
+    dualGridTarget,
+    handleConfirmDualGridToggle,
+    handleRequestToggleDualGrid,
+    setDualGridTarget,
+  } = useDualGridLayerToggle(project?.layers ?? [], setState);
 
   const [addLayerOpen, setAddLayerOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] =
     useState<LayersPanelDeleteTarget | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
-  // ---- Hidden file input for image layer ----
   const imageInputRef = useRef<HTMLInputElement>(null);
-
-  // ---- Drag & Drop state ----
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragIsGroup, setDragIsGroup] = useState(false);
   const [dropIndicator, setDropIndicator] = useState<LayerDropIndicator | null>(
@@ -616,6 +618,10 @@ export function LayersPanel() {
           type: tileLayer.type,
           visible: tileLayer.visible,
           locked: tileLayer.locked,
+          tilingMode: tileLayer.tilingMode,
+          logicalTerrains: tileLayer.logicalTerrains
+            ? { ...tileLayer.logicalTerrains }
+            : undefined,
           tiles: { ...tileLayer.tiles },
         };
         draft.project.layers.push(copy);
@@ -912,10 +918,6 @@ export function LayersPanel() {
     setRenamingId(null);
   }
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
   return (
     <div className="flex h-full flex-col bg-background">
       <div className="flex shrink-0 items-end justify-between border-b border-border px-4 py-2">
@@ -955,6 +957,8 @@ export function LayersPanel() {
           onDeleteTarget={setDeleteTarget}
           onDuplicateLayer={handleDuplicateLayer}
           onDuplicateGroup={handleDuplicateGroup}
+          canEnableDualGrid={activeMap.orientation === "orthogonal"}
+          onRequestToggleDualGrid={handleRequestToggleDualGrid}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragOverRow={handleDragOverRow}
@@ -962,35 +966,28 @@ export function LayersPanel() {
         />
       </ScrollArea>
 
-      {/* Add layer dialog */}
-      <AddLayerDialog
-        open={addLayerOpen}
-        onOpenChange={setAddLayerOpen}
-        defaultName={`Layer ${totalItems + 1}`}
-        onCreateLayer={(name, type) => handleCreateLayer(name, type)}
-        onRequestImageLayer={handleRequestImageLayer}
-      />
-
-      {/* Hidden file input for image layer */}
-      <input
-        ref={imageInputRef}
-        id="image-layer-file-input"
-        name="image-layer-file-input"
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageFileSelected}
-      />
-
-      {/* Delete confirmation */}
-      <DeleteLayerDialog
+      <LayersPanelDialogs
+        addLayerOpen={addLayerOpen}
+        defaultLayerName={`Layer ${totalItems + 1}`}
         deleteTarget={deleteTarget}
-        onOpenChange={(open) => {
+        dualGridTarget={dualGridTarget}
+        imageInputRef={imageInputRef}
+        onAddLayerOpenChange={setAddLayerOpen}
+        onConfirmDualGridToggle={handleConfirmDualGridToggle}
+        onCreateLayer={(name, type) => handleCreateLayer(name, type)}
+        onDelete={handleDelete}
+        onDeleteOpenChange={(open) => {
           if (!open) {
             setDeleteTarget(null);
           }
         }}
-        onDelete={handleDelete}
+        onDualGridOpenChange={(open) => {
+          if (!open) {
+            setDualGridTarget(null);
+          }
+        }}
+        onImageFileSelected={handleImageFileSelected}
+        onRequestImageLayer={handleRequestImageLayer}
       />
     </div>
   );

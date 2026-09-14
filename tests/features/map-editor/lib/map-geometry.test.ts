@@ -5,6 +5,7 @@ import {
   getMapCellAtPoint,
   getMapCellBounds,
   getMapCellOrigin,
+  getDualDisplayOrigin,
   getMapCellPolygon,
   getMapPixelSize,
   isHexagonalMap,
@@ -126,6 +127,10 @@ test("calculates origins, bounds, polygons, and pixel sizes", () => {
   assert.deepEqual(getMapCellOrigin(orthogonalMap, 2, 1, 2), {
     x: 32,
     y: 64,
+  });
+  assert.deepEqual(getDualDisplayOrigin(orthogonalMap, 2, 1, 2), {
+    x: 16,
+    y: 48,
   });
   assert.deepEqual(getMapCellBounds(orthogonalMap, 2, 1, 2), {
     x: 32,

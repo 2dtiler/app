@@ -16,10 +16,14 @@ import {
 } from "@/types";
 import {
   AUTOTILE_PATTERN_SLOTS,
+  createDualGridSlotId,
   getAutotilePresetDefinition,
 } from "@/features/map-editor/lib/autotile-preset-rules";
 import type { AutotileSelectionTarget } from "@/features/map-editor/types/dialogs";
-import type { AutotileAssignmentGroupDefinition } from "@/features/map-editor/types/autotile-dialog";
+import type {
+  AutotileAssignmentGroupDefinition,
+  TileMapDualAtlasCell,
+} from "@/features/map-editor/types/autotile-dialog";
 import { generateAutotileWangSetId } from "@/utils/ids";
 
 export const DEFAULT_AUTOTILE_PRESET_ID: AutotilePresetId = "edges-corners";
@@ -399,6 +403,10 @@ export function getSelectionInstructions(
   target: AutotileSelectionTarget | null,
 ): string {
   if (!target) {
+    if (draft.preset === "dual-grid-15") {
+      return "Dual Grid uses a 4×4 TileMapDual atlas. Pattern slots are assigned automatically from the top-left 4×4.";
+    }
+
     return draft.preset === "wang-named-colors"
       ? "Select a Wang set tile, color tile, or Wang tile assignment on the right, then click a tile in the picker."
       : "Select the center paint tile or a pattern tile on the right, then click a tile in the picker.";
@@ -494,4 +502,142 @@ export function applyBlobsmith8x6Layout(
     paletteTile,
     patternTiles,
   };
+}
+
+export const TILEMAP_DUAL_4X4_COLUMNS = 4;
+export const TILEMAP_DUAL_4X4_ROWS = 4;
+export const TILEMAP_DUAL_4X4_TOO_SMALL_MESSAGE =
+  "This tileset is smaller than a 4×4 TileMapDual atlas. Dual Grid needs at least 4 columns and 4 rows.";
+
+/** Godot TileMapDual `_NEIGHBORS_TO_ATLAS` converted to editor masks (NW=1, NE=2, SW=4, SE=8). */
+export const TILEMAP_DUAL_4X4_CELLS_BY_MASK: Record<
+  number,
+  TileMapDualAtlasCell
+> = {
+  1: { col: 3, row: 3 },
+  2: { col: 0, row: 2 },
+  3: { col: 1, row: 2 },
+  4: { col: 0, row: 0 },
+  5: { col: 3, row: 2 },
+  6: { col: 2, row: 3 },
+  7: { col: 3, row: 1 },
+  8: { col: 1, row: 3 },
+  9: { col: 0, row: 1 },
+  10: { col: 1, row: 0 },
+  11: { col: 2, row: 2 },
+  12: { col: 3, row: 0 },
+  13: { col: 2, row: 0 },
+  14: { col: 1, row: 1 },
+  15: { col: 2, row: 1 },
+};
+
+export function canApplyTileMapDual4x4Layout(
+  imageWidth: number,
+  imageHeight: number,
+  tileSize: number,
+): boolean {
+  if (tileSize <= 0) {
+    return false;
+  }
+
+  return (
+    Math.floor(imageWidth / tileSize) >= TILEMAP_DUAL_4X4_COLUMNS &&
+    Math.floor(imageHeight / tileSize) >= TILEMAP_DUAL_4X4_ROWS
+  );
+}
+
+function createTileMapDualCellRegion(
+  cell: TileMapDualAtlasCell,
+  tileSize: number,
+): AutotileTileRegion {
+  return {
+    sx: cell.col * tileSize,
+    sy: cell.row * tileSize,
+    sw: tileSize,
+    sh: tileSize,
+  };
+}
+
+export function isTileMapDual4x4LayoutApplied(
+  terrain: AutotileTerrain,
+  tileSize: number,
+): boolean {
+  const paletteCell = TILEMAP_DUAL_4X4_CELLS_BY_MASK[15];
+  if (!paletteCell || !terrain.paletteTile) {
+    return false;
+  }
+
+  const expectedPalette = createTileMapDualCellRegion(paletteCell, tileSize);
+  if (
+    terrain.paletteTile.sx !== expectedPalette.sx ||
+    terrain.paletteTile.sy !== expectedPalette.sy ||
+    terrain.paletteTile.sw !== expectedPalette.sw ||
+    terrain.paletteTile.sh !== expectedPalette.sh
+  ) {
+    return false;
+  }
+
+  for (let mask = 1; mask <= 15; mask++) {
+    const cell = TILEMAP_DUAL_4X4_CELLS_BY_MASK[mask];
+    if (!cell) {
+      return false;
+    }
+
+    const slotId = createDualGridSlotId(mask);
+    const tile = terrain.patternTiles?.[slotId];
+    const expected = createTileMapDualCellRegion(cell, tileSize);
+    if (
+      !tile ||
+      tile.sx !== expected.sx ||
+      tile.sy !== expected.sy ||
+      tile.sw !== expected.sw ||
+      tile.sh !== expected.sh
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Bind Godot TileMapDual 4×4 atlas cells onto dual-grid-15 slots.
+ * Origin is the top-left cell of the tileset image.
+ */
+export function applyTileMapDual4x4Layout(
+  terrain: AutotileTerrain,
+  tileSize: number,
+): AutotileTerrain {
+  const patternTiles: NonNullable<AutotileTerrain["patternTiles"]> = {};
+
+  for (let mask = 1; mask <= 15; mask++) {
+    const cell = TILEMAP_DUAL_4X4_CELLS_BY_MASK[mask];
+    if (!cell) {
+      continue;
+    }
+
+    patternTiles[createDualGridSlotId(mask)] = createTileMapDualCellRegion(
+      cell,
+      tileSize,
+    );
+  }
+
+  const paletteCell = TILEMAP_DUAL_4X4_CELLS_BY_MASK[15];
+
+  return {
+    ...terrain,
+    paletteTile: paletteCell
+      ? createTileMapDualCellRegion(paletteCell, tileSize)
+      : terrain.paletteTile,
+    patternTiles,
+  };
+}
+
+export function applyTileMapDual4x4LayoutToTerrains(
+  terrains: readonly AutotileTerrain[],
+  tileSize: number,
+): AutotileTerrain[] {
+  return terrains.map((terrain) =>
+    applyTileMapDual4x4Layout(terrain, tileSize),
+  );
 }

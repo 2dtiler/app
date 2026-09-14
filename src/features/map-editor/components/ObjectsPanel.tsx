@@ -525,7 +525,7 @@ const ObjectRow = memo(function ObjectRow({
               className="flex-1 min-w-0 h-5 px-1 text-xs bg-background border border-primary rounded"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
-              onBlur={onCommitRename}
+              onBlur={() => onCommitRename()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") onCommitRename();
                 if (e.key === "Escape") onCancelRename();

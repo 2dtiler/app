@@ -13,6 +13,7 @@ import {
   Image,
   Shapes,
   Copy,
+  Grid2X2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -47,6 +48,9 @@ export const LayerRow = memo(function LayerRow({
   onMove,
   onDelete,
   onDuplicate,
+  dualGridEnabled = false,
+  canEnableDualGrid = false,
+  onRequestToggleDualGrid,
   isDragging,
   dropIndicator,
   onDragStart,
@@ -167,11 +171,11 @@ export const LayerRow = memo(function LayerRow({
               className="h-10 min-w-0 w-full rounded-lg border border-border-visible bg-background px-3 font-mono text-[12px] uppercase tracking-[0.08em] text-foreground outline-none focus:border-foreground"
               value={renameValue}
               onChange={(e) => onRenameValueChange(e.target.value)}
-              onBlur={onCommitRename}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onCommitRename();
-                if (e.key === "Escape") onCancelRename();
-              }}
+              onBlur={() => onCommitRename()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCommitRename();
+                  if (e.key === "Escape") onCancelRename();
+                }}
               onMouseDown={(e) => e.stopPropagation()}
             />
           ) : (
@@ -273,6 +277,28 @@ export const LayerRow = memo(function LayerRow({
         <ContextMenuItem onMouseDown={() => onDuplicate(layer.id)}>
           <Copy className="mr-2 h-4 w-4" /> Duplicate
         </ContextMenuItem>
+        {onRequestToggleDualGrid ? (
+          <span
+            title={
+              !dualGridEnabled && !canEnableDualGrid
+                ? "Dual grid is only available on orthogonal maps"
+                : undefined
+            }
+          >
+            <ContextMenuItem
+              disabled={!dualGridEnabled && !canEnableDualGrid}
+              onMouseDown={() => {
+                if (!dualGridEnabled && !canEnableDualGrid) {
+                  return;
+                }
+                onRequestToggleDualGrid(layer.id);
+              }}
+            >
+              <Grid2X2 className="mr-2 h-4 w-4" />
+              {dualGridEnabled ? "Disable dual grid" : "Enable dual grid"}
+            </ContextMenuItem>
+          </span>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem
           onMouseDown={() => onMove(layer.id, "up", parentGroupId)}

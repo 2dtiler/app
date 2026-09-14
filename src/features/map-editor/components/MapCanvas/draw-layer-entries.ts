@@ -1,5 +1,6 @@
-import { getMapCellOrigin } from "@/features/map-editor/lib/map-geometry";
+import { getMapCellOrigin, getDualDisplayOrigin } from "@/features/map-editor/lib/map-geometry";
 import { resolveAnimatedTileRef } from "@/features/map-editor/lib/tileset-animations";
+import { isDualGridLayer } from "@/features/map-editor/lib/dual-grid";
 import {
   drawImageLayerWithOrientation,
   drawTileWithOrientation,
@@ -57,7 +58,9 @@ function drawTileLayer(
     if (!image) continue;
 
     const [gridX, gridY] = key.split(",").map(Number);
-    const origin = getMapCellOrigin(params.map, params.zoom, gridX, gridY);
+    const origin = isDualGridLayer(layer)
+      ? getDualDisplayOrigin(params.map, params.zoom, gridX, gridY)
+      : getMapCellOrigin(params.map, params.zoom, gridX, gridY);
     drawTileWithOrientation(
       context,
       image,

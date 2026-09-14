@@ -8,7 +8,10 @@ import type {
   AutotileWangSet,
   AutotileWangSetType,
 } from "@/types";
-import type { AutotilePatternSlotDefinition } from "@/features/map-editor/types/autotile-builder";
+import type {
+  AutotilePatternCardGroupDefinition,
+  AutotilePatternSlotDefinition,
+} from "@/features/map-editor/types/autotile-builder";
 import type { AutotileSelectionTarget } from "@/features/map-editor/types/dialogs";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -181,4 +184,28 @@ export interface AutotileBlobsmithImportButtonProps {
   tileSize: number;
   terrain: AutotileTerrain | null;
   onApply: (terrain: AutotileTerrain) => void;
+}
+
+export interface TileMapDualAtlasCell {
+  col: number;
+  row: number;
+}
+
+export interface AutotileDualGridSetupPanelProps {
+  terrain: AutotileTerrain;
+  tilesetImage: HTMLImageElement | null;
+}
+
+export interface AutotileBlobPatternEditorProps {
+  terrain: AutotileTerrain;
+  tilesetImage: HTMLImageElement | null;
+  cardGroups: readonly AutotilePatternCardGroupDefinition[];
+  definitionMap: Map<AutotilePatternSlotId, AutotilePatternSlotDefinition>;
+  requiredSlotIds: readonly AutotilePatternSlotId[];
+  selectionTarget: AutotileSelectionTarget | null;
+  defaultOpenGroupIds: string[];
+  onSelectPaintTile: () => void;
+  onClearPaintTile: () => void;
+  onSelectSlot: (slotId: AutotilePatternSlotId) => void;
+  onClearSlot: (slotId: AutotilePatternSlotId) => void;
 }

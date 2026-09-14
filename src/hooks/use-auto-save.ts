@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { getEditorStore, markEditorSaved } from "@/store/editor-store";
 import { saveProject, getSettings, cleanOrphanedAssets } from "@/services/db";
+import { sanitizeProjectForPersistence } from "@/features/project-management/lib/project-serialization";
 
 const AUTO_SAVE_INTERVAL_MS = 60_000; // 1 minute
 
@@ -29,15 +30,30 @@ export function useAutoSave() {
         try {
           const store = getEditorStore();
           const state = store.getState();
-          if (state.project) {
-            await saveProject(
-              { ...state.project, updatedAt: Date.now() },
-              { silent: true },
-            );
-            markEditorSaved();
-            // Clean up any orphaned assets (e.g. from trimmed undo history)
-            await cleanOrphanedAssets(state.project);
+          if (!state.project) {
+            return;
           }
+
+          const { project: plainProject, badPath } =
+            sanitizeProjectForPersistence(state.project);
+          if (badPath) {
+            console.error(
+              "[AutoSave] Sanitized non-serializable project data at",
+              badPath,
+            );
+            store.setState((draft) => {
+              if (draft.project?.id === plainProject.id) {
+                draft.project = plainProject;
+              }
+            });
+          }
+
+          await saveProject(
+            { ...plainProject, updatedAt: Date.now() },
+            { silent: true },
+          );
+          markEditorSaved();
+          await cleanOrphanedAssets(plainProject);
         } catch (err) {
           console.error("[AutoSave] Failed to save project:", err);
         }

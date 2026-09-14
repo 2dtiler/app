@@ -34,6 +34,7 @@ export interface BaseLayerItem {
   visible: boolean;
   locked: boolean;
   type?: string;
+  tilingMode?: "standard" | "dual-grid";
 }
 
 export interface BaseLayerGroupItem {
@@ -97,6 +98,9 @@ export interface LayerRowProps {
   ) => void;
   onDelete: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
+  dualGridEnabled?: boolean;
+  canEnableDualGrid?: boolean;
+  onRequestToggleDualGrid?: (layerId: string) => void;
   isDragging: boolean;
   dropIndicator: "above" | "below" | "inside" | null;
   onDragStart: (id: string, isGroup: boolean) => void;

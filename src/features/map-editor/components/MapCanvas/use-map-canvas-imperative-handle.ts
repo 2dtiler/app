@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from "react";
-import { getMapCellBounds } from "@/features/map-editor/lib/map-geometry";
+import { getDualDisplayOrigin, getMapCellBounds, getMapCellOrigin } from "@/features/map-editor/lib/map-geometry";
 import type { MapCanvasProps } from "@/features/map-editor/types/map-canvas";
 import type { TileMapData, TileRef } from "@/types";
 import { drawTileWithOrientation, getTileImage } from "./texture-cache";
@@ -11,6 +11,7 @@ export function useMapCanvasImperativeHandle(
   scaledTile: number,
   usesPolygonCells: boolean,
   zoom: number,
+  dualGrid: boolean,
 ) {
   useEffect(() => {
     if (!imperativeRef) return;
@@ -27,7 +28,17 @@ export function useMapCanvasImperativeHandle(
         if (!image) return;
 
         context.imageSmoothingEnabled = false;
-        const bounds = getMapCellBounds(map, zoom, gx, gy);
+        const origin = dualGrid
+          ? getDualDisplayOrigin(map, zoom, gx, gy)
+          : getMapCellOrigin(map, zoom, gx, gy);
+        const bounds = dualGrid
+          ? {
+              x: origin.x,
+              y: origin.y,
+              width: scaledTile,
+              height: scaledTile,
+            }
+          : getMapCellBounds(map, zoom, gx, gy);
         if (!usesPolygonCells) {
           context.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
         }
@@ -35,8 +46,8 @@ export function useMapCanvasImperativeHandle(
           context,
           image,
           ref,
-          bounds.x,
-          bounds.y,
+          origin.x,
+          origin.y,
           scaledTile,
         );
       },
@@ -50,8 +61,10 @@ export function useMapCanvasImperativeHandle(
         context.imageSmoothingEnabled = false;
         if (usesPolygonCells) return;
 
-        const bounds = getMapCellBounds(map, zoom, gx, gy);
-        context.clearRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        const origin = dualGrid
+          ? getDualDisplayOrigin(map, zoom, gx, gy)
+          : getMapCellOrigin(map, zoom, gx, gy);
+        context.clearRect(origin.x, origin.y, scaledTile, scaledTile);
       },
       clearPaintCanvas() {
         const canvas = paintCanvasRef.current;
@@ -63,5 +76,5 @@ export function useMapCanvasImperativeHandle(
         context.clearRect(0, 0, canvas.width, canvas.height);
       },
     };
-  }, [imperativeRef, map, paintCanvasRef, scaledTile, usesPolygonCells, zoom]);
+  }, [dualGrid, imperativeRef, map, paintCanvasRef, scaledTile, usesPolygonCells, zoom]);
 }
