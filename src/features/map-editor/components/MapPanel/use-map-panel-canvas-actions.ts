@@ -37,6 +37,10 @@ import {
   mergePendingLogicalTerrains,
   paintDualGridLayer,
 } from "@/features/map-editor/lib/dual-grid-paint";
+import {
+  markPaintBufferErased,
+  syncPaintBufferWithResolvedTiles,
+} from "@/features/map-editor/lib/paint-buffer";
 import { notifySyncActiveTilesetResult } from "@/features/map-editor/lib/tileset-panel-state";
 import { getEditorStore } from "@/store/editor-store";
 import type {
@@ -127,28 +131,13 @@ export function useMapPanelCanvasActions({
       };
 
       const applyResolvedWrites = (resolved: Map<string, TileRef | null>) => {
-        for (const [key, ref] of resolved.entries()) {
-          const [tx, ty] = key.split(",").map(Number);
-          const committedRef = activeLayer.tiles[key] ?? null;
-
-          if (ref === null) {
-            if (committedRef === null) {
-              paintBuffer.delete(key);
-            } else {
-              paintBuffer.set(key, null);
-            }
-            mapCanvasRef.current?.eraseBufferTile(tx, ty);
-            continue;
-          }
-
-          if (areTileRefsEqual(committedRef, ref)) {
-            paintBuffer.delete(key);
-            mapCanvasRef.current?.eraseBufferTile(tx, ty);
-            continue;
-          }
-
-          paintBuffer.set(key, ref);
-          mapCanvasRef.current?.drawBufferTile(tx, ty, ref);
+        const mutated = syncPaintBufferWithResolvedTiles(
+          paintBuffer,
+          activeLayer.tiles,
+          resolved,
+        );
+        if (mutated) {
+          setPaintBufferVersion((version) => version + 1);
         }
       };
 
@@ -525,14 +514,13 @@ export function useMapPanelCanvasActions({
           applyResolvedWrites(resolved);
         }
 
-        for (const { committedRef, key, x, y } of directEraseTargets) {
-          if (committedRef === null) {
-            paintBuffer.delete(key);
-          } else {
-            paintBuffer.set(key, null);
-          }
-
-          mapCanvasRef.current?.eraseBufferTile(x, y);
+        let erased = false;
+        for (const { committedRef, key } of directEraseTargets) {
+          erased =
+            markPaintBufferErased(paintBuffer, key, committedRef) || erased;
+        }
+        if (erased) {
+          setPaintBufferVersion((version) => version + 1);
         }
 
         return;
@@ -617,6 +605,7 @@ export function useMapPanelCanvasActions({
       state.selectedAutotileTerrain,
       state.selectedTile,
       state.tileSize,
+      setPaintBufferVersion,
     ],
   );
 
