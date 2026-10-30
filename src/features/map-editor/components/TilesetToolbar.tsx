@@ -1,4 +1,4 @@
-import { Film, Save, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { Film, RefreshCw, Save, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
 import {
@@ -25,6 +25,7 @@ export function TilesetToolbar({
   tilesetZoom,
   onTileSizeChange,
   onZoom,
+  onReload,
   onOpenAutotile,
   onAnimationsVisibleChange,
 }: TilesetToolbarProps) {
@@ -45,6 +46,22 @@ export function TilesetToolbar({
           </Button>
         </TooltipTrigger>
         <TooltipContent>Save Project (Ctrl+S)</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            aria-label="Reload tileset image"
+            disabled={!activeTileset}
+            onClick={onReload}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Reload image from disk</TooltipContent>
       </Tooltip>
 
       <Select value={String(activeTileSize)} onValueChange={onTileSizeChange}>

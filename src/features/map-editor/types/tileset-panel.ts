@@ -44,6 +44,7 @@ export interface TilesetToolbarProps {
   tilesetZoom: number;
   onTileSizeChange: (value: string) => void;
   onZoom: (direction: 1 | -1) => void;
+  onReload: () => void;
   onOpenAutotile: () => void;
   onAnimationsVisibleChange: (visible: boolean) => void;
 }
@@ -171,4 +172,7 @@ export interface TilesetPanelOverlaysProps {
 export interface TilesetFileInputProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
   onChange: (event: import("react").ChangeEvent<HTMLInputElement>) => void;
+  id?: string;
+  name?: string;
+  accept?: string;
 }

@@ -42,6 +42,25 @@ export function getTilesetImportName(fileName: string): string {
   return fileName.replace(/\.[^/.]+$/, "") || "Imported Tileset";
 }
 
+export async function readReplacementTilesetImage(file: File): Promise<{
+  buffer: ArrayBuffer;
+  mimeType: string;
+  width: number;
+  height: number;
+}> {
+  if (!isTilesetImageFile(file)) {
+    throw new Error("Reload needs an image file.");
+  }
+
+  const pending = await createPendingTilesetImageImport(file);
+  return {
+    buffer: pending.buffer,
+    mimeType: pending.mimeType,
+    width: pending.width,
+    height: pending.height,
+  };
+}
+
 export async function createPendingTilesetImageImport(
   file: File,
 ): Promise<PendingTilesetImageImport> {

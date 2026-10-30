@@ -24,8 +24,8 @@ import type { MapCanvasProps } from "@/features/map-editor/types/map-canvas";
 import type { MapCanvasLayerEntry } from "@/features/map-editor/types/map-canvas-rendering";
 import { RESIZE_CURSORS } from "./resize-utils";
 import {
-  tilesetImageCache,
   imageLayerImageCache,
+  isTilesetImageCached,
   loadTilesetImage,
   loadImageLayerImage,
   evictUnusedTilesets,
@@ -190,11 +190,12 @@ export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
 
       let loaded = 0;
       for (const tilesetId of neededIds) {
-        if (tilesetImageCache.has(tilesetId)) continue;
         const tileset = tilesets.find(
           (t: { id: TilesetId }) => t.id === tilesetId,
         );
-        if (!tileset) continue;
+        if (!tileset || isTilesetImageCached(tilesetId, tileset.assetId)) {
+          continue;
+        }
         const result = await loadTilesetImage(tilesetId, tileset.assetId);
         if (result && !cancelled) loaded++;
       }

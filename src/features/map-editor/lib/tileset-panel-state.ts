@@ -1,4 +1,11 @@
-import { getPaintableAutotileTerrains } from "@/features/map-editor/lib/autotile";
+import {
+  getPaintableAutotileTerrainById,
+  getPaintableAutotileTerrains,
+} from "@/features/map-editor/lib/autotile";
+import {
+  createEmptyAnimationConfig,
+  normalizeTilesetAnimationConfig,
+} from "@/features/map-editor/lib/tileset-animations";
 import {
   findFirstDualGridTerrainSource,
   isDualGridTileset,
@@ -6,7 +13,12 @@ import {
 } from "@/features/map-editor/lib/dual-grid";
 import { getTilesetTileSize } from "@/features/project-management/lib/project";
 import type { SyncActiveTilesetResult } from "@/features/map-editor/types/dual-grid";
-import type { EditorState, TilesetId } from "@/types";
+import type {
+  EditorState,
+  Tileset,
+  TilesetAnimation,
+  TilesetId,
+} from "@/types";
 import { toast } from "sonner";
 
 export const EMPTY_SYNC_ACTIVE_TILESET_RESULT: SyncActiveTilesetResult = {
@@ -82,4 +94,111 @@ export function syncActiveTilesetState(
     : null;
 
   return EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+}
+
+export function applyTilesetAutotile(
+  draft: EditorState,
+  tilesetId: TilesetId,
+  autotile: NonNullable<Tileset["autotile"]>,
+): SyncActiveTilesetResult {
+  const tileset = draft.project?.tilesets.find(
+    (candidate) => candidate.id === tilesetId,
+  );
+  if (!tileset) {
+    return EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+  }
+
+  tileset.autotile = autotile;
+
+  const dualGridSource = findFirstDualGridTerrainSource([tileset], tileset.id);
+  if (dualGridSource) {
+    draft.selectedAutotileTerrain = {
+      tilesetId: dualGridSource.tilesetId,
+      terrainId: dualGridSource.terrain.id,
+    };
+    const autoEnable = tryAutoEnableDualGridOnActiveLayer(draft);
+    return {
+      autoEnabledDualGrid: autoEnable.enabled,
+      clearedLayerTiles: autoEnable.clearedTiles,
+      layerName: autoEnable.layerName,
+    };
+  }
+
+  if (
+    draft.selectedAutotileTerrain?.tilesetId === tilesetId &&
+    !getPaintableAutotileTerrainById(
+      autotile,
+      draft.selectedAutotileTerrain.terrainId,
+    )
+  ) {
+    draft.selectedAutotileTerrain = null;
+  }
+
+  return EMPTY_SYNC_ACTIVE_TILESET_RESULT;
+}
+
+export function saveTilesetAnimation(
+  draft: EditorState,
+  animation: TilesetAnimation,
+): void {
+  const tileset = draft.project?.tilesets.find(
+    (candidate) => candidate.id === draft.activeTilesetId,
+  );
+  if (!tileset) {
+    return;
+  }
+
+  const config = normalizeTilesetAnimationConfig(
+    tileset.animations ?? createEmptyAnimationConfig(),
+  );
+  const existingIndex = config.animations.findIndex(
+    (candidate) => candidate.id === animation.id,
+  );
+
+  if (existingIndex >= 0) {
+    config.animations[existingIndex] = animation;
+  } else {
+    config.animations.push(animation);
+  }
+
+  tileset.animations = config;
+  draft.currentTool = "animation";
+  draft.selectedTile = null;
+  draft.selectedAutotileTerrain = null;
+  draft.selectedAnimation = {
+    tilesetId: tileset.id,
+    animationId: animation.id,
+  };
+}
+
+export function deleteTilesetAnimation(
+  draft: EditorState,
+  animation: TilesetAnimation,
+): void {
+  const tileset = draft.project?.tilesets.find(
+    (candidate) => candidate.id === draft.activeTilesetId,
+  );
+  if (!tileset?.animations) {
+    return;
+  }
+
+  tileset.animations.animations = tileset.animations.animations.filter(
+    (candidate) => candidate.id !== animation.id,
+  );
+
+  for (const layer of draft.project?.layers ?? []) {
+    for (const ref of Object.values(layer.tiles)) {
+      if (ref.tilesetId === tileset.id && ref.animationId === animation.id) {
+        delete ref.animationId;
+        delete ref.animationCellIndex;
+      }
+    }
+  }
+
+  if (draft.selectedAnimation?.animationId === animation.id) {
+    draft.selectedAnimation = null;
+    if (draft.currentTool === "animation") {
+      draft.currentTool = "paint";
+    }
+  }
 }

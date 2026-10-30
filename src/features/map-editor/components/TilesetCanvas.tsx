@@ -70,9 +70,7 @@ export function TilesetCanvas({
   const [prevAssetId, setPrevAssetId] = useState(assetId);
   if (assetId !== prevAssetId) {
     setPrevAssetId(assetId);
-    if (!assetId) {
-      setTilesetImage(null);
-    }
+    setTilesetImage(null);
   }
 
   // -----------------------------------------------------------------------

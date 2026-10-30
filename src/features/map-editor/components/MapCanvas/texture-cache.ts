@@ -17,6 +17,16 @@ const loadingTilesetPromises = new Map<
 >();
 const loadingTilesetAssetIds = new Map<TilesetId, AssetId>();
 
+export function isTilesetImageCached(
+  tilesetId: TilesetId,
+  assetId: AssetId,
+): boolean {
+  return (
+    tilesetImageCache.has(tilesetId) &&
+    tilesetCacheAssetIds.get(tilesetId) === assetId
+  );
+}
+
 export function loadTilesetImage(
   tilesetId: TilesetId,
   assetId: AssetId,

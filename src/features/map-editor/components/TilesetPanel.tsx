@@ -26,16 +26,7 @@ import {
   buildManageTilesetItems,
   shouldAutoCreateTilesetImport,
 } from "@/features/map-editor/lib/tileset-manager-dialog";
-import { getPaintableAutotileTerrainById } from "@/features/map-editor/lib/autotile";
-import {
-  findFirstDualGridTerrainSource,
-  tryAutoEnableDualGridOnActiveLayer,
-} from "@/features/map-editor/lib/dual-grid";
-import {
-  EMPTY_SYNC_ACTIVE_TILESET_RESULT,
-  notifySyncActiveTilesetResult,
-  syncActiveTilesetState,
-} from "@/features/map-editor/lib/tileset-panel-state";
+import { getTilesetAnimations } from "@/features/map-editor/lib/tileset-animations";
 import { isTilesetImageFile } from "@/features/map-editor/lib/tileset-image-import";
 import {
   getTilesetPlacementCanvasSize,
@@ -43,11 +34,15 @@ import {
   snapTilesetPlacementPosition,
 } from "@/features/map-editor/lib/tileset-image-merge";
 import {
-  createEmptyAnimationConfig,
-  getTilesetAnimations,
-  normalizeTilesetAnimationConfig,
-} from "@/features/map-editor/lib/tileset-animations";
+  applyTilesetAutotile,
+  deleteTilesetAnimation,
+  EMPTY_SYNC_ACTIVE_TILESET_RESULT,
+  notifySyncActiveTilesetResult,
+  saveTilesetAnimation,
+  syncActiveTilesetState,
+} from "@/features/map-editor/lib/tileset-panel-state";
 import { useTilesetImageImport } from "@/features/map-editor/hooks/use-tileset-image-import";
+import { useTilesetImageReload } from "@/features/map-editor/hooks/use-tileset-image-reload";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { zoomStore } from "@/store/zoom-store";
 import { saveAsset, getAsset, deleteAsset } from "@/services/db";
@@ -149,6 +144,11 @@ export function TilesetPanel({
   const activeTileset = project?.tilesets.find(
     (t) => t.id === state.activeTilesetId,
   );
+  const {
+    reloadInputRef,
+    requestTilesetReload,
+    handleReloadFileSelected,
+  } = useTilesetImageReload(activeTileset ?? null, setState);
   const activeTileSize = getTilesetTileSize(
     activeTileset,
     project?.tileSize ?? state.tileSize,
@@ -739,42 +739,7 @@ export function TilesetPanel({
 
     let syncResult = EMPTY_SYNC_ACTIVE_TILESET_RESULT;
     setState((draft) => {
-      const tileset = draft.project?.tilesets.find(
-        (candidate) => candidate.id === activeTileset.id,
-      );
-      if (!tileset) {
-        return;
-      }
-
-      tileset.autotile = autotile;
-
-      const dualGridSource = findFirstDualGridTerrainSource(
-        [tileset],
-        tileset.id,
-      );
-      if (dualGridSource) {
-        draft.selectedAutotileTerrain = {
-          tilesetId: dualGridSource.tilesetId,
-          terrainId: dualGridSource.terrain.id,
-        };
-        const autoEnable = tryAutoEnableDualGridOnActiveLayer(draft);
-        syncResult = {
-          autoEnabledDualGrid: autoEnable.enabled,
-          clearedLayerTiles: autoEnable.clearedTiles,
-          layerName: autoEnable.layerName,
-        };
-        return;
-      }
-
-      if (
-        draft.selectedAutotileTerrain?.tilesetId === activeTileset.id &&
-        !getPaintableAutotileTerrainById(
-          autotile,
-          draft.selectedAutotileTerrain.terrainId,
-        )
-      ) {
-        draft.selectedAutotileTerrain = null;
-      }
+      syncResult = applyTilesetAutotile(draft, activeTileset.id, autotile);
     });
     notifySyncActiveTilesetResult(syncResult);
   }
@@ -790,85 +755,27 @@ export function TilesetPanel({
   }
 
   function handleSaveAnimation(animation: TilesetAnimation) {
-    if (!activeTileset) {
-      return;
-    }
-
     setState((draft) => {
-      const tileset = draft.project?.tilesets.find(
-        (candidate) => candidate.id === activeTileset.id,
-      );
-      if (!tileset) return;
-
-      const config = normalizeTilesetAnimationConfig(
-        tileset.animations ?? createEmptyAnimationConfig(),
-      );
-      const existingIndex = config.animations.findIndex(
-        (candidate) => candidate.id === animation.id,
-      );
-
-      if (existingIndex >= 0) {
-        config.animations[existingIndex] = animation;
-      } else {
-        config.animations.push(animation);
-      }
-
-      tileset.animations = config;
-      draft.currentTool = "animation";
-      draft.selectedTile = null;
-      draft.selectedAutotileTerrain = null;
-      draft.selectedAnimation = {
-        tilesetId: tileset.id,
-        animationId: animation.id,
-      };
+      saveTilesetAnimation(draft, animation);
     });
   }
 
   function handleSelectAnimation(animation: TilesetAnimation) {
-    if (!activeTileset) return;
-
     setState((draft) => {
+      if (!draft.activeTilesetId) return;
       draft.currentTool = "animation";
       draft.selectedTile = null;
       draft.selectedAutotileTerrain = null;
       draft.selectedAnimation = {
-        tilesetId: activeTileset.id,
+        tilesetId: draft.activeTilesetId,
         animationId: animation.id,
       };
     });
   }
 
   function handleDeleteAnimation(animation: TilesetAnimation) {
-    if (!activeTileset) return;
-
     setState((draft) => {
-      const tileset = draft.project?.tilesets.find(
-        (candidate) => candidate.id === activeTileset.id,
-      );
-      if (!tileset?.animations) return;
-
-      tileset.animations.animations = tileset.animations.animations.filter(
-        (candidate) => candidate.id !== animation.id,
-      );
-
-      for (const layer of draft.project?.layers ?? []) {
-        for (const ref of Object.values(layer.tiles)) {
-          if (
-            ref.tilesetId === activeTileset.id &&
-            ref.animationId === animation.id
-          ) {
-            delete ref.animationId;
-            delete ref.animationCellIndex;
-          }
-        }
-      }
-
-      if (draft.selectedAnimation?.animationId === animation.id) {
-        draft.selectedAnimation = null;
-        if (draft.currentTool === "animation") {
-          draft.currentTool = "paint";
-        }
-      }
+      deleteTilesetAnimation(draft, animation);
     });
   }
 
@@ -882,6 +789,7 @@ export function TilesetPanel({
         tilesetZoom={tilesetZoom}
         onTileSizeChange={handleTileSizeChange}
         onZoom={handleZoom}
+        onReload={requestTilesetReload}
         onOpenAutotile={() => setAutotileDialogOpen(true)}
         onAnimationsVisibleChange={setAnimationsVisible}
       />
@@ -997,6 +905,15 @@ export function TilesetPanel({
         fileInputRef={fileInputRef}
         onChange={(event) => {
           void handleFileSelected(event);
+        }}
+      />
+      <TilesetFileInput
+        fileInputRef={reloadInputRef}
+        id="tileset-reload-file-input"
+        name="tileset-reload-file-input"
+        accept="image/png,image/jpeg,image/gif,image/bmp,image/webp,.png,.jpg,.jpeg,.gif,.bmp,.webp"
+        onChange={(event) => {
+          void handleReloadFileSelected(event);
         }}
       />
 
